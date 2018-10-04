@@ -30,17 +30,18 @@ ifdef DBG
 endif  
 
 INCLUDES = ../include .
+# Windows XP minimum
 WIN32VER = 0x0501
 
-SRC = iup_array.c iup_callback.c iup_dlglist.c iup_attrib.c iup_focus.c iup_font.c \
+SRC = iup_array.c iup_callback.c iup_dlglist.c iup_attrib.c iup_focus.c iup_font.c iup_expander.c \
       iup_globalattrib.c iup_object.c iup_key.c iup_layout.c iup_ledlex.c iup_names.c iup_open.c \
       iup_ledparse.c iup_predialogs.c iup_register.c iup_scanf.c iup_show.c iup_str.c iup_table.c \
       iup_func.c iup_childtree.c iup.c iup_classattrib.c iup_dialog.c iup_assert.c iup_canvas.c \
-      iup_messagedlg.c iup_timer.c iup_image.c iup_label.c iup_fill.c iup_zbox.c \
+      iup_messagedlg.c iup_timer.c iup_image.c iup_label.c iup_fill.c iup_zbox.c iup_gridbox.c \
       iup_colordlg.c iup_fontdlg.c iup_filedlg.c iup_strmessage.c iup_menu.c iup_frame.c \
       iup_user.c iup_button.c iup_radio.c iup_toggle.c iup_progressbar.c iup_text.c iup_val.c \
       iup_box.c iup_hbox.c iup_vbox.c iup_cbox.c iup_class.c iup_classbase.c iup_maskmatch.c \
-      iup_mask.c iup_maskparse.c iup_tabs.c iup_spin.c iup_list.c iup_getparam.c \
+      iup_mask.c iup_maskparse.c iup_tabs.c iup_spin.c iup_list.c iup_getparam.c iup_link.c \
       iup_sbox.c iup_scrollbox.c iup_normalizer.c iup_tree.c iup_split.c iup_layoutdlg.c iup_recplay.c
 
 ifdef USE_GTK
@@ -68,7 +69,7 @@ ifdef USE_GTK
   endif
   
   ifneq ($(findstring Win, $(TEC_SYSNAME)), )
-    DEFINES += _WIN32_WINNT=$(WIN32VER) _WIN32_IE=$(WIN32VER) WINVER=$(WIN32VER) NOTREEVIEW
+    DEFINES += _WIN32_WINNT=$(WIN32VER) _WIN32_IE=0x600 WINVER=$(WIN32VER) NOTREEVIEW
     SRC += win/iupwindows_main.c win/iupwindows_help.c win/iupwindows_info.c
   else
     ifdef GTK_MAC
@@ -114,7 +115,7 @@ else
   SRC += win/iupwindows_main.c win/iupwindows_help.c win/iupwindows_info.c
 
   INCLUDES += win
-  DEFINES += _WIN32_WINNT=$(WIN32VER) _WIN32_IE=$(WIN32VER) WINVER=$(WIN32VER) NOTREEVIEW
+  DEFINES += _WIN32_WINNT=$(WIN32VER) _WIN32_IE=0x600 WINVER=$(WIN32VER) NOTREEVIEW
 endif
 endif
 
@@ -122,7 +123,11 @@ ifneq ($(findstring dll, $(TEC_UNAME)), )
   DEFINES += IUP_DLL
   INCLUDES += ../etc
   SRC += ../etc/iup.rc
-  DEF_FILE = iup.def
+  ifdef USE_GTK
+    DEF_FILE = iupgtk.def
+  else
+    DEF_FILE = iup.def
+  endif
 endif
 
 ifeq "$(TEC_UNAME)" "vc6"

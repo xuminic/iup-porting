@@ -36,6 +36,8 @@ int iupcboxlua_open (lua_State * L);
 int iupspinboxlua_open (lua_State * L);
 int iupspinlua_open (lua_State * L);
 int iupsboxlua_open (lua_State * L);
+int iupscrollboxlua_open(lua_State * L);
+int iuplinklua_open (lua_State * L);
 int iupsplitlua_open (lua_State * L);
 int iupgclua_open (lua_State * L);
 int iupvallua_open (lua_State * L);
@@ -50,6 +52,7 @@ int iupnormalizerlua_open(lua_State * L);
 int iupuserlua_open(lua_State * L);
 int iuptreelua_open(lua_State * L);
 int iupclipboardlua_open(lua_State * L);
+int iupexpanderlua_open(lua_State * L);
 
 void iupgetparamlua_open (lua_State * L);
 

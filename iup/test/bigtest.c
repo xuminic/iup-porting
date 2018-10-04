@@ -40,6 +40,7 @@ void MatrixCbModeTest(void);
 void MatrixCbsTest(void);
 void MdiTest(void);
 void VboxTest(void);
+void GridBoxTest(void);
 void MenuTest(void);
 void ColorBrowserTest(void);
 void ColorbarTest(void);
@@ -74,6 +75,8 @@ void ScrollBoxTest(void);
 void SplitTest(void);
 void ClipboardTest(void);
 void CharacTest(void);
+void LinkTest(void);
+void ExpanderTest(void);
 
 
 void HelpTest(void)
@@ -103,6 +106,7 @@ static TestItems test_list[] = {
   {"Colorbar", ColorbarTest},
   {"Dial", DialTest},
   {"Dialog", DialogTest},
+  {"Expander", ExpanderTest},
   {"Frame", FrameTest},
 #ifdef USE_OPENGL
   {"GLCanvas", GLCanvasTest},
@@ -111,10 +115,12 @@ static TestItems test_list[] = {
   {"Gauge", GaugeTest},
   {"GetColor", GetColorTest},
   {"GetParam", GetParamTest},
+  {"GridBox", GridBoxTest},
   {"Help", HelpTest},
   {"Hbox", HboxTest},
   {"Idle", IdleTest},
   {"Label", LabelTest},
+  {"Link", LinkTest},
   {"List", ListTest},
   {"Matrix", MatrixTest},
   {"MatrixCbMode", MatrixCbModeTest},

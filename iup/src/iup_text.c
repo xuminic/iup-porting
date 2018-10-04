@@ -73,6 +73,29 @@ char* iupTextGetNCAttrib(Ihandle* ih)
   return str;
 }
 
+static void iTextAddFormatTag(Ihandle* ih, Ihandle* formattag)
+{
+  char* bulk = iupAttribGet(formattag, "BULK");
+  if (bulk && iupStrBoolean(bulk))
+  {
+    Ihandle* child;
+    void* state = iupdrvTextAddFormatTagStartBulk(ih);
+
+    char* cleanout = iupAttribGet(formattag, "CLEANOUT");
+    if (cleanout && iupStrBoolean(cleanout))
+      IupSetAttribute(ih, "REMOVEFORMATTING", "ALL");
+
+    for (child = formattag->firstchild; child; child = child->brother)
+      iupdrvTextAddFormatTag(ih, child, 1);
+
+    iupdrvTextAddFormatTagStopBulk(ih, state);
+  }
+  else
+    iupdrvTextAddFormatTag(ih, formattag, 0);
+
+  IupDestroy(formattag);
+}
+
 void iupTextUpdateFormatTags(Ihandle* ih)
 {
   /* called when the element is mapped */
@@ -83,26 +106,8 @@ void iupTextUpdateFormatTags(Ihandle* ih)
   iTextUpdateValueAttrib(ih);
 
   for (i = 0; i < count; i++)
-  {
-    char* bulk = iupAttribGet(tag_array[i], "BULK");
-    if (bulk && iupStrBoolean(bulk))
-    {
-      Ihandle* child;
-      void* state = iupdrvTextAddFormatTagStartBulk(ih);
+    iTextAddFormatTag(ih, tag_array[i]);
 
-      char* cleanout = iupAttribGet(tag_array[i], "CLEANOUT");
-      if (cleanout && iupStrBoolean(cleanout))
-        IupSetAttribute(ih, "REMOVEFORMATTING", "ALL");
-
-      for (child = tag_array[i]->firstchild; child; child = child->brother)
-        iupdrvTextAddFormatTag(ih, child, 1);
-
-      iupdrvTextAddFormatTagStopBulk(ih, state);
-    }
-    else
-      iupdrvTextAddFormatTag(ih, tag_array[i], 0);
-    IupDestroy(tag_array[i]);
-  }
   iupArrayDestroy(ih->data->formattags);
   ih->data->formattags = NULL;
 }
@@ -115,30 +120,10 @@ int iupTextSetAddFormatTagHandleAttrib(Ihandle* ih, const char* value)
 
   if (ih->handle)
   {
-    char* bulk;
-
     /* must update VALUE before updating the format */
     iTextUpdateValueAttrib(ih);
 
-    bulk = iupAttribGet(formattag, "BULK");
-    if (bulk && iupStrBoolean(bulk))
-    {
-      Ihandle* child;
-      void* state = iupdrvTextAddFormatTagStartBulk(ih);
-
-      char* cleanout = iupAttribGet(formattag, "CLEANOUT");
-      if (cleanout && iupStrBoolean(cleanout))
-        IupSetAttribute(ih, "REMOVEFORMATTING", "ALL");
-
-      for (child = formattag->firstchild; child; child = child->brother)
-        iupdrvTextAddFormatTag(ih, child, 1);
-
-      iupdrvTextAddFormatTagStopBulk(ih, state);
-    }
-    else
-      iupdrvTextAddFormatTag(ih, formattag, 0);
-
-    IupDestroy(formattag);
+    iTextAddFormatTag(ih, formattag);
   }
   else
   {
@@ -280,9 +265,13 @@ static int iTextSetMultilineAttrib(Ihandle* ih, const char* value)
   {
     ih->data->is_multiline = 1;
     ih->data->sb = IUP_SB_HORIZ | IUP_SB_VERT;  /* reset SCROLLBAR to YES */
+    iupAttribSetStr(ih, "_IUP_MULTILINE_TEXT", "1");
   }
   else
+  {
     ih->data->is_multiline = 0;
+    iupAttribSetStr(ih, "_IUP_MULTILINE_TEXT", NULL);
+  }
 
   return 0;
 }
@@ -373,6 +362,7 @@ static int iMultilineCreateMethod(Ihandle* ih, void** params)
   (void)params;
   ih->data->is_multiline = 1;
   ih->data->sb = IUP_SB_HORIZ | IUP_SB_VERT;  /* default is YES */
+  iupAttribSetStr(ih, "_IUP_MULTILINE_TEXT", "1");
   return IUP_NOERROR;
 }
 
@@ -434,6 +424,8 @@ static void iTextDestroyMethod(Ihandle* ih)
 
 /******************************************************************************/
 
+typedef void (*Iconvertlincol2pos)(Ihandle* ih, int lin, int col, int *pos);
+typedef void (*Iconvertpos2lincol)(Ihandle* ih, int pos, int *lin, int *col);
 
 void IupTextConvertLinColToPos(Ihandle* ih, int lin, int col, int *pos)
 {
@@ -450,6 +442,12 @@ void IupTextConvertLinColToPos(Ihandle* ih, int lin, int col, int *pos)
       iupdrvTextConvertLinColToPos(ih, lin, col, pos);
     else
       *pos = col - 1; /* IUP starts at 1 */
+  }
+  else 
+  {
+    Iconvertlincol2pos convert = (Iconvertlincol2pos)IupGetCallback(ih, "_IUP_LINCOL2POS_CB");
+    if (convert)
+      convert(ih, lin, col, pos);
   }
 }
 
@@ -471,6 +469,12 @@ void IupTextConvertPosToLinCol(Ihandle* ih, int pos, int *lin, int *col)
       *col = pos + 1; /* IUP starts at 1 */
       *lin = 1;
     }
+  }
+  else 
+  {
+    Iconvertpos2lincol convert = (Iconvertpos2lincol)IupGetCallback(ih, "_IUP_POS2LINCOL_CB");
+    if (convert)
+      convert(ih, pos, lin, col);
   }
 }
 

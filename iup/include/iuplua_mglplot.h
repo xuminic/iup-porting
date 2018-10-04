@@ -1,5 +1,5 @@
 /** \file
- * \brief iup_mglplot Binding for Lua.
+ * \brief IupMglPlot Binding for Lua.
  *
  * See Copyright Notice in "iup.h"
  */

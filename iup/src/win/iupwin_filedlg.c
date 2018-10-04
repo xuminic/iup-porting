@@ -179,16 +179,31 @@ static int winFileDlgWmNotify(HWND hWnd, LPOFNOTIFY pofn)
           int ret;
           char* file_msg;
 
-          if (!iupdrvIsFile(filename))
-            file_msg = "OTHER";
-          else if (pofn->hdr.code == CDN_FILEOK)
+          if (pofn->hdr.code == CDN_FILEOK)
             file_msg = "OK";
-          else 
-            file_msg = "SELECT";
+          else
+          {
+            if (iupdrvIsFile(filename))
+              file_msg = "SELECT";
+            else
+              file_msg = "OTHER";
+          }
 
           ret = cb(ih, filename, file_msg);
-          if (pofn->hdr.code == CDN_FILEOK && ret == IUP_IGNORE) 
+
+          if (pofn->hdr.code == CDN_FILEOK && (ret == IUP_IGNORE || ret == IUP_CONTINUE)) 
           {
+            if (ret == IUP_CONTINUE) 
+            {
+              char* value = iupAttribGet(ih, "FILE");
+              if (value)
+              {
+                strncpy(filename, value, IUP_MAX_FILENAME_SIZE);
+                winFileDlgStrReplacePathSlash(filename);
+                SendMessage(GetParent(hWnd), CDM_SETCONTROLTEXT, (WPARAM)IUP_EDIT, (LPARAM)filename);
+              }
+            }
+
             SetWindowLongPtr(hWnd, DWLP_MSGRESULT, 1L);
             return 1; /* will refuse the file */
           }
@@ -544,14 +559,14 @@ static int winFileDlgPopup(Ihandle *ih, int x, int y)
 
   if (result)
   {
+    char* dir = iupStrFileGetPath(openfilename.lpstrFile);
+    iupAttribStoreStr(ih, "DIRECTORY", dir);
+    free(dir);
+
     if (iupAttribGetBoolean(ih, "MULTIPLEFILES"))
     {
       int i = 0;
 
-      char* dir = iupStrFileGetPath(openfilename.lpstrFile);  /* the first part is the directory already */
-      iupAttribStoreStr(ih, "DIRECTORY", dir);
-      free(dir);
-    
       /* If there is more than one file, replace terminator by the separator */
       if (openfilename.lpstrFile[openfilename.nFileOffset-1] == 0 && 
           openfilename.nFileOffset>0) 
@@ -572,10 +587,6 @@ static int winFileDlgPopup(Ihandle *ih, int x, int y)
     {
       if (iupdrvIsFile(openfilename.lpstrFile))  /* check if file exists */
       {
-        char* dir = iupStrFileGetPath(openfilename.lpstrFile);
-        iupAttribStoreStr(ih, "DIRECTORY", dir);
-        free(dir);
-
         iupAttribSetStr(ih, "FILEEXIST", "YES");
         iupAttribSetStr(ih, "STATUS", "0");
       }
@@ -593,6 +604,7 @@ static int winFileDlgPopup(Ihandle *ih, int x, int y)
   {
     iupAttribSetStr(ih, "FILTERUSED", NULL);
     iupAttribSetStr(ih, "VALUE", NULL);
+    iupAttribSetStr(ih, "DIRECTORY", NULL);
     iupAttribSetStr(ih, "FILEEXIST", NULL);
     iupAttribSetStr(ih, "STATUS", "-1");
   }

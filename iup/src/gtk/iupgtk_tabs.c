@@ -57,20 +57,11 @@ int iupdrvTabsGetCurrentTab(Ihandle* ih)
 static void gtkTabsUpdatePageFont(Ihandle* ih)
 {
   Ihandle* child;
-  PangoFontDescription* fontdesc = (PangoFontDescription*)iupgtkGetPangoFontDescAttrib(ih);
-
   for (child = ih->firstchild; child; child = child->brother)
   {
     GtkWidget* tab_label = (GtkWidget*)iupAttribGet(child, "_IUPGTK_TABLABEL");
     if (tab_label)
-    {
-#if GTK_CHECK_VERSION(3, 0, 0)
-      gtk_widget_override_font(tab_label, fontdesc);
-#else
-      gtk_widget_modify_font(tab_label, fontdesc);
-#endif
-      iupgtkFontUpdatePangoLayout(ih, gtk_label_get_layout((GtkLabel*)tab_label));
-    }
+      iupgtkUpdateWidgetFont(ih, tab_label);
   }
 }
 
@@ -199,6 +190,27 @@ static int gtkTabsSetTabImageAttrib(Ihandle* ih, int pos, const char* value)
     }
   }
   return 1;
+}
+
+static int gtkTabsSetTabVisibleAttrib(Ihandle* ih, int pos, const char* value)
+{
+  Ihandle* child = IupGetChild(ih, pos);
+  GtkWidget* tab_page = (GtkWidget*)iupAttribGet(child, "_IUPTAB_PAGE");
+  if (iupStrBoolean(value))
+    gtk_widget_show(tab_page);
+  else
+    gtk_widget_hide(tab_page);
+  return 0;
+}
+
+static char* gtkTabsGetTabVisibleAttrib(Ihandle* ih, int pos)
+{
+  Ihandle* child = IupGetChild(ih, pos);
+  GtkWidget* tab_page = (GtkWidget*)iupAttribGet(child, "_IUPTAB_PAGE");
+  if (iupgtkIsVisible(tab_page))
+    return "YES";
+  else
+    return "NO";
 }
 
 static int gtkTabsSetStandardFontAttrib(Ihandle* ih, const char* value)
@@ -377,13 +389,7 @@ static void gtkTabsChildAddedMethod(Ihandle* ih, Ihandle* child)
 
     if (tabtitle)
     {
-      PangoFontDescription* fontdesc = (PangoFontDescription*)iupgtkGetPangoFontDescAttrib(ih);
-#if GTK_CHECK_VERSION(3, 0, 0)
-      gtk_widget_override_font(tab_label, fontdesc);
-#else
-      gtk_widget_modify_font(tab_label, fontdesc);
-#endif
-      iupgtkFontUpdatePangoLayout(ih, gtk_label_get_layout((GtkLabel*)tab_label));
+      iupgtkUpdateWidgetFont(ih, tab_label);
 
       iupgtkSetBgColor(tab_label, r, g, b);
 
@@ -415,7 +421,8 @@ static void gtkTabsChildRemovedMethod(Ihandle* ih, Ihandle* child)
     if (tab_page)
     {
       int pos = gtk_notebook_page_num((GtkNotebook*)ih->handle, tab_page);
-      iupTabsTestRemoveTab(ih, pos);
+
+      iupTabsCheckCurrentTab(ih, pos);
 
       iupAttribSetStr(ih, "_IUPGTK_IGNORE_CHANGE", "1");
       gtk_notebook_remove_page((GtkNotebook*)ih->handle, pos);
@@ -488,6 +495,7 @@ void iupdrvTabsInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "TABORIENTATION", iupTabsGetTabOrientationAttrib, gtkTabsSetTabOrientationAttrib, IUPAF_SAMEASSYSTEM, "HORIZONTAL", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "TABTITLE", NULL, gtkTabsSetTabTitleAttrib, IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "TABIMAGE", NULL, gtkTabsSetTabImageAttrib, IUPAF_IHANDLENAME|IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "TABVISIBLE", gtkTabsGetTabVisibleAttrib, gtkTabsSetTabVisibleAttrib, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "PADDING", iupTabsGetPaddingAttrib, gtkTabsSetPaddingAttrib, IUPAF_SAMEASSYSTEM, "0x0", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 
   /* NOT supported */

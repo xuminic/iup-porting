@@ -39,6 +39,9 @@
 #ifndef ODS_NOFOCUSRECT
 #define ODS_NOFOCUSRECT   0x0200
 #endif
+#ifndef CDIS_SHOWKEYBOARDCUES
+#define CDIS_SHOWKEYBOARDCUES   0x0200
+#endif
 
 
 static int winButtonGetBorder(void)
@@ -173,8 +176,8 @@ static void winButtonDrawImageText(Ihandle* ih, HDC hDC, int rect_width, int rec
   if (itemState & ODS_SELECTED && !iupwin_comctl32ver6)
     shift = 1;
 
-  if (itemState & ODS_NOACCEL)
-    style = DT_HIDEPREFIX;
+  if (itemState & ODS_NOACCEL && !iupwinGetKeyBoardCues())
+    style |= DT_HIDEPREFIX;
 
   x = winButtonCalcAlignPosX(ih->data->horiz_alignment, rect_width, width, xpad, shift);
   y = winButtonCalcAlignPosY(ih->data->vert_alignment, rect_height, height, ypad, shift);
@@ -298,8 +301,8 @@ static void winButtonDrawText(Ihandle* ih, HDC hDC, int rect_width, int rect_hei
     if (itemState & ODS_SELECTED && !iupwin_comctl32ver6)
       shift = 1;
 
-    if (itemState & ODS_NOACCEL)
-      style = DT_HIDEPREFIX;
+    if (itemState & ODS_NOACCEL && !iupwinGetKeyBoardCues())
+      style |= DT_HIDEPREFIX;
 
     x = winButtonCalcAlignPosX(ih->data->horiz_alignment, rect_width, width, xpad, shift);
     y = winButtonCalcAlignPosY(ih->data->vert_alignment, rect_height, height, ypad, shift);
@@ -349,7 +352,7 @@ static void winButtonDrawItem(Ihandle* ih, DRAWITEMSTRUCT *drawitem)
 
   border = winButtonGetBorder();
 
-  if ((ih->data->type & IUP_BUTTON_IMAGE) && 
+  if (ih->data->type&IUP_BUTTON_IMAGE && 
       iupAttribGet(ih, "IMPRESS") && 
       !iupAttribGetBoolean(ih, "IMPRESSBORDER"))
   {
@@ -504,7 +507,7 @@ static char* winButtonGetBgColorAttrib(Ihandle* ih)
 {
   /* the most important use of this is to provide
      the correct background for images */
-  if (iupwin_comctl32ver6 && !iupAttribGet(ih, "IMPRESS"))
+  if (iupwin_comctl32ver6 && ih->data->type&IUP_BUTTON_IMAGE && !iupAttribGet(ih, "IMPRESS"))
   {
     COLORREF cr;
     if (iupwinDrawGetThemeButtonBgColor(ih->handle, &cr))

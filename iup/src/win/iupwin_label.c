@@ -28,6 +28,15 @@
 #include "iupwin_draw.h"
 
 
+/* Not defined in MingW and Cygwin */
+#ifndef ODS_NOACCEL
+#define ODS_NOACCEL   0x0100
+#endif
+#ifndef DT_HIDEPREFIX
+#define DT_HIDEPREFIX   0x00100000
+#endif
+
+
 static void winLabelDrawImage(Ihandle* ih, HDC hDC, int rect_width, int rect_height)
 {
   int xpad = ih->data->horiz_padding, 
@@ -82,7 +91,7 @@ static void winLabelDrawImage(Ihandle* ih, HDC hDC, int rect_width, int rect_hei
     DeleteObject(hMask);
 }
 
-static void winLabelDrawText(Ihandle* ih, HDC hDC, int rect_width, int rect_height)
+static void winLabelDrawText(Ihandle* ih, HDC hDC, int rect_width, int rect_height, UINT itemState)
 {
   int xpad = ih->data->horiz_padding, 
       ypad = ih->data->vert_padding;
@@ -122,6 +131,9 @@ static void winLabelDrawText(Ihandle* ih, HDC hDC, int rect_width, int rect_heig
   /* WORDWRAP and ELLIPSIS */
   style |= ih->data->text_style;
 
+  if (itemState & ODS_NOACCEL && !iupwinGetKeyBoardCues())
+    style |= DT_HIDEPREFIX;
+
   iupwinDrawText(hDC, title, x, y, width, height, hFont, fgcolor, style);
 }
 
@@ -144,7 +156,7 @@ static void winLabelDrawItem(Ihandle* ih, DRAWITEMSTRUCT *drawitem)
   if (ih->data->type == IUP_LABEL_IMAGE)
     winLabelDrawImage(ih, hDC, width, height);
   else
-    winLabelDrawText(ih, hDC, width, height);
+    winLabelDrawText(ih, hDC, width, height, drawitem->itemState);
 
   iupwinDrawDestroyBitmapDC(&bmpDC);
 }
@@ -240,7 +252,9 @@ static int winLabelSetEllipsisAttrib(Ihandle* ih, const char* value)
 
 static int winLabelSetFgColorAttrib(Ihandle* ih, const char* value)
 {
-  if (ih->data->type != IUP_LABEL_SEP_HORIZ && ih->data->type != IUP_LABEL_SEP_VERT)
+  /* this method can be called before map */
+  int type = iupLabelGetTypeBeforeMap(ih);
+  if (type != IUP_LABEL_SEP_HORIZ && type != IUP_LABEL_SEP_VERT)
   {
     unsigned char r, g, b;
     if (iupStrToRGB(value, &r, &g, &b))

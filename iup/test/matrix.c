@@ -40,15 +40,34 @@ static int dropcheck_cb(Ihandle *self, int lin, int col)
   return IUP_IGNORE;
 }
 
+static int click(Ihandle *self, int lin, int col)
+{
+  printf("click_cb(%d, %d)\n", lin, col);
+  IupSetAttribute(self,"MARKED", NULL);  /* clear all marks */
+  IupMatSetAttribute(self,"MARK", lin, 0, "1");
+  IupSetfAttribute(self,"REDRAW", "L%d", lin);
+  return IUP_DEFAULT;
+}
+
+static int enteritem_cb(Ihandle *ih, int lin, int col)
+{
+  IupSetAttribute(ih,"MARKED", NULL);  /* clear all marks */
+  IupMatSetAttribute(ih,"MARK", lin, 0, "1");
+  IupSetfAttribute(ih,"REDRAW", "L%d", lin);
+  return IUP_DEFAULT;
+}
+
 static Ihandle* create_matrix(void)
 {
   Ihandle* mat = IupMatrix(NULL); 
   
-//  IupSetAttribute(mat, "NUMCOL", "15"); 
   IupSetAttribute(mat, "NUMLIN", "20"); 
   IupSetAttribute(mat, "NUMCOL", "8"); 
-//  IupSetAttribute(mat, "NUMCOL", "2"); 
+//  IupSetAttribute(mat, "NUMCOL", "15"); 
 //  IupSetAttribute(mat, "NUMLIN", "3"); 
+//  IupSetAttribute(mat, "NUMCOL", "2"); 
+//  IupSetAttribute(mat, "NUMLIN", "8"); 
+//  IupSetAttribute(mat, "NUMCOL", "5"); 
   
   IupSetAttribute(mat, "0:0", "Inflation");
   IupSetAttribute(mat, "1:0", "Medicine\nPharma");
@@ -87,10 +106,10 @@ static Ihandle* create_matrix(void)
 //  IupSetAttribute(mat, "EXPAND", "NO");
 //  IupSetAttribute(mat, "ALIGNMENT", "ALEFT");
 
-  IupSetAttribute(mat,"MARKMODE","CELL");
-//  IupSetAttribute(mat,"MARKMODE","LIN");
-//  IupSetAttribute(mat,"MARKMULTIPLE","NO");
-  IupSetAttribute(mat,"MARKMULTIPLE","YES");
+//  IupSetAttribute(mat,"MARKMODE","CELL");
+  IupSetAttribute(mat,"MARKMODE","LIN");
+  IupSetAttribute(mat,"MARKMULTIPLE","NO");
+//  IupSetAttribute(mat,"MARKMULTIPLE","YES");
 //  IupSetAttribute(mat,"MARKAREA","NOT_CONTINUOUS");
   IupSetAttribute(mat,"MARK2:2","YES");
   IupSetAttribute(mat,"MARK2:3","YES");
@@ -116,8 +135,11 @@ static Ihandle* create_matrix(void)
   IupSetAttribute(mat, "NUMCOL_VISIBLE", "3");
   IupSetAttribute(mat, "NUMLIN_VISIBLE", "5");
 //  IupSetAttribute(mat,"EDITNEXT","COLCR");
-//  IupSetAttribute(mat, "LIMITEXPAND", "Yes");
   IupSetAttribute(mat, "NUMCOL_NOSCROLL", "1");
+
+//  IupSetAttribute(mat, "LIMITEXPAND", "Yes");
+//  IupSetAttribute(mat, "XAUTOHIDE", "NO");
+//  IupSetAttribute(mat, "YAUTOHIDE", "NO");
 
 //  IupSetAttribute(mat,"RASTERSIZE","x300");
 //  IupSetAttribute(mat,"FITTOSIZE","LINES");
@@ -135,6 +157,8 @@ static Ihandle* create_matrix(void)
 //  IupSetCallback(mat,"DROP_CB",(Icallback)drop);
   IupSetCallback(mat,"MENUDROP_CB",(Icallback)drop);
 //  IupSetCallback(mat, "MOUSEMOVE_CB", (Icallback)mousemove_cb);
+//  IupSetCallback(mat,"CLICK_CB",(Icallback)click);
+//  IupSetCallback(mat,"ENTERITEM_CB",(Icallback)enteritem_cb);
 
   return mat;
 }

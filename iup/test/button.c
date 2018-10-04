@@ -314,7 +314,7 @@ void ButtonTest(void)
   IupSetAttribute(button, "TITLE", "Text\nSecond Line");
   IupSetAttribute(button, "RASTERSIZE", "200x100");
   IupSetAttribute(button, "ALIGNMENT", "ACENTER:ACENTER");
-  IupSetAttribute(button, "FONT", "Helvetica, 14");
+  IupSetAttribute(button, "FONT", "Helvetica, Underline 14");
   IupSetAttribute(button, "FLAT", "YES");
   IupSetAttribute(button, "NAME", "button2");
   set_callbacks(button);
@@ -334,6 +334,7 @@ void ButtonTest(void)
   IupSetAttribute(button, "RASTERSIZE", "30x30");
   IupSetAttribute(button, "BGCOLOR", "255 128 92");
   IupSetAttribute(button, "NAME", "color");
+//  IupSetAttribute(button, "FLAT", "Yes");
   set_callbacks(button);
   IupAppend(box1, button);
 

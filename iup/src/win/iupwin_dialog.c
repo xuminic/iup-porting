@@ -81,7 +81,7 @@ void iupdrvDialogSetPosition(Ihandle *ih, int x, int y)
   SetWindowPos(ih->handle, HWND_TOP, x, y, 0, 0, SWP_NOSIZE);
 }
 
-static void winDialogGetWindowDecor(Ihandle* ih, int *border, int *caption)
+static void winDialogGetWindowDecor(Ihandle* ih, int *border, int *caption, int menu)
 {
   WINDOWINFO wi;
   wi.cbSize = sizeof(WINDOWINFO);
@@ -89,12 +89,24 @@ static void winDialogGetWindowDecor(Ihandle* ih, int *border, int *caption)
 
   *border = wi.cxWindowBorders;
 
-  if (wi.rcClient.bottom == wi.rcClient.top)
-    *caption = wi.rcClient.bottom - wi.cyWindowBorders; 
+  if (wi.rcClient.bottom == wi.rcClient.top || 
+      wi.rcClient.top > wi.rcWindow.bottom ||
+      wi.rcClient.bottom > wi.rcWindow.bottom)
+  {
+    if (wi.dwStyle & WS_CAPTION)
+    {
+      if (wi.dwExStyle & WS_EX_TOOLWINDOW)
+        *caption = GetSystemMetrics(SM_CYSMCAPTION); /* tool window */
+      else
+        *caption = GetSystemMetrics(SM_CYCAPTION);   /* normal window */
+    }
+    else
+      *caption = 0;
+  }
   else
   {
-    /* caption = window height - top border - client height */
-    *caption = (wi.rcWindow.bottom-wi.rcWindow.top) - 2*wi.cyWindowBorders - (wi.rcClient.bottom-wi.rcClient.top); 
+    /* caption = window height - borderes - client height - menu */
+    *caption = (wi.rcWindow.bottom-wi.rcWindow.top) - 2*wi.cyWindowBorders - (wi.rcClient.bottom-wi.rcClient.top) - menu; 
   }
 }
 
@@ -107,10 +119,7 @@ void iupdrvDialogGetDecoration(Ihandle* ih, int *border, int *caption, int *menu
 
   if (ih->handle)
   {
-    winDialogGetWindowDecor(ih, border, caption);
-
-    if (*menu)
-      *caption -= *menu;
+    winDialogGetWindowDecor(ih, border, caption, *menu);
   }
   else
   {
@@ -275,7 +284,6 @@ static void winDialogResize(Ihandle* ih, int width, int height)
   IFnii cb;
 
   iupdrvDialogGetSize(ih, NULL, &(ih->currentwidth), &(ih->currentheight));
-
   cb = (IFnii)IupGetCallback(ih, "RESIZE_CB");
   if (!cb || cb(ih, width, height)!=IUP_IGNORE)  /* width and height here are for the client area */
   {
@@ -470,26 +478,6 @@ static int winDialogBaseProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESUL
       if (cb) cb(ih, cds->lpData, cds->cbData);
       break; 
     }
-  case WM_SETCURSOR: 
-    { 
-      if (ih->handle == (HWND)wp && LOWORD(lp)==HTCLIENT)
-      {
-        HCURSOR hCur = (HCURSOR)iupAttribGet(ih, "_IUPWIN_HCURSOR");
-        if (hCur)
-        {
-          SetCursor(hCur); 
-          *result = 1;
-          return 1;
-        }
-        else if (iupAttribGet(ih, "CURSOR"))
-        {
-          SetCursor(NULL); 
-          *result = 1;
-          return 1;
-        }
-      }
-      break; 
-    } 
   case WM_ERASEBKGND:
     {
       HBITMAP hBitmap = (HBITMAP)iupAttribGet(ih, "_IUPWIN_BACKGROUND_BITMAP");

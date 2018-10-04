@@ -63,6 +63,7 @@ typedef struct tagNMTVITEMCHANGE {
 #ifndef TVM_SETEXTENDEDSTYLE
 #define TVM_SETEXTENDEDSTYLE      (TV_FIRST + 44)
 #endif
+
 /* End Cygwin/MingW */
 
 
@@ -407,7 +408,7 @@ static void winTreeSelectAll(Ihandle* ih)
     winTreeSelectNode(ih, ih->data->node_cache[i].node_handle, 1);
 }
 
-static void winTreeClearSelection(Ihandle* ih, HTREEITEM hItemExcept)
+static void winTreeClearAllSelectionExcept(Ihandle* ih, HTREEITEM hItemExcept)
 {
   int i;
   for (i = 0; i < ih->data->node_count; i++)
@@ -686,24 +687,83 @@ static int winTreeGetImageIndex(Ihandle* ih, const char* name)
   return ImageList_Add(image_list, bmp, NULL);  /* the bmp is duplicated at the list */
 }
 
+static void winTreeSetToggleState(Ihandle* ih, HTREEITEM hItem, int state)
+{
+  TVITEM item;
+
+  item.mask = TVIF_STATE;
+  item.hItem = hItem;
+  item.stateMask = TVIS_STATEIMAGEMASK;
+  item.state = INDEXTOSTATEIMAGEMASK(state);
+
+  SendMessage(ih->handle, TVM_SETITEM, 0, (LPARAM)(TV_ITEM *)&item);
+}
+
+static void winTreeSetToggleVisible(Ihandle* ih, HTREEITEM hItem, int visible)
+{
+  TVITEM item;
+  int empty_image = ih->data->show_toggle==2? 4: 3;
+
+  item.mask = TVIF_STATE;
+  item.hItem = hItem;
+  item.stateMask = TVIS_STATEIMAGEMASK;
+  item.state = visible? INDEXTOSTATEIMAGEMASK(1): INDEXTOSTATEIMAGEMASK(empty_image);
+
+  SendMessage(ih->handle, TVM_SETITEM, 0, (LPARAM)(TV_ITEM *)&item);
+}
+
+static int winTreeGetToggleVisible(Ihandle* ih, HTREEITEM hItem)
+{
+  int state = ((SendMessage(ih->handle, TVM_GETITEMSTATE, (WPARAM)hItem, TVIS_STATEIMAGEMASK)) >> 12);
+  int empty_image = ih->data->show_toggle==2? 4: 3;
+  if (state == empty_image)
+    return 0;
+  else
+    return 1;
+}
+
+static void winTreeToggleState(Ihandle* ih, HTREEITEM hItem)
+{
+  int state = ((SendMessage(ih->handle, TVM_GETITEMSTATE, (WPARAM)hItem, TVIS_STATEIMAGEMASK)) >> 12);
+  int new_state;
+
+  if (state == 3)         /* indeterminate, inconsistent */
+    new_state = 1;  /* switch to unchecked */
+  else if(state == 2)     /* checked */
+  {
+    if (ih->data->show_toggle==2)
+      new_state = 3;  /* switch to indeterminate */
+    else
+      new_state = 1;  /* switch to unchecked */
+  }
+  else /* state == 1 */   /* unchecked */
+    new_state = 2;    /* switch to checked */
+
+  winTreeSetToggleState(ih, hItem, new_state);
+}
+
 
 /*****************************************************************************/
 /* CALLBACKS                                                                 */
 /*****************************************************************************/
+
+
 static void winTreeCallToggleValueCb(Ihandle* ih, HTREEITEM hItem)
 {
   IFnii cbToggle = (IFnii)IupGetCallback(ih, "TOGGLEVALUE_CB");
-
   if (cbToggle)
   {
-    int isChecked = ((SendMessage(ih->handle, TVM_GETITEMSTATE, (WPARAM)hItem, TVIS_STATEIMAGEMASK)) >> 12);
+    int state = ((SendMessage(ih->handle, TVM_GETITEMSTATE, (WPARAM)hItem, TVIS_STATEIMAGEMASK)) >> 12);
+    int check;
 
-    if(isChecked == 3)
-      cbToggle(ih, iupTreeFindNodeId(ih, hItem), -1);
-    else if(isChecked == 2)
-      cbToggle(ih, iupTreeFindNodeId(ih, hItem), 1);
-    else
-      cbToggle(ih, iupTreeFindNodeId(ih, hItem), 0);
+    if (state == 3)         /* indeterminate, inconsistent */
+      check = -1;               
+    else if(state == 2)     /* checked */
+      check = 1;
+    else /* state == 1 */   /* unchecked */
+      check = 0;
+
+    cbToggle(ih, iupTreeFindNodeId(ih, hItem), check);
   }
 }
 
@@ -746,7 +806,7 @@ static int winTreeCallBranchLeafCb(Ihandle* ih, HTREEITEM hItem)
   return IUP_DEFAULT;
 }
 
-static void winTreeCallMultiUnSelectionCb(Ihandle* ih)
+static void winTreeCallMultiUnSelectionCb(Ihandle* ih, int new_select_id)
 {
   /* called when several items are unselected at once */
   IFnIi cbMulti = (IFnIi)IupGetCallback(ih, "MULTIUNSELECTION_CB");
@@ -757,14 +817,29 @@ static void winTreeCallMultiUnSelectionCb(Ihandle* ih)
     int* id_hitem = (int*)iupArrayGetData(markedArray);
     int i, count = iupArrayCount(markedArray);
 
-    if (count > 1)
+    if (count > 0)
     {
       if (cbMulti)
-        cbMulti(ih, id_hitem, iupArrayCount(markedArray));
+      {
+        for (i=0; i<count; i++)
+        {
+          if (id_hitem[i] == new_select_id)
+          {
+            memcpy(id_hitem + i, id_hitem + i+1, (count-i-1)*sizeof(int));
+            count--;
+            break;
+          }
+        }
+
+        cbMulti(ih, id_hitem, count);
+      }
       else
       {
         for (i=0; i<count; i++)
-          cbSelec(ih, id_hitem[i], 0);
+        {
+          if (id_hitem[i] != new_select_id)
+            cbSelec(ih, id_hitem[i], 0);
+        }
       }
     }
 
@@ -777,29 +852,23 @@ static void winTreeCallMultiSelectionCb(Ihandle* ih)
   /* called when several items are selected at once
      using the Shift key pressed, or dragging the mouse. */
   IFnIi cbMulti = (IFnIi)IupGetCallback(ih, "MULTISELECTION_CB");
-  if(cbMulti)
+  IFnii cbSelec = (IFnii)IupGetCallback(ih, "SELECTION_CB");
+  if (cbMulti || cbSelec)
   {
     Iarray* markedArray = winTreeGetSelectedArrayId(ih);
     int* id_hitem = (int*)iupArrayGetData(markedArray);
+    int count = iupArrayCount(markedArray);
 
-    cbMulti(ih, id_hitem, iupArrayCount(markedArray));
-
-    iupArrayDestroy(markedArray);
-  }
-  else
-  {
-    IFnii cbSelec = (IFnii)IupGetCallback(ih, "SELECTION_CB");
-    if (cbSelec)
+    if (cbMulti)
+      cbMulti(ih, id_hitem, count);
+    else
     {
-      Iarray* markedArray = winTreeGetSelectedArrayId(ih);
-      int* id_hitem = (int*)iupArrayGetData(markedArray);
-      int i, count = iupArrayCount(markedArray);
-
+      int i;
       for (i=0; i<count; i++)
         cbSelec(ih, id_hitem[i], 1);
-
-      iupArrayDestroy(markedArray);
     }
+
+    iupArrayDestroy(markedArray);
   }
 }
 
@@ -1627,7 +1696,7 @@ static int winTreeSetMarkedAttrib(Ihandle* ih, int id, const char* value)
 
 static char* winTreeGetToggleValueAttrib(Ihandle* ih, int id)
 {
-  int isChecked;
+  int state;
   HTREEITEM hItem;
 
   if (!ih->data->show_toggle)
@@ -1637,11 +1706,14 @@ static char* winTreeGetToggleValueAttrib(Ihandle* ih, int id)
   if (!hItem)
     return NULL;
 
-  isChecked = ((SendMessage(ih->handle, TVM_GETITEMSTATE, (WPARAM)hItem, TVIS_STATEIMAGEMASK)) >> 12);
+  if (!winTreeGetToggleVisible(ih, hItem))
+    return NULL;
 
-  if(isChecked == 3)
+  state = ((SendMessage(ih->handle, TVM_GETITEMSTATE, (WPARAM)hItem, TVIS_STATEIMAGEMASK)) >> 12);
+
+  if(state == 3)
     return "NOTDEF";  /* indeterminate, inconsistent */
-  else if(isChecked == 2)
+  else if(state == 2)
     return "ON";  /* checked */
   else
     return "OFF";  /* unchecked */
@@ -1649,7 +1721,6 @@ static char* winTreeGetToggleValueAttrib(Ihandle* ih, int id)
 
 static int winTreeSetToggleValueAttrib(Ihandle* ih, int id, const char* value)
 {
-  TVITEM item;
   HTREEITEM hItem;
 
   if (!ih->data->show_toggle)
@@ -1659,19 +1730,48 @@ static int winTreeSetToggleValueAttrib(Ihandle* ih, int id, const char* value)
   if (!hItem)
     return 0;
 
-  item.mask = TVIF_STATE;
-  item.hItem = hItem;
-  item.stateMask = TVIS_STATEIMAGEMASK;
+  if (!winTreeGetToggleVisible(ih, hItem))
+    return 0;
 
   if(ih->data->show_toggle==2 && iupStrEqualNoCase(value, "NOTDEF"))
-    item.state = INDEXTOSTATEIMAGEMASK(3);  /* indeterminate, inconsistent */
+    winTreeSetToggleState(ih, hItem, 3);  /* indeterminate, inconsistent */
   else if(iupStrEqualNoCase(value, "ON"))
-    item.state = INDEXTOSTATEIMAGEMASK(2);  /* checked */
+    winTreeSetToggleState(ih, hItem, 2);  /* checked */
   else
-    item.state = INDEXTOSTATEIMAGEMASK(1);  /* unchecked */
+    winTreeSetToggleState(ih, hItem, 1);  /* unchecked */
 
-  SendMessage(ih->handle, TVM_SETITEM, 0, (LPARAM)(TV_ITEM *)&item);
+  return 0;
+}
 
+static char* winTreeGetToggleVisibleAttrib(Ihandle* ih, int id)
+{
+  HTREEITEM hItem;
+
+  if (!ih->data->show_toggle)
+    return NULL;
+
+  hItem = iupTreeGetNode(ih, id);
+  if (!hItem)
+    return NULL;
+
+  if (winTreeGetToggleVisible(ih, hItem))
+    return "Yes";
+  else
+    return "No";
+}
+
+static int winTreeSetToggleVisibleAttrib(Ihandle* ih, int id, const char* value)
+{
+  HTREEITEM hItem;
+
+  if (!ih->data->show_toggle)
+    return 0;
+
+  hItem = iupTreeGetNode(ih, id);
+  if (!hItem)
+    return 0;
+
+  winTreeSetToggleVisible(ih, hItem, iupStrBoolean(value));
   return 0;
 }
 
@@ -1753,7 +1853,7 @@ static int winTreeSetMarkAttrib(Ihandle* ih, const char* value)
     winTreeSelectRange(ih, (HTREEITEM)iupAttribGet(ih, "_IUPTREE_MARKSTART_NODE"), hItemFocus, 0);
   }
   else if(iupStrEqualNoCase(value, "CLEARALL"))
-    winTreeClearSelection(ih, NULL);
+    winTreeClearAllSelectionExcept(ih, NULL);
   else if(iupStrEqualNoCase(value, "MARKALL"))
     winTreeSelectAll(ih);
   else if(iupStrEqualNoCase(value, "INVERTALL")) /* INVERTALL *MUST* appear before INVERT, or else INVERTALL will never be called. */
@@ -2043,7 +2143,7 @@ static void winTreeDragDrop(Ihandle* ih)
     if (hItemNew)
     {
       /* unselect all, select new node */
-      winTreeClearSelection(ih, NULL);
+      winTreeClearAllSelectionExcept(ih, NULL);
       winTreeSelectNode(ih, hItemNew, 1);
       winTreeSetFocusNode(ih, hItemNew);
     }
@@ -2114,11 +2214,11 @@ static int winTreeMouseMultiSelect(Ihandle* ih, int x, int y)
 
   old_select = winTreeIsNodeSelected(ih, hItem);
 
-  /* here mark_mode==ITREE_MARK_MULTIPLE and !Shift and !Ctrl */
-  winTreeCallMultiUnSelectionCb(ih);
+  /* simple click with mark_mode==ITREE_MARK_MULTIPLE and !Shift and !Ctrl */
+  /* do not call the callback for the new selected item */
+  winTreeCallMultiUnSelectionCb(ih, iupTreeFindNodeId(ih, hItem));
 
-  /* simple click */
-  winTreeClearSelection(ih, hItem);
+  winTreeClearAllSelectionExcept(ih, hItem);
 
   winTreeSelectNode(ih, hItem, 1);
   iupAttribSetStr(ih, "_IUPTREE_FIRSTSELITEM", (char*)hItem);
@@ -2140,6 +2240,20 @@ static void winTreeCallRightClickCb(Ihandle* ih, int x, int y)
     if (cbRightClick)
       cbRightClick(ih, iupTreeFindNodeId(ih, hItem));
   }
+}
+
+static HTREEITEM winTreeHitTestToggle(Ihandle* ih, int x, int y)
+{
+  HTREEITEM hItem;
+  TVHITTESTINFO info;
+  info.pt.x = x;
+  info.pt.y = y;
+  hItem = (HTREEITEM)SendMessage(ih->handle, TVM_HITTEST, 0, (LPARAM)&info);
+
+  if (!(info.flags & TVHT_ONITEMSTATEICON) || !hItem)
+    return NULL;
+  else
+    return hItem;
 }
 
 static int winTreeProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result)
@@ -2190,19 +2304,6 @@ static int winTreeProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *res
       }
       break;
     }
-  case WM_KEYUP:
-  case WM_SYSKEYUP:
-    {
-      if (wp == VK_SPACE)
-      {
-        if(ih->data->show_toggle)
-        {
-          /* call togglevaluecb, using the current focus */
-          winTreeCallToggleValueCb(ih, iupdrvTreeGetFocusNode(ih));
-        }
-      }
-      break;
-    }
   case WM_KEYDOWN:
   case WM_SYSKEYDOWN:
     {
@@ -2231,6 +2332,20 @@ static int winTreeProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *res
           HTREEITEM hItemFocus = iupdrvTreeGetFocusNode(ih);
           /* Toggle selection state */
           winTreeSelectNode(ih, hItemFocus, -1);
+        }
+        else if(ih->data->show_toggle)
+        {
+          HTREEITEM hItem = iupdrvTreeGetFocusNode(ih);
+          if (hItem)
+          {
+            if (winTreeGetToggleVisible(ih, hItem))
+            {
+              winTreeToggleState(ih, hItem);
+              winTreeCallToggleValueCb(ih, hItem);
+            }
+            *result = 0;
+            return 1;
+          }
         }
       }
       else if (wp == VK_UP || wp == VK_DOWN)
@@ -2269,7 +2384,7 @@ static int winTreeProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *res
         if (ih->data->mark_mode==ITREE_MARK_MULTIPLE)
         {
           iupAttribSetStr(ih, "_IUPTREE_FIRSTSELITEM", (char*)hItemFocus);
-          winTreeClearSelection(ih, NULL);
+          winTreeClearAllSelectionExcept(ih, NULL);
           /* normal processing will select the focus item */
         }
       }
@@ -2281,6 +2396,22 @@ static int winTreeProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *res
     {
       *result = 0;
       return 1;
+    }
+
+    if(ih->data->show_toggle)
+    {
+      HTREEITEM hItem = winTreeHitTestToggle(ih, (int)(short)LOWORD(lp), (int)(short)HIWORD(lp));
+      if (hItem)
+      {
+        if (winTreeGetToggleVisible(ih, hItem))
+        {
+          winTreeToggleState(ih, hItem);
+          winTreeCallToggleValueCb(ih, hItem);
+        }
+
+        *result = 0;
+        return 1;
+      }
     }
 
     if (ih->data->mark_mode==ITREE_MARK_MULTIPLE)
@@ -2309,6 +2440,23 @@ static int winTreeProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *res
       *result = 0;
       return 1;
     }
+
+    if(ih->data->show_toggle && msg==WM_LBUTTONDBLCLK)
+    {
+      HTREEITEM hItem = winTreeHitTestToggle(ih, (int)(short)LOWORD(lp), (int)(short)HIWORD(lp));
+      if (hItem)
+      {
+        if (winTreeGetToggleVisible(ih, hItem))
+        {
+          winTreeToggleState(ih, hItem);
+          winTreeCallToggleValueCb(ih, hItem);
+        }
+
+        *result = 0;
+        return 1;
+      }
+    }
+
     break;
   case WM_MOUSEMOVE:
     if (ih->data->show_dragdrop && (wp & MK_LBUTTON))
@@ -2336,10 +2484,6 @@ static int winTreeProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *res
       *result = 0;
       return 1;
     }
-    
-    /* call togglevaluecb, independently of the current focus ... */
-    if(ih->data->show_toggle)
-      winTreeCallToggleValueCb(ih, winTreeFindNodeXY(ih, (int)(short)LOWORD(lp), (int)(short)HIWORD(lp)));
 
     if (iupAttribGet(ih, "_IUPTREE_EXTENDSELECT"))
     {
@@ -2377,7 +2521,7 @@ static COLORREF winTreeInvertColor(COLORREF color)
 
 static int winTreeWmNotify(Ihandle* ih, NMHDR* msg_info, int *result)
 {
-  if (msg_info->code == TVN_ITEMCHANGINGA || msg_info->code == TVN_ITEMCHANGINGW)
+  if (msg_info->code == TVN_ITEMCHANGINGA || msg_info->code == TVN_ITEMCHANGINGW)  /* VistaOrNew Only */
   {
     if (ih->data->mark_mode==ITREE_MARK_MULTIPLE)
     {
@@ -2681,7 +2825,7 @@ static int winTreeMapMethod(Ihandle* ih)
   ih->data->def_image_collapsed = (void*)winTreeGetImageIndex(ih, "IMGCOLLAPSED");
   ih->data->def_image_expanded = (void*)winTreeGetImageIndex(ih, "IMGEXPANDED");
 
-  if (ih->data->show_toggle==2)
+  if (ih->data->show_toggle)
   {
     int w, h;
     HIMAGELIST image_list = (HIMAGELIST)SendMessage(ih->handle, TVM_GETIMAGELIST, TVSIL_STATE, 0);
@@ -2690,14 +2834,27 @@ static int winTreeMapMethod(Ihandle* ih)
       RECT rect;
       HDC hScreenDC = GetDC(ih->handle);
       HDC hBitmapDC = CreateCompatibleDC(hScreenDC);
-      HBITMAP hBitmap = CreateCompatibleBitmap(hScreenDC, w, h);
-      HBITMAP hOldBitmap = SelectObject(hBitmapDC, hBitmap);
+      HBITMAP hOldBitmap, hBitmap = CreateCompatibleBitmap(hScreenDC, w, h);
       SetRect(&rect, 0, 0, w, h);
-      iupwinDraw3StateButton(ih->handle, hBitmapDC, &rect);
+
+      if (ih->data->show_toggle==2)
+      {
+        /* "3State" toggle state image */
+        hOldBitmap = SelectObject(hBitmapDC, hBitmap);
+        iupwinDraw3StateButton(ih->handle, hBitmapDC, &rect);
+        SelectObject(hBitmapDC, hOldBitmap);
+        ImageList_Add(image_list, hBitmap, NULL);
+      }
+
+      /* empty image for when it is hidden */
+      hOldBitmap = SelectObject(hBitmapDC, hBitmap);
+      SetDCBrushColor(hBitmapDC, (COLORREF)SendMessage(ih->handle, TVM_GETBKCOLOR, 0, 0));
+      FillRect(hBitmapDC, &rect, (HBRUSH)GetStockObject(DC_BRUSH));
       SelectObject(hBitmapDC, hOldBitmap);
+      ImageList_Add(image_list, hBitmap, NULL);
+
       DeleteDC(hBitmapDC);
       ReleaseDC(ih->handle, hScreenDC);
-      ImageList_Add(image_list, hBitmap, NULL);
       DeleteObject(hBitmap);
     }
   }
@@ -2784,9 +2941,10 @@ void iupdrvTreeInitClass(Iclass* ic)
   iupClassRegisterAttributeId(ic, "CHILDCOUNT", winTreeGetChildCountAttrib, NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "COLOR", winTreeGetColorAttrib, winTreeSetColorAttrib, IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "TITLEFONT", winTreeGetTitleFontAttrib, winTreeSetTitleFontAttrib, IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "TOGGLEVALUE", winTreeGetToggleValueAttrib, winTreeSetToggleValueAttrib, IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "TOGGLEVISIBLE", winTreeGetToggleVisibleAttrib, winTreeSetToggleVisibleAttrib, IUPAF_NO_INHERIT);
 
   /* IupTree Attributes - MARKS */
-  iupClassRegisterAttributeId(ic, "TOGGLEVALUE", winTreeGetToggleValueAttrib, winTreeSetToggleValueAttrib, IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "MARKED", winTreeGetMarkedAttrib, winTreeSetMarkedAttrib, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute  (ic, "MARK",      NULL, winTreeSetMarkAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute  (ic, "STARTING",  NULL, winTreeSetMarkStartAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);

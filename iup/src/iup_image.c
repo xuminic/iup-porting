@@ -96,7 +96,7 @@ static void iImageStockLoad(const char *name)
   if (ih)
   {
     IupSetHandle(name, ih);
-    iupAttribStoreStr(ih, "_IUPSTOCKLOAD", name);
+    iupAttribStoreStr(ih, "_IUPSTOCK_LOAD", name);
   }
   else if (native_name)
   {
@@ -110,7 +110,8 @@ static void iImageStockLoad(const char *name)
         ih = IupImageRGBA(w,h,NULL);
       else
         ih = IupImageRGB(w,h,NULL);
-      IupSetHandle(native_name, ih);
+      iupAttribSetStr(ih, "_IUPSTOCK_LOAD_HANDLE", (char*)handle);
+      IupSetHandle(name, ih);
     }
   }
 }
@@ -449,6 +450,10 @@ void* iupImageGetImage(const char* name, Ihandle* ih_parent, int make_inactive)
       return NULL;
   }
 
+  handle = iupAttribGet(ih, "_IUPSTOCK_LOAD_HANDLE");
+  if (handle)
+    return handle;
+
   bgcolor = iupAttribGet(ih, "BGCOLOR");
   if (ih_parent && !bgcolor)
     bgcolor = IupGetAttribute(ih_parent, "BGCOLOR"); /* Use IupGetAttribute to use inheritance and native implementation */
@@ -656,7 +661,7 @@ static void iImageDestroyMethod(Ihandle* ih)
     free(imgdata);
   }
 
-  stock_name = iupAttribGet(ih, "_IUPSTOCKLOAD");
+  stock_name = iupAttribGet(ih, "_IUPSTOCK_LOAD");
   if (stock_name)
     iImageStockUnload(stock_name);
 }

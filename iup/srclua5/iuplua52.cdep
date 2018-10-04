@@ -100,6 +100,12 @@ $(OBJDIR)/il_normalizer.o: il_normalizer.c /cygdrive/d/tecgraf/lua52/include/lua
  /cygdrive/d/tecgraf/lua52/include/lua.h ../include/iup.h \
  ../include/iupkey.h ../include/iupdef.h ../include/iuplua.h il.h \
  lh/normalizer.lh
+$(OBJDIR)/il_gridbox.o: il_gridbox.c /cygdrive/d/tecgraf/lua52/include/lua.h \
+ /cygdrive/d/tecgraf/lua52/include/luaconf.h \
+ /cygdrive/d/tecgraf/lua52/include/lauxlib.h \
+ /cygdrive/d/tecgraf/lua52/include/lua.h ../include/iup.h \
+ ../include/iupkey.h ../include/iupdef.h ../include/iuplua.h il.h \
+ lh/gridbox.lh
 $(OBJDIR)/il_item.o: il_item.c /cygdrive/d/tecgraf/lua52/include/lua.h \
  /cygdrive/d/tecgraf/lua52/include/luaconf.h \
  /cygdrive/d/tecgraf/lua52/include/lauxlib.h \
@@ -130,6 +136,18 @@ $(OBJDIR)/il_label.o: il_label.c /cygdrive/d/tecgraf/lua52/include/lua.h \
  /cygdrive/d/tecgraf/lua52/include/lua.h ../include/iup.h \
  ../include/iupkey.h ../include/iupdef.h ../include/iuplua.h il.h \
  lh/label.lh
+$(OBJDIR)/il_expander.o: il_expander.c /cygdrive/d/tecgraf/lua52/include/lua.h \
+ /cygdrive/d/tecgraf/lua52/include/luaconf.h \
+ /cygdrive/d/tecgraf/lua52/include/lauxlib.h \
+ /cygdrive/d/tecgraf/lua52/include/lua.h ../include/iup.h \
+ ../include/iupkey.h ../include/iupdef.h ../include/iuplua.h il.h \
+ lh/expander.lh
+$(OBJDIR)/il_link.o: il_link.c /cygdrive/d/tecgraf/lua52/include/lua.h \
+ /cygdrive/d/tecgraf/lua52/include/luaconf.h \
+ /cygdrive/d/tecgraf/lua52/include/lauxlib.h \
+ /cygdrive/d/tecgraf/lua52/include/lua.h ../include/iup.h \
+ ../include/iupkey.h ../include/iupdef.h ../include/iuplua.h il.h \
+ lh/link.lh
 $(OBJDIR)/il_menu.o: il_menu.c /cygdrive/d/tecgraf/lua52/include/lua.h \
  /cygdrive/d/tecgraf/lua52/include/luaconf.h \
  /cygdrive/d/tecgraf/lua52/include/lauxlib.h \

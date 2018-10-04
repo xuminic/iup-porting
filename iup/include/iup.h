@@ -19,11 +19,11 @@ extern "C" {
 
 
 #define IUP_NAME "IUP - Portable User Interface"
-#define IUP_COPYRIGHT  "Copyright (C) 1994-2012 Tecgraf, PUC-Rio."
+#define IUP_COPYRIGHT  "Copyright (C) 1994-2013 Tecgraf, PUC-Rio."
 #define IUP_DESCRIPTION	"Multi-platform toolkit for building graphical user interfaces."
-#define IUP_VERSION "3.7"         /* bug fixes are reported only by IupVersion functions */
-#define IUP_VERSION_NUMBER 307000
-#define IUP_VERSION_DATE "2012/11/29"  /* does not include bug fix releases */
+#define IUP_VERSION "3.8"         /* bug fixes are reported only by IupVersion functions */
+#define IUP_VERSION_NUMBER 308000
+#define IUP_VERSION_DATE "2013/05/08"  /* does not include bug fix releases */
 
 typedef struct Ihandle_ Ihandle;
 typedef int (*Icallback)(Ihandle*);
@@ -174,6 +174,9 @@ Ihandle*  IupCboxv      (Ihandle* *children);
 Ihandle*  IupSbox       (Ihandle *child);
 Ihandle*  IupSplit      (Ihandle* child1, Ihandle* child2);
 Ihandle*  IupScrollBox  (Ihandle* child);
+Ihandle*  IupGridBox    (Ihandle* child, ...);
+Ihandle*  IupGridBoxv   (Ihandle **children);
+Ihandle*  IupExpander   (Ihandle *child);
 
 Ihandle*  IupFrame      (Ihandle* child);
 
@@ -203,8 +206,10 @@ Ihandle*  IupVal        (const char *type);
 Ihandle*  IupTabs       (Ihandle* child, ...);
 Ihandle*  IupTabsv      (Ihandle* *children);
 Ihandle*  IupTree       (void);
+Ihandle*  IupLink       (const char* url, const char* title);
 
-/* Deprecated controls use SPIN attribute of IupText */
+
+/* Deprecated controls, use SPIN attribute of IupText */
 Ihandle*  IupSpin       (void);
 Ihandle*  IupSpinbox    (Ihandle* child);
 
@@ -212,11 +217,11 @@ Ihandle*  IupSpinbox    (Ihandle* child);
 /* IupImage utility */
 int IupSaveImageAsText(Ihandle* ih, const char* file_name, const char* format, const char* name);
 
-/* IupText utilities */
+/* IupText and IupScintilla utilities */
 void  IupTextConvertLinColToPos(Ihandle* ih, int lin, int col, int *pos);
 void  IupTextConvertPosToLinCol(Ihandle* ih, int pos, int *lin, int *col);
 
-/* IupText, IupList and IupTree utility */
+/* IupText, IupList, IupTree, IupMatrix and IupScintilla utility */
 int   IupConvertXYToPos(Ihandle* ih, int x, int y);
 
 /* IupTree utilities */
@@ -384,7 +389,7 @@ int IupMain (int argc, char** argv); /* In C++ we have to declare the prototype 
 #endif
 
 /******************************************************************************
-* Copyright (C) 1994-2012 Tecgraf, PUC-Rio.
+* Copyright (C) 1994-2013 Tecgraf, PUC-Rio.
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the
