@@ -645,11 +645,10 @@ static int gtkTextSetSelectedTextAttrib(Ihandle* ih, const char* value)
     GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(ih->handle));
     if (gtk_text_buffer_get_selection_bounds(buffer, &start_iter, &end_iter))
     {
-      /* disable callbacks */
-      iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", "1");
+      ih->data->disable_callbacks = 1;
       gtk_text_buffer_delete(buffer, &start_iter, &end_iter);
       gtk_text_buffer_insert(buffer, &start_iter, iupgtkStrConvertToUTF8(value), -1);
-      iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", NULL);
+      ih->data->disable_callbacks = 0;
     }
   }
   else
@@ -657,15 +656,37 @@ static int gtkTextSetSelectedTextAttrib(Ihandle* ih, const char* value)
     int start, end;
     if (gtk_editable_get_selection_bounds(GTK_EDITABLE(ih->handle), &start, &end))
     {
-      /* disable callbacks */
-      iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", "1");
+      ih->data->disable_callbacks = 1;
       gtk_editable_delete_selection(GTK_EDITABLE(ih->handle));
       gtk_editable_insert_text(GTK_EDITABLE(ih->handle), iupgtkStrConvertToUTF8(value), -1, &start);
-      iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", NULL);
+      ih->data->disable_callbacks = 0;
     }
   }
 
   return 0;
+}
+
+static char* gtkTextGetCountAttrib(Ihandle* ih)
+{
+  char* str = iupStrGetMemory(50);
+  GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(ih->handle));
+  int count = gtk_text_buffer_get_char_count(buffer);
+  sprintf(str, "%d", count);
+  return str;
+}
+
+static char* gtkTextGetLineCountAttrib(Ihandle* ih)
+{
+  if (ih->data->is_multiline)
+  {
+    char* str = iupStrGetMemory(50);
+    GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(ih->handle));
+    int linecount = gtk_text_buffer_get_line_count(buffer);
+    sprintf(str, "%d", linecount);
+    return str;
+  }
+  else
+    return "1";
 }
 
 static char* gtkTextGetSelectedTextAttrib(Ihandle* ih)
@@ -849,8 +870,7 @@ static int gtkTextSetScrollToPosAttrib(Ihandle* ih, const char* value)
 static int gtkTextSetValueAttrib(Ihandle* ih, const char* value)
 {
   if (!value) value = "";
-  /* disable callbacks */
-  iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", "1");
+  ih->data->disable_callbacks = 1;
   if (ih->data->is_multiline)
   {
     GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(ih->handle));
@@ -858,7 +878,7 @@ static int gtkTextSetValueAttrib(Ihandle* ih, const char* value)
   }
   else
     gtk_entry_set_text(GTK_ENTRY(ih->handle), iupgtkStrConvertToUTF8(value));
-  iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", NULL);
+  ih->data->disable_callbacks = 0;
   return 0;
 }
 
@@ -883,6 +903,24 @@ static char* gtkTextGetValueAttrib(Ihandle* ih)
   return value;
 }
                        
+static char* gtkTextGetLineValueAttrib(Ihandle* ih)
+{
+  if (ih->data->is_multiline)
+  {
+    GtkTextIter start_iter, end_iter, iter;
+    int lin;
+    GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(ih->handle));
+    gtk_text_buffer_get_iter_at_mark(buffer, &iter, gtk_text_buffer_get_insert(buffer));
+    lin = gtk_text_iter_get_line(&iter);
+    gtk_text_buffer_get_iter_at_line(buffer, &start_iter, lin);
+    gtk_text_buffer_get_iter_at_line(buffer, &end_iter, lin);
+    gtk_text_iter_forward_to_line_end(&end_iter);
+    return iupStrGetMemoryCopy(iupgtkStrConvertFromUTF8(gtk_text_buffer_get_text(buffer, &start_iter, &end_iter, TRUE)));
+  }
+  else
+    return gtkTextGetValueAttrib(ih);
+}
+
 static int gtkTextSetInsertAttrib(Ihandle* ih, const char* value)
 {
   if (!ih->handle)  /* do not do the action before map */
@@ -890,8 +928,7 @@ static int gtkTextSetInsertAttrib(Ihandle* ih, const char* value)
   if (!value)
     return 0;
 
-  /* disable callbacks */
-  iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", "1");
+  ih->data->disable_callbacks = 1;
   if (ih->data->is_multiline)
   {
     GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(ih->handle));
@@ -902,7 +939,7 @@ static int gtkTextSetInsertAttrib(Ihandle* ih, const char* value)
     gint pos = gtk_editable_get_position(GTK_EDITABLE(ih->handle));
     gtk_editable_insert_text(GTK_EDITABLE(ih->handle), iupgtkStrConvertToUTF8(value), -1, &pos);
   }
-  iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", NULL);
+  ih->data->disable_callbacks = 0;
 
   return 0;
 }
@@ -912,8 +949,7 @@ static int gtkTextSetAppendAttrib(Ihandle* ih, const char* value)
   gint pos;
   if (!ih->handle)  /* do not do the action before map */
     return 0;
-  /* disable callbacks */
-  iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", "1");
+  ih->data->disable_callbacks = 1;
   if (ih->data->is_multiline)
   {
     GtkTextIter iter;
@@ -933,7 +969,7 @@ static int gtkTextSetAppendAttrib(Ihandle* ih, const char* value)
 #endif
     gtk_editable_insert_text(GTK_EDITABLE(ih->handle), iupgtkStrConvertToUTF8(value), -1, &pos);
   }
-  iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", NULL);
+  ih->data->disable_callbacks = 0;
   return 0;
 }
 
@@ -1009,8 +1045,7 @@ static int gtkTextSetNCAttrib(Ihandle* ih, const char* value)
 
 static int gtkTextSetClipboardAttrib(Ihandle *ih, const char *value)
 {
-  /* disable callbacks */
-  iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", "1");
+  ih->data->disable_callbacks = 1;
   if (iupStrEqualNoCase(value, "COPY"))
   {
     if (ih->data->is_multiline)
@@ -1054,7 +1089,7 @@ static int gtkTextSetClipboardAttrib(Ihandle *ih, const char *value)
     else
       gtk_editable_delete_selection(GTK_EDITABLE(ih->handle));
   }
-  iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", NULL);
+  ih->data->disable_callbacks = 0;
   return 0;
 }
 
@@ -1234,6 +1269,14 @@ static int gtkTextSetRemoveFormattingAttrib(Ihandle* ih, const char* value)
 
 /************************************************************************************************/
 
+static gint gtkTextSpinInput(GtkSpinButton *spin, gdouble *val, Ihandle* ih)
+{
+  (void)spin;
+  *val = (double)iupAttribGetInt(ih, "_IUPGTK_SPIN_VALUE");
+  /* called only when SPINAUTO=NO */
+  return TRUE; /* disable input update */
+}
+
 static gboolean gtkTextSpinOutput(GtkSpinButton *spin, Ihandle* ih)
 {
   if (iupAttribGet(ih, "_IUPGTK_SPIN_NOAUTO"))
@@ -1244,25 +1287,20 @@ static gboolean gtkTextSpinOutput(GtkSpinButton *spin, Ihandle* ih)
   }
   else
   {
-    iupAttribSetStr(ih, "_IUPGTK_SPIN_OLDVALUE", gtk_entry_get_text(GTK_ENTRY(ih->handle)));
-    iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", "1");
-    return FALSE;
+    if (ih->data->disable_callbacks==0)
+      ih->data->disable_callbacks = 2; /* disable other text callbacks processing, but allow spin */
+    return FALSE; /* let the system update the display */
   }
-}
-
-static gint gtkTextSpinInput(GtkSpinButton *spin, gdouble *val, Ihandle* ih)
-{
-  (void)spin;
-  *val = (double)iupAttribGetInt(ih, "_IUPGTK_SPIN_VALUE");
-  /* called only when SPINAUTO=NO */
-  return TRUE; /* disable input update */
 }
 
 static void gtkTextSpinValueChanged(GtkSpinButton* spin, Ihandle* ih)
 {
   IFni cb;
+  (void)spin;
 
-  iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", NULL);
+  if (ih->data->disable_callbacks == 1)
+    return;
+  ih->data->disable_callbacks = 0;  /* enable other text callbacks processing */
 
   cb = (IFni)IupGetCallback(ih, "SPIN_CB");
   if (cb) 
@@ -1276,11 +1314,23 @@ static void gtkTextSpinValueChanged(GtkSpinButton* spin, Ihandle* ih)
     ret = cb(ih, pos);
     if (ret == IUP_IGNORE)
     {
-      /* this is not working: g_signal_stop_emission_by_name(spin, "value_changed"); */
+      pos = iupAttribGetInt(ih, "_IUPGTK_SPIN_OLDVALUE");
+
+      /* restore previous value */
+      ih->data->disable_callbacks = 1;
+      gtk_spin_button_set_value((GtkSpinButton*)ih->handle, (double)pos);
+      ih->data->disable_callbacks = 0;
+
+      if (iupAttribGet(ih, "_IUPGTK_SPIN_NOAUTO"))
+        iupAttribSetInt(ih, "_IUPGTK_SPIN_VALUE", pos);
+      ih->data->disable_callbacks = 0;
+      return;
     }
   }
 
-  (void)spin;
+  iupBaseCallValueChangedCb(ih);
+
+  iupAttribSetInt(ih, "_IUPGTK_SPIN_OLDVALUE", gtk_spin_button_get_value_as_int((GtkSpinButton*)ih->handle));
 }
 
 static int gtkTextSetSpinMinAttrib(Ihandle* ih, const char* value)
@@ -1292,13 +1342,9 @@ static int gtkTextSetSpinMinAttrib(Ihandle* ih, const char* value)
     {
       int max = iupAttribGetInt(ih, "SPINMAX");
 
-      iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", "1");
-      g_signal_handlers_block_by_func(G_OBJECT(ih->handle), G_CALLBACK(gtkTextSpinValueChanged), ih);
-
+      ih->data->disable_callbacks = 1;
       gtk_spin_button_set_range((GtkSpinButton*)ih->handle, (double)min, (double)max);
-
-      g_signal_handlers_unblock_by_func(G_OBJECT(ih->handle), G_CALLBACK(gtkTextSpinValueChanged), ih);
-      iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", NULL);
+      ih->data->disable_callbacks = 0;
     }
   }
   return 1;
@@ -1312,13 +1358,9 @@ static int gtkTextSetSpinMaxAttrib(Ihandle* ih, const char* value)
     if (iupStrToInt(value, &max))
     {
       int min = iupAttribGetInt(ih, "SPINMIN");
-      iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", "1");
-      g_signal_handlers_block_by_func(G_OBJECT(ih->handle), G_CALLBACK(gtkTextSpinValueChanged), ih);
-
+      ih->data->disable_callbacks = 1;
       gtk_spin_button_set_range((GtkSpinButton*)ih->handle, (double)min, (double)max);
-
-      g_signal_handlers_unblock_by_func(G_OBJECT(ih->handle), G_CALLBACK(gtkTextSpinValueChanged), ih);
-      iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", NULL);
+      ih->data->disable_callbacks = 0;
     }
   }
   return 1;
@@ -1342,13 +1384,9 @@ static int gtkTextSetSpinValueAttrib(Ihandle* ih, const char* value)
     int pos;
     if (iupStrToInt(value, &pos))
     {
-      iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", "1");
-      g_signal_handlers_block_by_func(G_OBJECT(ih->handle), G_CALLBACK(gtkTextSpinValueChanged), ih);
-
+      ih->data->disable_callbacks = 1;
       gtk_spin_button_set_value((GtkSpinButton*)ih->handle, (double)pos);
-
-      g_signal_handlers_unblock_by_func(G_OBJECT(ih->handle), G_CALLBACK(gtkTextSpinValueChanged), ih);
-      iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", NULL);
+      ih->data->disable_callbacks = 0;
 
       if (iupAttribGet(ih, "_IUPGTK_SPIN_NOAUTO"))
         iupAttribSetInt(ih, "_IUPGTK_SPIN_VALUE", pos);
@@ -1502,7 +1540,7 @@ static int gtkTextCallActionCb(Ihandle* ih, const char* insert_value, int len, i
 
 static void gtkTextEntryDeleteText(GtkEditable *editable, int start, int end, Ihandle* ih)
 {
-  if (iupAttribGet(ih, "_IUPGTK_DISABLE_TEXT_CB"))
+  if (ih->data->disable_callbacks)
     return;
 
   if (gtkTextCallActionCb(ih, NULL, 0, start, end)==0)
@@ -1513,7 +1551,7 @@ static void gtkTextEntryInsertText(GtkEditable *editable, char *insert_value, in
 {
   int ret;
 
-  if (iupAttribGet(ih, "_IUPGTK_DISABLE_TEXT_CB"))
+  if (ih->data->disable_callbacks)
     return;
 
   ret = gtkTextCallActionCb(ih, iupStrGetMemoryCopy(iupgtkStrConvertFromUTF8(insert_value)), len, *pos, *pos);
@@ -1523,10 +1561,9 @@ static void gtkTextEntryInsertText(GtkEditable *editable, char *insert_value, in
   {
     insert_value[0] = (char)ret;  /* replace key */
 
-    /* disable callbacks */
-    iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", "1");
+    ih->data->disable_callbacks = 1;
     gtk_editable_insert_text(editable, insert_value, 1, pos);
-    iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", NULL);
+    ih->data->disable_callbacks = 0;
 
     g_signal_stop_emission_by_name(editable, "insert_text"); 
   }
@@ -1535,7 +1572,7 @@ static void gtkTextEntryInsertText(GtkEditable *editable, char *insert_value, in
 static void gtkTextBufferDeleteRange(GtkTextBuffer *textbuffer, GtkTextIter *start_iter, GtkTextIter *end_iter, Ihandle* ih)
 {
   int start, end;
-  if (iupAttribGet(ih, "_IUPGTK_DISABLE_TEXT_CB"))
+  if (ih->data->disable_callbacks)
     return;
 
   start = gtk_text_iter_get_offset(start_iter);
@@ -1549,7 +1586,7 @@ static void gtkTextBufferInsertText(GtkTextBuffer *textbuffer, GtkTextIter *pos_
 {
   int ret, pos;
 
-  if (iupAttribGet(ih, "_IUPGTK_DISABLE_TEXT_CB"))
+  if (ih->data->disable_callbacks)
     return;
 
   pos = gtk_text_iter_get_offset(pos_iter);
@@ -1561,10 +1598,9 @@ static void gtkTextBufferInsertText(GtkTextBuffer *textbuffer, GtkTextIter *pos_
   {
     insert_value[0] = (char)ret;  /* replace key */
 
-    /* disable callbacks */
-    iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", "1");
+    ih->data->disable_callbacks = 1;
     gtk_text_buffer_insert(textbuffer, pos_iter, insert_value, 1);
-    iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", NULL);
+    ih->data->disable_callbacks = 0;
 
     g_signal_stop_emission_by_name(textbuffer, "insert_text"); 
   }
@@ -1572,7 +1608,7 @@ static void gtkTextBufferInsertText(GtkTextBuffer *textbuffer, GtkTextIter *pos_
 
 static void gtkTextChanged(void* dummy, Ihandle* ih)
 {
-  if (iupAttribGet(ih, "_IUPGTK_DISABLE_TEXT_CB"))
+  if (ih->data->disable_callbacks)
     return;
 
   iupBaseCallValueChangedCb(ih);
@@ -1648,7 +1684,7 @@ static int gtkTextMapMethod(Ihandle* ih)
   else
   {
     if (iupAttribGetBoolean(ih, "SPIN"))
-      ih->handle = gtk_spin_button_new_with_range(0, 100, 1);
+      ih->handle = gtk_spin_button_new_with_range(0, 100, 1);  /* It inherits from GtkEntry */
     else
       ih->handle = gtk_entry_new();
 
@@ -1752,6 +1788,7 @@ void iupdrvTextInitClass(Iclass* ic)
   /* IupText only */
   iupClassRegisterAttribute(ic, "PADDING", iupTextGetPaddingAttrib, gtkTextSetPaddingAttrib, IUPAF_SAMEASSYSTEM, "0x0", IUPAF_NOT_MAPPED);
   iupClassRegisterAttribute(ic, "VALUE", gtkTextGetValueAttrib, gtkTextSetValueAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "LINEVALUE", gtkTextGetLineValueAttrib, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SELECTEDTEXT", gtkTextGetSelectedTextAttrib, gtkTextSetSelectedTextAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SELECTION", gtkTextGetSelectionAttrib, gtkTextSetSelectionAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SELECTIONPOS", gtkTextGetSelectionPosAttrib, gtkTextSetSelectionPosAttrib, NULL, NULL, IUPAF_NO_INHERIT);
@@ -1768,6 +1805,8 @@ void iupdrvTextInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "SPINMAX", NULL, gtkTextSetSpinMaxAttrib, IUPAF_SAMEASSYSTEM, "100", IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SPININC", NULL, gtkTextSetSpinIncAttrib, IUPAF_SAMEASSYSTEM, "1", IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SPINVALUE", gtkTextGetSpinValueAttrib, gtkTextSetSpinValueAttrib, IUPAF_SAMEASSYSTEM, "0", IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "COUNT", gtkTextGetCountAttrib, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "LINECOUNT", gtkTextGetLineCountAttrib, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
 
   /* IupText Windows and GTK only */
   iupClassRegisterAttribute(ic, "ADDFORMATTAG", NULL, iupTextSetAddFormatTagAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);

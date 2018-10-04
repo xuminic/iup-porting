@@ -514,7 +514,7 @@ static void init_tree(void)
 //  IupSetAttribute(tree, "BGCOLOR", "255 255 255");
 
 //  IupSetAttribute(tree, "MARKMODE",     "MULTIPLE");
-//  IupSetAttribute(tree, "SHOWRENAME",   "YES");
+  IupSetAttribute(tree, "SHOWRENAME",   "YES");
   IupSetAttribute(tree, "SHOWDRAGDROP", "YES");
 //  IupSetAttribute(tree, "DROPEQUALDRAG", "YES");
 
@@ -523,6 +523,14 @@ static void init_tree(void)
 //  IupSetAttribute(tree, "HIDEBUTTONS",    "YES");
 //  IupSetAttribute(tree, "INDENTATION",   "40");
 //  IupSetAttribute(tree, "CANFOCUS", "NO");
+  IupSetAttribute(tree, "TIP", "Tree Tip");
+//  IupSetAttribute(tree, "TIPBGCOLOR", "255 128 128");
+//  IupSetAttribute(tree, "TIPFGCOLOR", "0 92 255");
+
+  // Windows Only  
+//  IupSetAttribute(tree, "TIPBALLOON", "YES");
+//  IupSetAttribute(tree, "TIPBALLOONTITLE", "Tip Title");
+//  IupSetAttribute(tree, "TIPBALLOONTITLEICON", "2");
 
   IupSetHandle("tree", tree);
 }

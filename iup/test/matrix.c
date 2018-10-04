@@ -68,8 +68,8 @@ static Ihandle* create_matrix(void)
   IupSetAttribute(mat,"SORTSIGN2","DOWN");
 //  IupSetAttribute(mat, "WIDTHDEF", "34");
 //  IupSetAttribute(mat,"MULTILINE", "YES");
-  IupSetAttribute(mat,"RESIZEMATRIX", "YES");
-  IupSetAttribute(mat,"HIDDENTEXTMARKS", "YES");
+//  IupSetAttribute(mat,"RESIZEMATRIX", "YES");
+//  IupSetAttribute(mat,"HIDDENTEXTMARKS", "YES");
 //  IupSetAttribute(mat,"USETITLESIZE", "YES");
   //IupSetAttribute(mat,"SCROLLBAR", "NO");
   //IupSetAttribute(mat, "BGCOLOR1:2", "255 92 255");
@@ -99,6 +99,7 @@ static Ihandle* create_matrix(void)
   IupSetAttribute(mat,"FRAMEHORIZCOLOR1:2","0 0 255");
   IupSetAttribute(mat,"FRAMEHORIZCOLOR1:3","0 255 0");
   IupSetAttribute(mat,"FRAMEVERTCOLOR2:2","255 255 0");
+  IupSetAttribute(mat,"FRAMEVERTCOLOR*:4","0 255 0");
 
 //  IupSetAttribute(mat,"MARKMODE","LINCOL");
 
@@ -114,6 +115,8 @@ static Ihandle* create_matrix(void)
   IupSetAttribute(mat, "NUMCOL_VISIBLE", "3");
   IupSetAttribute(mat, "NUMLIN_VISIBLE", "5");
 //  IupSetAttribute(mat,"EDITNEXT","COLCR");
+//  IupSetAttribute(mat, "LIMITEXPAND", "Yes");
+  IupSetAttribute(mat, "NUMCOL_NOSCROLL", "1");
 
 //  IupSetAttribute(mat,"RASTERSIZE","x300");
 //  IupSetAttribute(mat,"FITTOSIZE","LINES");

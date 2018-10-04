@@ -115,6 +115,7 @@ IupMessageDlg
 IupColorDlg   
 IupFontDlg    
 IupLayoutDialog
+IupElementPropertiesDialog
 IupSbox
 IupSpin
 IupSpinbox
@@ -211,7 +212,6 @@ iupdrvBaseSetTipVisibleAttrib
 iupdrvBaseSetTipAttrib
 iupdrvBaseSetCursorAttrib
 iupdrvBaseLayoutUpdateMethod
-iupdrvBaseGetClientSizeAttrib
 iupdrvActivate
 iupdrvSendMouse
 iupdrvSendKey

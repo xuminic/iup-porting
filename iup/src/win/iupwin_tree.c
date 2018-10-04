@@ -20,6 +20,7 @@
 #include "iup_attrib.h"
 #include "iup_str.h"
 #include "iup_drv.h"
+#include "iup_drvinfo.h"
 #include "iup_stdcontrols.h"
 #include "iup_tree.h"
 #include "iup_image.h"
@@ -48,6 +49,10 @@ typedef struct tagNMTVITEMCHANGE {
 
 #ifndef TVS_EX_DOUBLEBUFFER
 #define TVS_EX_DOUBLEBUFFER         0x0004
+#endif
+
+#ifndef TTM_POPUP
+#define TTM_POPUP               (WM_USER + 34)
 #endif
 
 #ifndef TVM_SETEXTENDEDSTYLE
@@ -1302,6 +1307,32 @@ static int winTreeSetFgColorAttrib(Ihandle* ih, const char* value)
   return 0;
 }
 
+static int winTreeSetTipVisibleAttrib(Ihandle* ih, const char* value)
+{
+  HWND tips_hwnd = (HWND)SendMessage(ih->handle, TVM_GETTOOLTIPS, 0, 0);
+  if (!tips_hwnd)
+    return 0;
+
+  if (iupStrBoolean(value))
+    SendMessage(tips_hwnd, TTM_POPUP, 0, 0);  /* Works in Visual Styles Only */
+  else
+    SendMessage(tips_hwnd, TTM_POP, 0, 0);
+
+  return 0;
+}
+
+static char* winTreeGetTipVisibleAttrib(Ihandle* ih)
+{
+  HWND tips_hwnd = (HWND)SendMessage(ih->handle, TVM_GETTOOLTIPS, 0, 0);
+  if (!tips_hwnd)
+    return NULL;
+
+  if (IsWindowVisible(tips_hwnd))
+    return "Yes";
+  else
+    return "No";
+}
+
 static char* winTreeGetChildCountAttrib(Ihandle* ih, int id)
 {
   int count;
@@ -2431,6 +2462,35 @@ static int winTreeWmNotify(Ihandle* ih, NMHDR* msg_info, int *result)
       return 1;
     }
   }
+  else if (msg_info->code == TVN_GETINFOTIP)
+  {
+    NMTVGETINFOTIP* tip_info = (NMTVGETINFOTIP*)msg_info;
+    IFnii cb;
+    char* value;
+
+    HWND tips_hwnd = (HWND)SendMessage(ih->handle, TVM_GETTOOLTIPS, 0, 0);
+    if (!tips_hwnd)
+      return 0;
+
+    value = IupGetAttribute(ih, "TIP");  /* must use IupGetAttribute to use inheritance */
+    if (!value)
+      return 0;
+
+    cb = (IFnii)IupGetCallback(ih, "TIPS_CB");
+    if (cb)
+    {
+      int x, y;
+      iupdrvGetCursorPos(&x, &y);
+      iupdrvScreenToClient(ih, &x, &y);
+      cb(ih, x, y);
+
+      value = IupGetAttribute(ih, "TIP");  /* get again, because it could has been changed inside the callback */
+    }
+
+    iupStrCopyN(tip_info->pszText, tip_info->cchTextMax, value);
+
+    iupwinTipsUpdateInfo(ih, tips_hwnd);
+  }
 
   return 0;  /* allow the default processsing */
 }
@@ -2453,7 +2513,7 @@ static int winTreeConvertXYToPos(Ihandle* ih, int x, int y)
 
 static int winTreeMapMethod(Ihandle* ih)
 {
-  DWORD dwStyle = WS_CHILD | WS_CLIPSIBLINGS | WS_BORDER | TVS_SHOWSELALWAYS;
+  DWORD dwStyle = WS_CHILD | WS_CLIPSIBLINGS | WS_BORDER | TVS_SHOWSELALWAYS | TVS_INFOTIP;
 
   /* styles can be set only on the Tree View creation */
 
@@ -2552,6 +2612,10 @@ void iupdrvTreeInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "BGCOLOR", winTreeGetBgColorAttrib, winTreeSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "TXTBGCOLOR", IUPAF_NO_SAVE|IUPAF_DEFAULT);
   iupClassRegisterAttribute(ic, "FGCOLOR", NULL, winTreeSetFgColorAttrib, IUPAF_SAMEASSYSTEM, "TXTFGCOLOR", IUPAF_DEFAULT);
   iupClassRegisterAttribute(ic, "AUTOREDRAW", NULL, iupwinSetAutoRedrawAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
+
+  /* Redefined */
+  iupClassRegisterAttribute(ic, "TIP", NULL, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "TIPVISIBLE", winTreeGetTipVisibleAttrib, winTreeSetTipVisibleAttrib, NULL, NULL, IUPAF_NO_INHERIT);
 
   /* IupTree Attributes - GENERAL */
   iupClassRegisterAttribute(ic, "EXPANDALL",  NULL, winTreeSetExpandAllAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);

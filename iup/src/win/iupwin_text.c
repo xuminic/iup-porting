@@ -685,20 +685,20 @@ static int winTextSetValueAttrib(Ihandle* ih, const char* value)
   char* str;
   if (!value) value = "";
   str = winTextStrConvert(ih, value);
-  iupAttribSetStr(ih, "IUPWIN_IGNORECHANGE", "1");
+  ih->data->disable_callbacks = 1;
   SetWindowText(ih->handle, str);
-  iupAttribSetStr(ih, "IUPWIN_IGNORECHANGE", NULL);
+  ih->data->disable_callbacks = 0;
   if (str != value) free(str);
   return 0;
 }
 
 static char* winTextGetValueAttrib(Ihandle* ih)
 {
-  int nc = GetWindowTextLength(ih->handle);
-  if (nc)
+  int count = GetWindowTextLength(ih->handle);
+  if (count)
   {
-    char* str = iupStrGetMemory(nc+1);
-    GetWindowText(ih->handle, str, nc+1);  /* notice that this function always returns in DOS format */
+    char* str = iupStrGetMemory(count+1);
+    GetWindowText(ih->handle, str, count+1);  /* notice that this function always returns in DOS format */
     if (ih->data->is_multiline)
       iupStrToUnix(str);
     return str;
@@ -740,8 +740,8 @@ static int winTextSetSelectedTextAttrib(Ihandle* ih, const char* value)
 
 static char* winTextGetSelectedTextAttrib(Ihandle* ih)
 {
-  int nc = GetWindowTextLength(ih->handle);
-  if (nc)
+  int count = GetWindowTextLength(ih->handle);
+  if (count)
   {
     int start = 0, end = 0;
     char* str;
@@ -757,8 +757,8 @@ static char* winTextGetSelectedTextAttrib(Ihandle* ih)
     }
     else
     {
-      str = iupStrGetMemory(nc+1);
-      GetWindowText(ih->handle, str, nc+1);  /* notice that this function always returns in DOS format */
+      str = iupStrGetMemory(count+1);
+      GetWindowText(ih->handle, str, count+1);  /* notice that this function always returns in DOS format */
       /* returns only the selected text */
       str[end] = 0;
       str += start;
@@ -788,6 +788,50 @@ static int winTextSetNCAttrib(Ihandle* ih, const char* value)
   }
   else
     return 1; /* store until not mapped, when mapped will be set again */
+}
+
+static char* winTextGetCountAttrib(Ihandle* ih)
+{
+  char* str = iupStrGetMemory(50);
+  int count = GetWindowTextLength(ih->handle);
+  if (ih->data->is_multiline)
+  {
+    int linecount = SendMessage(ih->handle, EM_GETLINECOUNT, 0, 0L);
+    count -= linecount-1;  /* ignore 1 character at each line */
+  }
+  sprintf(str, "%d", count);
+  return str;
+}
+
+static char* winTextGetLineCountAttrib(Ihandle* ih)
+{
+  if (ih->data->is_multiline)
+  {
+    char* str = iupStrGetMemory(50);
+    int linecount = SendMessage(ih->handle, EM_GETLINECOUNT, 0, 0L);
+    sprintf(str, "%d", linecount);
+    return str;
+  }
+  else
+    return "1";
+}
+
+static char* winTextGetLineValueAttrib(Ihandle* ih)
+{
+  if (ih->data->is_multiline)
+  {
+    int len, lin, col;
+    char* str = iupStrGetMemory(200);
+    WORD* wstr = (WORD*)str;
+    *wstr = 200;
+    winTextGetCaret(ih, &lin, &col); 
+    lin--; /* from IUP to Win */
+    len = SendMessage(ih->handle, EM_GETLINE, (WPARAM)lin, (LPARAM)str);
+    str[len]=0;
+    return str;
+  }
+  else
+    return winTextGetValueAttrib(ih);
 }
 
 static int winTextSetSelectionAttrib(Ihandle* ih, const char* value)
@@ -1400,14 +1444,16 @@ static int winTextSetVisibleAttrib(Ihandle* ih, const char* value)
   return iupBaseSetVisibleAttrib(ih, value);
 }
 
-static void winTextCropSpinValue(HWND hSpin, int min, int max)
+static void winTextCropSpinValue(Ihandle* ih, HWND hSpin, int min, int max)
 {
   /* refresh if internally cropped, but text still shows an invalid value */
   int pos = SendMessage(hSpin, UDM_GETPOS32, 0, 0);
+  ih->data->disable_callbacks = 1;
   if (pos <= min)  
     SendMessage(hSpin, UDM_SETPOS32, 0, min);
   if (pos >= max)
     SendMessage(hSpin, UDM_SETPOS32, 0, max);
+  ih->data->disable_callbacks = 0;
 }
 
 static int winTextSetSpinMinAttrib(Ihandle* ih, const char* value)
@@ -1421,7 +1467,7 @@ static int winTextSetSpinMinAttrib(Ihandle* ih, const char* value)
       int max = iupAttribGetInt(ih, "SPINMAX");
       SendMessage(hSpin, UDM_SETRANGE32, min, max);
 
-      winTextCropSpinValue(hSpin, min, max);
+      winTextCropSpinValue(ih, hSpin, min, max);
     }
   }
   return 1;
@@ -1438,7 +1484,7 @@ static int winTextSetSpinMaxAttrib(Ihandle* ih, const char* value)
       int min = iupAttribGetInt(ih, "SPINMIN");
       SendMessage(hSpin, UDM_SETRANGE32, min, max);
 
-      winTextCropSpinValue(hSpin, min, max);
+      winTextCropSpinValue(ih, hSpin, min, max);
     }
   }
   return 1;
@@ -1472,7 +1518,11 @@ static int winTextSetSpinValueAttrib(Ihandle* ih, const char* value)
   {
     int pos;
     if (iupStrToInt(value, &pos))
+    {
+      ih->data->disable_callbacks = 1;
       SendMessage(hSpin, UDM_SETPOS32, 0, pos);
+      ih->data->disable_callbacks = 0;
+    }
   }
   return 1;
 }
@@ -1884,8 +1934,10 @@ static void winTextCreateSpin(Ihandle* ih)
   iupAttribSetStr(ih, "_IUPWIN_SPIN", (char*)hSpin);
 
   /* default values */
+  ih->data->disable_callbacks = 1;
   SendMessage(hSpin, UDM_SETRANGE32, 0, 100);
   SendMessage(hSpin, UDM_SETPOS32, 0, 0);
+  ih->data->disable_callbacks = 0;
 }
 
 static int winTextWmCommand(Ihandle* ih, WPARAM wp, LPARAM lp)
@@ -1895,7 +1947,7 @@ static int winTextWmCommand(Ihandle* ih, WPARAM wp, LPARAM lp)
   {
   case EN_CHANGE:
     {
-      if (iupAttribGetStr(ih, "IUPWIN_IGNORECHANGE"))
+      if (ih->data->disable_callbacks)
         return 0;
 
       iupBaseCallValueChangedCb(ih);
@@ -1931,6 +1983,15 @@ static void winTextLayoutUpdateMethod(Ihandle* ih)
   }
   else
     iupdrvBaseLayoutUpdateMethod(ih);
+}
+
+static void winTextUnMapMethod(Ihandle* ih)
+{
+  HWND hSpin = (HWND)iupAttribGet(ih, "_IUPWIN_SPIN");
+  if (hSpin)
+    DestroyWindow(hSpin);
+
+  iupdrvBaseUnMapMethod(ih);
 }
 
 static int winTextMapMethod(Ihandle* ih)
@@ -2051,6 +2112,7 @@ void iupdrvTextInitClass(Iclass* ic)
   /* Driver Dependent Class functions */
   ic->Map = winTextMapMethod;
   ic->LayoutUpdate = winTextLayoutUpdateMethod;
+  ic->UnMap = winTextUnMapMethod;
 
   /* Driver Dependent Attribute functions */
 
@@ -2067,6 +2129,7 @@ void iupdrvTextInitClass(Iclass* ic)
   /* IupText only */
   iupClassRegisterAttribute(ic, "PADDING", iupTextGetPaddingAttrib, winTextSetPaddingAttrib, IUPAF_SAMEASSYSTEM, "0x0", IUPAF_NOT_MAPPED);
   iupClassRegisterAttribute(ic, "VALUE", winTextGetValueAttrib, winTextSetValueAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "LINEVALUE", winTextGetLineValueAttrib, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SELECTEDTEXT", winTextGetSelectedTextAttrib, winTextSetSelectedTextAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SELECTION", winTextGetSelectionAttrib, winTextSetSelectionAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SELECTIONPOS", winTextGetSelectionPosAttrib, winTextSetSelectionPosAttrib, NULL, NULL, IUPAF_NO_INHERIT);
@@ -2083,6 +2146,8 @@ void iupdrvTextInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "SPINMAX", NULL, winTextSetSpinMaxAttrib, IUPAF_SAMEASSYSTEM, "100", IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SPININC", NULL, winTextSetSpinIncAttrib, IUPAF_SAMEASSYSTEM, "1", IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SPINVALUE", winTextGetSpinValueAttrib, winTextSetSpinValueAttrib, IUPAF_SAMEASSYSTEM, "0", IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "COUNT", winTextGetCountAttrib, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "LINECOUNT", winTextGetLineCountAttrib, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
 
   /* IupText Windows and GTK only */
   iupClassRegisterAttribute(ic, "ADDFORMATTAG", NULL, iupTextSetAddFormatTagAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);

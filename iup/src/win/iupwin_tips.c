@@ -10,8 +10,11 @@
 #include <commctrl.h>
 
 #include "iup.h" 
+#include "iupcbs.h" 
 
 #include "iup_object.h" 
+#include "iup_drv.h"
+#include "iup_drvinfo.h"
 #include "iup_attrib.h" 
 #include "iup_str.h" 
 
@@ -34,9 +37,10 @@ static HWND winTipsCreate(HWND hParent)
   return tips_hwnd;
 }
 
-static int winTipsSendMessage(Ihandle* ih, HWND tips_hwnd, UINT msg)
+static void winTipsSendMessage(Ihandle* ih, HWND tips_hwnd, UINT msg)
 {
   TOOLINFO ti;
+
   ZeroMemory(&ti, sizeof(TOOLINFO));
   ti.cbSize = sizeof(TOOLINFO); 
   ti.uFlags = TTF_SUBCLASS;
@@ -47,7 +51,7 @@ static int winTipsSendMessage(Ihandle* ih, HWND tips_hwnd, UINT msg)
   ti.rect.right = 3000;
   ti.rect.bottom = 3000;
 
-  return SendMessage(tips_hwnd, msg, 0, (LPARAM)&ti);
+  SendMessage(tips_hwnd, msg, 0, (LPARAM)&ti);
 }
 
 int iupdrvBaseSetTipAttrib(Ihandle* ih, const char* value)
@@ -74,37 +78,30 @@ int iupdrvBaseSetTipVisibleAttrib(Ihandle* ih, const char* value)
   if (!tips_hwnd)
     return 0;
 
-  /* must use IupGetAttribute to use inheritance */
-  if (!IupGetAttribute(ih, "TIP"))
-    return 0;
-
   if (iupStrBoolean(value))
-    SendMessage(tips_hwnd, TTM_POPUP, 0, 0);  /* XP Only */
+    SendMessage(tips_hwnd, TTM_POPUP, 0, 0);  /* Works in Visual Styles Only */
   else
     SendMessage(tips_hwnd, TTM_POP, 0, 0);
 
   return 0;
 }
 
-void iupwinTipsGetDispInfo(LPARAM lp)
+char* iupdrvBaseGetTipVisibleAttrib(Ihandle* ih)
+{
+  HWND tips_hwnd = (HWND)iupAttribGet(ih, "_IUPWIN_TIPSWIN");
+  if (!tips_hwnd)
+    return NULL;
+
+  if (IsWindowVisible(tips_hwnd))
+    return "Yes";
+  else
+    return "No";
+}
+
+void iupwinTipsUpdateInfo(Ihandle* ih, HWND tips_hwnd)
 {
   COLORREF color, tip_color;
-  NMTTDISPINFO* tips_info;
-  Ihandle* ih;
-  HWND tips_hwnd;
   char* value;
-
-  if (!lp) return;
-
-  tips_info = (NMTTDISPINFO*)lp;
-  ih = iupwinHandleGet(tips_info->hdr.hwndFrom);  /* hwndFrom is the tooltip window */
-  if (!ih) return;
-
-  tips_hwnd = (HWND)iupAttribGet(ih, "_IUPWIN_TIPSWIN");
-  if (tips_hwnd != tips_info->hdr.hwndFrom) return;
-
-  tips_info->hinst = NULL;
-  tips_info->lpszText = IupGetAttribute(ih, "TIP");  /* must use IupGetAttribute to use inheritance */
 
   {
     HFONT hfont;
@@ -138,23 +135,23 @@ void iupwinTipsGetDispInfo(LPARAM lp)
     SendMessage(tips_hwnd, TTM_SETTIPTEXTCOLOR, (WPARAM)color, 0);
 
   {
-    int ballon = IupGetInt(ih, "TIPBALLON");  /* must use IupGetInt to use inheritance */
+    int balloon = IupGetInt(ih, "TIPBALLOON");  /* must use IupGetInt to use inheritance */
     DWORD style = GetWindowLong(tips_hwnd, GWL_STYLE);
-    int tip_ballon = style & TTS_BALLOON? 1: 0; 
-    if (tip_ballon != ballon)
+    int tip_balloon = style & TTS_BALLOON? 1: 0; 
+    if (tip_balloon != balloon)
     {
-      if (ballon)
+      if (balloon)
         style |= TTS_BALLOON;
       else
         style &= ~TTS_BALLOON;
       SetWindowLong(tips_hwnd, GWL_STYLE, style);
     }
 
-    if (ballon)
+    if (balloon)
     {
-      char* ballon_title = IupGetAttribute(ih, "TIPBALLONTITLE"); /* must use IupGetAttribute to use inheritance */
-      int ballon_icon = IupGetInt(ih, "TIPBALLONTITLEICON");  /* must use IupGetInt to use inheritance */
-      SendMessage(tips_hwnd, TTM_SETTITLEA, ballon_icon, (LPARAM)ballon_title);
+      char* balloon_title = IupGetAttribute(ih, "TIPBALLOONTITLE"); /* must use IupGetAttribute to use inheritance */
+      int balloon_icon = IupGetInt(ih, "TIPBALLOONTITLEICON");  /* must use IupGetInt to use inheritance */
+      SendMessage(tips_hwnd, TTM_SETTITLEA, balloon_icon, (LPARAM)balloon_title);
     }
     else
       SendMessage(tips_hwnd, TTM_SETTITLEA, 0, 0);
@@ -188,4 +185,39 @@ void iupwinTipsGetDispInfo(LPARAM lp)
 
     SendMessage(tips_hwnd, TTM_NEWTOOLRECT, 0, (LPARAM)&ti);
   }
+}
+
+void iupwinTipsGetDispInfo(LPARAM lp)
+{
+  NMTTDISPINFO* tips_info;
+  Ihandle* ih;
+  HWND tips_hwnd;
+  IFnii cb;
+
+  if (!lp) 
+    return;
+
+  tips_info = (NMTTDISPINFO*)lp;
+  ih = iupwinHandleGet(tips_info->hdr.hwndFrom);  /* hwndFrom is the tooltip window */
+  if (!ih) 
+    return;
+
+  tips_hwnd = (HWND)iupAttribGet(ih, "_IUPWIN_TIPSWIN");
+  if (tips_hwnd != tips_info->hdr.hwndFrom) 
+    return;
+
+  tips_info->hinst = NULL;
+
+  cb = (IFnii)IupGetCallback(ih, "TIPS_CB");
+  if (cb)
+  {
+    int x, y;
+    iupdrvGetCursorPos(&x, &y);
+    iupdrvScreenToClient(ih, &x, &y);
+    cb(ih, x, y);
+  }
+
+  tips_info->lpszText = IupGetAttribute(ih, "TIP");  /* must use IupGetAttribute to use inheritance */
+
+  iupwinTipsUpdateInfo(ih, tips_hwnd);
 }

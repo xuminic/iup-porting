@@ -49,16 +49,19 @@ typedef struct _ImatLinColData
   int* sizes;         /* Width/height of the columns/lines  (allocated after map)   */
   unsigned char* flags;    /* Attribute flags for the columns/lines (allocated after map) */
 
-  int num;         /* Number of columns/lines in the matrix, default/minimum=1, always includes the title */
+  int num;         /* Number of columns/lines, default/minimum=1, always includes the non scrollable cells */
   int num_alloc;   /* Number of columns/lines allocated, default=5 */
+  int num_noscroll; /* Number of non scrollable columns/lines, default/minimum=1 */
 
-  int first_offset; /* scroll offset of the first visible column/line from right to left (or the invisible part of the first cell) */
+  int first_offset; /* Scroll offset of the first visible column/line from right to left 
+                       (or the invisible part of the first visible cell) 
+                       This is how the scrollbar controls scrolling of cells. */
   int first;       /* First visible column/line */
   int last;        /* Last visible column/line  */
 
   /* used to configure the scrollbar */
-  int total_size;     /* Sum of the widths/heights of the columns/lines, not including the title */
-  int visible_size;   /* Width/height of the visible window, not including the title */
+  int total_size;     /* Sum of the widths/heights of the columns/lines, not including the non scrollable cells */
+  int visible_size;   /* Width/height of the visible window, not including the non scrollable cells */
 
   int focus_cell;  /* index of the current cell */
 } ImatLinColData;
@@ -79,10 +82,10 @@ struct _IcontrolData
   ImatLinColData lines;
   ImatLinColData columns;
 
+  /* State */
   int has_focus;
   int w, h;             /* canvas size */
   int callback_mode;
-  int use_title_size;   /* use title contents when calculating cell size */
   int need_calcsize;
   int need_redraw;
   int inside_markedit_cb;   /* avoid recursion */
@@ -90,6 +93,8 @@ struct _IcontrolData
   /* attributes */
   int mark_continuous, mark_mode, mark_multiple;
   int checkframecolor, hidden_text_marks, editnext;
+  int use_title_size;   /* use title contents when calculating cell size */
+  int limit_expand; /* limit expand to maximum size */
 
   /* Mouse and Keyboard AUX */
   int leftpressed;  /* left mouse button is pressed */
@@ -113,7 +118,8 @@ struct _IcontrolData
   IFniiIII bgcolor_cb;
   char *bgcolor, *bgcolor_parent, *fgcolor, *font;  /* not need to free */
 
-  int clip_x1, clip_x2, clip_y1, clip_y2;  /* aux for cell clipping */
+  /* Clipping AUX for cell  */
+  int clip_x1, clip_x2, clip_y1, clip_y2;
 };
 
 
