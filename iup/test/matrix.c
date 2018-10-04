@@ -6,6 +6,13 @@
 #undef __IUPDEF_H
 #include "iup.h"
 #include "iupcontrols.h"
+#include "iupcbs.h"
+
+static int mousemove_cb(Ihandle *ih, int lin, int col)
+{
+  printf("mousemove_cb(%d, %d)\n", lin, col);
+  return IUP_DEFAULT;
+}
 
 static int dropcheck_cb(Ihandle *self, int lin, int col)
 {
@@ -18,8 +25,9 @@ static Ihandle* create_matrix(void)
 {
   Ihandle* mat = IupMatrix(NULL); 
   
-  IupSetAttribute(mat, "NUMCOL", "15"); 
+//  IupSetAttribute(mat, "NUMCOL", "15"); 
   IupSetAttribute(mat, "NUMLIN", "20"); 
+  IupSetAttribute(mat, "NUMCOL", "8"); 
 //  IupSetAttribute(mat, "NUMCOL", "2"); 
 //  IupSetAttribute(mat, "NUMLIN", "3"); 
   
@@ -31,18 +39,19 @@ static Ihandle* create_matrix(void)
   IupSetAttribute(mat, "0:2", "February 2000"); 
   IupSetAttribute(mat, "1:1", "5.6\n3.33");
   IupSetAttribute(mat, "2:1", "2.2");
-  IupSetAttribute(mat, "3:1", "7.2");
+  IupSetAttribute(mat, "3:2", "Very Very Very Very Very Large Text");
   IupSetAttribute(mat, "1:2", "4.5");
   IupSetAttribute(mat, "2:2", "8.1");
-  IupSetAttribute(mat, "3:2", "3.4");
+  IupSetAttribute(mat, "3:1", "3.4");
   IupSetAttribute(mat, "3:3", "Font Test");
-  IupSetAttribute(mat, "WIDTH2", "90");
-  IupSetAttribute(mat, "HEIGHT2", "30");
+//  IupSetAttribute(mat, "WIDTH2", "90");
+//  IupSetAttribute(mat, "HEIGHT2", "30");
   IupSetAttribute(mat,"SORTSIGN2","DOWN");
 //  IupSetAttribute(mat, "WIDTHDEF", "34");
-  IupSetAttribute(mat,"MULTILINE", "YES");
+//  IupSetAttribute(mat,"MULTILINE", "YES");
   IupSetAttribute(mat,"RESIZEMATRIX", "YES");
-  IupSetAttribute(mat,"USETITLESIZE", "YES");
+  IupSetAttribute(mat,"HIDDENTEXTMARKS", "YES");
+//  IupSetAttribute(mat,"USETITLESIZE", "YES");
   //IupSetAttribute(mat,"SCROLLBAR", "NO");
   //IupSetAttribute(mat, "BGCOLOR1:2", "255 92 255");
   //IupSetAttribute(mat, "BGCOLOR2:*", "92 92 255");
@@ -56,6 +65,7 @@ static Ihandle* create_matrix(void)
   //IupSetAttribute(mat, "ALIGNMENT2", "ARIGHT");
 //  IupSetAttribute(mat, "ACTIVE", "NO");
 //  IupSetAttribute(mat, "EXPAND", "NO");
+//  IupSetAttribute(mat, "ALIGNMENT", "ALEFT");
 
   IupSetAttribute(mat,"MARKMODE","CELL");
 //  IupSetAttribute(mat,"MARKMODE","LIN");
@@ -66,23 +76,27 @@ static Ihandle* create_matrix(void)
   IupSetAttribute(mat,"MARK2:3","YES");
   IupSetAttribute(mat,"MARK3:3","YES");
 
+  IupSetAttribute(mat,"FRAMEVERTCOLOR1:2","BGCOLOR");
+  IupSetAttribute(mat,"FRAMEHORIZCOLOR1:2","0 0 255");
+  IupSetAttribute(mat,"FRAMEHORIZCOLOR1:3","0 255 0");
+  IupSetAttribute(mat,"FRAMEVERTCOLOR2:2","255 255 0");
 
 //  IupSetAttribute(mat,"MARKMODE","LINCOL");
 
   //IupSetAttribute(mat, "NUMCOL_VISIBLE_LAST", "YES");
   //IupSetAttribute(mat, "NUMLIN_VISIBLE_LAST", "YES");
-  IupSetAttribute(mat, "WIDTHDEF", "15");
-  IupSetAttribute(mat, "20:15", "The End");
+//  IupSetAttribute(mat, "WIDTHDEF", "15");
+  IupSetAttribute(mat, "20:8", "The End");
   IupSetAttribute(mat, "10:0", "Middle Line");
   IupSetAttribute(mat, "15:0", "Middle Line");
-  IupSetAttribute(mat, "0:7", "Middle Column");
-  IupSetAttribute(mat, "0:11", "Middle Column");
+  IupSetAttribute(mat, "0:4", "Middle Column");
   IupSetAttribute(mat, "20:0", "Line Title Test");
-  IupSetAttribute(mat, "0:15", "Column Title Test");
-  IupSetAttribute(mat, "NUMCOL_VISIBLE", "6");
+  IupSetAttribute(mat, "0:8", "Column Title Test");
+  IupSetAttribute(mat, "NUMCOL_VISIBLE", "3");
   IupSetAttribute(mat, "NUMLIN_VISIBLE", "8");
 
   IupSetCallback(mat, "DROPCHECK_CB", (Icallback)dropcheck_cb);
+//  IupSetCallback(mat, "MOUSEMOVE_CB", (Icallback)mousemove_cb);
 
   return mat;
 }

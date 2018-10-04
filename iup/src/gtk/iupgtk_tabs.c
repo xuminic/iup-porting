@@ -121,8 +121,12 @@ static int gtkTabsSetPaddingAttrib(Ihandle* ih, const char* value)
   iupStrToIntInt(value, &ih->data->horiz_padding, &ih->data->vert_padding, 'x');
 
   if (ih->handle)
+  {
     gtkTabsUpdatePagePadding(ih);
-  return 0;
+    return 0;
+  }
+  else
+    return 1; /* store until not mapped, when mapped will be set again */
 }
 
 static void gtkTabsUpdateTabType(Ihandle* ih)
@@ -143,7 +147,7 @@ static int gtkTabsSetTabTypeAttrib(Ihandle* ih, const char* value)
     ih->data->type = ITABS_TOP;
 
   if (ih->handle)
-    gtkTabsUpdateTabType(ih);
+    gtkTabsUpdateTabType(ih);  /* for this to work must be updated in map */
 
   return 0;
 }

@@ -200,6 +200,240 @@ void iupTreeUpdateImages(Ihandle *ih)
   iupClassObjectSetAttribute(ih, "IMAGEBRANCHEXPANDED", value, &inherit);
 }
 
+void iupTreeSelectLastCollapsedBranch(Ihandle* ih, int *last_id)
+{
+  /* if last selected item is a branch, then select its children */
+  if (iupStrEqual(IupTreeGetAttribute(ih, "KIND", *last_id), "BRANCH") && 
+      iupStrEqual(IupTreeGetAttribute(ih, "STATE", *last_id), "COLLAPSED"))
+  {
+    int childcount = IupTreeGetInt(ih, "CHILDCOUNT", *last_id);
+    if (childcount > 0)
+    {
+      int start = *last_id + 1;
+      int end = *last_id + childcount;
+      IupSetfAttribute(ih, "MARK", "%d-%d", start, end);
+      *last_id = *last_id + childcount;
+    }
+  }
+}
+
+int iupTreeForEach(Ihandle* ih, iupTreeNodeFunc func, void* userdata)
+{
+  int i;
+  for (i = 0; i < ih->data->node_count; i++)
+  {
+    if (!func(ih, ih->data->node_cache[i].node_handle, i, userdata))
+      return 0;
+  }
+
+  return 1;
+}
+
+int iupTreeFindNodeId(Ihandle* ih, InodeHandle* node_handle)
+{
+  /* Unoptimized version:
+  int i;
+  for (i = 0; i < ih->data->node_count; i++)
+  {
+    if (ih->data->node_cache[i].node_handle == node_handle)
+      return i;
+  }
+  */
+  InodeData *node_cache = ih->data->node_cache;
+  while(node_cache->node_handle != node_handle && 
+        node_cache->node_handle != NULL)   /* the cache always have zeros at the end */
+    node_cache++;
+
+  if (node_cache->node_handle != NULL)
+    return node_cache - ih->data->node_cache;
+  else
+    return -1;
+}
+
+static int iTreeFindUserDataId(Ihandle* ih, void* userdata)
+{
+  /* Unoptimized version:
+  int i;
+  for (i = 0; i < ih->data->node_count; i++)
+  {
+    if (ih->data->node_cache[i].node_handle == node_handle)
+      return i;
+  }
+  */
+  InodeData *node_cache = ih->data->node_cache;
+  while(node_cache->userdata != userdata && 
+        node_cache->node_handle != NULL)   /* the cache always have zeros at the end */
+    node_cache++;
+
+  if (node_cache->node_handle != NULL)
+    return node_cache - ih->data->node_cache;
+  else
+    return -1;
+}
+
+static int iTreeGetIdFromString(const char* name_id)
+{
+  if (name_id && name_id[0])
+  {
+    int id = -1;
+    iupStrToInt(name_id, &id);
+    return id;
+  }
+  else
+    return -2;
+}
+
+InodeHandle* iupTreeGetNode(Ihandle* ih, int id)
+{
+  if (id >= 0 && id < ih->data->node_count)
+    return ih->data->node_cache[id].node_handle;
+  else if (id == -2)
+    return iupdrvTreeGetFocusNode(ih);
+  else
+    return NULL;
+}
+
+InodeHandle* iupTreeGetNodeFromString(Ihandle* ih, const char* name_id)
+{
+  return iupTreeGetNode(ih, iTreeGetIdFromString(name_id));
+}
+
+static void iTreeAddToCache(Ihandle* ih, int id, InodeHandle* node_handle)
+{
+  iupASSERT(id >= 0 && id < ih->data->node_count);
+  if (id < 0 || id >= ih->data->node_count)
+    return;
+
+  /* node_count here already contains the final count */
+
+  if (id == ih->data->node_count-1)
+    ih->data->node_cache[id].node_handle = node_handle;
+  else
+  {
+    /* open space for the new id */
+    int remain_count = ih->data->node_count-id;
+    memmove(ih->data->node_cache+id+1, ih->data->node_cache+id, remain_count*sizeof(InodeData));
+    ih->data->node_cache[id].node_handle = node_handle;
+  }
+
+  ih->data->node_cache[id].userdata = NULL;
+}
+
+static void iTreeIncCacheMem(Ihandle* ih)
+{
+  /* node_count here already contains the final count */
+
+  if (ih->data->node_count+10 > ih->data->node_cache_max)
+  {
+    int old_node_cache_max = ih->data->node_cache_max;
+    ih->data->node_cache_max += 20;
+    ih->data->node_cache = realloc(ih->data->node_cache, ih->data->node_cache_max*sizeof(InodeData));
+    memset(ih->data->node_cache+old_node_cache_max, 0, 20*sizeof(InodeData));
+  }
+}
+
+void iupTreeAddToCache(Ihandle* ih, int add, int kindPrev, InodeHandle* prevNode, InodeHandle* node_handle)
+{
+  int new_id = 0;
+
+  ih->data->node_count++;
+
+  /* node_count here already contains the final count */
+  iTreeIncCacheMem(ih);
+
+  if (prevNode)
+  {
+    if (add || kindPrev == ITREE_LEAF)
+    {
+      /* ADD implies always that id=prev_id+1 */
+      /* INSERT after a leaf implies always that new_id=prev_id+1 */
+      int prev_id = iupTreeFindNodeId(ih, prevNode);
+      new_id = prev_id+1;
+    }
+    else
+    {
+      /* INSERT after a branch implies always that new_id=prev_id+1+child_count */
+      int prev_id = iupTreeFindNodeId(ih, prevNode);
+      int child_count = iupdrvTreeTotalChildCount(ih, prevNode);
+      new_id = prev_id+1+child_count;
+    }
+  }
+
+  iTreeAddToCache(ih, new_id, node_handle);
+  iupAttribSetInt(ih, "LASTADDNODE", new_id);
+}
+
+void iupTreeDelFromCache(Ihandle* ih, int id, int count)
+{
+  int remain_count;
+
+  /* id can be the last node, actually==node_count becase node_count is already updated */
+  iupASSERT(id >= 0 && id <= ih->data->node_count);  
+  if (id < 0 || id > ih->data->node_count)
+    return;
+
+  /* node_count here already contains the final count */
+
+  /* remove id+count */
+  remain_count = ih->data->node_count-id;
+  memmove(ih->data->node_cache+id, ih->data->node_cache+id+count, remain_count*sizeof(InodeData));
+
+  /* clear the remaining space */
+  memset(ih->data->node_cache+ih->data->node_count, 0, count*sizeof(InodeData));
+}
+
+void iupTreeCopyMoveCache(Ihandle* ih, int id_src, int id_dst, int count, int is_copy)
+{
+  int remain_count;
+
+  iupASSERT(id_src >= 0 && id_src < ih->data->node_count);
+  if (id_src < 0 || id_src >= ih->data->node_count)
+    return;
+
+  iupASSERT(id_dst >= 0 && id_dst < ih->data->node_count);
+  if (id_dst < 0 || id_dst >= ih->data->node_count)
+    return;
+
+  iupASSERT(id_dst < id_src || id_dst > id_src+count);
+  if (id_dst >= id_src && id_dst <= id_src+count)
+    return;
+
+  /* id_dst here points to the final position for a copy operation */
+
+  /* node_count here contains the final count for a copy operation */
+  iTreeIncCacheMem(ih);
+
+  /* add space for new nodes */
+  remain_count = ih->data->node_count - (id_dst + count);
+  memmove(ih->data->node_cache+id_dst+count, ih->data->node_cache+id_dst, remain_count*sizeof(InodeData));
+
+  /* compensate because we add space for new nodes */
+  if (id_src > id_dst)
+    id_src += count;
+
+  if (is_copy) 
+  {
+    /* during a copy, the userdata is not reused, so clear it */
+    memset(ih->data->node_cache+id_dst, 0, count*sizeof(InodeData));
+  }
+  else /* move = copy + delete */
+  {
+    /* copy userdata from src to dst */
+    memcpy(ih->data->node_cache+id_dst, ih->data->node_cache+id_src, count*sizeof(InodeData));
+
+    /* remove the src */
+    remain_count = ih->data->node_count - (id_src + count);
+    memmove(ih->data->node_cache+id_src, ih->data->node_cache+id_src+count, remain_count*sizeof(InodeData));
+
+    /* clear the remaining space */
+    memset(ih->data->node_cache+ih->data->node_count-count, 0, count*sizeof(InodeData));
+  }
+}
+
+
+/*************************************************************************/
+
+
 char* iupTreeGetSpacingAttrib(Ihandle* ih)
 {
   char *str = iupStrGetMemory(50);
@@ -221,8 +455,10 @@ static int iTreeSetMarkModeAttrib(Ihandle* ih, const char* value)
     ih->data->mark_mode = ITREE_MARK_MULTIPLE;    
   else 
     ih->data->mark_mode = ITREE_MARK_SINGLE;
+
   if (ih->handle)
-    iupdrvTreeUpdateMarkMode(ih);
+    iupdrvTreeUpdateMarkMode(ih); /* for this to work, must update during map */
+
   return 0;
 }
 
@@ -290,7 +526,7 @@ static int iTreeSetShowDragDropAttrib(Ihandle* ih, const char* value)
 
 static int iTreeSetAddLeafAttrib(Ihandle* ih, const char* name_id, const char* value)
 {
-  if (!ih->handle)  /* do not store the action before map */
+  if (!ih->handle)  /* do not do the action before map */
     return 0;
   iupdrvTreeAddNode(ih, name_id, ITREE_LEAF, value, 1);
   return 0;
@@ -298,7 +534,7 @@ static int iTreeSetAddLeafAttrib(Ihandle* ih, const char* name_id, const char* v
 
 static int iTreeSetAddBranchAttrib(Ihandle* ih, const char* name_id, const char* value)
 {
-  if (!ih->handle)  /* do not store the action before map */
+  if (!ih->handle)  /* do not do the action before map */
     return 0;
   iupdrvTreeAddNode(ih, name_id, ITREE_BRANCH, value, 1);
   return 0;
@@ -306,7 +542,7 @@ static int iTreeSetAddBranchAttrib(Ihandle* ih, const char* name_id, const char*
 
 static int iTreeSetInsertLeafAttrib(Ihandle* ih, const char* name_id, const char* value)
 {
-  if (!ih->handle)  /* do not store the action before map */
+  if (!ih->handle)  /* do not do the action before map */
     return 0;
   iupdrvTreeAddNode(ih, name_id, ITREE_LEAF, value, 0);
   return 0;
@@ -314,7 +550,7 @@ static int iTreeSetInsertLeafAttrib(Ihandle* ih, const char* name_id, const char
 
 static int iTreeSetInsertBranchAttrib(Ihandle* ih, const char* name_id, const char* value)
 {
-  if (!ih->handle)  /* do not store the action before map */
+  if (!ih->handle)  /* do not do the action before map */
     return 0;
   iupdrvTreeAddNode(ih, name_id, ITREE_BRANCH, value, 0);
   return 0;
@@ -338,6 +574,74 @@ static int iTreeSetAddExpandedAttrib(Ihandle* ih, const char* value)
   return 0;
 }
 
+static char* iTreeGetCountAttrib(Ihandle* ih)
+{
+  char* str = iupStrGetMemory(10);
+  sprintf(str, "%d", ih->data->node_count);
+  return str;
+}
+
+static char* iTreeGetTotalChildCountAttrib(Ihandle* ih, const char* name_id)
+{
+  char* str;
+  InodeHandle* node_handle = iupTreeGetNodeFromString(ih, name_id);
+  if (!node_handle)
+    return NULL;
+
+  str = iupStrGetMemory(10);
+  sprintf(str, "%d", iupdrvTreeTotalChildCount(ih, node_handle));
+  return str;
+}
+
+
+static char* iTreeGetFindUserDataAttrib(Ihandle* ih, const char* name_id)
+{
+  int id;
+  char* str = (char*)(name_id+1); /* skip ':' */
+  void* userdata = NULL;
+  if (sscanf(str, "%p", &userdata)!=1)
+    return NULL;
+  id = iTreeFindUserDataId(ih, userdata);
+  if (id == -1)
+    return NULL;
+  str = iupStrGetMemory(16);
+  sprintf(str, "%d", id);
+  return str;
+}
+
+static char* iTreeGetUserDataAttrib(Ihandle* ih, const char* name_id)
+{
+  int id = iTreeGetIdFromString(name_id);
+  if (id >= 0 && id < ih->data->node_count)
+    return ih->data->node_cache[id].userdata;
+  else if (id == -2)
+  {
+    InodeHandle* node_handle = iupdrvTreeGetFocusNode(ih);
+    id = iupTreeFindNodeId(ih, node_handle);
+    if (id >= 0 && id < ih->data->node_count)
+      return ih->data->node_cache[id].userdata;
+  }
+  return NULL;
+}
+
+static int iTreeSetUserDataAttrib(Ihandle* ih, const char* name_id, const char* value)
+{
+  int id = iTreeGetIdFromString(name_id);
+  if (id >= 0 && id < ih->data->node_count)
+    ih->data->node_cache[id].userdata = (void*)value;
+  else if (id == -2)
+  {
+    InodeHandle* node_handle = iupdrvTreeGetFocusNode(ih);
+    id = iupTreeFindNodeId(ih, node_handle);
+    if (id >= 0 && id < ih->data->node_count)
+      ih->data->node_cache[id].userdata = (void*)value;
+  }
+  return 0;
+}
+
+
+/*************************************************************************/
+
 static int iTreeCreateMethod(Ihandle* ih, void **params)
 {
   (void)params;
@@ -348,9 +652,19 @@ static int iTreeCreateMethod(Ihandle* ih, void **params)
   IupSetAttribute(ih, "EXPAND", "YES");
 
   ih->data->add_expanded = 1;
+  ih->data->node_cache_max = 20;
+  ih->data->node_cache = calloc(ih->data->node_cache_max, sizeof(InodeData));
 
   return IUP_NOERROR;
 }
+
+static void iTreeDestroyMethod(Ihandle* ih)
+{
+  if (ih->data->node_cache)
+    free(ih->data->node_cache);
+}
+
+/*************************************************************************/
 
 Ihandle* IupTree(void)
 {
@@ -371,11 +685,12 @@ Iclass* iupTreeGetClass(void)
   /* Class functions */
   ic->Create = iTreeCreateMethod;
   ic->LayoutUpdate = iupdrvBaseLayoutUpdateMethod;
-  ic->UnMap = iupdrvBaseUnMapMethod;
+  ic->Destroy = iTreeDestroyMethod;
 
   /* Callbacks */
   iupClassRegisterCallback(ic, "SELECTION_CB",      "ii");
   iupClassRegisterCallback(ic, "MULTISELECTION_CB", "Ii");
+  iupClassRegisterCallback(ic, "MULTIUNSELECTION_CB", "Ii");
   iupClassRegisterCallback(ic, "BRANCHOPEN_CB",     "i");
   iupClassRegisterCallback(ic, "BRANCHCLOSE_CB",    "i");
   iupClassRegisterCallback(ic, "EXECUTELEAF_CB",    "i");
@@ -391,9 +706,12 @@ Iclass* iupTreeGetClass(void)
   iupBaseRegisterVisualAttrib(ic);
 
   /* IupTree Attributes - GENERAL */
-  iupClassRegisterAttribute(ic, "SHOWDRAGDROP",    iTreeGetShowDragDropAttrib,    iTreeSetShowDragDropAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "SHOWRENAME",      iTreeGetShowRenameAttrib,      iTreeSetShowRenameAttrib,   NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "ADDEXPANDED",     iTreeGetAddExpandedAttrib,     iTreeSetAddExpandedAttrib,  IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "SHOWDRAGDROP", iTreeGetShowDragDropAttrib,    iTreeSetShowDragDropAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "SHOWRENAME",   iTreeGetShowRenameAttrib,      iTreeSetShowRenameAttrib,   NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "ADDEXPANDED",  iTreeGetAddExpandedAttrib,     iTreeSetAddExpandedAttrib,  IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "COUNT",        iTreeGetCountAttrib, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_READONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "LASTADDNODE", NULL, NULL, IUPAF_SAMEASSYSTEM, NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "ADDROOT", NULL, NULL, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NO_INHERIT);
 
   /* IupTree Attributes - MARKS */
   iupClassRegisterAttribute(ic, "CTRL",  NULL, iTreeSetCtrlAttrib,  NULL, NULL, IUPAF_NOT_MAPPED);
@@ -405,6 +723,11 @@ Iclass* iupTreeGetClass(void)
   iupClassRegisterAttributeId(ic, "ADDBRANCH", NULL, iTreeSetAddBranchAttrib, IUPAF_NOT_MAPPED|IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "INSERTLEAF",   NULL, iTreeSetInsertLeafAttrib,   IUPAF_NOT_MAPPED|IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "INSERTBRANCH", NULL, iTreeSetInsertBranchAttrib, IUPAF_NOT_MAPPED|IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
+
+  /* IupTree Attributes - NODES */
+  iupClassRegisterAttributeId(ic, "TOTALCHILDCOUNT", iTreeGetTotalChildCountAttrib,   NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "FINDUSERDATA", iTreeGetFindUserDataAttrib, NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "USERDATA", iTreeGetUserDataAttrib, iTreeSetUserDataAttrib, IUPAF_NO_STRING|IUPAF_NO_INHERIT);
   
   /* Default node images */
   iTreeInitializeImages();
@@ -414,18 +737,23 @@ Iclass* iupTreeGetClass(void)
   return ic;
 }
 
-
 /********************************************************************************************/
 
-
-void IupTreeSetAttribute(Ihandle* ih, const char* a, int id, char* v)
+void IupTreeSetAttribute(Ihandle* ih, const char* a, int id, const char* v)
 {
   char* attr = iupStrGetMemory(50);
   sprintf(attr, "%s%d", a, id);
   IupSetAttribute(ih, attr, v);
 }
 
-void IupTreeStoreAttribute(Ihandle* ih, const char* a, int id, char* v)
+void IupTreeSetAttributeHandle(Ihandle* ih, const char* a, int id, Ihandle* ih_named)
+{
+  char* attr = iupStrGetMemory(50);
+  sprintf(attr, "%s%d", a, id);
+  IupSetAttributeHandle(ih, attr, ih_named);
+}
+
+void IupTreeStoreAttribute(Ihandle* ih, const char* a, int id, const char* v)
 {
   char* attr = iupStrGetMemory(50);
   sprintf(attr, "%s%d", a, id);
@@ -453,7 +781,7 @@ float IupTreeGetFloat(Ihandle* ih, const char* a, int id)
   return IupGetFloat(ih, attr);
 }
 
-void IupTreeSetfAttribute(Ihandle* ih, const char* a, int id, char* f, ...)
+void IupTreeSetfAttribute(Ihandle* ih, const char* a, int id, const char* f, ...)
 {
   static char v[SHRT_MAX];
   char* attr = iupStrGetMemory(50);
@@ -465,34 +793,40 @@ void IupTreeSetfAttribute(Ihandle* ih, const char* a, int id, char* f, ...)
   IupStoreAttribute(ih, attr, v);
 }
 
-
 /************************************************************************************/
-
 
 int IupTreeSetUserId(Ihandle* ih, int id, void* userdata)
 {
-  char attr[30];
-  sprintf(attr,"USERDATA%d",id);
-  IupSetAttribute(ih, attr, userdata);
-  return IupGetAttribute(ih, attr)? 1: 0;
+  iupASSERT(iupObjectCheck(ih));
+  if (!iupObjectCheck(ih))
+    return 0;
+
+  if (id >= 0 && id < ih->data->node_count)
+  {
+    ih->data->node_cache[id].userdata = userdata;
+    return 1;
+  }
+
+  return 0;
 }
 
 int IupTreeGetId(Ihandle* ih, void *userdata)
 {
-  int id = -1;
-  char* value;
-  char attr[30];
-  sprintf(attr,"FINDUSERDATA:%p",userdata);
-  value = IupGetAttribute(ih, attr);
-  if (!value) return -1;
+  iupASSERT(iupObjectCheck(ih));
+  if (!iupObjectCheck(ih))
+    return -1;
 
-  iupStrToInt(value, &id);
-  return id;
+  return iTreeFindUserDataId(ih, userdata);
 }
 
 void* IupTreeGetUserId(Ihandle* ih, int id)
 {
-  char attr[30];
-  sprintf(attr,"USERDATA%d",id);
-  return IupGetAttribute(ih, attr);
+  iupASSERT(iupObjectCheck(ih));
+  if (!iupObjectCheck(ih))
+    return NULL;
+
+  if (id >= 0 && id < ih->data->node_count)
+    return ih->data->node_cache[id].userdata;
+
+  return NULL;
 }

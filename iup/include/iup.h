@@ -21,9 +21,9 @@ extern "C" {
 #define IUP_NAME "IUP - Portable User Interface"
 #define IUP_COPYRIGHT  "Copyright (C) 1994-2010 Tecgraf, PUC-Rio."
 #define IUP_DESCRIPTION	"Portable toolkit for building graphical user interfaces."
-#define IUP_VERSION "3.0"         /* bug fixes are reported only by IupVersion functions */
-#define IUP_VERSION_NUMBER 300000
-#define IUP_VERSION_DATE "2010/01/26"
+#define IUP_VERSION "3.1"         /* bug fixes are reported only by IupVersion functions */
+#define IUP_VERSION_NUMBER 301000
+#define IUP_VERSION_DATE "2010/04/22"
 
 typedef struct Ihandle_ Ihandle;
 typedef int (*Icallback)(Ihandle*);
@@ -149,6 +149,7 @@ Ihandle*  IupNormalizerv(Ihandle* *ih_list);
 Ihandle*  IupCbox       (Ihandle* child, ...);
 Ihandle*  IupCboxv      (Ihandle* *children);
 Ihandle*  IupSbox       (Ihandle *child);
+Ihandle*  IupSplit      (Ihandle* child1, Ihandle* child2);
 
 Ihandle*  IupFrame      (Ihandle* child);
 
@@ -198,12 +199,13 @@ int   IupTreeSetUserId(Ihandle* ih, int id, void* userid);
 void* IupTreeGetUserId(Ihandle* ih, int id);
 int   IupTreeGetId(Ihandle* ih, void *userid);
 
-void  IupTreeSetAttribute  (Ihandle* ih, const char* name, int id, char* value);
-void  IupTreeStoreAttribute(Ihandle* ih, const char* name, int id, char* value);
+void  IupTreeSetAttribute  (Ihandle* ih, const char* name, int id, const char* value);
+void  IupTreeStoreAttribute(Ihandle* ih, const char* name, int id, const char* value);
 char* IupTreeGetAttribute  (Ihandle* ih, const char* name, int id);
 int   IupTreeGetInt        (Ihandle* ih, const char* name, int id);
 float IupTreeGetFloat      (Ihandle* ih, const char* name, int id);
-void  IupTreeSetfAttribute (Ihandle* ih, const char* name, int id, char* format, ...);
+void  IupTreeSetfAttribute (Ihandle* ih, const char* name, int id, const char* format, ...);
+void  IupTreeSetAttributeHandle(Ihandle* ih, const char* a, int id, Ihandle* ih_named);
 
 
 /************************************************************************/
@@ -339,7 +341,7 @@ int IupMain (int argc, char** argv); /* In C++ we have to declare the prototype 
 #endif
 
 /******************************************************************************
-* Copyright (C) 1994-2009 Tecgraf, PUC-Rio.
+* Copyright (C) 1994-2010 Tecgraf, PUC-Rio.
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the

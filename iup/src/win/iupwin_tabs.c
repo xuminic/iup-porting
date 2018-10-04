@@ -252,9 +252,12 @@ static int winTabsSetPaddingAttrib(Ihandle* ih, const char* value)
   iupStrToIntInt(value, &ih->data->horiz_padding, &ih->data->vert_padding, 'x');
 
   if (ih->handle)
+  {
     SendMessage(ih->handle, TCM_SETPADDING, 0, MAKELPARAM(ih->data->horiz_padding, ih->data->vert_padding));
-
-  return 0;
+    return 0;
+  }
+  else
+    return 1; /* store until not mapped, when mapped will be set again */
 }
 
 static int winTabsSetMultilineAttrib(Ihandle* ih, const char* value)
@@ -368,7 +371,7 @@ static char* winTabsGetBgColorAttrib(Ihandle* ih)
 static int winTabsSetBgColorAttrib(Ihandle *ih, const char *value)
 {
   (void)value;
-  iupdrvDisplayUpdate(ih);
+  iupdrvPostRedraw(ih);
   return 1;
 }
 
@@ -529,7 +532,7 @@ static void winTabsChildAddedMethod(Ihandle* ih, Ihandle* child)
         }
       }
 
-      iupdrvDisplayRedraw(ih);
+      iupdrvRedrawNow(ih);
     }
   }
 }
@@ -572,7 +575,7 @@ static int winTabsMapMethod(Ihandle* ih)
 
   iupwinGetNativeParentStyle(ih, &dwExStyle, &dwStyle);
 
-  if (dwExStyle & WS_EX_COMPOSITED && !ih->data->is_multiline && iupwinIsVista())
+  if (dwExStyle & WS_EX_COMPOSITED && !ih->data->is_multiline && iupwinIsVistaOrNew())
   {
     /* workaround for composite bug in Vista */
     ih->data->is_multiline = 1;  
@@ -678,4 +681,8 @@ void iupdrvTabsInitClass(Iclass* ic)
   iupClassRegisterAttributeId(ic, "TABTITLE", NULL, winTabsSetTabTitleAttrib, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "TABIMAGE", NULL, winTabsSetTabImageAttrib, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "PADDING", iupTabsGetPaddingAttrib, winTabsSetPaddingAttrib, IUPAF_SAMEASSYSTEM, "0x0", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+
+  /* necessary because transparent background does not work when not using visual styles */
+  if (!iupwin_comctl32ver6)  /* Used by iupdrvImageCreateImage */
+    iupClassRegisterAttribute(ic, "FLAT_ALPHA", NULL, NULL, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 }

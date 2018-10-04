@@ -31,17 +31,19 @@
 #include "iupwin_draw.h"
 #include "iupwin_info.h"
 
+
 typedef struct _winTreeItemData
 {
   COLORREF color;
   unsigned char kind;
-  void* userdata;
   HFONT hFont;
   short image;
   short image_expanded;
 } winTreeItemData;
 
-#ifndef TVN_ITEMCHANGING                          /* Vista Only */
+/* Vista Only */
+
+#ifndef TVN_ITEMCHANGING                          
 typedef struct tagNMTVITEMCHANGE {
     NMHDR hdr;
     UINT uChanged;
@@ -54,219 +56,33 @@ typedef struct tagNMTVITEMCHANGE {
 #define TVN_ITEMCHANGINGW        (TVN_FIRST-17)    
 #endif
 
+#ifndef TVS_EX_DOUBLEBUFFER
+#define TVS_EX_DOUBLEBUFFER         0x0004
+#endif
+
+#ifndef TVM_SETEXTENDEDSTYLE
+#define TVM_SETEXTENDEDSTYLE      (TV_FIRST + 44)
+#endif
+
+
 static void winTreeSetFocusNode(Ihandle* ih, HTREEITEM hItem);
-typedef int (*winTreeNodeFunc)(Ihandle* ih, HTREEITEM hItem, void* userdata);
 
-static int winTreeForEach(Ihandle* ih, HTREEITEM hItem, winTreeNodeFunc func, void* userdata)
-{
-  HTREEITEM hItemChild;
-
-  if (!hItem)
-    hItem = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_ROOT, 0);
-
-  while(hItem != NULL)
-  {
-    if (!func(ih, hItem, userdata))
-      return 0;
-
-    hItemChild = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_CHILD, (LPARAM)hItem);
-    if (hItemChild)
-    {
-      /* Recursively traverse child items */
-      if (!winTreeForEach(ih, hItemChild, func, userdata))
-        return 0;
-    }
-
-    /* Go to next sibling item */
-    hItem = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_NEXT, (LPARAM)hItem);
-  }
-
-  return 1;
-}
 
 /*****************************************************************************/
 /* FINDING ITEMS                                                             */
 /*****************************************************************************/
-static HTREEITEM winTreeFindNodeID(Ihandle* ih, HTREEITEM hItem, HTREEITEM hNode)
+
+InodeHandle* iupdrvTreeGetFocusNode(Ihandle* ih)
 {
-  TVITEM item;
-  winTreeItemData* itemData;
-
-  while(hItem != NULL)
-  {
-    /* ID control to traverse items */
-    ih->data->id_control++;
-
-    /* StateID founded! */
-    if(hItem == hNode)
-      return hItem;
-
-    /* Get hItem attributes */
-    item.hItem = hItem;
-    item.mask = TVIF_HANDLE|TVIF_PARAM;
-    SendMessage(ih->handle, TVM_GETITEM, 0, (LPARAM)(LPTVITEM)&item);
-    itemData = (winTreeItemData*)item.lParam;
-
-    /* Check whether we have child items */
-    if (itemData->kind == ITREE_BRANCH)
-    {
-      /* Recursively traverse child items */
-      HTREEITEM hItemChild = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_CHILD, (LPARAM)hItem);
-      hItemChild = winTreeFindNodeID(ih, hItemChild, hNode);
-
-      /* StateID founded! */
-      if(hItemChild)
-        return hItemChild;
-    }
-    /* Go to next sibling item */
-    hItem = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_NEXT, (LPARAM)hItem);
-  }
-
-  return NULL;
+  return (InodeHandle*)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_CARET, 0);
 }
 
-static int winTreeGetNodeId(Ihandle* ih, HTREEITEM hItem)
+static HTREEITEM winTreeFindNodeXY(Ihandle* ih, int x, int y)
 {
-  HTREEITEM hItemRoot = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_ROOT, 0);
-  ih->data->id_control = -1;
-  if (winTreeFindNodeID(ih, hItemRoot, hItem))
-    return ih->data->id_control;
-  else
-    return -1;
-}
-
-static HTREEITEM winTreeFindUserDataID(Ihandle* ih, HTREEITEM hItem, void* userdata)
-{
-  TVITEM item;
-  winTreeItemData* itemData;
-
-  while(hItem != NULL)
-  {
-    /* ID control to traverse items */
-    ih->data->id_control++;
-
-    /* Get hItem attributes */
-    item.hItem = hItem;
-    item.mask = TVIF_HANDLE|TVIF_PARAM;
-    SendMessage(ih->handle, TVM_GETITEM, 0, (LPARAM)(LPTVITEM)&item);
-    itemData = (winTreeItemData*)item.lParam;
-
-    /* userdata founded! */
-    if(itemData->userdata == userdata)
-      return hItem;
-
-    /* Check whether we have child items */
-    if (itemData->kind == ITREE_BRANCH)
-    {
-      /* Recursively traverse child items */
-      HTREEITEM hItemChild = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_CHILD, (LPARAM)hItem);
-      hItemChild = winTreeFindUserDataID(ih, hItemChild, userdata);
-
-      /* userdata founded! */
-      if (hItemChild)
-        return hItemChild;
-    }
-
-    /* Go to next sibling item */
-    hItem = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_NEXT, (LPARAM)hItem);
-  }
-
-  return NULL;
-}
-
-static int winTreeGetUserDataId(Ihandle* ih, void* userdata)
-{
-  HTREEITEM hItemRoot = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_ROOT, 0);
-  ih->data->id_control = -1;
-  if (winTreeFindUserDataID(ih, hItemRoot, userdata))
-    return ih->data->id_control;
-  else
-    return -1;
-}
-
-static HTREEITEM winTreeFindNodeFromID(Ihandle* ih, HTREEITEM hItem)
-{
-  TVITEM item;
-  winTreeItemData* itemData;
-
-  while(hItem != NULL)
-  {
-    /* ID control to traverse items */
-    ih->data->id_control--;
-
-    /* StateID founded! */
-    if(ih->data->id_control < 0)
-      return hItem;
-
-    /* Get hItem attributes */
-    item.hItem = hItem;
-    item.mask = TVIF_HANDLE|TVIF_PARAM;
-    SendMessage(ih->handle, TVM_GETITEM, 0, (LPARAM)(LPTVITEM)&item);
-    itemData = (winTreeItemData*)item.lParam;
-
-    /* Check whether we have child items */
-    if (itemData->kind == ITREE_BRANCH)
-    {
-      /* Recursively traverse child items */
-      HTREEITEM hItemChild = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_CHILD, (LPARAM)hItem);
-      hItemChild = winTreeFindNodeFromID(ih, hItemChild);
-
-      /* StateID founded! */
-      if(ih->data->id_control < 0)
-        return hItemChild;
-    }
-
-    /* Go to next sibling item */
-    hItem = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_NEXT, (LPARAM)hItem);
-  }
-
-  return hItem;
-}
-
-static HTREEITEM winTreeFindNodeFromString(Ihandle* ih, const char* name_id)
-{
-  if (name_id && name_id[0])
-  {
-    HTREEITEM hRoot = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_ROOT, 0);
-    iupStrToInt(name_id, &ih->data->id_control);
-    return winTreeFindNodeFromID(ih, hRoot);
-  }
-  else
-    return (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_CARET, 0);
-}
-
-/* Recursively, find a new brother for the item
-   that will have its depth changed. Returns the new brother. */
-static HTREEITEM winTreeFindNewBrother(Ihandle* ih, HTREEITEM hBrotherItem)
-{
-  TVITEM item;
-  winTreeItemData* itemData;
-
-  while(hBrotherItem != NULL)
-  {
-    if(ih->data->id_control < 0)
-      return hBrotherItem;
-
-    item.hItem = hBrotherItem;
-    item.mask = TVIF_HANDLE|TVIF_PARAM;
-    SendMessage(ih->handle, TVM_GETITEM, 0, (LPARAM)(LPTVITEM)&item);
-    itemData = (winTreeItemData*)item.lParam;
-
-    if (itemData->kind == ITREE_BRANCH)
-    {
-      HTREEITEM hItemChild;
-
-      ih->data->id_control--;
-      hItemChild = winTreeFindNewBrother(ih, (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_CHILD, (LPARAM)hBrotherItem));
-
-      if(ih->data->id_control < 0)
-        return hItemChild;
-    }
-
-    hBrotherItem = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_NEXT, (LPARAM)hBrotherItem);
-  }
-
-  return hBrotherItem;
+  TVHITTESTINFO info;
+  info.pt.x = x;
+  info.pt.y = y;
+  return (HTREEITEM)SendMessage(ih->handle, TVM_HITTEST, 0, (LPARAM)(LPTVHITTESTINFO)&info);
 }
 
 static HTREEITEM winTreeFindNodePointed(Ihandle* ih)
@@ -275,9 +91,7 @@ static HTREEITEM winTreeFindNodePointed(Ihandle* ih)
   DWORD pos = GetMessagePos();
   info.pt.x = LOWORD(pos);
   info.pt.y = HIWORD(pos);
-
   ScreenToClient(ih->handle, &info.pt);
-  
   return (HTREEITEM)SendMessage(ih->handle, TVM_HITTEST, 0, (LPARAM)(LPTVHITTESTINFO)&info);
 }
 
@@ -292,19 +106,75 @@ int iupwinGetColor(const char* value, COLORREF *color)
   return 0;
 }
 
+static void winTreeChildCountRec(Ihandle* ih, HTREEITEM hItem, int *count)
+{
+  hItem = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_CHILD, (LPARAM)hItem);
+  while(hItem != NULL)
+  {
+    (*count)++;
+
+    /* go recursive to children */
+    winTreeChildCountRec(ih, hItem, count);
+
+    /* Go to next sibling item */
+    hItem = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_NEXT, (LPARAM)hItem);
+  }
+}
+
+int iupdrvTreeTotalChildCount(Ihandle* ih, HTREEITEM hItem)
+{
+  int count = 0;
+  winTreeChildCountRec(ih, hItem, &count);
+  return count;
+}
+
+static void winTreeChildRebuildCacheRec(Ihandle* ih, HTREEITEM hItem, int *id)
+{
+  hItem = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_CHILD, (LPARAM)hItem);
+  while(hItem != NULL)
+  {
+    (*id)++;
+    ih->data->node_cache[*id].node_handle = hItem;
+
+    /* go recursive to children */
+    winTreeChildRebuildCacheRec(ih, hItem, id);
+
+    /* Go to next sibling item */
+    hItem = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_NEXT, (LPARAM)hItem);
+  }
+}
+
+static void winTreeRebuildNodeCache(Ihandle* ih, int id, HTREEITEM hItem)
+{
+  ih->data->node_cache[id].node_handle = hItem;
+  winTreeChildRebuildCacheRec(ih, hItem, &id);
+}
+
+
 /*****************************************************************************/
 /* ADDING ITEMS                                                              */
 /*****************************************************************************/
+
+static void winTreeExpandItem(Ihandle* ih, HTREEITEM hItem, int expand);
+
 void iupdrvTreeAddNode(Ihandle* ih, const char* name_id, int kind, const char* title, int add)
 {
-  TVITEM item, tviPrevItem;
+  TVITEM item;
   TVINSERTSTRUCT tvins;
-  HTREEITEM hPrevItem = winTreeFindNodeFromString(ih, name_id);
-  int kindPrev;
+  HTREEITEM hPrevItem = iupTreeGetNodeFromString(ih, name_id);
+  HTREEITEM hItemNew;
   winTreeItemData* itemData;
 
   if (!hPrevItem)
-    return;
+  {
+    /* check if the root was really specified */
+    int id = 0;
+    if (!iupStrToInt(name_id, &id) || id != -1)
+      return;
+  }
+
+  if (!title)
+    title = "";
 
   itemData = calloc(1, sizeof(winTreeItemData));
   itemData->image = -1;
@@ -318,83 +188,71 @@ void iupdrvTreeAddNode(Ihandle* ih, const char* name_id, int kind, const char* t
   iupwinGetColor(iupAttribGetStr(ih, "FGCOLOR"), &itemData->color);
 
   if (kind == ITREE_BRANCH)
-  {
     item.iSelectedImage = item.iImage = (int)ih->data->def_image_collapsed;
-
-    if (ih->data->add_expanded)
-    {
-      item.mask |= TVIF_STATE;
-      item.state = item.stateMask = TVIS_EXPANDED;
-      item.iSelectedImage = item.iImage = (int)ih->data->def_image_expanded;
-    }
-  }
   else
     item.iSelectedImage = item.iImage = (int)ih->data->def_image_leaf;
 
   /* Save the heading level in the node's application-defined data area */
   tvins.item = item;
 
-  /* get the KIND attribute of node selected */ 
-  tviPrevItem.hItem = hPrevItem;
-  tviPrevItem.mask = TVIF_PARAM|TVIF_CHILDREN; 
-  SendMessage(ih->handle, TVM_GETITEM, 0, (LPARAM)(LPTVITEM)&tviPrevItem);
-  kindPrev = ((winTreeItemData*)tviPrevItem.lParam)->kind;
-
-  /* Define the parent and the position to the new node inside
-     the list, using the KIND attribute of node selected */
-  if (kindPrev == ITREE_BRANCH && add)
+  if (hPrevItem)
   {
-    tvins.hParent = hPrevItem;
-    tvins.hInsertAfter = TVI_FIRST;   /* insert the new node after item selected, as first child */
+    int kindPrev;
+    TVITEM tviPrevItem;
+
+    /* get the KIND attribute of reference node */ 
+    tviPrevItem.hItem = hPrevItem;
+    tviPrevItem.mask = TVIF_PARAM|TVIF_CHILDREN; 
+    SendMessage(ih->handle, TVM_GETITEM, 0, (LPARAM)(LPTVITEM)&tviPrevItem);
+    kindPrev = ((winTreeItemData*)tviPrevItem.lParam)->kind;
+
+    /* Define the parent and the position to the new node inside
+       the list, using the KIND attribute of reference node */
+    if (kindPrev == ITREE_BRANCH && add)
+    {
+      /* depth+1 */
+      tvins.hParent = hPrevItem;
+      tvins.hInsertAfter = TVI_FIRST;   /* insert the new node after the reference node, as first child */
+    }
+    else
+    {
+      /* same depth */
+      tvins.hParent = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_PARENT, (LPARAM)hPrevItem);
+      tvins.hInsertAfter = hPrevItem;   /* insert the new node after reference node */
+    }
+
+    /* Add the new node */
+    hItemNew = (HTREEITEM)SendMessage(ih->handle, TVM_INSERTITEM, 0, (LPARAM)(LPTVINSERTSTRUCT)&tvins);
+    iupTreeAddToCache(ih, add, kindPrev, hPrevItem, hItemNew);
+
+    if (kindPrev == ITREE_BRANCH && tviPrevItem.cChildren==0)  /* was 0, now is 1 */
+    {
+      /* this is the first child, redraw to update the '+'/'-' buttons */
+      if (ih->data->add_expanded)
+        winTreeExpandItem(ih, hPrevItem, 1);
+      else
+        winTreeExpandItem(ih, hPrevItem, 0);
+    }
+
   }
   else
   {
-    tvins.hParent = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_PARENT, (LPARAM)hPrevItem);
-    tvins.hInsertAfter = hPrevItem;   /* insert the new node after item selected */
+    tvins.hInsertAfter = TVI_FIRST;
+    tvins.hParent = TVI_ROOT;
+
+    /* Add the new node */
+    hItemNew = (HTREEITEM)SendMessage(ih->handle, TVM_INSERTITEM, 0, (LPARAM)(LPTVINSERTSTRUCT)&tvins);
+    iupTreeAddToCache(ih, 0, 0, NULL, hItemNew);
+
+    if (ih->data->node_count == 1)
+    {
+      /* MarkStart node */
+      iupAttribSetStr(ih, "_IUPTREE_MARKSTART_NODE", (char*)hItemNew);
+
+      /* Set the default VALUE */
+      winTreeSetFocusNode(ih, hItemNew);
+    }
   }
-
-  /* Add the node to the tree-view control */
-  SendMessage(ih->handle, TVM_INSERTITEM, 0, (LPARAM)(LPTVINSERTSTRUCT)&tvins);
-
-  if (kindPrev == ITREE_BRANCH && tviPrevItem.cChildren==0)
-  {
-    /* this is the first child, redraw to update the '+'/'-' buttons */
-    iupdrvDisplayRedraw(ih);
-  }
-}
-
-static void winTreeAddRootNode(Ihandle* ih)
-{
-  TVITEM item; 
-  TVINSERTSTRUCT tvins;
-  HTREEITEM hNewItem;
-  winTreeItemData* itemData;
-
-  itemData = calloc(1, sizeof(winTreeItemData));
-  itemData->image = -1;
-  itemData->image_expanded = -1;
-  itemData->kind = ITREE_BRANCH;
-
-  item.mask = TVIF_PARAM | TVIF_STATE | TVIF_IMAGE | TVIF_SELECTEDIMAGE; 
-  item.state = item.stateMask = TVIS_EXPANDED;
-  item.iSelectedImage = item.iImage = (int)ih->data->def_image_expanded;
-  item.lParam = (LPARAM)itemData;
-
-  iupwinGetColor(iupAttribGetStr(ih, "FGCOLOR"), &itemData->color);
-
-  /* Save the heading level in the node's application-defined data area */
-  tvins.item = item; 
-  tvins.hInsertAfter = TVI_FIRST;
-  tvins.hParent = TVI_ROOT;
-
-  /* Add the node to the tree-view control */
-  hNewItem = (HTREEITEM)SendMessage(ih->handle, TVM_INSERTITEM, 0, (LPARAM)(LPTVINSERTSTRUCT)&tvins);
-
-  /* MarkStart node */
-  iupAttribSetStr(ih, "_IUPTREE_MARKSTART_NODE", (char*)hNewItem);
-
-  /* Set the default VALUE */
-  winTreeSetFocusNode(ih, hNewItem);
 }
 
 static int winTreeIsItemExpanded(Ihandle* ih, HTREEITEM hItem)
@@ -408,28 +266,28 @@ static int winTreeIsItemExpanded(Ihandle* ih, HTREEITEM hItem)
 
 static void winTreeExpandItem(Ihandle* ih, HTREEITEM hItem, int expand)
 {
+  TVITEM item;
+  winTreeItemData* itemData;
+
+  iupAttribSetStr(ih, "_IUPTREE_IGNORE_BRANCH_CB", "1");
   /* it only works if the branch has children */
   SendMessage(ih->handle, TVM_EXPAND, expand? TVE_EXPAND: TVE_COLLAPSE, (LPARAM)hItem);
+  iupAttribSetStr(ih, "_IUPTREE_IGNORE_BRANCH_CB", NULL);
 
   /* update image */
-  {
-    TVITEM item;
-    winTreeItemData* itemData;
+  item.hItem = hItem;
+  item.mask = TVIF_HANDLE|TVIF_PARAM;
+  SendMessage(ih->handle, TVM_GETITEM, 0, (LPARAM)(LPTVITEM)&item);
+  itemData = (winTreeItemData*)item.lParam;
 
-    item.hItem = hItem;
-    item.mask = TVIF_HANDLE|TVIF_PARAM;
-    SendMessage(ih->handle, TVM_GETITEM, 0, (LPARAM)(LPTVITEM)&item);
-    itemData = (winTreeItemData*)item.lParam;
+  if (expand)
+    item.iSelectedImage = item.iImage = (itemData->image_expanded!=-1)? itemData->image_expanded: (int)ih->data->def_image_expanded;
+  else
+    item.iSelectedImage = item.iImage = (itemData->image!=-1)? itemData->image: (int)ih->data->def_image_collapsed;
 
-    if (expand)
-      item.iSelectedImage = item.iImage = (itemData->image_expanded!=-1)? itemData->image_expanded: (int)ih->data->def_image_expanded;
-    else
-      item.iSelectedImage = item.iImage = (itemData->image!=-1)? itemData->image: (int)ih->data->def_image_collapsed;
-
-    item.hItem = hItem;
-    item.mask = TVIF_HANDLE | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
-    SendMessage(ih->handle, TVM_SETITEM, 0, (LPARAM)(LPTVITEM)&item);
-  }
+  item.hItem = hItem;
+  item.mask = TVIF_HANDLE | TVIF_IMAGE | TVIF_SELECTEDIMAGE;
+  SendMessage(ih->handle, TVM_SETITEM, 0, (LPARAM)(LPTVITEM)&item);
 }
 
 /*****************************************************************************/
@@ -460,12 +318,12 @@ static void winTreeExpandTree(Ihandle* ih, HTREEITEM hItem, int expand)
 /* SELECTING ITEMS                                                           */
 /*****************************************************************************/
 
-static int winTreeIsItemSelected(Ihandle* ih, HTREEITEM hItem)
+static int winTreeIsNodeSelected(Ihandle* ih, HTREEITEM hItem)
 {
   return ((SendMessage(ih->handle, TVM_GETITEMSTATE, (WPARAM)hItem, TVIS_SELECTED)) & TVIS_SELECTED)!=0;
 }
 
-static void winTreeSelectItem(Ihandle* ih, HTREEITEM hItem, int select)
+static void winTreeSelectNode(Ihandle* ih, HTREEITEM hItem, int select)
 {
   TV_ITEM item;
   item.mask = TVIF_STATE | TVIF_HANDLE;
@@ -473,7 +331,7 @@ static void winTreeSelectItem(Ihandle* ih, HTREEITEM hItem, int select)
   item.hItem = hItem;
 
   if (select == -1)
-    select = !winTreeIsItemSelected(ih, hItem);
+    select = !winTreeIsNodeSelected(ih, hItem);  /* toggle */
 
   item.state = select ? TVIS_SELECTED : 0;
 
@@ -482,83 +340,65 @@ static void winTreeSelectItem(Ihandle* ih, HTREEITEM hItem, int select)
   iupAttribSetStr(ih, "_IUPTREE_IGNORE_SELECTION_CB", NULL);
 }
 
-static HTREEITEM winTreeGetFocusNode(Ihandle* ih)
-{
-  return (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_CARET, 0);
-}
-
 /* ------------Comment from wxWidgets--------------------
    Helper function which tricks the standard control into changing the focused
    item without changing anything else. */
 static void winTreeSetFocusNode(Ihandle* ih, HTREEITEM hItem)
 {
-  HTREEITEM hItemFocus = winTreeGetFocusNode(ih);
+  HTREEITEM hItemFocus = iupdrvTreeGetFocusNode(ih);
   if (hItem != hItemFocus)
   {
     /* remember the selection state of the item */
-    int wasSelected = winTreeIsItemSelected(ih, hItem);
+    int wasSelected = winTreeIsNodeSelected(ih, hItem);
     int wasFocusSelected = 0;
 
-    if (iupwinIsVista())
+    if (iupwinIsVistaOrNew() && iupwin_comctl32ver6)
       iupAttribSetStr(ih, "_IUPTREE_ALLOW_CHANGE", (char*)hItem);  /* Vista Only */
     else
-      wasFocusSelected = hItemFocus && winTreeIsItemSelected(ih, hItemFocus);
+      wasFocusSelected = hItemFocus && winTreeIsNodeSelected(ih, hItemFocus);
+
+    iupAttribSetStr(ih, "_IUPTREE_IGNORE_SELECTION_CB", "1");
 
     if (wasFocusSelected)
     {
       /* prevent the tree from unselecting the old focus which it would do by default */
       SendMessage(ih->handle, TVM_SELECTITEM, TVGN_CARET, (LPARAM)NULL); /* remove the focus */
-      winTreeSelectItem(ih, hItemFocus, 1); /* select again */
+      winTreeSelectNode(ih, hItemFocus, 1); /* select again */
     }
 
     SendMessage(ih->handle, TVM_SELECTITEM, TVGN_CARET, (LPARAM)hItem); /* set focus, selection, and unselect the previous focus */
 
     if (!wasSelected)
-      winTreeSelectItem(ih, hItem, 0); /* need to clear the selection if was not selected */
+      winTreeSelectNode(ih, hItem, 0); /* need to clear the selection if was not selected */
 
+    iupAttribSetStr(ih, "_IUPTREE_IGNORE_SELECTION_CB", NULL);
     iupAttribSetStr(ih, "_IUPTREE_ALLOW_CHANGE", NULL);
   }
 }
 
-typedef struct _winTreeRange{
-  HTREEITEM hItem1, hItem2;
-  char inside, clear;
-}winTreeRange;
-
-static int winTreeSelectRangeFunc(Ihandle* ih, HTREEITEM hItem, winTreeRange* range)
+static void winTreeSelectRange(Ihandle* ih, HTREEITEM hItem1, HTREEITEM hItem2, int clear)
 {
-  int end_range = 0;
-
-  if (range->inside == 0) /* detect the range start */
+  int i;
+  int id1 = iupTreeFindNodeId(ih, hItem1);
+  int id2 = iupTreeFindNodeId(ih, hItem2);
+  if (id2 == -1) id2 = ih->data->node_count-1;
+  if (id1 > id2)
   {
-    if (range->hItem1 == hItem) range->inside=1;
-    else if (range->hItem2 == hItem) range->inside=1;
-  }
-  else if (range->inside == 1) /* detect the range end */
-  {
-    if (range->hItem1 == hItem) end_range=1;
-    else if (range->hItem2 == hItem) end_range=1;
+    int tmp = id1;
+    id1 = id2;
+    id2 = tmp;
   }
 
-  if (range->inside == 1) /* if inside, select */
-    winTreeSelectItem(ih, hItem, 1);
-  else if (range->clear)  /* if outside and clear, unselect */
-    winTreeSelectItem(ih, hItem, 0);
-
-  if (end_range || (range->inside && range->hItem1==range->hItem2))
-    range->inside=-1;  /* update after selecting the node */
-
-  return 1;
-}
-
-static void winTreeSelectRange(Ihandle* ih, HTREEITEM hItemFrom, HTREEITEM hItemTo, int clear)
-{
-  winTreeRange range;
-  range.hItem1 = hItemFrom;
-  range.hItem2 = hItemTo;
-  range.inside = 0;
-  range.clear = (char)clear;
-  winTreeForEach(ih, NULL, (winTreeNodeFunc)winTreeSelectRangeFunc, &range);
+  for (i = 0; i < ih->data->node_count; i++)
+  {
+    if (i < id1 || i > id2)
+    {
+      if (clear)
+        winTreeSelectNode(ih, ih->data->node_cache[i].node_handle, 0);
+    }
+    else
+      winTreeSelectNode(ih, ih->data->node_cache[i].node_handle, 1);
+  }
 }
 
 static void winTreeSelectAll(Ihandle* ih)
@@ -572,9 +412,10 @@ static void winTreeClearSelection(Ihandle* ih, HTREEITEM hItemExcept)
   winTreeSelectRange(ih, hItemExcept, hItemExcept, 1);
 }
 
-static int winTreeInvertSelectFunc(Ihandle* ih, HTREEITEM hItem, void* userdata)
+static int winTreeInvertSelectFunc(Ihandle* ih, HTREEITEM hItem, int id, void* userdata)
 {
-  winTreeSelectItem(ih, hItem, -1);
+  (void)id;
+  winTreeSelectNode(ih, hItem, -1);
   (void)userdata;
   return 1;
 }
@@ -582,14 +423,11 @@ static int winTreeInvertSelectFunc(Ihandle* ih, HTREEITEM hItem, void* userdata)
 typedef struct _winTreeSelArray{
   Iarray* markedArray;
   char is_handle;
-  int id_control;
 }winTreeSelArray;
 
-static int winTreeSelectedArrayFunc(Ihandle* ih, HTREEITEM hItem, winTreeSelArray* selarray)
+static int winTreeSelectedArrayFunc(Ihandle* ih, HTREEITEM hItem, int id, winTreeSelArray* selarray)
 {                                                                                  
-  selarray->id_control++;
-
-  if (winTreeIsItemSelected(ih, hItem))
+  if (winTreeIsNodeSelected(ih, hItem))
   {
     if (selarray->is_handle)
     {
@@ -601,7 +439,7 @@ static int winTreeSelectedArrayFunc(Ihandle* ih, HTREEITEM hItem, winTreeSelArra
     {
       int* intArrayData = (int*)iupArrayInc(selarray->markedArray);
       int i = iupArrayCount(selarray->markedArray);
-      intArrayData[i-1] = selarray->id_control;
+      intArrayData[i-1] = id;
     }
   }
 
@@ -613,10 +451,9 @@ static Iarray* winTreeGetSelectedArray(Ihandle* ih)
   Iarray* markedArray = iupArrayCreate(1, sizeof(HTREEITEM));
   winTreeSelArray selarray;
   selarray.markedArray = markedArray;
-  selarray.id_control = -1;
   selarray.is_handle = 1;
 
-  winTreeForEach(ih, NULL, (winTreeNodeFunc)winTreeSelectedArrayFunc, &selarray);
+  iupTreeForEach(ih, (iupTreeNodeFunc)winTreeSelectedArrayFunc, &selarray);
 
   return markedArray;
 }
@@ -626,10 +463,9 @@ static Iarray* winTreeGetSelectedArrayId(Ihandle* ih)
   Iarray* markedArray = iupArrayCreate(1, sizeof(int));
   winTreeSelArray selarray;
   selarray.markedArray = markedArray;
-  selarray.id_control = -1;
   selarray.is_handle = 0;
 
-  winTreeForEach(ih, NULL, (winTreeNodeFunc)winTreeSelectedArrayFunc, &selarray);
+  iupTreeForEach(ih, (iupTreeNodeFunc)winTreeSelectedArrayFunc, &selarray);
 
   return markedArray;
 }
@@ -639,7 +475,7 @@ static Iarray* winTreeGetSelectedArrayId(Ihandle* ih)
 /* COPYING ITEMS (Branches and its children)                                 */
 /*****************************************************************************/
 /* Insert the copied item in a new location. Returns the new item. */
-static HTREEITEM winTreeCopyItem(Ihandle* ih, HTREEITEM hItem, HTREEITEM hParent, HTREEITEM hPosition, int full_copy)
+static HTREEITEM winTreeCopyItem(Ihandle* ih, HTREEITEM hItem, HTREEITEM hParent, HTREEITEM hPosition, int is_copy)
 {
   TVITEM item; 
   TVINSERTSTRUCT tvins;
@@ -651,34 +487,34 @@ static HTREEITEM winTreeCopyItem(Ihandle* ih, HTREEITEM hItem, HTREEITEM hParent
   item.cchTextMax = 255;
   SendMessage(ih->handle, TVM_GETITEM, 0, (LPARAM)(LPTVITEM)&item);
 
-  if (full_copy) /* during a full copy the userdata reference is not copied */
+  if (is_copy) /* during a copy the itemdata reference is not reused */
   {
     /* create a new one */
     winTreeItemData* itemDataNew = malloc(sizeof(winTreeItemData));
     memcpy(itemDataNew, (void*)item.lParam, sizeof(winTreeItemData));
-    itemDataNew->userdata = NULL;
     item.lParam = (LPARAM)itemDataNew;
   }
 
-  /* Copy everything including user data reference */
+  /* Copy everything including itemdata reference */
   tvins.item = item; 
   tvins.hInsertAfter = hPosition;
   tvins.hParent = hParent;
 
-  /* Add the node to the tree-view control */
+  /* Add the new node */
+  ih->data->node_count++;
   return (HTREEITEM)SendMessage(ih->handle, TVM_INSERTITEM, 0, (LPARAM)(LPTVINSERTSTRUCT)&tvins);
 }
 
-static void winTreeCopyChildren(Ihandle* ih, HTREEITEM hItemSrc, HTREEITEM hItemDst, int full_copy)
+static void winTreeCopyChildren(Ihandle* ih, HTREEITEM hItemSrc, HTREEITEM hItemDst, int is_copy)
 {
   HTREEITEM hChildSrc = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_CHILD, (LPARAM)hItemSrc);
-  HTREEITEM hNewItem = TVI_FIRST;
+  HTREEITEM hItemNew = TVI_FIRST;
   while (hChildSrc != NULL)
   {
-    hNewItem = winTreeCopyItem(ih, hChildSrc, hItemDst, hNewItem, full_copy); /* Use the same order they where enumerated */
+    hItemNew = winTreeCopyItem(ih, hChildSrc, hItemDst, hItemNew, is_copy); /* Use the same order they where enumerated */
 
     /* Recursively transfer all the items */
-    winTreeCopyChildren(ih, hChildSrc, hNewItem, full_copy);  
+    winTreeCopyChildren(ih, hChildSrc, hItemNew, is_copy);  
 
     /* Go to next sibling item */
     hChildSrc = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_NEXT, (LPARAM)hChildSrc);
@@ -686,11 +522,18 @@ static void winTreeCopyChildren(Ihandle* ih, HTREEITEM hItemSrc, HTREEITEM hItem
 }
 
 /* Copies all items in a branch to a new location. Returns the new branch node. */
-static HTREEITEM winTreeCopyNode(Ihandle* ih, HTREEITEM hItemSrc, HTREEITEM hItemDst, int full_copy)
+static HTREEITEM winTreeCopyMoveNode(Ihandle* ih, HTREEITEM hItemSrc, HTREEITEM hItemDst, int is_copy)
 {
-  HTREEITEM hNewItem, hParent;
+  HTREEITEM hItemNew, hParent;
   TVITEM item;
   winTreeItemData* itemDataDst;
+  int id_new, count, id_src, id_dst;
+
+  int old_count = ih->data->node_count;
+
+  id_src = iupTreeFindNodeId(ih, hItemSrc);
+  id_dst = iupTreeFindNodeId(ih, hItemDst);
+  id_new = id_dst+1; /* contains the position for a copy operation */
 
   /* Get DST node attributes */
   item.hItem = hItemDst;
@@ -705,31 +548,64 @@ static HTREEITEM winTreeCopyNode(Ihandle* ih, HTREEITEM hItemSrc, HTREEITEM hIte
     hItemDst = TVI_FIRST;
   }
   else
-  {                                                    
+  {                                    
+    if (itemDataDst->kind == ITREE_BRANCH)
+    {
+      int child_count = iupdrvTreeTotalChildCount(ih, hItemDst);
+      id_new += child_count;
+    }
+
     /* copy as next brother of item or collapsed branch */
     hParent = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_PARENT, (LPARAM)hItemDst);
   }
 
-  hNewItem = winTreeCopyItem(ih, hItemSrc, hParent, hItemDst, full_copy);
+  /* move to the same place does nothing */
+  if (!is_copy && id_new == id_src)
+    return NULL;
 
-  winTreeCopyChildren(ih, hItemSrc, hNewItem, full_copy);
+  hItemNew = winTreeCopyItem(ih, hItemSrc, hParent, hItemDst, is_copy);
 
-  return hNewItem;
+  winTreeCopyChildren(ih, hItemSrc, hItemNew, is_copy);
+
+  count = ih->data->node_count - old_count;
+  iupTreeCopyMoveCache(ih, id_src, id_new, count, is_copy);
+
+  if (!is_copy)
+  {
+    /* Deleting the node (and its children) from the old position */
+    /* do not delete the itemdata, we reuse the references in CopyNode */
+    iupAttribSetStr(ih, "_IUPTREE_IGNORE_SELECTION_CB", "1");
+    SendMessage(ih->handle, TVM_DELETEITEM, 0, (LPARAM)hItemSrc);
+    iupAttribSetStr(ih, "_IUPTREE_IGNORE_SELECTION_CB", NULL);
+
+    /* restore count, because we remove src */
+    ih->data->node_count = old_count;
+
+    /* compensate position for a move */
+    if (id_new > id_src)
+      id_new -= count;
+  }
+
+  winTreeRebuildNodeCache(ih, id_new, hItemNew);
+
+  return hItemNew;
 }
 
 /*****************************************************************************/
 /* MANIPULATING IMAGES                                                       */
 /*****************************************************************************/
-static void winTreeUpdateImages(Ihandle* ih, HTREEITEM hItem, int mode)
+static void winTreeUpdateImages(Ihandle* ih, int mode)
 {
-  HTREEITEM hItemChild;
+  HTREEITEM hItem;
   TVITEM item;
   winTreeItemData* itemData;
+  int i;
 
   /* called when one of the default images is changed */
-
-  while(hItem != NULL)
+  for (i = 0; i < ih->data->node_count; i++)
   {
+    hItem = ih->data->node_cache[i].node_handle;
+
     /* Get node attributes */
     item.hItem = hItem;
     item.mask = TVIF_HANDLE | TVIF_PARAM | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_STATE;
@@ -756,10 +632,6 @@ static void winTreeUpdateImages(Ihandle* ih, HTREEITEM hItem, int mode)
           SendMessage(ih->handle, TVM_SETITEM, 0, (LPARAM)(LPTVITEM)&item);
         }
       }
-
-      /* Recursively traverse child items */
-      hItemChild = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_CHILD, (LPARAM)hItem);
-      winTreeUpdateImages(ih, hItemChild, mode);
     }
     else
     {
@@ -770,9 +642,6 @@ static void winTreeUpdateImages(Ihandle* ih, HTREEITEM hItem, int mode)
         SendMessage(ih->handle, TVM_SETITEM, 0, (LPARAM)(LPTVITEM)&item);
       }
     }
-
-    /* Go to next sibling node */
-    hItem = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_NEXT, (LPARAM)hItem);
   }
 }
 
@@ -842,27 +711,55 @@ static int winTreeCallBranchLeafCb(Ihandle* ih, HTREEITEM hItem)
 
   if (itemData->kind == ITREE_BRANCH)
   {
+    if (iupAttribGet(ih, "_IUPTREE_IGNORE_BRANCH_CB"))
+      return IUP_DEFAULT;
+
     if (item.state & TVIS_EXPANDED)
     {
       IFni cbBranchClose = (IFni)IupGetCallback(ih, "BRANCHCLOSE_CB");
       if (cbBranchClose)
-        return cbBranchClose(ih, winTreeGetNodeId(ih, hItem));
+        return cbBranchClose(ih, iupTreeFindNodeId(ih, hItem));
     }
     else
     {
       IFni cbBranchOpen  = (IFni)IupGetCallback(ih, "BRANCHOPEN_CB");
       if (cbBranchOpen)
-        return cbBranchOpen(ih, winTreeGetNodeId(ih, hItem));
+        return cbBranchOpen(ih, iupTreeFindNodeId(ih, hItem));
     }
   }
   else
   {
     IFni cbExecuteLeaf = (IFni)IupGetCallback(ih, "EXECUTELEAF_CB");
     if (cbExecuteLeaf)
-      return cbExecuteLeaf(ih, winTreeGetNodeId(ih, hItem));
+      return cbExecuteLeaf(ih, iupTreeFindNodeId(ih, hItem));
   }
 
   return IUP_DEFAULT;
+}
+
+static void winTreeCallMultiUnSelectionCb(Ihandle* ih)
+{
+  IFnIi cbMulti = (IFnIi)IupGetCallback(ih, "MULTIUNSELECTION_CB");
+  IFnii cbSelec = (IFnii)IupGetCallback(ih, "SELECTION_CB");
+  if (cbSelec || cbMulti)
+  {
+    Iarray* markedArray = winTreeGetSelectedArrayId(ih);
+    int* id_hitem = (int*)iupArrayGetData(markedArray);
+    int i, count = iupArrayCount(markedArray);
+
+    if (count > 1)
+    {
+      if (cbMulti)
+        cbMulti(ih, id_hitem, iupArrayCount(markedArray));
+      else
+      {
+        for (i=0; i<count; i++)
+          cbSelec(ih, id_hitem[i], 0);
+      }
+    }
+
+    iupArrayDestroy(markedArray);
+  }
 }
 
 static void winTreeCallMultiSelectionCb(Ihandle* ih)
@@ -899,6 +796,8 @@ static void winTreeCallSelectionCb(Ihandle* ih, int status, HTREEITEM hItem)
   IFnii cbSelec = (IFnii)IupGetCallback(ih, "SELECTION_CB");
   if (cbSelec)
   {
+    int id;
+
     if (ih->data->mark_mode == ITREE_MARK_MULTIPLE && IupGetCallback(ih,"MULTISELECTION_CB"))
     {
       if ((GetKeyState(VK_SHIFT) & 0x8000))
@@ -908,7 +807,9 @@ static void winTreeCallSelectionCb(Ihandle* ih, int status, HTREEITEM hItem)
     if (iupAttribGet(ih, "_IUPTREE_IGNORE_SELECTION_CB"))
       return;
     
-    cbSelec(ih, winTreeGetNodeId(ih, hItem), status);
+    id = iupTreeFindNodeId(ih, hItem);
+    if (id != -1)
+      cbSelec(ih, id, status);
   }
 }
 
@@ -925,8 +826,8 @@ static int winTreeCallDragDropCb(Ihandle* ih, HTREEITEM	hItemDrag, HTREEITEM hIt
 
   if (cbDragDrop)
   {
-    int drag_id = winTreeGetNodeId(ih, hItemDrag);
-    int drop_id = winTreeGetNodeId(ih, hItemDrop);
+    int drag_id = iupTreeFindNodeId(ih, hItemDrag);
+    int drop_id = iupTreeFindNodeId(ih, hItemDrop);
     return cbDragDrop(ih, drag_id, drop_id, is_shift, *is_ctrl);
   }
 
@@ -943,8 +844,8 @@ static int winTreeSetImageBranchExpandedAttrib(Ihandle* ih, const char* value)
 {
   ih->data->def_image_expanded = (void*)winTreeGetImageIndex(ih, value);
 
-  /* Update all images, starting at root node */
-  winTreeUpdateImages(ih, (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_ROOT, 0), ITREE_UPDATEIMAGE_EXPANDED);
+  /* Update all images */
+  winTreeUpdateImages(ih, ITREE_UPDATEIMAGE_EXPANDED);
 
   return 1;
 }
@@ -953,8 +854,8 @@ static int winTreeSetImageBranchCollapsedAttrib(Ihandle* ih, const char* value)
 {
   ih->data->def_image_collapsed = (void*)winTreeGetImageIndex(ih, value);
 
-  /* Update all images, starting at root node */
-  winTreeUpdateImages(ih, (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_ROOT, 0), ITREE_UPDATEIMAGE_COLLAPSED);
+  /* Update all images */
+  winTreeUpdateImages(ih, ITREE_UPDATEIMAGE_COLLAPSED);
 
   return 1;
 }
@@ -963,8 +864,8 @@ static int winTreeSetImageLeafAttrib(Ihandle* ih, const char* value)
 {
   ih->data->def_image_leaf = (void*)winTreeGetImageIndex(ih, value);
 
-  /* Update all images, starting at root node */
-  winTreeUpdateImages(ih, (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_ROOT, 0), ITREE_UPDATEIMAGE_LEAF);
+  /* Update all images */
+  winTreeUpdateImages(ih, ITREE_UPDATEIMAGE_LEAF);
 
   return 1;
 }
@@ -973,7 +874,7 @@ static int winTreeSetImageExpandedAttrib(Ihandle* ih, const char* name_id, const
 {
   TVITEM item;
   winTreeItemData* itemData;
-  HTREEITEM hItem = winTreeFindNodeFromString(ih, name_id);
+  HTREEITEM hItem = iupTreeGetNodeFromString(ih, name_id);
   if (!hItem)
     return 0;
 
@@ -1000,7 +901,7 @@ static int winTreeSetImageAttrib(Ihandle* ih, const char* name_id, const char* v
 {
   TVITEM item;
   winTreeItemData* itemData;
-  HTREEITEM hItem = winTreeFindNodeFromString(ih, name_id);
+  HTREEITEM hItem = iupTreeGetNodeFromString(ih, name_id);
   if (!hItem)
     return 0;
 
@@ -1039,7 +940,7 @@ static int winTreeSetImageAttrib(Ihandle* ih, const char* name_id, const char* v
 
 static int winTreeSetTopItemAttrib(Ihandle* ih, const char* value)
 {
-  HTREEITEM hItem = winTreeFindNodeFromString(ih, value);
+  HTREEITEM hItem = iupTreeGetNodeFromString(ih, value);
   if (hItem)
     SendMessage(ih->handle, TVM_ENSUREVISIBLE, 0, (LPARAM)hItem);
   return 0;
@@ -1144,7 +1045,7 @@ static char* winTreeGetTitle(Ihandle* ih, HTREEITEM hItem)
 
 static char* winTreeGetTitleAttrib(Ihandle* ih, const char* name_id)
 {
-  HTREEITEM hItem = winTreeFindNodeFromString(ih, name_id);
+  HTREEITEM hItem = iupTreeGetNodeFromString(ih, name_id);
   if (!hItem)
     return NULL;
   return winTreeGetTitle(ih, hItem);
@@ -1153,9 +1054,12 @@ static char* winTreeGetTitleAttrib(Ihandle* ih, const char* name_id)
 static int winTreeSetTitleAttrib(Ihandle* ih, const char* name_id, const char* value)
 {
   TVITEM item; 
-  HTREEITEM hItem = winTreeFindNodeFromString(ih, name_id);
+  HTREEITEM hItem = iupTreeGetNodeFromString(ih, name_id);
   if (!hItem)
     return 0;
+
+  if (!value)
+    value = "";
 
   item.hItem = hItem;
   item.mask = TVIF_HANDLE | TVIF_TEXT; 
@@ -1164,60 +1068,11 @@ static int winTreeSetTitleAttrib(Ihandle* ih, const char* name_id, const char* v
   return 0;
 }
 
-static char* winTreeGetFindUserDataAttrib(Ihandle* ih, const char* name_id)
-{
-  int id;
-  char* str = (char*)(name_id+1); /* skip ':' */
-  void* userdata = NULL;
-  if (sscanf(str, "%p", &userdata)!=1)
-    return NULL;
-  id = winTreeGetUserDataId(ih, userdata);
-  if (id == -1)
-    return NULL;
-  str = iupStrGetMemory(16);
-  sprintf(str, "%d", id);
-  return str;
-}
-
-static char* winTreeGetUserDataAttrib(Ihandle* ih, const char* name_id)
-{
-  TVITEM item;
-  winTreeItemData* itemData;
-  HTREEITEM hItem = winTreeFindNodeFromString(ih, name_id);
-  if (!hItem)
-    return NULL;
-
-  item.hItem = hItem;
-  item.mask = TVIF_HANDLE | TVIF_PARAM;
-  SendMessage(ih->handle, TVM_GETITEM, 0, (LPARAM)(LPTVITEM)&item);
-  itemData = (winTreeItemData*)item.lParam;
-
-  return itemData->userdata;
-}
-
-static int winTreeSetUserDataAttrib(Ihandle* ih, const char* name_id, const char* value)
-{
-  TVITEM item; 
-  winTreeItemData* itemData;
-  HTREEITEM hItem = winTreeFindNodeFromString(ih, name_id);
-  if (!hItem)
-    return 0;
-
-  item.hItem = hItem;
-  item.mask = TVIF_HANDLE | TVIF_PARAM;
-  SendMessage(ih->handle, TVM_GETITEM, 0, (LPARAM)(LPTVITEM)&item);
-  itemData = (winTreeItemData*)item.lParam;
-
-  itemData->userdata = (void*)value;
-
-  return 0;
-}
-
 static char* winTreeGetTitleFontAttrib(Ihandle* ih, const char* name_id)
 {
   TVITEM item;
   winTreeItemData* itemData;
-  HTREEITEM hItem = winTreeFindNodeFromString(ih, name_id);
+  HTREEITEM hItem = iupTreeGetNodeFromString(ih, name_id);
   if (!hItem)
     return NULL;
 
@@ -1233,7 +1088,7 @@ static int winTreeSetTitleFontAttrib(Ihandle* ih, const char* name_id, const cha
 {
   TVITEM item; 
   winTreeItemData* itemData;
-  HTREEITEM hItem = winTreeFindNodeFromString(ih, name_id);
+  HTREEITEM hItem = iupTreeGetNodeFromString(ih, name_id);
   if (!hItem)
     return 0;
 
@@ -1248,9 +1103,10 @@ static int winTreeSetTitleFontAttrib(Ihandle* ih, const char* name_id, const cha
     if (itemData->hFont)
     {
       TV_ITEM item;
-      item.mask = TVIF_STATE | TVIF_HANDLE;
+      item.mask = TVIF_STATE | TVIF_HANDLE | TVIF_TEXT;
       item.stateMask = TVIS_BOLD;
       item.hItem = hItem;
+      item.pszText = winTreeGetTitle(ih, hItem);   /* reset text to resize item */
       item.state = (strstr(value, "Bold")||strstr(value, "BOLD"))? TVIS_BOLD: 0;
       SendMessage(ih->handle, TVM_SETITEM, 0, (LPARAM)&item);
     }
@@ -1258,7 +1114,7 @@ static int winTreeSetTitleFontAttrib(Ihandle* ih, const char* name_id, const cha
   else
     itemData->hFont = NULL;
 
-  iupdrvDisplayUpdate(ih);
+  iupdrvPostRedraw(ih);
 
   return 0;
 }
@@ -1283,7 +1139,7 @@ static char* winTreeGetStateAttrib(Ihandle* ih, const char* name_id)
 {
   TVITEM item;
   winTreeItemData* itemData;
-  HTREEITEM hItem = winTreeFindNodeFromString(ih, name_id);
+  HTREEITEM hItem = iupTreeGetNodeFromString(ih, name_id);
   if (!hItem)
     return NULL;
 
@@ -1305,25 +1161,34 @@ static char* winTreeGetStateAttrib(Ihandle* ih, const char* name_id)
 
 static int winTreeSetStateAttrib(Ihandle* ih, const char* name_id, const char* value)
 {
-  HTREEITEM hItem = winTreeFindNodeFromString(ih, name_id);
+  TVITEM item;
+  winTreeItemData* itemData;
+  HTREEITEM hItem = iupTreeGetNodeFromString(ih, name_id);
   if (!hItem)
     return 0;
 
-  winTreeExpandItem(ih, hItem, iupStrEqualNoCase(value, "EXPANDED"));
+  /* Get Children: branch or leaf */
+  item.mask = TVIF_HANDLE|TVIF_PARAM; 
+  item.hItem = hItem;
+  SendMessage(ih->handle, TVM_GETITEM, 0, (LPARAM)(LPTVITEM)&item);
+  itemData = (winTreeItemData*)item.lParam;
+
+  if (itemData->kind == ITREE_BRANCH)
+    winTreeExpandItem(ih, hItem, iupStrEqualNoCase(value, "EXPANDED"));
+
   return 0;
 }
 
 static char* winTreeGetDepthAttrib(Ihandle* ih, const char* name_id)
 {
-  HTREEITEM hItem = winTreeFindNodeFromString(ih, name_id);
-  HTREEITEM hItemRoot = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_ROOT, 0);
-  int depth = 0;
+  HTREEITEM hItem = iupTreeGetNodeFromString(ih, name_id);
+  int depth = -1;
   char* str;
 
-  if (!hItem)
+  if (!hItem)  
     return NULL;
 
-  while((hItemRoot != hItem) && (hItem != NULL))
+  while(hItem != NULL)
   {
     hItem = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_PARENT, (LPARAM)hItem);
     depth++;
@@ -1338,12 +1203,13 @@ static int winTreeSetMoveNodeAttrib(Ihandle* ih, const char* name_id, const char
 {
   HTREEITEM hItemDst, hParent, hItemSrc;
 
-  if (!ih->handle)  /* do not store the action before map */
+  if (!ih->handle)  /* do not do the action before map */
     return 0;
-  hItemSrc = winTreeFindNodeFromString(ih, name_id);
+
+  hItemSrc = iupTreeGetNodeFromString(ih, name_id);
   if (!hItemSrc)
     return 0;
-  hItemDst = winTreeFindNodeFromString(ih, value);
+  hItemDst = iupTreeGetNodeFromString(ih, value);
   if (!hItemDst)
     return 0;
 
@@ -1356,11 +1222,8 @@ static int winTreeSetMoveNodeAttrib(Ihandle* ih, const char* name_id, const char
       return 0;
   }
 
-  /* Copying the node and its children to the new position */
-  winTreeCopyNode(ih, hItemSrc, hItemDst, 0);  /* not a full copy, preserve user data */
-
-  /* do not delete the user data, we copy the references in CopyNode */
-  SendMessage(ih->handle, TVM_DELETEITEM, 0, (LPARAM)hItemSrc);
+  /* Move the node and its children to the new position */
+  winTreeCopyMoveNode(ih, hItemSrc, hItemDst, 0);
 
   return 0;
 }
@@ -1369,12 +1232,13 @@ static int winTreeSetCopyNodeAttrib(Ihandle* ih, const char* name_id, const char
 {
   HTREEITEM hItemDst, hParent, hItemSrc;
 
-  if (!ih->handle)  /* do not store the action before map */
+  if (!ih->handle)  /* do not do the action before map */
     return 0;
-  hItemSrc = winTreeFindNodeFromString(ih, name_id);
+
+  hItemSrc = iupTreeGetNodeFromString(ih, name_id);
   if (!hItemSrc)
     return 0;
-  hItemDst = winTreeFindNodeFromString(ih, value);
+  hItemDst = iupTreeGetNodeFromString(ih, value);
   if (!hItemDst)
     return 0;
 
@@ -1387,8 +1251,8 @@ static int winTreeSetCopyNodeAttrib(Ihandle* ih, const char* name_id, const char
       return 0;
   }
 
-  /* Copying the node and its children to the new position */
-  winTreeCopyNode(ih, hItemSrc, hItemDst, 1);
+  /* Copy the node and its children to the new position */
+  winTreeCopyMoveNode(ih, hItemSrc, hItemDst, 1);
 
   return 0;
 }
@@ -1399,7 +1263,7 @@ static char* winTreeGetColorAttrib(Ihandle* ih, const char* name_id)
   char* str;
   TVITEM item;
   winTreeItemData* itemData;
-  HTREEITEM hItem = winTreeFindNodeFromString(ih, name_id);
+  HTREEITEM hItem = iupTreeGetNodeFromString(ih, name_id);
   if (!hItem)
     return NULL;
 
@@ -1422,7 +1286,7 @@ static int winTreeSetColorAttrib(Ihandle* ih, const char* name_id, const char* v
   unsigned char r, g, b;
   TVITEM item;
   winTreeItemData* itemData;
-  HTREEITEM hItem = winTreeFindNodeFromString(ih, name_id);
+  HTREEITEM hItem = iupTreeGetNodeFromString(ih, name_id);
   if (!hItem)
     return 0;
 
@@ -1434,7 +1298,7 @@ static int winTreeSetColorAttrib(Ihandle* ih, const char* name_id, const char* v
   if (iupStrToRGB(value, &r, &g, &b))
   {
     itemData->color = RGB(r,g,b);
-    iupdrvDisplayUpdate(ih);
+    iupdrvPostRedraw(ih);
   }
 
  return 0;
@@ -1459,7 +1323,7 @@ static char* winTreeGetChildCountAttrib(Ihandle* ih, const char* name_id)
 {
   int count;
   char* str;
-  HTREEITEM hItem = winTreeFindNodeFromString(ih, name_id);
+  HTREEITEM hItem = iupTreeGetNodeFromString(ih, name_id);
   if (!hItem)
     return NULL;
 
@@ -1478,18 +1342,11 @@ static char* winTreeGetChildCountAttrib(Ihandle* ih, const char* name_id)
   return str;
 }
 
-static char* winTreeGetCountAttrib(Ihandle* ih)
-{
-  char* str = iupStrGetMemory(10);
-  sprintf(str, "%d", (int)SendMessage(ih->handle, TVM_GETCOUNT, 0, 0));
-  return str;
-}
-
 static char* winTreeGetKindAttrib(Ihandle* ih, const char* name_id)
 {
   TVITEM item; 
   winTreeItemData* itemData;
-  HTREEITEM hItem = winTreeFindNodeFromString(ih, name_id);
+  HTREEITEM hItem = iupTreeGetNodeFromString(ih, name_id);
   if (!hItem)
     return NULL;
 
@@ -1507,7 +1364,7 @@ static char* winTreeGetKindAttrib(Ihandle* ih, const char* name_id)
 static char* winTreeGetParentAttrib(Ihandle* ih, const char* name_id)
 {
   char* str;
-  HTREEITEM hItem = winTreeFindNodeFromString(ih, name_id);
+  HTREEITEM hItem = iupTreeGetNodeFromString(ih, name_id);
   if (!hItem)
     return NULL;
 
@@ -1516,26 +1373,13 @@ static char* winTreeGetParentAttrib(Ihandle* ih, const char* name_id)
     return NULL;
 
   str = iupStrGetMemory(10);
-  sprintf(str, "%d", winTreeGetNodeId(ih, hItem));
+  sprintf(str, "%d", iupTreeFindNodeId(ih, hItem));
   return str;
 }
 
-static void winTreeDelNodeDataRec(Ihandle* ih, HTREEITEM hItem, int *id)
+static void winTreeRemoveItemData(Ihandle* ih, HTREEITEM hItem, IFns cb, int id)
 {
-  int node_id = *id;
   TVITEM item; 
-  HTREEITEM hChildItem;
-
-  (*id)++;
-
-  /* remove from children first */
-  hChildItem = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_CHILD, (LPARAM)hItem);
-  while (hChildItem)
-  {
-    winTreeDelNodeDataRec(ih, hChildItem, id);
-    hChildItem = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_NEXT, (LPARAM)hChildItem);
-  }
-
   item.hItem = hItem;
   item.mask = TVIF_HANDLE|TVIF_PARAM; 
   if (SendMessage(ih->handle, TVM_GETITEM, 0, (LPARAM)(LPTVITEM)&item))
@@ -1543,8 +1387,9 @@ static void winTreeDelNodeDataRec(Ihandle* ih, HTREEITEM hItem, int *id)
     winTreeItemData* itemData = (winTreeItemData*)item.lParam;
     if (itemData)
     {
-      IFnis cb = (IFnis)IupGetCallback(ih, "NODEREMOVED_CB");
-      if (cb) cb(ih, node_id, (char*)itemData->userdata);
+      if (cb) 
+        cb(ih, (char*)ih->data->node_cache[id].userdata);
+
       free(itemData);
       item.lParam = (LPARAM)NULL;
       SendMessage(ih->handle, TVM_SETITEM, 0, (LPARAM)(LPTVITEM)&item);
@@ -1552,71 +1397,143 @@ static void winTreeDelNodeDataRec(Ihandle* ih, HTREEITEM hItem, int *id)
   }
 }
 
-static void winTreeDelNodeData(Ihandle* ih, HTREEITEM hItem)
+static void winTreeRemoveNodeDataRec(Ihandle* ih, HTREEITEM hItem, IFns cb, int *id)
 {
-  int id = winTreeGetNodeId(ih, hItem);
-  winTreeDelNodeDataRec(ih, hItem, &id);
+  int old_id = *id;
+
+  /* Check whether we have child items */
+  /* remove from children first */
+  HTREEITEM hChildItem = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_CHILD, (LPARAM)hItem);
+  while (hChildItem)
+  {
+    /* go recursive to children */
+    winTreeRemoveNodeDataRec(ih, hChildItem, cb, id);
+
+    /* Go to next sibling item */
+    hChildItem = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_NEXT, (LPARAM)hChildItem);
+  }
+
+  /* actually do it for the node */
+  ih->data->node_count--;
+  (*id)++;
+
+  winTreeRemoveItemData(ih, hItem, cb, old_id);
+}
+
+static void winTreeRemoveNodeData(Ihandle* ih, HTREEITEM hItem, int call_cb)
+{
+  IFns cb = call_cb? (IFns)IupGetCallback(ih, "NODEREMOVED_CB"): NULL;
+  int old_count = ih->data->node_count;
+  int id = iupTreeFindNodeId(ih, hItem);
+  int old_id = id;
+
+  winTreeRemoveNodeDataRec(ih, hItem, cb, &id);
+
+  if (call_cb)
+    iupTreeDelFromCache(ih, old_id, old_count-ih->data->node_count);
+}
+
+static void winTreeRemoveAllNodeData(Ihandle* ih, int call_cb)
+{
+  IFns cb = call_cb? (IFns)IupGetCallback(ih, "NODEREMOVED_CB"): NULL;
+  int i, old_count = ih->data->node_count;
+  HTREEITEM hItem;
+
+  for (i = 0; i < ih->data->node_count; i++)
+  {
+    hItem = ih->data->node_cache[i].node_handle;
+    winTreeRemoveItemData(ih, hItem, cb, i);
+  }
+
+  ih->data->node_count = 0;
+
+  if (call_cb)
+    iupTreeDelFromCache(ih, 0, old_count);
 }
 
 static int winTreeSetDelNodeAttrib(Ihandle* ih, const char* name_id, const char* value)
 {
-  if (!ih->handle)  /* do not store the action before map */
+  if (!ih->handle)  /* do not do the action before map */
     return 0;
-  if(iupStrEqualNoCase(value, "SELECTED")) /* selected here means the specified one */
+  if (iupStrEqualNoCase(value, "ALL"))
   {
-    HTREEITEM hItem = winTreeFindNodeFromString(ih, name_id);
-    HTREEITEM hItemRoot  = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_ROOT, 0);
+    winTreeRemoveAllNodeData(ih, 1);
 
-    /* the root node can't be deleted */
-    if(!hItem || hItem == hItemRoot)
+    iupAttribSetStr(ih, "_IUPTREE_IGNORE_SELECTION_CB", "1");
+    SendMessage(ih->handle, TVM_DELETEITEM, 0, (LPARAM)TVI_ROOT);
+    iupAttribSetStr(ih, "_IUPTREE_IGNORE_SELECTION_CB", NULL);
+    return 0;
+  }
+  if (iupStrEqualNoCase(value, "SELECTED")) /* selected here means the reference one */
+  {
+    HTREEITEM hItem = iupTreeGetNodeFromString(ih, name_id);
+    if(!hItem)
       return 0;
 
-    /* deleting the specified node (and it's children) */
-    winTreeDelNodeData(ih, hItem);
+    /* deleting the reference node (and it's children) */
+    winTreeRemoveNodeData(ih, hItem, 1);
+    iupAttribSetStr(ih, "_IUPTREE_IGNORE_SELECTION_CB", "1");
     SendMessage(ih->handle, TVM_DELETEITEM, 0, (LPARAM)hItem);
+    iupAttribSetStr(ih, "_IUPTREE_IGNORE_SELECTION_CB", NULL);
     
     return 0;
   }
-  else if(iupStrEqualNoCase(value, "CHILDREN"))  /* children of the specified one */
+  else if(iupStrEqualNoCase(value, "CHILDREN"))  /* children of the reference node */
   {
-    HTREEITEM hItem = winTreeFindNodeFromString(ih, name_id);
+    HTREEITEM hItem = iupTreeGetNodeFromString(ih, name_id);
     HTREEITEM hChildItem = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_CHILD, (LPARAM)hItem);
 
     if(!hItem)
       return 0;
 
-    /* deleting the selected node's children */
+    iupAttribSetStr(ih, "_IUPTREE_IGNORE_SELECTION_CB", "1");
+
+    /* deleting the reference node children */
     while (hChildItem)
     {
-      winTreeDelNodeData(ih, hChildItem);
+      winTreeRemoveNodeData(ih, hChildItem, 1);
       SendMessage(ih->handle, TVM_DELETEITEM, 0, (LPARAM)hChildItem);
       hChildItem = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_CHILD, (LPARAM)hItem);
     }
 
+    iupAttribSetStr(ih, "_IUPTREE_IGNORE_SELECTION_CB", NULL);
     return 0;
   }
   else if(iupStrEqualNoCase(value, "MARKED"))
   {
-    int i, count;
-    Iarray* markedArray;
-    HTREEITEM* hItemArrayData;
-    HTREEITEM  hItemRoot = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_ROOT, 0);
+    int i, del_focus = 0;
+    HTREEITEM hItemFocus;
 
-    /* Delete the array of marked nodes */
-    markedArray = winTreeGetSelectedArray(ih);
-    hItemArrayData = (HTREEITEM*)iupArrayGetData(markedArray);
-    count = iupArrayCount(markedArray);
+    iupAttribSetStr(ih, "_IUPTREE_IGNORE_SELECTION_CB", "1");
+    hItemFocus = iupdrvTreeGetFocusNode(ih);
 
-    for(i = 0; i < count; i++)
+    for(i = 1; i < ih->data->node_count; /* increment only if not removed */)
     {
-      if (hItemArrayData[i] != hItemRoot)  /* the root node can't be deleted */
+      if (winTreeIsNodeSelected(ih, ih->data->node_cache[i].node_handle))
       {
-        winTreeDelNodeData(ih, hItemArrayData[i]);
-        SendMessage(ih->handle, TVM_DELETEITEM, 0, (LPARAM)hItemArrayData[i]);
+        HTREEITEM hItem = ih->data->node_cache[i].node_handle;
+        if (hItemFocus == hItem)
+        {
+          del_focus = 1;
+          i++;
+        }
+        else
+        {
+          winTreeRemoveNodeData(ih, hItem, 1);
+          SendMessage(ih->handle, TVM_DELETEITEM, 0, (LPARAM)hItem);
+        }
       }
+      else
+        i++;
     }
 
-    iupArrayDestroy(markedArray);
+    if (del_focus)
+    {
+      winTreeRemoveNodeData(ih, hItemFocus, 1);
+      SendMessage(ih->handle, TVM_DELETEITEM, 0, (LPARAM)hItemFocus);
+    }
+
+    iupAttribSetStr(ih, "_IUPTREE_IGNORE_SELECTION_CB", NULL);
 
     return 0;
   }
@@ -1630,7 +1547,7 @@ static int winTreeSetRenameAttrib(Ihandle* ih, const char* value)
   {
     HTREEITEM hItemFocus;
     SetFocus(ih->handle); /* the tree must have focus to activate the edit */
-    hItemFocus = winTreeGetFocusNode(ih);
+    hItemFocus = iupdrvTreeGetFocusNode(ih);
     SendMessage(ih->handle, TVM_EDITLABEL, 0, (LPARAM)hItemFocus);
   }
   
@@ -1640,11 +1557,11 @@ static int winTreeSetRenameAttrib(Ihandle* ih, const char* value)
 
 static char* winTreeGetMarkedAttrib(Ihandle* ih, const char* name_id)
 {
-  HTREEITEM hItem = winTreeFindNodeFromString(ih, name_id);
+  HTREEITEM hItem = iupTreeGetNodeFromString(ih, name_id);
   if (!hItem)
     return NULL;
 
-  if (winTreeIsItemSelected(ih, hItem))
+  if (winTreeIsNodeSelected(ih, hItem))
     return "YES";
   else 
     return "NO";
@@ -1652,23 +1569,23 @@ static char* winTreeGetMarkedAttrib(Ihandle* ih, const char* name_id)
 
 static int winTreeSetMarkedAttrib(Ihandle* ih, const char* name_id, const char* value)
 {
-  HTREEITEM hItem = winTreeFindNodeFromString(ih, name_id);
+  HTREEITEM hItem = iupTreeGetNodeFromString(ih, name_id);
   if (!hItem)
     return 0;
 
   if (ih->data->mark_mode==ITREE_MARK_SINGLE)
   {
-    HTREEITEM hItemFocus = winTreeGetFocusNode(ih);
-    winTreeSelectItem(ih, hItemFocus, 0);
+    HTREEITEM hItemFocus = iupdrvTreeGetFocusNode(ih);
+    winTreeSelectNode(ih, hItemFocus, 0);
   }
 
-  winTreeSelectItem(ih, hItem, iupStrBoolean(value));
+  winTreeSelectNode(ih, hItem, iupStrBoolean(value));
   return 0;
 }
 
 static int winTreeSetMarkStartAttrib(Ihandle* ih, const char* name_id)
 {
-  HTREEITEM hItem = winTreeFindNodeFromString(ih, name_id);
+  HTREEITEM hItem = iupTreeGetNodeFromString(ih, name_id);
   if (!hItem)
     return 0;
 
@@ -1680,13 +1597,57 @@ static int winTreeSetMarkStartAttrib(Ihandle* ih, const char* name_id)
 static char* winTreeGetValueAttrib(Ihandle* ih)
 {
   char* str;
-  HTREEITEM hItemFocus = winTreeGetFocusNode(ih);
+  HTREEITEM hItemFocus = iupdrvTreeGetFocusNode(ih);
   if (!hItemFocus)
-    return "0"; /* default VALUE is root */
+  {
+    if (ih->data->node_count)
+      return "0"; /* default VALUE is root */
+    else
+      return "-1";
+  }
 
   str = iupStrGetMemory(16);
-  sprintf(str, "%d", winTreeGetNodeId(ih, hItemFocus));
+  sprintf(str, "%d", iupTreeFindNodeId(ih, hItemFocus));
   return str;
+}
+
+static char* winTreeGetMarkedNodesAttrib(Ihandle* ih)
+{
+  char* str = iupStrGetMemory(ih->data->node_count+1);
+  int i;
+
+  for (i=0; i<ih->data->node_count; i++)
+  {
+    if (winTreeIsNodeSelected(ih, ih->data->node_cache[i].node_handle))
+      str[i] = '+';
+    else
+      str[i] = '-';
+  }
+
+  str[ih->data->node_count] = 0;
+  return str;
+}
+
+static int winTreeSetMarkedNodesAttrib(Ihandle* ih, const char* value)
+{
+  int count, i;
+
+  if (ih->data->mark_mode==ITREE_MARK_SINGLE || !value)
+    return 0;
+
+  count = strlen(value);
+  if (count > ih->data->node_count)
+    count = ih->data->node_count;
+
+  for (i=0; i<count; i++)
+  {
+    if (value[i] == '+')
+      winTreeSelectNode(ih, ih->data->node_cache[i].node_handle, 1);
+    else
+      winTreeSelectNode(ih, ih->data->node_cache[i].node_handle, 0);
+  }
+
+  return 0;
 }
 
 static int winTreeSetMarkAttrib(Ihandle* ih, const char* value)
@@ -1696,7 +1657,7 @@ static int winTreeSetMarkAttrib(Ihandle* ih, const char* value)
 
   if(iupStrEqualNoCase(value, "BLOCK"))
   {
-    HTREEITEM hItemFocus = winTreeGetFocusNode(ih);
+    HTREEITEM hItemFocus = iupdrvTreeGetFocusNode(ih);
     winTreeSelectRange(ih, (HTREEITEM)iupAttribGet(ih, "_IUPTREE_MARKSTART_NODE"), hItemFocus, 0);
   }
   else if(iupStrEqualNoCase(value, "CLEARALL"))
@@ -1704,14 +1665,14 @@ static int winTreeSetMarkAttrib(Ihandle* ih, const char* value)
   else if(iupStrEqualNoCase(value, "MARKALL"))
     winTreeSelectAll(ih);
   else if(iupStrEqualNoCase(value, "INVERTALL")) /* INVERTALL *MUST* appear before INVERT, or else INVERTALL will never be called. */
-    winTreeForEach(ih, NULL, (winTreeNodeFunc)winTreeInvertSelectFunc, NULL);
+    iupTreeForEach(ih, (iupTreeNodeFunc)winTreeInvertSelectFunc, NULL);
   else if(iupStrEqualPartial(value, "INVERT")) /* iupStrEqualPartial allows the use of "INVERTid" form */
   {
-    HTREEITEM hItem = winTreeFindNodeFromString(ih, &value[strlen("INVERT")]);
+    HTREEITEM hItem = iupTreeGetNodeFromString(ih, &value[strlen("INVERT")]);
     if (!hItem)
       return 0;
 
-    winTreeSelectItem(ih, hItem, -1); /* toggle */
+    winTreeSelectNode(ih, hItem, -1); /* toggle */
   }
   else
   {
@@ -1721,10 +1682,10 @@ static int winTreeSetMarkAttrib(Ihandle* ih, const char* value)
     if (iupStrToStrStr(value, str1, str2, '-')!=2)
       return 0;
 
-    hItem1 = winTreeFindNodeFromString(ih, str1);
+    hItem1 = iupTreeGetNodeFromString(ih, str1);
     if (!hItem1)  
       return 0;
-    hItem2 = winTreeFindNodeFromString(ih, str2);
+    hItem2 = iupTreeGetNodeFromString(ih, str2);
     if (!hItem2)  
       return 0;
 
@@ -1742,9 +1703,9 @@ static int winTreeSetValueAttrib(Ihandle* ih, const char* value)
   if (winTreeSetMarkAttrib(ih, value))
     return 0;
 
-  hItemFocus = winTreeGetFocusNode(ih);
+  hItemFocus = iupdrvTreeGetFocusNode(ih);
 
-  if(iupStrEqualNoCase(value, "ROOT"))
+  if(iupStrEqualNoCase(value, "ROOT") || iupStrEqualNoCase(value, "FIRST"))
     hItem = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_ROOT, 0);
   else if(iupStrEqualNoCase(value, "LAST"))
     hItem = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_LASTVISIBLE, 0);
@@ -1790,14 +1751,14 @@ static int winTreeSetValueAttrib(Ihandle* ih, const char* value)
   else if(iupStrEqualNoCase(value, "PREVIOUS"))
     hItem = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_PREVIOUSVISIBLE, (LPARAM)hItemFocus);
   else
-    hItem = winTreeFindNodeFromString(ih, value);
+    hItem = iupTreeGetNodeFromString(ih, value);
 
   if (hItem)
   {
     if (ih->data->mark_mode==ITREE_MARK_SINGLE)
     {
-      winTreeSelectItem(ih, hItemFocus, 0);
-      winTreeSelectItem(ih, hItem, 1);
+      winTreeSelectNode(ih, hItemFocus, 0);
+      winTreeSelectNode(ih, hItem, 1);
     }
     winTreeSetFocusNode(ih, hItem);
   }
@@ -1862,27 +1823,60 @@ static LRESULT CALLBACK winTreeEditWinProc(HWND hwnd, UINT msg, WPARAM wp, LPARA
     return CallWindowProc(oldProc, hwnd, msg, wp, lp);
 }
 
-static void winTreeDrag(Ihandle* ih, int x, int y)
+static void winTreeBeginDrag(Ihandle* ih, int x, int y)
 {
-  HTREEITEM	hItemDrop;
+  HIMAGELIST  dragImageList;
 
-  HIMAGELIST dragImageList = (HIMAGELIST)iupAttribGet(ih, "_IUPTREE_DRAGIMAGELIST");
+  HTREEITEM hItemDrag = winTreeFindNodeXY(ih, x, y);
+  if (!hItemDrag)
+    return;
+
+  SendMessage(ih->handle, TVM_ENDEDITLABELNOW, TRUE, 0);
+
+  /* store the drag-and-drop item */
+  iupAttribSetStr(ih, "_IUPTREE_DRAGITEM", (char*)hItemDrag);
+
+  /* get the image list for dragging */
+  dragImageList = (HIMAGELIST)SendMessage(ih->handle, TVM_CREATEDRAGIMAGE, 0, (LPARAM)hItemDrag);
   if (dragImageList)
   {
-    POINT pnt;
-    pnt.x = x;
-    pnt.y = y;
-    GetCursorPos(&pnt);
-    ClientToScreen(GetDesktopWindow(), &pnt) ;
-    ImageList_DragMove(pnt.x, pnt.y);
+    POINT pt;
+    ImageList_BeginDrag(dragImageList, 0, 0, 0);
+
+    pt.x = x;
+    pt.y = y;
+
+    ClientToScreen(ih->handle, &pt);
+    ImageList_DragEnter(NULL, pt.x, pt.y);
+
+    iupAttribSetStr(ih, "_IUPTREE_DRAGIMAGELIST", (char*)dragImageList);
   }
 
-  if ((hItemDrop = winTreeFindNodePointed(ih)) != NULL)
+  ShowCursor(FALSE);
+  SetCapture(ih->handle);  /* drag only inside the tree */
+}
+
+static void winTreeDrag(Ihandle* ih, int x, int y)
+{
+  HTREEITEM	hItemDrop = winTreeFindNodeXY(ih, x, y);
+  HTREEITEM	 hItemDrag = (HTREEITEM)iupAttribGet(ih, "_IUPTREE_DRAGITEM");
+  HIMAGELIST dragImageList = (HIMAGELIST)iupAttribGet(ih, "_IUPTREE_DRAGIMAGELIST");
+
+  if (dragImageList)
+  {
+    POINT pt;
+    pt.x = x;
+    pt.y = y;
+    ClientToScreen(ih->handle, &pt);
+    ImageList_DragMove(pt.x, pt.y);
+  }
+
+  if (hItemDrop && hItemDrop!=hItemDrag)
   {
     if(dragImageList)
       ImageList_DragShowNolock(FALSE);
 
-    SendMessage(ih->handle, TVM_SELECTITEM, TVGN_DROPHILITE, (LPARAM)hItemDrop);
+    SendMessage(ih->handle, TVM_SETINSERTMARK, TRUE, (LPARAM)hItemDrop);
 
     /* store the drop item to be executed */
     iupAttribSetStr(ih, "_IUPTREE_DROPITEM", (char*)hItemDrop);
@@ -1890,6 +1884,8 @@ static void winTreeDrag(Ihandle* ih, int x, int y)
     if(dragImageList)
       ImageList_DragShowNolock(TRUE);
   }
+  else
+    iupAttribSetStr(ih, "_IUPTREE_DROPITEM", NULL);
 }
 
 static void winTreeDrop(Ihandle* ih)
@@ -1912,7 +1908,7 @@ static void winTreeDrop(Ihandle* ih)
   ShowCursor(TRUE);
 
   /* Remove drop target highlighting */
-  SendMessage(ih->handle, TVM_SELECTITEM, TVGN_DROPHILITE, (LPARAM)NULL);
+  SendMessage(ih->handle, TVM_SETINSERTMARK, 0, (LPARAM)NULL);
 
   iupAttribSetStr(ih, "_IUPTREE_DRAGITEM", NULL);
   iupAttribSetStr(ih, "_IUPTREE_DROPITEM", NULL);
@@ -1931,16 +1927,12 @@ static void winTreeDrop(Ihandle* ih)
 
   if (winTreeCallDragDropCb(ih, hItemDrag, hItemDrop, &is_ctrl) == IUP_CONTINUE)
   {
-    /* Copy the dragged item to the new position. */
-    HTREEITEM  hItemNew = winTreeCopyNode(ih, hItemDrag, hItemDrop, is_ctrl);
+    /* Copy or move the dragged item to the new position. */
+    HTREEITEM  hItemNew = winTreeCopyMoveNode(ih, hItemDrag, hItemDrop, is_ctrl);
 
-    if (!is_ctrl)
-    {
-      /* do not delete the user data, we copy the references in CopyNode */
-      SendMessage(ih->handle, TVM_DELETEITEM, 0, (LPARAM)hItemDrag);
-    }
-
-    SendMessage(ih->handle, TVM_SELECTITEM, TVGN_CARET, (LPARAM)hItemNew); /* set focus and selection */
+    /* Set focus and selection */
+    if (hItemNew)
+      SendMessage(ih->handle, TVM_SELECTITEM, TVGN_CARET, (LPARAM)hItemNew); 
   }
 }  
 
@@ -1980,10 +1972,10 @@ static int winTreeMouseMultiSelect(Ihandle* ih, int x, int y)
   if (GetKeyState(VK_CONTROL) & 0x8000) /* Control key is down */
   {
     /* Toggle selection state */
-    winTreeSelectItem(ih, hItem, -1);
+    winTreeSelectNode(ih, hItem, -1);
     iupAttribSetStr(ih, "_IUPTREE_FIRSTSELITEM", (char*)hItem);
 
-    winTreeCallSelectionCb(ih, winTreeIsItemSelected(ih, hItem), hItem);
+    winTreeCallSelectionCb(ih, winTreeIsNodeSelected(ih, hItem), hItem);
     winTreeSetFocusNode(ih, hItem);
 
     return 1;
@@ -1993,7 +1985,11 @@ static int winTreeMouseMultiSelect(Ihandle* ih, int x, int y)
     HTREEITEM hItemFirstSel = (HTREEITEM)iupAttribGet(ih, "_IUPTREE_FIRSTSELITEM");
     if (hItemFirstSel)
     {
+      int last_id = iupTreeFindNodeId(ih, hItem);
       winTreeSelectRange(ih, hItemFirstSel, hItem, 1);
+
+      /* if last selected item is a branch, then select its children */
+      iupTreeSelectLastCollapsedBranch(ih, &last_id);
 
       winTreeCallMultiSelectionCb(ih);
       winTreeSetFocusNode(ih, hItem);
@@ -2001,10 +1997,14 @@ static int winTreeMouseMultiSelect(Ihandle* ih, int x, int y)
     }
   }
 
+  winTreeCallMultiUnSelectionCb(ih);
+
   /* simple click */
   winTreeClearSelection(ih, hItem);
   iupAttribSetStr(ih, "_IUPTREE_FIRSTSELITEM", (char*)hItem);
   iupAttribSetStr(ih, "_IUPTREE_EXTENDSELECT", "1");
+
+  /* Call SELECT_CB for all unselected nodes */
 
   return 0;
 }
@@ -2065,7 +2065,7 @@ static int winTreeProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *res
 
       if (wp == VK_RETURN)
       {
-        HTREEITEM hItemFocus = winTreeGetFocusNode(ih);
+        HTREEITEM hItemFocus = iupdrvTreeGetFocusNode(ih);
         if (winTreeCallBranchLeafCb(ih, hItemFocus) != IUP_IGNORE)
           winTreeExpandItem(ih, hItemFocus, -1);
 
@@ -2082,14 +2082,14 @@ static int winTreeProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *res
       {
         if (GetKeyState(VK_CONTROL) & 0x8000)
         {
-          HTREEITEM hItemFocus = winTreeGetFocusNode(ih);
+          HTREEITEM hItemFocus = iupdrvTreeGetFocusNode(ih);
           /* Toggle selection state */
-          winTreeSelectItem(ih, hItemFocus, -1);
+          winTreeSelectNode(ih, hItemFocus, -1);
         }
       }
       else if (wp == VK_UP || wp == VK_DOWN)
       {
-        HTREEITEM hItemFocus = winTreeGetFocusNode(ih);
+        HTREEITEM hItemFocus = iupdrvTreeGetFocusNode(ih);
         if (wp == VK_UP)
           hItemFocus = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_PREVIOUSVISIBLE, (LPARAM)hItemFocus);
         else
@@ -2162,10 +2162,20 @@ static int winTreeProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *res
     }
     break;
   case WM_MOUSEMOVE:
-    if (ih->data->show_dragdrop && (HTREEITEM)iupAttribGet(ih, "_IUPTREE_DRAGITEM") != NULL)
-      winTreeDrag(ih, (int)(short)LOWORD(lp), (int)(short)HIWORD(lp));
+    if (ih->data->show_dragdrop && (wp & MK_LBUTTON))
+    {
+      if (!iupAttribGet(ih, "_IUPTREE_DRAGITEM"))
+        winTreeBeginDrag(ih, (int)(short)LOWORD(lp), (int)(short)HIWORD(lp));
+      else 
+        winTreeDrag(ih, (int)(short)LOWORD(lp), (int)(short)HIWORD(lp));
+    }
     else if (iupAttribGet(ih, "_IUPTREE_EXTENDSELECT"))
-      winTreeExtendSelect(ih, (int)(short)LOWORD(lp), (int)(short)HIWORD(lp));
+    {
+      if (wp & MK_LBUTTON)
+        winTreeExtendSelect(ih, (int)(short)LOWORD(lp), (int)(short)HIWORD(lp));
+      else
+        iupAttribSetStr(ih, "_IUPTREE_EXTENDSELECT", NULL);
+    }
 
     iupwinMouseMove(ih, msg, wp, lp);
     break;
@@ -2181,6 +2191,7 @@ static int winTreeProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *res
     if (iupAttribGet(ih, "_IUPTREE_EXTENDSELECT"))
     {
       iupAttribSetStr(ih, "_IUPTREE_EXTENDSELECT", NULL);
+
       if (iupAttribGet(ih, "_IUPTREE_LASTSELITEM"))
       {
         winTreeCallMultiSelectionCb(ih);
@@ -2229,8 +2240,12 @@ static int winTreeWmNotify(Ihandle* ih, NMHDR* msg_info, int *result)
   else if (msg_info->code == TVN_SELCHANGED)
   {
     NMTREEVIEW* info = (NMTREEVIEW*)msg_info;
-    winTreeCallSelectionCb(ih, 0, info->itemOld.hItem);  /* node unselected */
-    winTreeCallSelectionCb(ih, 1, info->itemNew.hItem);  /* node selected */
+    if (ih->data->mark_mode!=ITREE_MARK_MULTIPLE || /* (NOT) Multiple selection with Control or Shift key is down */
+        !(GetKeyState(VK_CONTROL) & 0x8000 || GetKeyState(VK_SHIFT) & 0x8000)) 
+    {
+      winTreeCallSelectionCb(ih, 0, info->itemOld.hItem);  /* node unselected */
+      winTreeCallSelectionCb(ih, 1, info->itemNew.hItem);  /* node selected */
+    }
   }
   else if(msg_info->code == TVN_BEGINLABELEDIT)
   {
@@ -2246,8 +2261,11 @@ static int winTreeWmNotify(Ihandle* ih, NMHDR* msg_info, int *result)
     }
 
     cbShowRename = (IFni)IupGetCallback(ih, "SHOWRENAME_CB");
-    if (cbShowRename)
-      cbShowRename(ih, winTreeGetNodeId(ih, info->item.hItem));
+    if (cbShowRename && cbShowRename(ih, iupTreeFindNodeId(ih, info->item.hItem))==IUP_IGNORE)
+    {
+      *result = TRUE;  /* prevent the change */
+      return 1;
+    }
 
     hEdit = (HWND)SendMessage(ih->handle, TVM_GETEDITCONTROL, 0, 0);
 
@@ -2282,57 +2300,30 @@ static int winTreeWmNotify(Ihandle* ih, NMHDR* msg_info, int *result)
   }
   else if(msg_info->code == TVN_ENDLABELEDIT)
   {
+    IFnis cbRename;
     NMTVDISPINFO* info = (NMTVDISPINFO*)msg_info;
 
     iupAttribSetStr(ih, "_IUPWIN_EDITBOX", NULL);
 
-    if (info->item.pszText)
+    if (!info->item.pszText)  /* cancel, so abort */
+      return 0;
+
+    cbRename = (IFnis)IupGetCallback(ih, "RENAME_CB");
+    if (cbRename)
     {
-      IFnis cbRename = (IFnis)IupGetCallback(ih, "RENAME_CB");
-      if (cbRename)
+      if (cbRename(ih, iupTreeFindNodeId(ih, info->item.hItem), info->item.pszText) == IUP_IGNORE)
       {
-        if (cbRename(ih, winTreeGetNodeId(ih, info->item.hItem), info->item.pszText) == IUP_IGNORE)
-        {
-          *result = FALSE;
-          return 1;
-        }
+        *result = FALSE;
+        return 1;
       }
-
-      *result = TRUE;
-      return 1;
     }
-  }
-  else if(msg_info->code == TVN_BEGINDRAG)
-  {
-    if (ih->data->show_dragdrop)
-    {
-      NMTREEVIEW* pNMTreeView = (NMTREEVIEW*)msg_info;
-      HTREEITEM   hItemDrag   = pNMTreeView->itemNew.hItem;
-      HIMAGELIST  dragImageList;
 
-      /* store the drag-and-drop item */
-      iupAttribSetStr(ih, "_IUPTREE_DRAGITEM", (char*)hItemDrag);
-
-      /* get the image list for dragging */
-      dragImageList = (HIMAGELIST)SendMessage(ih->handle, TVM_CREATEDRAGIMAGE, 0, (LPARAM)hItemDrag);
-      if (dragImageList)
-      {
-        POINT pt = pNMTreeView->ptDrag;
-        ImageList_BeginDrag(dragImageList, 0, 0, 0);
-
-        ClientToScreen(ih->handle, &pt);
-        ImageList_DragEnter(NULL, pt.x, pt.y);
-
-        iupAttribSetStr(ih, "_IUPTREE_DRAGIMAGELIST", (char*)dragImageList);
-      }
-
-      ShowCursor(FALSE);
-      SetCapture(ih->handle);  /* drag only inside the tree */
-    }
+    *result = TRUE;
+    return 1;
   }
   else if(msg_info->code == NM_DBLCLK)
   {
-    HTREEITEM hItemFocus = winTreeGetFocusNode(ih);
+    HTREEITEM hItemFocus = iupdrvTreeGetFocusNode(ih);
     TVITEM item;
     winTreeItemData* itemData;
 
@@ -2346,7 +2337,7 @@ static int winTreeWmNotify(Ihandle* ih, NMHDR* msg_info, int *result)
     {
       IFni cbExecuteLeaf = (IFni)IupGetCallback(ih, "EXECUTELEAF_CB");
       if(cbExecuteLeaf)
-        cbExecuteLeaf(ih, winTreeGetNodeId(ih, hItemFocus));
+        cbExecuteLeaf(ih, iupTreeFindNodeId(ih, hItemFocus));
     }
   }
   else if(msg_info->code == TVN_ITEMEXPANDING)
@@ -2380,7 +2371,7 @@ static int winTreeWmNotify(Ihandle* ih, NMHDR* msg_info, int *result)
     HTREEITEM hItem = winTreeFindNodePointed(ih);
     IFni cbRightClick  = (IFni)IupGetCallback(ih, "RIGHTCLICK_CB");
     if (cbRightClick)
-      cbRightClick(ih, winTreeGetNodeId(ih, hItem));
+      cbRightClick(ih, iupTreeFindNodeId(ih, hItem));
   }
   else if (msg_info->code == NM_CUSTOMDRAW)
   {
@@ -2403,7 +2394,7 @@ static int winTreeWmNotify(Ihandle* ih, NMHDR* msg_info, int *result)
       SendMessage(ih->handle, TVM_GETITEM, 0, (LPARAM)(LPTVITEM)&item);
       itemData = (winTreeItemData*)item.lParam;
 
-      if (GetFocus()==ih->handle && winTreeIsItemSelected(ih, hItem))
+      if (GetFocus()==ih->handle && (customdraw->nmcd.uItemState & CDIS_SELECTED))
         customdraw->clrText = winTreeInvertColor(itemData->color);
       else
         customdraw->clrText = itemData->color;
@@ -2431,46 +2422,33 @@ static int winTreeConvertXYToPos(Ihandle* ih, int x, int y)
   info.pt.y = y;
   hItem = (HTREEITEM)SendMessage(ih->handle, TVM_HITTEST, 0, (LPARAM)&info);
   if (hItem)
-    return winTreeGetNodeId(ih, hItem);
+    return iupTreeFindNodeId(ih, hItem);
   return -1;
 }
 
 
 /*******************************************************************************************/
 
-static void winTreeUnMapMethod(Ihandle* ih)
-{
-  Iarray* bmp_array;
-  HIMAGELIST image_list;
-
-  HTREEITEM itemRoot = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_ROOT, 0);
-  winTreeDelNodeData(ih, itemRoot);
-
-  image_list = (HIMAGELIST)SendMessage(ih->handle, TVM_GETIMAGELIST, TVSIL_NORMAL, 0);
-  if (image_list)
-    ImageList_Destroy(image_list);
-
-  bmp_array = (Iarray*)iupAttribGet(ih, "_IUPWIN_BMPARRAY");
-  if (bmp_array)
-    iupArrayDestroy(bmp_array);
-
-  iupdrvBaseUnMapMethod(ih);
-}
 
 static int winTreeMapMethod(Ihandle* ih)
 {
   DWORD dwStyle = WS_CHILD | WS_CLIPSIBLINGS | WS_BORDER | TVS_SHOWSELALWAYS;
 
-  /* can be set only on the Tree View creation */
+  /* styles can be set only on the Tree View creation */
 
-  if (!ih->data->show_dragdrop)
-    dwStyle |= TVS_DISABLEDRAGDROP;
+  /* always disable the internal drag&drop, because it affects our selection and drawing */
+  dwStyle |= TVS_DISABLEDRAGDROP;
 
   if (ih->data->show_rename)
     dwStyle |= TVS_EDITLABELS;
 
   if (!iupAttribGetBoolean(ih, "HIDELINES"))
+  {
     dwStyle |= TVS_HASLINES;
+
+    if (!iupAttribGetInt(ih, "ADDROOT"))
+      dwStyle |= TVS_LINESATROOT;
+  }
 
   if (!iupAttribGetBoolean(ih, "HIDEBUTTONS"))
     dwStyle |= TVS_HASBUTTONS;
@@ -2483,6 +2461,11 @@ static int winTreeMapMethod(Ihandle* ih)
 
   if (!iupwinCreateWindowEx(ih, WC_TREEVIEW, 0, dwStyle))
     return IUP_ERROR;
+
+  if (!iupwin_comctl32ver6)  /* To improve drawing of items when TITLEFONT is set */
+    SendMessage(ih->handle, CCM_SETVERSION, 5, 0); 
+  else
+    SendMessage(ih->handle, TVM_SETEXTENDEDSTYLE, TVS_EX_DOUBLEBUFFER, TVS_EX_DOUBLEBUFFER); 
 
   IupSetCallback(ih, "_IUPWIN_CTRLPROC_CB", (Icallback)winTreeProc);
   IupSetCallback(ih, "_IUPWIN_NOTIFY_CB",   (Icallback)winTreeWmNotify);
@@ -2504,8 +2487,8 @@ static int winTreeMapMethod(Ihandle* ih)
   ih->data->def_image_collapsed = (void*)winTreeGetImageIndex(ih, "IMGCOLLAPSED");
   ih->data->def_image_expanded = (void*)winTreeGetImageIndex(ih, "IMGEXPANDED");
 
-  /* Add the Root Node */
-  winTreeAddRootNode(ih);
+  if (iupAttribGetInt(ih, "ADDROOT"))
+    iupdrvTreeAddNode(ih, "-1", ITREE_BRANCH, "", 0);
 
   /* configure for DRAG&DROP of files */
   if (IupGetCallback(ih, "DROPFILES_CB"))
@@ -2513,7 +2496,29 @@ static int winTreeMapMethod(Ihandle* ih)
 
   IupSetCallback(ih, "_IUP_XY2POS_CB", (Icallback)winTreeConvertXYToPos);
 
+  iupdrvTreeUpdateMarkMode(ih);
+
   return IUP_NOERROR;
+}
+
+static void winTreeUnMapMethod(Ihandle* ih)
+{
+  Iarray* bmp_array;
+  HIMAGELIST image_list;
+
+  winTreeRemoveAllNodeData(ih, 0);
+
+  ih->data->node_count = 0;
+
+  image_list = (HIMAGELIST)SendMessage(ih->handle, TVM_GETIMAGELIST, TVSIL_NORMAL, 0);
+  if (image_list)
+    ImageList_Destroy(image_list);
+
+  bmp_array = (Iarray*)iupAttribGet(ih, "_IUPWIN_BMPARRAY");
+  if (bmp_array)
+    iupArrayDestroy(bmp_array);
+
+  iupdrvBaseUnMapMethod(ih);
 }
 
 void iupdrvTreeInitClass(Iclass* ic)
@@ -2529,7 +2534,6 @@ void iupdrvTreeInitClass(Iclass* ic)
   /* IupTree Attributes - GENERAL */
   iupClassRegisterAttribute(ic, "EXPANDALL",  NULL, winTreeSetExpandAllAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "INDENTATION", winTreeGetIndentationAttrib, winTreeSetIndentationAttrib, NULL, NULL, IUPAF_DEFAULT);
-  iupClassRegisterAttribute(ic, "COUNT", winTreeGetCountAttrib, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_READONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "DRAGDROP", NULL, iupwinSetDragDropAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SPACING", iupTreeGetSpacingAttrib, winTreeSetSpacingAttrib, NULL, NULL, IUPAF_NOT_MAPPED);
   iupClassRegisterAttribute(ic, "TOPITEM", NULL, winTreeSetTopItemAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
@@ -2550,7 +2554,6 @@ void iupdrvTreeInitClass(Iclass* ic)
   iupClassRegisterAttributeId(ic, "NAME",   winTreeGetTitleAttrib,   winTreeSetTitleAttrib, IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "TITLE",   winTreeGetTitleAttrib,   winTreeSetTitleAttrib, IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "CHILDCOUNT",   winTreeGetChildCountAttrib,   NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
-  iupClassRegisterAttributeId(ic, "USERDATA",   winTreeGetUserDataAttrib,   winTreeSetUserDataAttrib, IUPAF_NO_STRING|IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "COLOR",  winTreeGetColorAttrib,  winTreeSetColorAttrib, IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "TITLEFONT", winTreeGetTitleFontAttrib, winTreeSetTitleFontAttrib, IUPAF_NO_INHERIT);
 
@@ -2559,6 +2562,7 @@ void iupdrvTreeInitClass(Iclass* ic)
   iupClassRegisterAttribute  (ic, "MARK",    NULL,    winTreeSetMarkAttrib,    NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute  (ic, "STARTING", NULL, winTreeSetMarkStartAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute  (ic, "MARKSTART", NULL, winTreeSetMarkStartAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute  (ic, "MARKEDNODES",    winTreeGetMarkedNodesAttrib,    winTreeSetMarkedNodesAttrib,    NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
 
   iupClassRegisterAttribute  (ic, "VALUE",    winTreeGetValueAttrib,    winTreeSetValueAttrib,    NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
 
@@ -2567,5 +2571,8 @@ void iupdrvTreeInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "RENAME",  NULL, winTreeSetRenameAttrib,  NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "MOVENODE",  NULL, winTreeSetMoveNodeAttrib,  IUPAF_NOT_MAPPED|IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "COPYNODE",  NULL, winTreeSetCopyNodeAttrib,  IUPAF_NOT_MAPPED|IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
-  iupClassRegisterAttributeId(ic, "FINDUSERDATA", winTreeGetFindUserDataAttrib, NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
+
+  /* necessary because transparent background does not work when not using visual styles */
+  if (!iupwin_comctl32ver6)  /* Used by iupdrvImageCreateImage */
+    iupClassRegisterAttribute(ic, "FLAT_ALPHA", NULL, NULL, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 }

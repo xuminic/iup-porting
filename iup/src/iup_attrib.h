@@ -28,7 +28,7 @@ extern "C" {
 
 /** Returns true if the attribute name if in the internal format "_IUP...".
  * \ingroup attrib */
-#define iupAttribIsInternal(_name) ((_name[0] == '_' && _name[1] == 'I' && _name[2] == 'U' && _name[3] == 'P')? 1: 0)
+#define iupATTRIB_ISINTERNAL(_name) ((_name[0] == '_' && _name[1] == 'I' && _name[2] == 'U' && _name[3] == 'P')? 1: 0)
 
 /** Returns true if the attribute name is a known pointer.
  * \ingroup attrib */
@@ -101,6 +101,10 @@ float iupAttribGetFloat(Ihandle* ih, const char* name);
 /** Set an internal name to a handle.
  * \ingroup attrib */
 void iupAttribSetHandleName(Ihandle *ih);
+
+/** Returns the internal name if set.
+ * \ingroup attrib */
+char* iupAttribGetHandleName(Ihandle *ih);
 
 
 /* For all attributes in the evironment, call the class SetAttribute only.

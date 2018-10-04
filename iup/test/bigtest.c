@@ -62,6 +62,7 @@ void ConfTest(void);
 void ZboxTest(void);
 void ScanfTest(void);
 void SboxTest(void);
+void SplitTest(void);
 void ClipboardTest(void);
 
 void HelpTest(void)
@@ -115,6 +116,7 @@ static TestItems test_list[] = {
   {"Progressbar", ProgressbarTest},
   {"Sample", SampleTest},
   {"Sbox", SboxTest},
+  {"Split", SplitTest},
   {"Scanf", ScanfTest},
   {"Spin", SpinTest},
   {"SysInfo", SysInfoTest},
@@ -164,8 +166,6 @@ int main(int argc, char* argv[])
 
   IupOpen(&argc, &argv);
   IupControlsOpen();
-//  IupOldValOpen();
-//  IupOldTabsOpen();
 
   dlg = IupDialog(IupVbox(list = IupList(NULL), NULL));
   IupSetAttribute(dlg, "MARGIN", "10x10");

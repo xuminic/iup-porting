@@ -137,13 +137,31 @@ static int iMatrixEditCancel(Ihandle* ih, int focus, int update, int ignore)
   return IUP_DEFAULT;
 }
 
+static int iMatrixEditDropDown_CB(Ihandle* ih, int state)
+{
+  /* In Motif if DROPDOWN=YES then when the dropdown button is clicked 
+     the list looses its focus and when the dropped list is closed 
+     the list regain the focus, also when that happen if the list looses its focus 
+     to another control the kill focus callback is not called. */
+  Ihandle* ih_matrix = ih->parent;
+  if (state == 1)
+    iupAttribSetStr(ih_matrix, "_IUPMAT_DROPDOWN", "1");
+
+  return IUP_DEFAULT;
+}
+
 static int iMatrixEditKillFocus_CB(Ihandle* ih)
 {
   Ihandle* ih_matrix = ih->parent;
-  if (iupStrEqualNoCase(IupGetGlobal("DRIVER"), "Motif"))
+  if (IupGetGlobal("MOTIFVERSION"))
   {
-    if (iupAttribGet(ih_matrix, "_IUPMAT_DOUBLE_CLICK"))
+    if (iupAttribGet(ih_matrix, "_IUPMAT_DROPDOWN") ||  /* from iMatrixEditDropDown_CB, in Motif */
+        iupAttribGet(ih_matrix, "_IUPMAT_DOUBLECLICK"))  /* from iMatrixMouseLeftPress, in Motif */
+    {
+      iupAttribSetStr(ih_matrix, "_IUPMAT_DOUBLECLICK", NULL);
+      iupAttribSetStr(ih_matrix, "_IUPMAT_DROPDOWN", NULL);
       return IUP_DEFAULT;
+    }
   }
 
   iupMatrixEditForceHidden(ih_matrix);
@@ -200,7 +218,7 @@ int iupMatrixEditShow(Ihandle* ih)
 
   /* position the cell to make it visible */
   /* If the focus is not visible, a scroll is done for that the focus to be visible */
-  if (!iupMatrixAuxIsCellFullVisible(ih, ih->data->lines.focus_cell, ih->data->columns.focus_cell))
+  if (!iupMatrixAuxIsCellStartVisible(ih, ih->data->lines.focus_cell, ih->data->columns.focus_cell))
     iupMatrixScrollToVisible(ih, ih->data->lines.focus_cell, ih->data->columns.focus_cell);
 
   /* set attributes */
@@ -235,7 +253,7 @@ int iupMatrixEditShow(Ihandle* ih)
   ih->data->datah->y = y;
   if (IupGetGlobal("GTKVERSION"))
   {
-    /* In GTK, IupCanvas is not the actual container of the IupText/IupList */
+    /* In GTK, IupCanvas is NOT the actual container of the IupText/IupList */
     ih->data->datah->x += ih->x;
     ih->data->datah->y += ih->y;
   }
@@ -366,7 +384,7 @@ static int iMatrixEditTextKeyAny_CB(Ihandle* ih, int c)
 
         if (iupMatrixAuxCallLeaveCellCb(ih_matrix) != IUP_IGNORE)
         {
-          iupMatrixScrollKeyCr(ih_matrix);
+          iupMATRIX_ScrollKeyCr(ih_matrix);
           iupMatrixAuxCallEnterCellCb(ih_matrix);
         }
         iupMatrixDrawUpdate(ih_matrix);
@@ -399,7 +417,7 @@ static int iMatrixEditDropDownKeyAny_CB(Ihandle* ih, int c)
       {
         if (iupMatrixAuxCallLeaveCellCb(ih_matrix) != IUP_IGNORE)
         {
-          iupMatrixScrollKeyCr(ih_matrix);
+          iupMATRIX_ScrollKeyCr(ih_matrix);
           iupMatrixAuxCallEnterCellCb(ih_matrix);
         }
         iupMatrixDrawUpdate(ih_matrix);
@@ -439,6 +457,9 @@ void iupMatrixEditCreate(Ihandle* ih)
   /******** DROPDOWN *************/
   ih->data->droph = IupList(NULL);
   iupChildTreeAppend(ih, ih->data->droph);
+
+  if (IupGetGlobal("MOTIFVERSION"))
+    IupSetCallback(ih->data->droph, "DROPDOWN_CB",  (Icallback)iMatrixEditDropDown_CB);
 
   IupSetCallback(ih->data->droph, "ACTION",       (Icallback)iMatrixEditDropDownAction_CB);
   IupSetCallback(ih->data->droph, "KILLFOCUS_CB", (Icallback)iMatrixEditKillFocus_CB);

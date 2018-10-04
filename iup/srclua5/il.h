@@ -36,6 +36,7 @@ int iupcboxlua_open (lua_State * L);
 int iupspinboxlua_open (lua_State * L);
 int iupspinlua_open (lua_State * L);
 int iupsboxlua_open (lua_State * L);
+int iupsplitlua_open (lua_State * L);
 int iupgclua_open (lua_State * L);
 int iupvallua_open (lua_State * L);
 int iuptabslua_open (lua_State * L);
@@ -53,20 +54,15 @@ int iupclipboardlua_open(lua_State * L);
 void iupgetparamlua_open (lua_State * L);
 
 int iupluaScanf(lua_State *L);
-int iupluaapi_open(lua_State * L);
+void iupluaapi_open(lua_State * L);
 
 
             /*     Registration    */
 
-/** Sets the global index as the table "iup".
- * Used to simplify the registration of functions and constants in the "iup" namespace.
+/** Gets the global enviroment "iup".
+    Used by secondary iuplua modules.
  */
-void iuplua_changeEnv(lua_State *L);
-
-/** Resets the global index. 
- * Must match a iuplua_changeEnv call.
- */
-void iuplua_returnEnv(lua_State *L);
+void iuplua_get_env(lua_State *L);
 
 /** Returns true if IupOpen was called from inside the IupLua initialization function (iuplua_open).
  * All the other C intialization functions are called from the respective IupLua initialization functions.

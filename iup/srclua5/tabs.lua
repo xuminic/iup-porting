@@ -3,7 +3,7 @@
 ------------------------------------------------------------------------------
 local ctrl = {
   nick = "tabs",
-  parent = WIDGET,
+  parent = iup.WIDGET,
   creation = "v",
   callback = {
     tabchange_cb = "ii",
@@ -23,9 +23,9 @@ static int Tabsv(lua_State *L)
 ]],
 }
 
-function ctrl.createElement(class, arg)
-  return Tabsv(arg)
+function ctrl.createElement(class, param)
+  return iup.Tabsv(param)
 end
 
-iupRegisterWidget(ctrl)
-iupSetClass(ctrl, "iup widget")
+iup.RegisterWidget(ctrl)
+iup.SetClass(ctrl, "iup widget")

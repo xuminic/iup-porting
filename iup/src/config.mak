@@ -39,14 +39,14 @@ SRC = iup_array.c iup_callback.c iup_dlglist.c iup_attrib.c iup_focus.c iup_font
       iup_user.c iup_button.c iup_radio.c iup_toggle.c iup_progressbar.c iup_text.c iup_val.c \
       iup_box.c iup_hbox.c iup_vbox.c iup_cbox.c iup_class.c iup_classbase.c iup_maskmatch.c \
       iup_mask.c iup_maskparse.c iup_tabs.c iup_spin.c iup_list.c iup_getparam.c \
-      iup_sbox.c iup_normalizer.c iup_tree.c
+      iup_sbox.c iup_normalizer.c iup_tree.c iup_split.c
 
 ifdef USE_GTK
   DEFINES += GTK_DISABLE_DEPRECATED
   INCLUDES += gtk
     SRC += gtk/iupgtk_common.c gtk/iupgtk_focus.c gtk/iupgtk_font.c gtk/iupgtk_clipboard.c \
            gtk/iupgtk_globalattrib.c gtk/iupgtk_key.c gtk/iupgtk_tips.c \
-           gtk/iupgtk_loop.c gtk/iupgtk_open.c gtk/iupgtk_messagedlg.c \
+           gtk/iupgtk_loop.c gtk/iupgtk_open.c gtk/iupgtk_messagedlg.c gtk/iupgtk_draw.c \
            gtk/iupgtk_dialog.c gtk/iupgtk_timer.c gtk/iupgtk_image.c gtk/iupgtk_label.c \
            gtk/iupgtk_colordlg.c gtk/iupgtk_fontdlg.c gtk/iupgtk_filedlg.c  \
            gtk/iupgtk_button.c gtk/iupgtk_toggle.c gtk/iupgtk_progressbar.c \
@@ -73,7 +73,7 @@ else
 ifdef USE_MOTIF
   SRC += mot/iupmot_common.c mot/iupmot_color.c mot/iupmot_focus.c mot/iupmot_font.c \
          mot/iupmot_key.c mot/iupmot_loop.c mot/iupmot_open.c mot/iupmot_tips.c \
-         mot/iupmot_globalattrib.c mot/iupmot_dialog.c mot/iupmot_messagedlg.c \
+         mot/iupmot_globalattrib.c mot/iupmot_dialog.c mot/iupmot_messagedlg.c mot/iupmot_draw.c \
          mot/iupmot_timer.c mot/iupmot_image.c mot/iupmot_label.c mot/iupmot_canvas.c \
          mot/iupmot_colordlg.c mot/iupmot_fontdlg.c mot/iupmot_filedlg.c mot/iupmot_frame.c \
          mot/iupmot_button.c mot/iupmot_toggle.c mot/iupmot_progressbar.c mot/iupmot_clipboard.c \

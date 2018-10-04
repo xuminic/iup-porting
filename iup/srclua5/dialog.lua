@@ -3,11 +3,12 @@
 ------------------------------------------------------------------------------
 local ctrl = {
   nick = "dialog",
-  parent = WIDGET,
+  parent = iup.WIDGET,
   creation = "I",
   callback = {
     map_cb = "",
     unmap_cb = "",
+    destroy_cb = "",
     close_cb = "",
     show_cb = "n",
     move_cb = "nn",
@@ -16,21 +17,21 @@ local ctrl = {
   }
 }
 
-function ctrl.createElement(class, arg)
-   return Dialog(arg[1])
+function ctrl.createElement(class, param)
+   return iup.Dialog(param[1])
 end
 
 function ctrl.popup(handle, x, y)
-  Popup(handle,x,y)
+  iup.Popup(handle,x,y)
 end
 
 function ctrl.showxy(handle, x, y)
-  return ShowXY(handle, x, y)
+  return iup.ShowXY(handle, x, y)
 end
 
 function ctrl.destroy(handle)
-  return Destroy(handle)
+  return iup.Destroy(handle)
 end
 
-iupRegisterWidget(ctrl)
-iupSetClass(ctrl, "iup widget")
+iup.RegisterWidget(ctrl)
+iup.SetClass(ctrl, "iup widget")

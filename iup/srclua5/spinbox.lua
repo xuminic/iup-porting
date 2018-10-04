@@ -3,16 +3,16 @@
 ------------------------------------------------------------------------------
 local ctrl = {
   nick = "spinbox",
-  parent = WIDGET,
+  parent = iup.WIDGET,
   creation = "i",
   callback = {
     spin_cb = "n",
   },
 }
 
-function ctrl.createElement(class, arg)
-   return Spinbox(arg[1])
+function ctrl.createElement(class, param)
+   return iup.Spinbox(param[1])
 end
 
-iupRegisterWidget(ctrl)
-iupSetClass(ctrl, "iup widget")
+iup.RegisterWidget(ctrl)
+iup.SetClass(ctrl, "iup widget")

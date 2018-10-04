@@ -14,12 +14,16 @@
 #include <stdio.h>
 #include <string.h>
 #include <memory.h>
+#include <math.h>
 
 #include "iup.h"
 
 #include "iup_attrib.h"
 #include "iup_class.h"
 #include "iup_str.h"
+#include "iup_object.h"
+#include "iup_image.h"
+#include "iup_draw.h"
 
 #include "iupwin_drv.h"
 #include "iupwin_info.h"
@@ -36,6 +40,11 @@
 #ifndef TMT_TEXTCOLOR
 #define TMT_TEXTCOLOR 3823
 #endif
+
+
+/******************************************************************************
+                             Themes
+*******************************************************************************/
 
 
 typedef HTHEME  (STDAPICALLTYPE *_winThemeOpenData)(HWND hwnd, LPCWSTR pszClassList);
@@ -59,58 +68,6 @@ static _winAlphaBlendFunc winAlphaBlend = NULL;
 static int winDrawThemeEnabled(void)
 {
   return winThemeOpenData? 1: 0;
-}
-
-void iupwinDrawText(HDC hDC, const char* text, int x, int y, int width, int height, HFONT hFont, COLORREF fgcolor, int style)
-{
-  COLORREF oldcolor;
-  RECT rect;
-  HFONT hOldFont = SelectObject(hDC, hFont);
-
-  rect.left = x;
-  rect.top = y;
-  rect.right = x+width;
-  rect.bottom = y+height;
-
-  SetTextAlign(hDC, TA_TOP|TA_LEFT);
-  SetBkMode(hDC, TRANSPARENT);
-  oldcolor = SetTextColor(hDC, fgcolor);
-
-  DrawText(hDC, text, -1, &rect, style|DT_NOCLIP);
-
-  SelectObject(hDC, hOldFont);
-  SetTextColor(hDC, oldcolor);
-  SetBkMode(hDC, OPAQUE);
-}
-
-void iupwinDrawBitmap(HDC hDC, HBITMAP hBitmap, HBITMAP hMask, int x, int y, int width, int height, int bpp)
-{
-  HDC hMemDC = CreateCompatibleDC(hDC);
-  SelectObject(hMemDC, hBitmap);
-
-  if (bpp == 32 && winAlphaBlend)
-  {
-    BLENDFUNCTION blendfunc;
-    blendfunc.BlendOp = AC_SRC_OVER;
-    blendfunc.BlendFlags = 0;
-    blendfunc.SourceConstantAlpha = 0xFF;
-    blendfunc.AlphaFormat = AC_SRC_ALPHA;
-
-    winAlphaBlend(hDC, x, y, width, height, 
-                  hMemDC, 0, 0, width, height, 
-                  blendfunc);
-  }
-  else if (bpp == 8 && hMask)
-    MaskBlt(hDC, x, y, width, height, 
-            hMemDC, 0, 0, 
-            hMask, 0, 0, MAKEROP4(SRCCOPY, 0xAA0000));
-  else
-    BitBlt(hDC, x, y, width, height, 
-           hMemDC, 0, 0, 
-           SRCCOPY);
-
-
-  DeleteDC(hMemDC);
 }
 
 void iupwinDrawInit(void)
@@ -201,7 +158,7 @@ int iupwinDrawGetThemeTabsBgColor(HWND hWnd, COLORREF *color)
   if (!hTheme) 
     return 0;
 
-  if (iupwinIsVista())
+  if (iupwinIsVistaOrNew())
     ret = winThemeGetColor(hTheme, TABP_AEROWIZARDBODY, TIS_NORMAL, TMT_FILLCOLORHINT, color);
   else
     ret = winThemeGetColor(hTheme, TABP_BODY, TIS_NORMAL, TMT_FILLCOLORHINT, color);
@@ -246,6 +203,79 @@ int iupwinDrawGetThemeFrameFgColor(HWND hWnd, COLORREF *color)
   return (ret == S_OK)? 1: 0;
 }
 
+void iupwinDrawRemoveTheme(HWND hwnd)
+{
+  typedef HRESULT (STDAPICALLTYPE *winSetWindowTheme)(HWND hwnd, LPCWSTR pszSubAppName, LPCWSTR pszSubIdList);
+  static winSetWindowTheme mySetWindowTheme = NULL;
+  if (!mySetWindowTheme)
+  {
+    HMODULE hinstDll = LoadLibrary("uxtheme.dll");
+    if (hinstDll)
+      mySetWindowTheme = (winSetWindowTheme)GetProcAddress(hinstDll, "SetWindowTheme");
+  }
+
+  if (mySetWindowTheme)
+    mySetWindowTheme(hwnd, L"", L"");
+}
+
+
+/******************************************************************************
+                             Utilities
+*******************************************************************************/
+
+
+void iupwinDrawText(HDC hDC, const char* text, int x, int y, int width, int height, HFONT hFont, COLORREF fgcolor, int style)
+{
+  COLORREF oldcolor;
+  RECT rect;
+  HFONT hOldFont = SelectObject(hDC, hFont);
+
+  rect.left = x;
+  rect.top = y;
+  rect.right = x+width;
+  rect.bottom = y+height;
+
+  SetTextAlign(hDC, TA_TOP|TA_LEFT);
+  SetBkMode(hDC, TRANSPARENT);
+  oldcolor = SetTextColor(hDC, fgcolor);
+
+  DrawText(hDC, text, -1, &rect, style|DT_NOCLIP);
+
+  SelectObject(hDC, hOldFont);
+  SetTextColor(hDC, oldcolor);
+  SetBkMode(hDC, OPAQUE);
+}
+
+void iupwinDrawBitmap(HDC hDC, HBITMAP hBitmap, HBITMAP hMask, int x, int y, int width, int height, int bpp)
+{
+  HDC hMemDC = CreateCompatibleDC(hDC);
+  SelectObject(hMemDC, hBitmap);
+
+  if (bpp == 32 && winAlphaBlend)
+  {
+    BLENDFUNCTION blendfunc;
+    blendfunc.BlendOp = AC_SRC_OVER;
+    blendfunc.BlendFlags = 0;
+    blendfunc.SourceConstantAlpha = 0xFF;
+    blendfunc.AlphaFormat = AC_SRC_ALPHA;
+
+    winAlphaBlend(hDC, x, y, width, height, 
+                  hMemDC, 0, 0, width, height, 
+                  blendfunc);
+  }
+  else if (bpp == 8 && hMask)
+    MaskBlt(hDC, x, y, width, height, 
+            hMemDC, 0, 0, 
+            hMask, 0, 0, MAKEROP4(SRCCOPY, 0xAA0000));
+  else
+    BitBlt(hDC, x, y, width, height, 
+           hMemDC, 0, 0, 
+           SRCCOPY);
+
+
+  DeleteDC(hMemDC);
+}
+
 static int winDrawGetStateId(int itemState)
 {
   if (itemState & ODS_DISABLED)
@@ -282,21 +312,6 @@ void iupdrvDrawFocusRect(Ihandle* ih, void* gc, int x, int y, int w, int h)
   DrawFocusRect(hDC, &rect);
 }
 
-void iupwinDrawRemoveTheme(HWND hwnd)
-{
-  typedef HRESULT (STDAPICALLTYPE *winSetWindowTheme)(HWND hwnd, LPCWSTR pszSubAppName, LPCWSTR pszSubIdList);
-  static winSetWindowTheme mySetWindowTheme = NULL;
-  if (!mySetWindowTheme)
-  {
-    HMODULE hinstDll = LoadLibrary("uxtheme.dll");
-    if (hinstDll)
-      mySetWindowTheme = (winSetWindowTheme)GetProcAddress(hinstDll, "SetWindowTheme");
-  }
-
-  if (mySetWindowTheme)
-    mySetWindowTheme(hwnd, L"", L"");
-}
-
 void iupwinDrawParentBackground(Ihandle* ih, HDC hDC, RECT* rect)
 {
   unsigned char r=0, g=0, b=0;
@@ -326,3 +341,226 @@ void iupwinDrawDestroyBitmapDC(iupwinBitmapDC *bmpDC)
   DeleteDC(bmpDC->hBitmapDC);
 }
 
+
+/******************************************************************************
+                             Simple Draw
+*******************************************************************************/
+
+struct _IdrawCanvas{
+  Ihandle* ih;
+  int w, h;
+
+  int release_dc;
+  HBITMAP hBitmap, hOldBitmap;
+  HDC hBitmapDC, hDC;
+};
+
+IdrawCanvas* iupDrawCreateCanvas(Ihandle* ih)
+{
+  IdrawCanvas* dc = calloc(1, sizeof(IdrawCanvas));
+  RECT rect;
+
+  /* valid only inside the ACTION callback of an IupCanvas */
+  dc->hDC = (HDC)IupGetAttribute(ih, "HDC_WMPAINT");
+  if (!dc->hDC)
+  {
+    dc->hDC = GetDC(ih->handle);
+    dc->release_dc = 1;
+  }
+
+  GetClientRect(ih->handle, &rect);
+  dc->w = rect.right - rect.left;
+  dc->h = rect.bottom - rect.top;
+
+  dc->hBitmap = CreateCompatibleBitmap(dc->hDC, dc->w, dc->h);
+  dc->hBitmapDC = CreateCompatibleDC(dc->hDC);
+  dc->hOldBitmap = SelectObject(dc->hBitmapDC, dc->hBitmap);
+
+  SetBkMode(dc->hBitmapDC, TRANSPARENT);
+  SetTextAlign(dc->hBitmapDC, TA_TOP|TA_LEFT);
+
+  return dc;
+}
+
+void iupDrawKillCanvas(IdrawCanvas* dc)
+{
+  SelectObject(dc->hBitmapDC, dc->hOldBitmap);
+  DeleteObject(dc->hBitmap);
+  DeleteDC(dc->hBitmapDC);
+  if (dc->release_dc)
+    DeleteDC(dc->hDC);
+
+  free(dc);
+}
+
+void iupDrawUpdateSize(IdrawCanvas* dc)
+{
+  int w, h;
+  RECT rect;
+  GetClientRect(dc->ih->handle, &rect);
+  w = rect.right - rect.left;
+  h = rect.bottom - rect.top;
+
+  if (w != dc->w || h != dc->h)
+  {
+    SelectObject(dc->hBitmapDC, dc->hOldBitmap);
+    DeleteObject(dc->hBitmap);
+    DeleteDC(dc->hBitmapDC);
+
+    dc->hBitmap = CreateCompatibleBitmap(dc->hDC, dc->w, dc->h);
+    dc->hBitmapDC = CreateCompatibleDC(dc->hDC);
+    dc->hOldBitmap = SelectObject(dc->hBitmapDC, dc->hBitmap);
+
+    SetBkMode(dc->hBitmapDC, TRANSPARENT);
+    SetTextAlign(dc->hBitmapDC, TA_TOP|TA_LEFT);
+  }
+}
+
+void iupDrawFlush(IdrawCanvas* dc)
+{
+  BitBlt(dc->hDC, 0, 0, dc->w, dc->h, dc->hBitmapDC, 0, 0, SRCCOPY);
+}
+
+void iupDrawGetSize(IdrawCanvas* dc, int *w, int *h)
+{
+  if (w) *w = dc->w;
+  if (h) *h = dc->h;
+}
+
+void iupDrawParentBackground(IdrawCanvas* dc)
+{
+  unsigned char r=0, g=0, b=0;
+  char* color = iupBaseNativeParentGetBgColorAttrib(dc->ih);
+  iupStrToRGB(color, &r, &g, &b);
+  iupDrawRectangle(dc, 0, 0, dc->w-1, dc->h-1, r, g, b, 1);
+}
+
+void iupDrawRectangle(IdrawCanvas* dc, int x1, int y1, int x2, int y2, unsigned char r, unsigned char g, unsigned char b, int filled)
+{
+  RECT rect;
+  rect.left = x1; rect.top = y1; rect.right = x2+1; rect.bottom = y2+1;
+  SetDCBrushColor(dc->hBitmapDC, RGB(r,g,b));
+  if (filled)
+    FillRect(dc->hBitmapDC, &rect, (HBRUSH)GetStockObject(DC_BRUSH));
+  else
+    FrameRect(dc->hBitmapDC, &rect, (HBRUSH)GetStockObject(DC_BRUSH));
+}
+
+void iupDrawLine(IdrawCanvas* dc, int x1, int y1, int x2, int y2, unsigned char r, unsigned char g, unsigned char b)
+{
+  POINT line_poly[2];
+  HPEN hPen = CreatePen(PS_SOLID, 1, RGB(r, g, b));
+  HPEN hPenOld = SelectObject(dc->hBitmapDC, hPen);
+  line_poly[0].x = x1;
+  line_poly[0].y = y1;
+  line_poly[1].x = x2;
+  line_poly[1].y = y2;
+  Polyline(dc->hBitmapDC, line_poly, 2);
+  SelectObject(dc->hBitmapDC, hPenOld);
+  DeleteObject(hPen);
+}
+
+#define IUP_DEG2RAD  0.01745329252  /* degrees to radians (rad = CD_DEG2RAD * deg) */
+
+static int winDrawCalcArc(int c1, int c2, double a, int start)
+{
+  double proj, off;
+  if (start)
+    proj = cos(IUP_DEG2RAD * a);
+  else
+    proj = sin(IUP_DEG2RAD * a);
+  off = (c2+c1)/2.0 + (c2-c1+1)*proj/2.0;
+  return iupROUND(off);
+}
+
+void iupDrawArc(IdrawCanvas* dc, int x1, int y1, int x2, int y2, double a1, double a2, unsigned char r, unsigned char g, unsigned char b, int filled)
+{
+  int XStartArc = winDrawCalcArc(x1, x2, a1, 1);
+  int XEndArc = winDrawCalcArc(x1, x2, a2, 0);
+  int YStartArc = winDrawCalcArc(y1, y2, a1, 1);
+  int YEndArc = winDrawCalcArc(y1, y2, a2, 0);
+
+  if (filled)
+  {
+    HBRUSH hBrush = CreateSolidBrush(RGB(r,g,b));
+    HPEN hBrushOld = SelectObject(dc->hBitmapDC, hBrush); 
+    BeginPath(dc->hBitmapDC); 
+    Pie(dc->hBitmapDC, x1, y1, x2+1, y2+1, XStartArc, YStartArc, XEndArc, YEndArc);
+    EndPath(dc->hBitmapDC);
+    FillPath(dc->hBitmapDC);
+    SelectObject(dc->hBitmapDC, hBrushOld);
+    DeleteObject(hBrush);
+  }
+  else
+  {
+    HPEN hPen = CreatePen(PS_SOLID, 1, RGB(r, g, b));
+    HPEN hPenOld = SelectObject(dc->hBitmapDC, hPen);
+    Arc(dc->hBitmapDC, x1, y1, x2+1, y2+1, XStartArc, YStartArc, XEndArc, YEndArc);
+    SelectObject(dc->hBitmapDC, hPenOld);
+    DeleteObject(hPen);
+  }
+}
+
+void iupDrawPolygon(IdrawCanvas* dc, int* points, int count, unsigned char r, unsigned char g, unsigned char b, int filled)
+{
+  if (filled)
+  {
+    HBRUSH hBrush = CreateSolidBrush(RGB(r,g,b));
+    HPEN hBrushOld = SelectObject(dc->hBitmapDC, hBrush); 
+    BeginPath(dc->hBitmapDC); 
+    Polygon(dc->hBitmapDC, (POINT*)points, count);
+    EndPath(dc->hBitmapDC);
+    FillPath(dc->hBitmapDC);
+    SelectObject(dc->hBitmapDC, hBrushOld);
+    DeleteObject(hBrush);
+  }
+  else
+  {
+    HPEN hPen = CreatePen(PS_SOLID, 1, RGB(r, g, b));
+    HPEN hPenOld = SelectObject(dc->hBitmapDC, hPen);
+    Polyline(dc->hBitmapDC, (POINT*)points, count);
+    SelectObject(dc->hBitmapDC, hPenOld);
+    DeleteObject(hPen);
+  }
+}
+
+void iupDrawSetClipRect(IdrawCanvas* dc, int x1, int y1, int x2, int y2)
+{
+  HRGN clip_hrgn = CreateRectRgn(x1, y1, x2, y2);
+  SelectClipRgn(dc->hBitmapDC, clip_hrgn);
+  DeleteObject(clip_hrgn);
+}
+
+void iupDrawResetClip(IdrawCanvas* dc)
+{
+  SelectClipRgn(dc->hBitmapDC, NULL);
+}
+
+void iupDrawText(IdrawCanvas* dc, const char* text, int len, int x, int y, unsigned char r, unsigned char g, unsigned char b)
+{
+  HFONT hOldFont, hFont = (HFONT)IupGetAttribute(dc->ih, "HFONT");
+  SetTextColor(dc->hBitmapDC, RGB(r, g, b));
+  hOldFont = SelectObject(dc->hBitmapDC, hFont);
+  TextOut(dc->hBitmapDC, x, y, text, len);
+  SelectObject(dc->hBitmapDC, hOldFont);
+}
+
+void iupDrawImage(IdrawCanvas* dc, const char* name, int make_inactive, int x, int y)
+{
+  int img_w, img_h, bpp;
+  HBITMAP hMask = NULL;
+  HBITMAP hBitmap = iupImageGetImage(name, dc->ih, make_inactive);
+  if (!hBitmap)
+    return;
+
+  /* must use this info, since image can be a driver image loaded from resources */
+  iupdrvImageGetInfo(hBitmap, &img_w, &img_h, &bpp);
+
+  if (bpp == 8)
+    hMask = iupdrvImageCreateMask(IupGetHandle(name));
+
+  iupwinDrawBitmap(dc->hBitmapDC, hBitmap, hMask, x, y, img_w, img_h, bpp);
+
+  if (hMask)
+    DeleteObject(hMask);
+}

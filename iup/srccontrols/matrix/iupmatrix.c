@@ -76,10 +76,13 @@ static int iMatrixSetOriginAttrib(Ihandle* ih, const char* value)
     return 0;
 
   ih->data->columns.first = col;
+  ih->data->columns.first_offset = 0;
   ih->data->lines.first = lin;
+  ih->data->lines.first_offset = 0;
 
-  iupMatrixAuxUpdateVisiblePos(ih, IMAT_PROCESS_COL);
-  iupMatrixAuxUpdateVisiblePos(ih, IMAT_PROCESS_LIN);
+  /* when "first" is changed must update scroll pos */
+  iupMatrixAuxUpdateScrollPos(ih, IMAT_PROCESS_COL);
+  iupMatrixAuxUpdateScrollPos(ih, IMAT_PROCESS_LIN);
 
   iupMatrixDraw(ih, 1);
   return 0;
@@ -109,7 +112,7 @@ static int iMatrixSetShowAttrib(Ihandle* ih, const char* value)
   if((lin < 1) || (col < 1))
     return 0;
 
-  if (!iupMatrixAuxIsCellFullVisible(ih, lin, col))
+  if (!iupMatrixAuxIsCellStartVisible(ih, lin, col))
     iupMatrixScrollToVisible(ih, lin, col);
 
   return 0;
@@ -173,6 +176,23 @@ static char* iMatrixGetUseTitleSizeAttrib(Ihandle* ih)
     return "NO";
 }
 
+static int iMatrixSetHiddenTextMarksAttrib(Ihandle* ih, const char* value)
+{
+  if (iupStrBoolean(value))
+    ih->data->hidden_text_marks = 1;
+  else 
+    ih->data->hidden_text_marks = 0;
+  return 0;
+}
+
+static char* iMatrixGetHiddenTextMarksAttrib(Ihandle* ih)
+{
+  if (ih->data->hidden_text_marks)
+    return "YES";
+  else
+    return "NO";
+}
+
 static int iMatrixSetValueAttrib(Ihandle* ih, const char* value)
 {
   if (IupGetInt(ih->data->datah, "VISIBLE"))
@@ -228,14 +248,14 @@ static char* iMatrixGetMultilineAttrib(Ihandle* ih)
 static char* iMatrixGetNumLinAttrib(Ihandle* ih)
 {
   char* num = iupStrGetMemory(100);
-  sprintf(num, "%d", ih->data->lines.num-1);
+  sprintf(num, "%d", ih->data->lines.num-1);  /* the attribute does not include the title */
   return num;
 }
 
 static char* iMatrixGetNumColAttrib(Ihandle* ih)
 {
   char* num = iupStrGetMemory(100);
-  sprintf(num, "%d", ih->data->columns.num-1);
+  sprintf(num, "%d", ih->data->columns.num-1);  /* the attribute does not include the title */
   return num;
 }
 
@@ -427,13 +447,19 @@ static char* iMatrixGetAlignmentAttrib(Ihandle* ih, const char* name_id)
   align = iupAttribGet(ih, str);
   if (!align)
   {
-    int col;
-    if (iupStrToInt(name_id, &col))
+    align = iupAttribGet(ih, "ALIGNMENT");
+    if (align)
+      return align;
+    else
     {
-      if (col == 0)
-        return "ALEFT";
-      else
-        return "ACENTER";
+      int col;
+      if (iupStrToInt(name_id, &col))
+      {
+        if (col == 0)
+          return "ALEFT";
+        else
+          return "ACENTER";
+      }
     }
   }
     
@@ -642,7 +668,7 @@ static int iMatrixCreateMethod(Ihandle* ih, void **params)
   /* Create the edit fields */
   iupMatrixEditCreate(ih);
 
-  /* defaults */
+  /* defaults that are non zero */
   ih->data->datah = ih->data->texth;
   ih->data->mark_continuous = 1;
   ih->data->columns.num = 1;
@@ -656,7 +682,6 @@ static int iMatrixCreateMethod(Ihandle* ih, void **params)
   ih->data->mark_col1 = -1;
   ih->data->mark_lin2 = -1;
   ih->data->mark_col2 = -1;
-  ih->data->use_title_size = 0;
 
   return IUP_NOERROR;
 }
@@ -700,11 +725,34 @@ static void iMatrixUnMapMethod(Ihandle* ih)
   iupMatrixMemRelease(ih);
 }
 
+static char* iMatrixGetDefault(Ihandle* ih, const char* name)
+{
+  int inherit;
+  char *def_value;
+  iupClassObjectGetAttributeInfo(ih, name, &def_value, &inherit);
+  return def_value;
+}
+
+static int iMatrixGetInt(Ihandle* ih, const char* name)
+{
+  char *value = iupAttribGet(ih, name);
+  if (!value) value = iMatrixGetDefault(ih, name);
+  if (value)
+  {
+    int i = 0;
+    if (iupStrToInt(value, &i))
+      return i;
+  }
+  return 0;
+}
+
 static int iMatrixGetNaturalWidth(Ihandle* ih)
 {
   int width = 0, num, col;
 
-  num = iupAttribGetInt(ih, "NUMCOL_VISIBLE")+1;  /* include the title column */
+  /* must use this custom function because 
+     the get method for this attribute returns a value with a different meaning */
+  num = iMatrixGetInt(ih, "NUMCOL_VISIBLE")+1;  /* include the title column */
 
   if (iupAttribGetInt(ih, "NUMCOL_VISIBLE_LAST"))
   {
@@ -716,9 +764,7 @@ static int iMatrixGetNaturalWidth(Ihandle* ih)
   }
   else
   {
-    if (num > ih->data->columns.num)
-      num = ih->data->columns.num;
-    for(col = 0; col < num; col++)
+    for(col = 0; col < num; col++)  /* num can be > numcol */
       width += iupMatrixAuxGetColumnWidth(ih, col);
   }
 
@@ -729,7 +775,9 @@ static int iMatrixGetNaturalHeight(Ihandle* ih)
 {
   int height = 0, num, lin;
 
-  num = iupAttribGetInt(ih, "NUMLIN_VISIBLE")+1;  /* include the title line */
+  /* must use this custom function because 
+     the get method for this attribute returns a value with a different meaning */
+  num = iMatrixGetInt(ih, "NUMLIN_VISIBLE")+1;  /* include the title line */
 
   if (iupAttribGetInt(ih, "NUMLIN_VISIBLE_LAST"))
   {
@@ -741,9 +789,7 @@ static int iMatrixGetNaturalHeight(Ihandle* ih)
   }
   else
   {
-    if (num > ih->data->lines.num)
-      num = ih->data->lines.num;
-    for(lin = 0; lin < num; lin++)
+    for(lin = 0; lin < num; lin++)  /* num can be > numlin */
       height += iupMatrixAuxGetLineHeight(ih, lin);
   }
 
@@ -902,6 +948,8 @@ Iclass* iupMatrixGetClass(void)
 
   /* IupMatrix Attributes - GENERAL */
   iupClassRegisterAttribute(ic, "USETITLESIZE", iMatrixGetUseTitleSizeAttrib, iMatrixSetUseTitleSizeAttrib, IUPAF_SAMEASSYSTEM, "NO", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "HIDDENTEXTMARKS", iMatrixGetHiddenTextMarksAttrib, iMatrixSetHiddenTextMarksAttrib, IUPAF_SAMEASSYSTEM, "NO", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  
   iupClassRegisterAttribute(ic, "FRAMECOLOR", NULL, NULL, IUPAF_SAMEASSYSTEM, "100 100 100", IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "READONLY", NULL, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "RESIZEMATRIX", NULL, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);

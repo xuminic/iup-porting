@@ -3,7 +3,7 @@
 ------------------------------------------------------------------------------
 local ctrl = {
   nick = "cells",
-  parent = WIDGET,
+  parent = iup.WIDGET,
   creation = "",
   callback = {
     mouseclick_cb = "nnnnnns",
@@ -24,9 +24,9 @@ function ctrl.redraw(handle)
    handle.repaint = "YES"
 end
 
-function ctrl.createElement(class, arg)
-   return Cells()
+function ctrl.createElement(class, param)
+   return iup.Cells()
 end
 
-iupRegisterWidget(ctrl)
-iupSetClass(ctrl, "iup widget")
+iup.RegisterWidget(ctrl)
+iup.SetClass(ctrl, "iup widget")

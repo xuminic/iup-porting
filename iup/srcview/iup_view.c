@@ -7,10 +7,12 @@
 #include "iup.h"
 #include "iupcontrols.h"
 #include "iupgl.h"
+
 #include "iup_str.h"
+#include "iup_object.h"
 
 
-#define MAX_NAMES 500
+#define MAX_NAMES 5000
 
 #ifdef USE_IM
 #include "iupim.h"
@@ -234,8 +236,13 @@ static int saveallimages_cb(void)
       if (!IupSaveImageAsText(elem, file_name, imgtype, names[i]))
       {
 #ifdef USE_IM
-        if (!IupSaveImage(elem, file_name, StrUpper(imgtype)))  /* already displayed an error message */
+        if (!IupSaveImage(elem, file_name, StrUpper(imgtype)))
+        {
+          char* err_msg = IupGetGlobal("IUPIM_LASTERROR");
+          if (err_msg)
+            IupMessage("Error", err_msg);
           return IUP_DEFAULT;
+        }
 #else
         IupMessage("Error", "Failed to save the image.");
         return IUP_DEFAULT;
@@ -434,11 +441,19 @@ static int saveimage_cb(Ihandle* self)
       if (GetSaveAsFile(file_name, imgtype) != -1)
       {
         if (!IupSaveImageAsText(elem, file_name, imgtype, name))
+        {
 #ifdef USE_IM
-          IupSaveImage(elem, file_name, StrUpper(imgtype));  /* already displayed an error message */
+          if (!IupSaveImage(elem, file_name, StrUpper(imgtype)))
+          {
+            char* err_msg = IupGetGlobal("IUPIM_LASTERROR");
+            if (err_msg)
+              IupMessage("Error", err_msg);
+            return IUP_DEFAULT;
+          }
 #else
           IupMessage("Error", "Failed to save the image.");
 #endif
+        }
       }
     }
     else
@@ -544,16 +559,44 @@ static void mainUpdateInternals(void)
   }
 }
 
+static int checkArray(Ihandle* *ih_array, int count, Ihandle* ih)
+{
+  int i;
+  for (i = 0; i < count; i++)
+  {
+    if (ih_array[i] == ih)
+      return 0;
+  }
+  return 1;
+}
+
 static int destroyall_cb(Ihandle* self)
 {
   char *names[MAX_NAMES];
+  Ihandle* ih;
+  Ihandle* ih_names[MAX_NAMES];
   Ihandle* list = (Ihandle*)IupGetAttribute(self, "mainList");
-  int i, num_names = IupGetAllNames(names, MAX_NAMES); 
+  int i, j=0, num_names = IupGetAllNames(names, MAX_NAMES); 
   for (i = 0; i < num_names; i++)
   {
-    Ihandle* elem = IupGetHandle(names[i]);
+    ih = IupGetHandle(names[i]);
+    if (iupObjectCheck(ih) && IupGetInt(ih, "_INTERNAL") == 0)
+    {
+      ih = IupGetDialog(ih);
+      if (checkArray(ih_names, j, ih))
+      {
+        ih_names[j] = ih;
+        j++;
+      }
+    }
+  }
+  num_names = j;
+
+  for (i = 0; i < num_names; i++)
+  {
+    Ihandle* elem = ih_names[i];
     
-    if (elem && IupGetInt(elem, "_INTERNAL") == 0)
+    if (iupObjectCheck(elem))
     {
       char* type = IupGetClassName(elem);
 
@@ -567,6 +610,7 @@ static int destroyall_cb(Ihandle* self)
       }
     }
   }
+
   IupSetAttribute(list, "1", NULL);
   IupSetAttribute(list, "VALUE", "1");
   return IUP_DEFAULT;
@@ -689,6 +733,12 @@ static void LoadImageFile(Ihandle* self, const char* file_name)
     free(file_title);
     mainUpdateList(self, file_name);
   }
+  else
+  {
+    char* err_msg = IupGetGlobal("IUPIM_LASTERROR");
+    if (err_msg)
+      IupMessage("Error", err_msg);
+  }
 }
 
 static int GetOpenFileName(char* file)
@@ -803,6 +853,7 @@ static Ihandle* mainDialog(void)
     IupFrame(label = IupLabel("")),
     NULL);
   IupSetAttribute(box, "MARGIN", "10x10");
+  IupSetAttribute(list, "SORT", "YES");
   IupSetCallback(list, "ACTION", (Icallback)list_cb);
   IupSetCallback(list, "DBLCLICK_CB", (Icallback)list_dbclick_cb);
 
@@ -817,6 +868,7 @@ static Ihandle* mainDialog(void)
   IupSetAttribute(main_dialog, "mainLabel", (char*)label);
   IupSetCallback(main_dialog, "CLOSE_CB", (Icallback)close_cb);
   IupSetCallback(main_dialog, "DROPFILES_CB", (Icallback)dropfile_cb);   
+  IupSetAttribute(main_dialog, "_INTERNAL", "YES");
   
   IupSetAttribute(menu, "mainList", (char*)list);
   IupSetAttribute(menu, "mainLabel", (char*)label);
@@ -841,8 +893,6 @@ int main (int argc, char **argv)
   IupShow(main_dialog);
 
   IupMainLoop();
-  destroyall_cb(main_dialog);
-  IupDestroy(main_dialog);
 
   IupControlsClose();
   IupClose();

@@ -27,6 +27,8 @@ IupGetFunction
 IupGetGlobal
 IupGetHandle
 IupGetInt
+IupGetInt2
+IupGetIntInt
 IupGetLanguage
 IupGetName
 IupHbox
@@ -69,6 +71,7 @@ IupShowXY
 IupStoreAttribute
 IupStoreGlobal
 IupSubmenu
+IupSplit
 IupText
 IupToggle
 IupUnMapFont
@@ -136,6 +139,7 @@ IupTextConvertLinColToPos
 IupTextConvertPosToLinCol
 IupUpdateChildren
 IupTreeSetAttribute  
+IupTreeSetAttributeHandle
 IupTreeStoreAttribute
 IupTreeGetAttribute  
 IupTreeGetInt        
@@ -176,8 +180,8 @@ iupdrvFontGetStringWidth
 iupdrvFontGetMultiLineStringSize
 iupdrvFontGetCharSize
 iupdrvDrawFocusRect
-iupdrvDisplayUpdate
-iupdrvDisplayRedraw
+iupdrvPostRedraw
+iupdrvRedrawNow
 iupdrvBaseUnMapMethod
 iupdrvBaseSetZorderAttrib
 iupdrvBaseSetTipVisibleAttrib
@@ -352,3 +356,17 @@ iupArrayCreate
 iupArrayCount
 iupArrayAdd
 iupSaveImageAsText
+iupDrawCreateCanvas
+iupDrawKillCanvas
+iupDrawFlush
+iupDrawGetSize
+iupDrawParentBackground
+iupDrawRectangle
+iupDrawLine
+iupDrawArc
+iupDrawPolygon
+iupDrawResetClip
+iupDrawSetClipRect
+iupDrawText
+iupDrawUpdateSize
+iupDrawImage

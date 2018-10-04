@@ -3,16 +3,16 @@
 ------------------------------------------------------------------------------
 local ctrl = {
   nick = "toggle",
-  parent = WIDGET,
+  parent = iup.WIDGET,
   creation = "S-",
   callback = {
     action = "n",
   }
 } 
 
-function ctrl.createElement(class, arg)
-  return Toggle(arg.title)
+function ctrl.createElement(class, param)
+  return iup.Toggle(param.title)
 end
    
-iupRegisterWidget(ctrl)
-iupSetClass(ctrl, "iup widget")
+iup.RegisterWidget(ctrl)
+iup.SetClass(ctrl, "iup widget")

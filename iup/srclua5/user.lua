@@ -4,14 +4,14 @@
 ------------------------------------------------------------------------------
 local ctrl = {
   nick = "user",
-  parent = WIDGET,
+  parent = iup.WIDGET,
   creation = "",
   callback = {}
 }
 
-function ctrl.createElement(class, arg)
-   return User()
+function ctrl.createElement(class, param)
+   return iup.User()
 end
 
-iupRegisterWidget(ctrl)
-iupSetClass(ctrl, "iup widget")
+iup.RegisterWidget(ctrl)
+iup.SetClass(ctrl, "iup widget")

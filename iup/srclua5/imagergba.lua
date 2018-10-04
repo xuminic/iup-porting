@@ -3,7 +3,7 @@
 ------------------------------------------------------------------------------
 local ctrl = {
   nick = "imagergba",
-  parent = WIDGET,
+  parent = iup.WIDGET,
   creation = "nns", -- fake definition
   funcname = "ImageRGBA", 
   callback = {},
@@ -23,9 +23,9 @@ static int ImageRGBA(lua_State *L)
 ]]
 }
 
-function ctrl.createElement(class, arg)
-   return ImageRGBA(arg.width, arg.height, arg.pixels)
+function ctrl.createElement(class, param)
+   return iup.ImageRGBA(param.width, param.height, param.pixels)
 end
 
-iupRegisterWidget(ctrl)
-iupSetClass(ctrl, "iup widget")
+iup.RegisterWidget(ctrl)
+iup.SetClass(ctrl, "iup widget")

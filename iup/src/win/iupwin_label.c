@@ -173,7 +173,7 @@ static int winLabelSetAlignmentAttrib(Ihandle* ih, const char* value)
     else /* "ATOP" */
       ih->data->vert_alignment = IUP_ALIGN_ATOP;
 
-    iupdrvDisplayRedraw(ih);
+    iupdrvRedrawNow(ih);
   }
   return 0;
 }
@@ -197,7 +197,7 @@ static int winLabelSetPaddingAttrib(Ihandle* ih, const char* value)
   iupStrToIntInt(value, &ih->data->horiz_padding, &ih->data->vert_padding, 'x');
 
   if (ih->handle && ih->data->type != IUP_LABEL_SEP_HORIZ && ih->data->type != IUP_LABEL_SEP_VERT)
-    iupdrvDisplayRedraw(ih);
+    iupdrvRedrawNow(ih);
 
   return 0;
 }
@@ -211,7 +211,7 @@ static int winLabelSetWordWrapAttrib(Ihandle* ih, const char* value)
     else
       ih->data->text_style &= ~DT_WORDBREAK;
 
-    iupdrvDisplayRedraw(ih);
+    iupdrvRedrawNow(ih);
   }
 
   return 1;
@@ -226,7 +226,7 @@ static int winLabelSetEllipsisAttrib(Ihandle* ih, const char* value)
     else
       ih->data->text_style &= ~DT_END_ELLIPSIS;
 
-    iupdrvDisplayRedraw(ih);
+    iupdrvRedrawNow(ih);
   }
 
   return 1;
@@ -240,9 +240,21 @@ static int winLabelSetFgColorAttrib(Ihandle* ih, const char* value)
     if (iupStrToRGB(value, &r, &g, &b))
     {
       ih->data->fgcolor = RGB(r,g,b);
-      iupdrvDisplayRedraw(ih);
+
+      if (ih->handle)
+        iupdrvRedrawNow(ih);
     }
   }
+  return 1;
+}
+
+static int winLabelSetUpdateAttrib(Ihandle* ih, const char* value)
+{
+  (void)value;
+
+  if (ih->handle)
+    iupdrvPostRedraw(ih);  /* Post a redraw */
+
   return 1;
 }
 
@@ -331,7 +343,7 @@ void iupdrvLabelInitClass(Iclass* ic)
 
   /* IupLabel only */
   iupClassRegisterAttribute(ic, "ALIGNMENT", winLabelGetAlignmentAttrib, winLabelSetAlignmentAttrib, IUPAF_SAMEASSYSTEM, "ALEFT:ACENTER", IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "IMAGE", NULL, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "IMAGE", NULL, winLabelSetUpdateAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "PADDING", iupLabelGetPaddingAttrib, winLabelSetPaddingAttrib, IUPAF_SAMEASSYSTEM, "0x0", IUPAF_NOT_MAPPED);
 
   /* IupLabel Windows and GTK only */

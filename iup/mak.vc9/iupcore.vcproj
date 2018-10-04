@@ -475,6 +475,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\iup_split.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\iup_tabs.c"
 				>
 			</File>
@@ -583,17 +587,6 @@
 				>
 			</File>
 		</Filter>
-		<File
-			RelativePath="..\src\iup.def"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCustomBuildTool"
-				/>
-			</FileConfiguration>
-		</File>
 	</Files>
 	<Globals>
 	</Globals>

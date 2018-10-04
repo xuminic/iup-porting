@@ -2,15 +2,15 @@
 -- Sbox class 
 ------------------------------------------------------------------------------
 local ctrl = {
-	nick = "sbox",
-  parent = WIDGET,
-	creation = "i",
+  nick = "sbox",
+  parent = iup.WIDGET,
+  creation = "I",
   callback = {}
 }
 
-function ctrl.createElement(class, arg)
-   return Sbox(arg[1])
+function ctrl.createElement(class, param)
+   return iup.Sbox(param[1])
 end
 
-iupRegisterWidget(ctrl)
-iupSetClass(ctrl, "iup widget")
+iup.RegisterWidget(ctrl)
+iup.SetClass(ctrl, "iup widget")

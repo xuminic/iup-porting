@@ -3,7 +3,7 @@
 ------------------------------------------------------------------------------
 local ctrl = {
   nick = "canvas",
-  parent = WIDGET,
+  parent = iup.WIDGET,
   creation = "-",
   callback = {
     action = "ff",
@@ -21,9 +21,9 @@ local ctrl = {
   }
 }
 
-function ctrl.createElement(class, arg)
-   return Canvas()
+function ctrl.createElement(class, param)
+   return iup.Canvas()
 end
 
-iupRegisterWidget(ctrl)
-iupSetClass(ctrl, "iup widget")
+iup.RegisterWidget(ctrl)
+iup.SetClass(ctrl, "iup widget")

@@ -3,8 +3,8 @@
 ------------------------------------------------------------------------------
 local ctrl = {
   nick = "val",
-  parent = WIDGET,
-  creation = "s",
+  parent = iup.WIDGET,
+  creation = "S",
   callback = {
     mousemove_cb = "d",
     button_press_cb = "d",
@@ -12,9 +12,9 @@ local ctrl = {
   },
 }
 
-function ctrl.createElement(class, arg)
-   return Val(arg[1])
+function ctrl.createElement(class, param)
+   return iup.Val(param[1])
 end
 
-iupRegisterWidget(ctrl)
-iupSetClass(ctrl, "iup widget")
+iup.RegisterWidget(ctrl)
+iup.SetClass(ctrl, "iup widget")

@@ -72,54 +72,49 @@ static Ihandle* load_image_TestImage(void)
 
 static int addleaf(void)
 {
-  char attr[50];
   Ihandle* tree = IupGetHandle("tree");
   int id = IupGetInt(tree, "VALUE");
-  sprintf(attr, "ADDLEAF%d", id);
-  IupSetAttribute(tree, attr, "");
+  IupTreeSetAttribute(tree, "ADDLEAF", id, "");
   return IUP_DEFAULT;
 }
 
 static int insertleaf(void)
 {
-  char attr[50];
   Ihandle* tree = IupGetHandle("tree");
   int id = IupGetInt(tree, "VALUE");
-  sprintf(attr, "INSERTLEAF%d", id);
-  IupSetAttribute(tree, attr, "");
+  IupTreeSetAttribute(tree, "INSERTLEAF", id, "");
   return IUP_DEFAULT;
 }
 
 static int addbranch(void)
 {
-  char attr[50];
   Ihandle* tree = IupGetHandle("tree");
   int id = IupGetInt(tree, "VALUE");
-  sprintf(attr, "ADDBRANCH%d", id);
-  IupSetAttribute(tree, attr, "");
+  IupTreeSetAttribute(tree, "ADDBRANCH", id, "");
   return IUP_DEFAULT;
 }
 
 static int insertbranch(void)
 {
-  char attr[50];
   Ihandle* tree = IupGetHandle("tree");
   int id = IupGetInt(tree, "VALUE");
-  sprintf(attr, "INSERTBRANCH%d", id);
-  IupSetAttribute(tree, attr, "");
+  IupTreeSetAttribute(tree, "INSERTBRANCH", id, "");
   return IUP_DEFAULT;
 }
 
 static int togglestate(void)
 {
-  char attr[50];
+  char *value;
   Ihandle* tree = IupGetHandle("tree");
   int id = IupGetInt(tree, "VALUE");
-  sprintf(attr, "STATE%d", id);
-  if (strcmp(IupGetAttribute(tree, attr), "EXPANDED")==0)
-    IupSetAttribute(tree, attr, "COLLAPSED");
-  else
-    IupSetAttribute(tree, attr, "EXPANDED");
+  value = IupTreeGetAttribute(tree, "STATE", id);
+  if (value)
+  {
+    if (strcmp(value, "EXPANDED")==0)
+      IupTreeSetAttribute(tree, "STATE", id, "COLLAPSED");
+    else
+      IupTreeSetAttribute(tree, "STATE", id, "EXPANDED");
+  }
   return IUP_DEFAULT;
 }
 
@@ -152,6 +147,34 @@ static int removechild(void)
   return IUP_DEFAULT;
 }
 
+static int removemarked(void)
+{
+  Ihandle* tree = IupGetHandle("tree");
+  IupSetAttribute(tree, "DELNODE", "MARKED");
+  return IUP_DEFAULT;
+}
+
+static int removeall(void)
+{
+  Ihandle* tree = IupGetHandle("tree");
+  IupSetAttribute(tree, "DELNODE", "ALL");
+  return IUP_DEFAULT;
+}
+
+static int expandall(void)
+{
+  Ihandle* tree = IupGetHandle("tree");
+  IupSetAttribute(tree, "EXPANDALL", "YES");
+  return IUP_DEFAULT;
+}
+
+static int contractall(void)
+{
+  Ihandle* tree = IupGetHandle("tree");
+  IupSetAttribute(tree, "EXPANDALL", "NO");
+  return IUP_DEFAULT;
+}
+
 int renamenode(void)
 {
   Ihandle* tree = IupGetHandle("tree");
@@ -175,6 +198,8 @@ static int showrename_cb(Ihandle* ih, int id)
 {
   (void)ih;
   printf("SHOWRENAME_CB(%d)\n", id);
+  if (id == 6)
+    return IUP_IGNORE;
   return IUP_DEFAULT;
 }
 
@@ -190,6 +215,17 @@ static int multiselection_cb(Ihandle *ih, int* ids, int n)
   int i;
   (void)ih;
   printf("MULTISELECTION_CB(");
+  for (i = 0; i < n; i++)
+    printf("%d, ", ids[i]);
+  printf("n=%d)\n", n);
+  return IUP_DEFAULT;
+}
+
+static int multiunselection_cb(Ihandle *ih, int* ids, int n)
+{
+  int i;
+  (void)ih;
+  printf("MULTIUNSELECTION_CB(");
   for (i = 0; i < n; i++)
     printf("%d, ", ids[i]);
   printf("n=%d)\n", n);
@@ -226,9 +262,9 @@ static int branchclose_cb(Ihandle* ih, int id)
   return IUP_DEFAULT;
 }
 
-static int noderemoved_cb(Ihandle* ih, int id, void* data)
+static int noderemoved_cb(Ihandle* ih, void* data)
 {
-  printf("NODEREMOVED_CB(%d)\n", id);
+  printf("NODEREMOVED_CB(%p)\n", data);
   return IUP_DEFAULT;
 }
 
@@ -330,7 +366,11 @@ static int rightclick_cb(Ihandle* ih, int id)
     IupItem ("Insert Branch","insertbranch"),
     IupItem ("Remove Node","removenode"),
     IupItem ("Remove Children","removechild"),
+    IupItem ("Remove Marked","removemarked"),
+    IupItem ("Remove All","removeall"),
     IupItem ("Toggle State","togglestate"),
+    IupItem ("Expand All","expandall"),
+    IupItem ("Contract All","contractall"),
     IupSubmenu("Focus", IupMenu(
       IupItem ("ROOT", "selectnode"),
       IupItem ("LAST", "selectnode"),
@@ -356,8 +396,12 @@ static int rightclick_cb(Ihandle* ih, int id)
   IupSetFunction("insertbranch",  (Icallback) insertbranch);
   IupSetFunction("removenode", (Icallback) removenode);
   IupSetFunction("removechild", (Icallback) removechild);
+  IupSetFunction("removemarked", (Icallback) removemarked);
   IupSetFunction("renamenode", (Icallback) renamenode);
   IupSetFunction("togglestate", (Icallback) togglestate);
+  IupSetFunction("removeall", (Icallback) removeall);
+  IupSetFunction("expandall", (Icallback) expandall);
+  IupSetFunction("contractall", (Icallback) contractall);
 
 //  sprintf(attr, "%d", id);
 //  IupSetAttribute(ih, "VALUE", attr);
@@ -389,7 +433,8 @@ static int next(Ihandle *ih)
 static int prev(Ihandle *ih)
 {
   Ihandle* tree = IupGetHandle("tree");
-  IupSetAttribute(tree, "VALUE",  "PREVIOUS");
+//  IupSetAttribute(tree, "VALUE",  "PREVIOUS");
+  IupSetAttribute(tree, "STATE2", "COLLAPSED");
   return IUP_DEFAULT;
 }
 
@@ -408,13 +453,14 @@ static void init_tree(void)
   IupSetCallback(tree, "SHOWRENAME_CB", (Icallback) showrename_cb);
   IupSetCallback(tree, "SELECTION_CB", (Icallback) selection_cb);
   IupSetCallback(tree, "MULTISELECTION_CB", (Icallback) multiselection_cb);
+  IupSetCallback(tree, "MULTIUNSELECTION_CB", (Icallback) multiunselection_cb);
   IupSetCallback(tree, "GETFOCUS_CB", (Icallback) getfocus_cb);
   IupSetCallback(tree, "KILLFOCUS_CB", (Icallback) killfocus_cb);
   //IupSetCallback(tree, "ENTERWINDOW_CB", (Icallback) enterwindow_cb);
   //IupSetCallback(tree, "LEAVEWINDOW_CB", (Icallback)leavewindow_cb);
   //IupSetCallback(tree, "BUTTON_CB",    (Icallback)button_cb);
   //IupSetCallback(tree, "MOTION_CB",    (Icallback)motion_cb);
-  //IupSetCallback(tree, "NODEREMOVED_CB", (Icallback)noderemoved_cb);
+  IupSetCallback(tree, "NODEREMOVED_CB", (Icallback)noderemoved_cb);
 
   IupSetCallback(tree, "HELP_CB", (Icallback)help_cb);
 
@@ -423,12 +469,11 @@ static void init_tree(void)
 //  IupSetAttribute(tree, "SPACING",   "10");
 //  IupSetAttribute(tree, "BGCOLOR", "255 255 255");
 
-  //IupSetAttribute(tree, "MARKMODE",     "MULTIPLE");
-  //IupSetAttribute(tree, "SHOWDRAGDROP", "YES");
-  //IupSetAttribute(tree, "SHOWRENAME",   "YES");
-  //IupSetAttribute(tree, "AUTODRAGDROP",   "YES");  /* Gtk Only */
+  IupSetAttribute(tree, "MARKMODE",     "MULTIPLE");
+  IupSetAttribute(tree, "SHOWRENAME",   "YES");
+//  IupSetAttribute(tree, "SHOWDRAGDROP", "YES");
 
-  //IupSetAttribute(tree, "ADDEXPANDED",  "NO");
+  IupSetAttribute(tree, "ADDEXPANDED",  "YES");
 //  IupSetAttribute(tree, "HIDELINES",    "YES");
 //  IupSetAttribute(tree, "HIDEBUTTONS",    "YES");
 //  IupSetAttribute(tree, "INDENTATION",   "40");
@@ -472,7 +517,7 @@ static void init_tree_nodes(void)
   //IupSetAttribute(tree, "VALUE", "0");
   IupSetAttribute(tree, "TITLE",         "Figures");  /* title of the root, id=0 */
   IupSetAttribute(tree, "ADDBRANCH",    "3D");    /* 3D=1 */
-  IupSetAttribute(tree, "ADDBRANCH",    "2D");    /* add to the root, so it will be before "3D", now 2D=1, 3D=2 */
+  IupSetAttribute(tree, "ADDLEAF",    "2D");    /* add to the root, so it will be before "3D", now 2D=1, 3D=2 */
   IupSetAttribute(tree, "ADDBRANCH",   "parallelogram"); /* id=1 */ 
   IupSetAttribute(tree, "ADDLEAF1",     "diamond");
   IupSetAttribute(tree, "ADDLEAF1",     "square");
@@ -493,11 +538,11 @@ static void init_tree_nodes(void)
   IupSetAttribute(tree, "INSERTBRANCH2","parallelogram");  /* same depth as id=2, new id=6 */
   IupSetAttribute(tree, "ADDLEAF6",     "square");
   IupSetAttribute(tree, "ADDLEAF7",     "diamond");
-  IupSetAttribute(tree, "INSERTBRANCH6","2D");  /* new id=9 */
+  IupSetAttribute(tree, "INSERTLEAF6","2D");  /* new id=9 */
   IupSetAttribute(tree, "INSERTBRANCH9","3D");
 #endif
 
-  IupSetAttribute(tree, "VALUE",        "6");
+  //IupSetAttribute(tree, "VALUE",        "6");
   IupSetAttribute(tree, "RASTERSIZE", NULL);   /* remove the minimum size limitation */
   IupSetAttribute(tree, "COLOR8", "92 92 255");
   IupSetAttribute(tree, "TITLEFONT8", "Courier, 14");

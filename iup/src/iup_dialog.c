@@ -286,20 +286,22 @@ static void iDialogAfterShow(Ihandle* ih)
 {
   Ihandle* old_focus;
   IFni show_cb;
+  int show_state;
 
   /* process all pending messages */
   IupFlush();
 
   old_focus = IupGetFocus();
+  show_state = ih->data->show_state;
 
   show_cb = (IFni)IupGetCallback(ih, "SHOW_CB");
-  if (show_cb && show_cb(ih, ih->data->show_state) == IUP_CLOSE)
+  if (show_cb && show_cb(ih, show_state) == IUP_CLOSE)
   {
     IupExitLoop();
     return;
   }
 
-  if (ih->data->show_state == IUP_SHOW)
+  if (show_state == IUP_SHOW)
   {
     if (show_cb)
       IupFlush();  /* again to update focus */
@@ -726,7 +728,8 @@ Iclass* iupDialogGetClass(void)
   iupBaseRegisterVisualAttrib(ic);
 
   /* Overwrite Visual */
-  iupClassRegisterAttribute(ic, "VISIBLE", iupBaseGetVisibleAttrib, iDialogSetVisibleAttrib, IUPAF_SAMEASSYSTEM, "NO", IUPAF_NO_INHERIT); /* the only case where VISIBLE default is NO */
+  /* the only case where VISIBLE default is NO, and must not be propagated to the dialog children */
+  iupClassRegisterAttribute(ic, "VISIBLE", iupBaseGetVisibleAttrib, iDialogSetVisibleAttrib, IUPAF_SAMEASSYSTEM, "NO", IUPAF_NO_INHERIT); 
 
   /* IupDialog only */
   iupClassRegisterAttribute(ic, "MENU", NULL, iDialogSetMenuAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);

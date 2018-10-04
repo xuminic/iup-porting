@@ -80,12 +80,18 @@ static void iMatrixMouseLeftPress(Ihandle* ih, int lin, int col, int shift, int 
     
     if (iupMatrixEditShow(ih))
     {
-      if(ih->data->datah == ih->data->droph) 
+      if (ih->data->datah == ih->data->droph)
         IupSetAttribute(ih->data->datah, "SHOWDROPDOWN", "YES");
 
-      if (iupStrEqualNoCase(IupGetGlobal("DRIVER"), "Motif"))
-        if(atoi(IupGetGlobal("MOTIFNUMBER")) < 2203) /* since OpenMotif version 2.2.3 this is not necessary */
-          iupAttribSetStr(ih, "_IUPMAT_DOUBLE_CLICK", "1");
+      if (IupGetGlobal("MOTIFVERSION"))
+      {
+        /* Sequece of focus_cb in Motif from here:
+              Matrix-Focus(0) - ok
+              Edit-KillFocus - weird, must avoid using _IUPMAT_DOUBLECLICK
+           Since OpenMotif version 2.2.3 this is not necessary anymore. */
+        if (atoi(IupGetGlobal("MOTIFNUMBER")) < 2203) 
+          iupAttribSetStr(ih, "_IUPMAT_DOUBLECLICK", "1");
+      }
     }
   }
   else /* single click */
@@ -182,14 +188,14 @@ int iupMatrixMouseMove_CB(Ihandle* ih, int x, int y)
   if (ih->data->leftpressed && ih->data->mark_multiple && ih->data->mark_mode != IMAT_MARK_NO)
   {
     if ((x < ih->data->columns.sizes[0] || x < IMAT_DRAG_SCROLL_DELTA) && (ih->data->columns.first > 1))
-      iupMatrixScrollLeft(ih);
+      iupMATRIX_ScrollLeft(ih);
     else if ((x > ih->data->w - IMAT_DRAG_SCROLL_DELTA) && (ih->data->columns.last < ih->data->columns.num-1))
-      iupMatrixScrollRight(ih);
+      iupMATRIX_ScrollRight(ih);
 
     if ((y < ih->data->lines.sizes[0] || y < IMAT_DRAG_SCROLL_DELTA) && (ih->data->lines.first > 1))
-      iupMatrixScrollUp(ih);
+      iupMATRIX_ScrollUp(ih);
     else if ((y > ih->data->h - IMAT_DRAG_SCROLL_DELTA) && (ih->data->lines.last < ih->data->lines.num-1))
-      iupMatrixScrollDown(ih);
+      iupMATRIX_ScrollDown(ih);
 
     if (iupMatrixAuxGetLinColFromXY(ih, x, y, &lin, &col))
     {

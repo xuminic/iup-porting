@@ -3,7 +3,7 @@
 ------------------------------------------------------------------------------
 local ctrl = {
   nick = "colorbrowser",
-  parent = WIDGET,
+  parent = iup.WIDGET,
   creation = "",
   callback = {
     drag_cb = "ccc",
@@ -13,9 +13,9 @@ local ctrl = {
   include = "iupcontrols.h",
 }
 
-function ctrl.createElement(class, arg)
-   return ColorBrowser(arg.action)
+function ctrl.createElement(class, param)
+   return iup.ColorBrowser(param.action)
 end
 
-iupRegisterWidget(ctrl)
-iupSetClass(ctrl, "iup widget")
+iup.RegisterWidget(ctrl)
+iup.SetClass(ctrl, "iup widget")

@@ -150,8 +150,10 @@ static int gtkButtonSetPaddingAttrib(Ihandle* ih, const char* value)
       gtk_alignment_set_padding(alignment, ih->data->vert_padding, ih->data->vert_padding, 
                                            ih->data->horiz_padding, ih->data->horiz_padding);
     }
+    return 0;
   }
-  return 0;
+  else
+    return 1; /* store until not mapped, when mapped will be set again */
 }
 
 #ifdef WIN32
@@ -366,7 +368,7 @@ static int gtkButtonMapMethod(Ihandle* ih)
     ih->data->type = IUP_BUTTON_IMAGE;
 
     value = iupAttribGet(ih, "TITLE");
-    if (value)
+    if (value && *value!=0)
     {
       GtkSettings* settings = gtk_widget_get_settings(ih->handle);
       g_object_set(settings, "gtk-button-images", (int)TRUE, NULL);

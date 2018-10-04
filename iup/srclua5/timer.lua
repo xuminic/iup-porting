@@ -3,16 +3,16 @@
 ------------------------------------------------------------------------------
 local ctrl = {
   nick     = "timer",
-  parent   = WIDGET,
+  parent   = iup.WIDGET,
   creation = "",
   callback = {
     action_cb = "", 
   },
 } 
 
-function ctrl.createElement(class, arg)
-  return Timer()
+function ctrl.createElement(class, param)
+  return iup.Timer()
 end
    
-iupRegisterWidget(ctrl)
-iupSetClass(ctrl, "iup widget")
+iup.RegisterWidget(ctrl)
+iup.SetClass(ctrl, "iup widget")

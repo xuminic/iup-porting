@@ -4,25 +4,25 @@
 ------------------------------------------------------------------------------
 local ctrl = {
   nick = "normalizer",
-  parent = WIDGET,
+  parent = iup.WIDGET,
   creation = "-",
   callback = {}
 }
 
-function ctrl.setAttributes(object, arg)
+function ctrl.setAttributes(object, param)
   local handle = rawget(object, "handle")
-  local n = #arg
+  local n = #param
   for i = 1, n do
-    if iupGetClass(arg[i]) == "iup handle" then 
-      object.addcontrol = arg[i]
+    if iup.GetClass(param[i]) == "iup handle" then 
+      object.addcontrol = param[i]
     end
   end
-  WIDGET.setAttributes(object, arg)
+  iup.WIDGET.setAttributes(object, param)
 end
 
-function ctrl.createElement(class, arg)
-   return Normalizer()
+function ctrl.createElement(class, param)
+   return iup.Normalizer()
 end
 
-iupRegisterWidget(ctrl)
-iupSetClass(ctrl, "iup widget")
+iup.RegisterWidget(ctrl)
+iup.SetClass(ctrl, "iup widget")

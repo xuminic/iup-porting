@@ -45,7 +45,7 @@ static void winCanvasSetScrollInfo(HWND hWnd, int imin, int imax, int ipos, int 
 static int winCanvasSetBgColorAttrib(Ihandle *ih, const char *value)
 {
   (void)value;
-  iupdrvDisplayUpdate(ih);
+  iupdrvPostRedraw(ih);
   return 1;
 }
 
@@ -220,7 +220,7 @@ static void winCanvasUpdateHorScroll(Ihandle* ih, WORD winop)
   xmax = iupAttribGetFloat(ih,"XMAX");
   xmin = iupAttribGetFloat(ih,"XMIN");
 
-  winCanvasGetScrollInfo(ih->handle, &iposx, &ipagex, SB_HORZ, winop==SB_THUMBTRACK? 1: 0);
+  winCanvasGetScrollInfo(ih->handle, &iposx, &ipagex, SB_HORZ, winop==SB_THUMBTRACK||winop==SB_THUMBPOSITION? 1: 0);
 
   if (!iupAttribGet(ih,"LINEX"))
   {
@@ -296,7 +296,7 @@ static void winCanvasUpdateVerScroll(Ihandle* ih, WORD winop)
   ymax = iupAttribGetFloat(ih,"YMAX");
   ymin = iupAttribGetFloat(ih,"YMIN");
 
-  winCanvasGetScrollInfo(ih->handle, &iposy, &ipagey, SB_VERT, winop==SB_THUMBTRACK? 1: 0);
+  winCanvasGetScrollInfo(ih->handle, &iposy, &ipagey, SB_VERT, winop==SB_THUMBTRACK||winop==SB_THUMBPOSITION? 1: 0);
 
   if (!iupAttribGet(ih, "LINEY"))
   {
@@ -386,7 +386,7 @@ static int winCanvasProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *r
       {
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(ih->handle, &ps);
-        iupAttribSetStr(ih, "HDC_WMPAINT", (char*)&hdc);
+        iupAttribSetStr(ih, "HDC_WMPAINT", (char*)hdc);
         iupAttribSetStrf(ih, "CLIPRECT", "%d %d %d %d", ps.rcPaint.left, ps.rcPaint.top, ps.rcPaint.right-ps.rcPaint.left, ps.rcPaint.bottom-ps.rcPaint.top);
 
         cb(ih, ih->data->posx, ih->data->posy);

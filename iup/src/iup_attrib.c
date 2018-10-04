@@ -63,7 +63,7 @@ char* IupGetAttributes(Ihandle *ih)
   name = iupTableFirst(ih->attrib);
   while (name)
   {
-    if (!iupAttribIsInternal(name))
+    if (!iupATTRIB_ISINTERNAL(name))
     {
       if (buffer[0] != 0)
         strcat(buffer,",");
@@ -115,25 +115,6 @@ void iupAttribUpdateFromParent(Ihandle* ih)
   }
 }
 
-static void iAttribNotifyChildren(Ihandle *ih, const char* name, const char *value)
-{
-  int inherit;
-  Ihandle* child = ih->firstchild;
-  while (child)
-  {
-    if (!iupTableGet(child->attrib, name))
-    {
-      /* set on the class */
-      iupClassObjectSetAttribute(child, name, value, &inherit);
-
-      if (inherit)  /* inherit can be different for the child */
-        iAttribNotifyChildren(child, name, value);
-    }
-
-    child = child->brother;
-  }
-}
-
 static int iAttribIsInherit(Ihandle* ih, const  char* name)
 {
   int inherit;
@@ -142,12 +123,34 @@ static int iAttribIsInherit(Ihandle* ih, const  char* name)
   return inherit;
 }
 
+static void iAttribNotifyChildren(Ihandle *ih, const char* name, const char *value)
+{
+  int inherit;
+  Ihandle* child = ih->firstchild;
+  while (child)
+  {
+    if (!iupTableGet(child->attrib, name))
+    {
+      /* set only if an inheritable attribute at the child */
+      if (iAttribIsInherit(child, name))
+      {
+        /* set on the class */
+        iupClassObjectSetAttribute(child, name, value, &inherit);
+
+        iAttribNotifyChildren(child, name, value);
+      }
+    }
+
+    child = child->brother;
+  }
+}
+
 void iupAttribUpdateChildren(Ihandle* ih)
 {
   char *name = iupTableFirst(ih->attrib);
   while (name)
   {
-    if (!iupAttribIsInternal(name) && iAttribIsInherit(ih, name))
+    if (!iupATTRIB_ISINTERNAL(name) && iAttribIsInherit(ih, name))
     {
       /* retrieve from the table */
       char* value = iupTableGet(ih->attrib, name);
@@ -183,7 +186,7 @@ void iupAttribUpdate(Ihandle* ih)
   for (i = 0; i < count; i++)
   {
     name = name_array[i];
-    if (!iupAttribIsInternal(name))
+    if (!iupATTRIB_ISINTERNAL(name))
     {
       /* retrieve from the table */
       value = iupTableGet(ih->attrib, name);
@@ -220,7 +223,7 @@ void IupSetAttribute(Ihandle *ih, const char* name, const char *value)
   if (!iupObjectCheck(ih))
     return;
 
-  if (iupAttribIsInternal(name))
+  if (iupATTRIB_ISINTERNAL(name))
     iupAttribSetStr(ih, name, value);
   else
   {
@@ -249,7 +252,7 @@ void IupStoreAttribute(Ihandle *ih, const char* name, const char *value)
   if (!iupObjectCheck(ih))
     return;
 
-  if (iupAttribIsInternal(name))
+  if (iupATTRIB_ISINTERNAL(name))
     iupAttribStoreStr(ih, name, value);
   else
   {
@@ -281,7 +284,7 @@ char* IupGetAttribute(Ihandle *ih, const char* name)
   if (!value)
     value = iupAttribGet(ih, name);
 
-  if (!value && !iupAttribIsInternal(name))
+  if (!value && !iupATTRIB_ISINTERNAL(name))
   {
     if (inherit)
     {
@@ -370,6 +373,16 @@ void iupAttribSetHandleName(Ihandle *ih)
   IupSetHandle(str_name, ih);
 }
 
+char* iupAttribGetHandleName(Ihandle *ih)
+{
+  char str_name[100];
+  sprintf(str_name, "_IUP_NAME(%p)", ih);
+  if (IupGetHandle(str_name)==ih)
+    return iupStrGetMemoryCopy(str_name);
+  else
+    return NULL;
+}
+
 void IupSetAttributeHandle(Ihandle *ih, const char* name, Ihandle *ih_named)
 {
   int inherit;
@@ -450,7 +463,7 @@ void iupAttribSetInt(Ihandle *ih, const char* name, int num)
 
 void iupAttribSetFloat(Ihandle *ih, const char* name, float num)
 {
-  iupAttribSetStrf(ih, name, "%f", (double)num);
+  iupAttribSetStrf(ih, name, "%g", (double)num);
 }
 
 int iupAttribGetBoolean(Ihandle* ih, const char* name)
@@ -503,7 +516,7 @@ char* iupAttribGetStr(Ihandle* ih, const char* name)
 
   value = iupTableGet(ih->attrib, name);
 
-  if (!value && !iupAttribIsInternal(name))
+  if (!value && !iupATTRIB_ISINTERNAL(name))
   {
     int inherit;
     char *def_value;
@@ -579,6 +592,15 @@ static void iAttribCapture(char* env_buffer, char* dlm)
   env_buffer[i-1]='\0';                                /* discard delimiter */
 }
 
+static void iAttribSkipComment(void)
+{
+  int c;
+  do
+  {
+    c = *env_str; ++env_str;
+  } while ((c > 0) && (c != '\n'));
+}
+
 static int iAttribToken(char* env_buffer)
 {
   for (;;)
@@ -588,6 +610,11 @@ static int iAttribToken(char* env_buffer)
     {
     case 0:
       return IUPLEX_TK_END;
+
+    case '#':          /* Skip comment */
+    case '%':          /* Skip comment */
+      iAttribSkipComment();
+      continue;
 
     case ' ':          /* ignore whitespace */
     case '\t':
@@ -633,7 +660,7 @@ static void iAttribParse(Ihandle *ih, const char* str)
   {
     switch (iAttribToken(env_buffer))
     {
-    case IUPLEX_TK_END:                 /* procedimento igual ao IUPLEX_TK_COMMA */
+    case IUPLEX_TK_END:           /* same as IUPLEX_TK_COMMA */
       end = 1;
     case IUPLEX_TK_COMMA:
       if (name)

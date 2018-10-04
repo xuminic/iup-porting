@@ -148,6 +148,8 @@ Ihandle* IupCreate(const char *name)
 
 void IupDestroy(Ihandle *ih)
 {
+  Icallback cb;
+
   iupASSERT(iupObjectCheck(ih));
   if (!iupObjectCheck(ih))
     return;
@@ -155,6 +157,9 @@ void IupDestroy(Ihandle *ih)
   /* Hide before destroy to avoid children redraw */
   if (ih->iclass->nativetype == IUP_TYPEDIALOG)
     IupHide(ih);
+
+  cb = IupGetCallback(ih, "DESTROY_CB");
+  if (cb) cb(ih);
 
   /* Destroy all its children.
      Just need to remove the first child,
@@ -165,15 +170,15 @@ void IupDestroy(Ihandle *ih)
   /* unmap if mapped and remove from its parent child list */
   IupDetach(ih);
 
+  /* removes names associated with the element */
+  iupRemoveNames(ih);
+
   /* destroy the element */
   iupClassObjectDestroy(ih);
 
   /* destroy the private data */
   if (ih->data)
     free(ih->data);
-
-  /* removes all the names associated with the element */
-  iupRemoveAllNames(ih);
 
   /* destroy the base handle structure */
   iHandleDestroy(ih);

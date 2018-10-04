@@ -91,13 +91,13 @@ void iupdrvBaseUnMapMethod(Ihandle* ih)
   gtk_widget_destroy(widget);   /* To match the call to gtk_*****_new     */
 }
 
-void iupdrvDisplayUpdate(Ihandle *ih)
+void iupdrvPostRedraw(Ihandle *ih)
 {
   /* Post a REDRAW */
   gtk_widget_queue_draw(ih->handle);
 }
 
-void iupdrvDisplayRedraw(Ihandle *ih)
+void iupdrvRedrawNow(Ihandle *ih)
 {
   GdkWindow* window = ih->handle->window;
   /* Post a REDRAW */
@@ -202,7 +202,11 @@ void iupdrvSetVisible(Ihandle* ih, int visible)
 
 int iupdrvIsVisible(Ihandle* ih)
 {
+#if GTK_CHECK_VERSION(2, 18, 0)
+  if (gtk_widget_get_visible(ih->handle))
+#else
   if (GTK_WIDGET_VISIBLE(ih->handle))
+#endif
   {
     /* if marked as visible, since we use gtk_widget_hide and NOT gtk_widget_hide_all
        must check its parents. */
@@ -211,7 +215,11 @@ int iupdrvIsVisible(Ihandle* ih)
     {
       if (parent->iclass->nativetype != IUP_TYPEVOID)
       {
+#if GTK_CHECK_VERSION(2, 18, 0)
+        if (!gtk_widget_get_visible(parent->handle))
+#else
         if (!GTK_WIDGET_VISIBLE(parent->handle))
+#endif
           return 0;
       }
 
@@ -225,7 +233,11 @@ int iupdrvIsVisible(Ihandle* ih)
 
 int iupdrvIsActive(Ihandle *ih)
 {
-  return (GTK_WIDGET_IS_SENSITIVE(ih->handle));
+#if GTK_CHECK_VERSION(2, 18, 0)
+  return gtk_widget_is_sensitive(ih->handle);
+#else
+  return GTK_WIDGET_IS_SENSITIVE(ih->handle);
+#endif
 }
 
 void iupdrvSetActive(Ihandle* ih, int enable)
@@ -424,9 +436,11 @@ static GdkCursor* gtkGetCursor(Ihandle* ih, const char* name)
     { "RESIZE_N",  GDK_TOP_SIDE},
     { "RESIZE_S",  GDK_BOTTOM_SIDE},
     { "RESIZE_NS", GDK_SB_V_DOUBLE_ARROW},
+    { "SPLITTER_HORIZ", GDK_SB_V_DOUBLE_ARROW},
     { "RESIZE_W",  GDK_LEFT_SIDE},
     { "RESIZE_E",  GDK_RIGHT_SIDE},
     { "RESIZE_WE", GDK_SB_H_DOUBLE_ARROW},
+    { "SPLITTER_VERT", GDK_SB_H_DOUBLE_ARROW},
     { "RESIZE_NE", GDK_TOP_RIGHT_CORNER},
     { "RESIZE_SE", GDK_BOTTOM_RIGHT_CORNER},
     { "RESIZE_NW", GDK_TOP_LEFT_CORNER},
@@ -571,19 +585,23 @@ void iupdrvDrawFocusRect(Ihandle* ih, void* _gc, int x, int y, int w, int h)
 {
   GdkWindow* window = ih->handle->window;
   GtkStyle *style = gtk_widget_get_style(ih->handle);
+#if GTK_CHECK_VERSION(2, 18, 0)
+  GtkStateType state = gtk_widget_get_state(ih->handle);
+#else
+  GtkStateType state = GTK_WIDGET_STATE(ih->handle);
+#endif
+  gtk_paint_focus(style, window, state, NULL, ih->handle, NULL, x, y, w, h);
   (void)_gc;
-
-  gtk_paint_focus(style, window, GTK_WIDGET_STATE(ih->handle), NULL, ih->handle, NULL, x, y, w, h);
 }
 
 void iupdrvBaseRegisterCommonAttrib(Iclass* ic)
 {
 #ifndef GTK_MAC
-  #ifdef WIN32                                 
-    iupClassRegisterAttribute(ic, "HFONT", iupgtkGetFontIdAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
-  #else
-    iupClassRegisterAttribute(ic, "XFONTID", iupgtkGetFontIdAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
-  #endif
+#ifdef WIN32                                 
+  iupClassRegisterAttribute(ic, "HFONT", iupgtkGetFontIdAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
+#else
+  iupClassRegisterAttribute(ic, "XFONTID", iupgtkGetFontIdAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
+#endif
 #endif
   iupClassRegisterAttribute(ic, "PANGOFONTDESC", iupgtkGetPangoFontDescAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
 }
@@ -829,6 +847,23 @@ gboolean iupgtkButtonEvent(GtkWidget *widget, GdkEventButton *evt, Ihandle *ih)
       doubleclick = 1;
 
     iupgtkButtonKeySetStatus(evt->state, evt->button, status, doubleclick);
+
+    if (doubleclick)
+    {
+      /* Must compensate the fact that in GTK there is an extra button press event 
+         when occours a double click, we compensate that completing the event 
+         with a button release before the double click. */
+
+      status[5] = ' '; /* clear double click */
+
+      ret = cb(ih, b, 0, (int)evt->x, (int)evt->y, status);  /* release */
+      if (ret==IUP_CLOSE)
+        IupExitLoop();
+      else if (ret==IUP_IGNORE)
+        return TRUE;
+
+      status[5] = 'D'; /* restore double click */
+    }
 
     ret = cb(ih, b, press, (int)evt->x, (int)evt->y, status);
     if (ret==IUP_CLOSE)

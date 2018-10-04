@@ -3,17 +3,17 @@
 ------------------------------------------------------------------------------
 local ctrl = {
   nick = "submenu",
-  parent = WIDGET,
-  creation = "Si",
+  parent = iup.WIDGET,
+  creation = "SI",
   callback = {
 --    open_cb = "",       -- already registered by the menu
 --    menuclose_cb = "",  -- already registered by the menu
   }
 } 
 
-function ctrl.createElement(class, arg)
-  return Submenu(arg.title, arg[1])
+function ctrl.createElement(class, param)
+  return iup.Submenu(param.title, param[1])
 end
    
-iupRegisterWidget(ctrl)
-iupSetClass(ctrl, "iup widget")
+iup.RegisterWidget(ctrl)
+iup.SetClass(ctrl, "iup widget")

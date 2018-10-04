@@ -36,6 +36,8 @@
 void iupdrvToggleAddCheckBox(int *x, int *y)
 {
   (*x) += 16+8;
+  if (!iupwin_comctl32ver6)
+    (*x) += 4;
   if ((*y) < 16) (*y) = 16; /* minimum height */
 }
 
@@ -229,7 +231,7 @@ static int winToggleSetImageAttrib(Ihandle* ih, const char* value)
       iupAttribSetStr(ih, "IMAGE", (char*)value);
 
     if (iupwin_comctl32ver6)
-      iupdrvDisplayRedraw(ih);
+      iupdrvRedrawNow(ih);
     else
     {
       int check = SendMessage(ih->handle, BM_GETCHECK, 0L, 0L);
@@ -249,7 +251,7 @@ static int winToggleSetImInactiveAttrib(Ihandle* ih, const char* value)
       iupAttribSetStr(ih, "IMINACTIVE", (char*)value);
 
     if (iupwin_comctl32ver6)
-      iupdrvDisplayRedraw(ih);
+      iupdrvRedrawNow(ih);
     else
     {
       int check = SendMessage(ih->handle, BM_GETCHECK, 0L, 0L);
@@ -269,7 +271,7 @@ static int winToggleSetImPressAttrib(Ihandle* ih, const char* value)
       iupAttribSetStr(ih, "IMPRESS", (char*)value);
 
     if (iupwin_comctl32ver6)
-      iupdrvDisplayRedraw(ih);
+      iupdrvRedrawNow(ih);
     else
     {
       int check = SendMessage(ih->handle, BM_GETCHECK, 0L, 0L);
@@ -339,7 +341,7 @@ static int winToggleSetActiveAttrib(Ihandle* ih, const char* value)
     if (iupwin_comctl32ver6)
     {
       iupBaseSetActiveAttrib(ih, value);
-      iupdrvDisplayRedraw(ih);
+      iupdrvRedrawNow(ih);
       return 0;
     }
     else
@@ -382,9 +384,19 @@ static int winToggleSetPaddingAttrib(Ihandle* ih, const char* value)
   iupStrToIntInt(value, &ih->data->horiz_padding, &ih->data->vert_padding, 'x');
 
   if (ih->handle && iupwin_comctl32ver6 && ih->data->type == IUP_TOGGLE_IMAGE)
-    iupdrvDisplayRedraw(ih);
+    iupdrvRedrawNow(ih);
 
   return 0;
+}
+
+static int winToggleSetUpdateAttrib(Ihandle* ih, const char* value)
+{
+  (void)value;
+
+  if (ih->handle)
+    iupdrvPostRedraw(ih);  /* Post a redraw */
+
+  return 1;
 }
 
 static int winToggleSetBgColorAttrib(Ihandle* ih, const char* value)
@@ -395,7 +407,7 @@ static int winToggleSetBgColorAttrib(Ihandle* ih, const char* value)
     /* update internal image cache for controls that have the IMAGE attribute */
     iupAttribSetStr(ih, "BGCOLOR", value);
     iupImageUpdateParent(ih);
-    iupdrvDisplayRedraw(ih);
+    iupdrvRedrawNow(ih);
   }
   return 1;
 }
@@ -673,11 +685,11 @@ void iupdrvToggleInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "BGCOLOR", winToggleGetBgColorAttrib, winToggleSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_DEFAULT);  
 
   /* Special */
-  iupClassRegisterAttribute(ic, "FGCOLOR", NULL, NULL, "DLGFGCOLOR", NULL, IUPAF_NOT_MAPPED);  /* force the new default value */  
+  iupClassRegisterAttribute(ic, "FGCOLOR", NULL, winToggleSetUpdateAttrib, "DLGFGCOLOR", NULL, IUPAF_NOT_MAPPED);  /* force the new default value */  
   iupClassRegisterAttribute(ic, "TITLE", iupdrvBaseGetTitleAttrib, winToggleSetTitleAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
 
   /* IupToggle only */
-  iupClassRegisterAttribute(ic, "ALIGNMENT", NULL, NULL, IUPAF_SAMEASSYSTEM, "ACENTER:ACENTER", IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "ALIGNMENT", NULL, winToggleSetUpdateAttrib, IUPAF_SAMEASSYSTEM, "ACENTER:ACENTER", IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "IMAGE", NULL, winToggleSetImageAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "IMINACTIVE", NULL, winToggleSetImInactiveAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "IMPRESS", NULL, winToggleSetImPressAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);

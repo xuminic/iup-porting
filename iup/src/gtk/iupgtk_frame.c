@@ -41,8 +41,11 @@ static char* gtkFrameGetTitleAttrib(Ihandle* ih)
 
 static int gtkFrameSetTitleAttrib(Ihandle* ih, const char* value)
 {
-  GtkFrame* frame = (GtkFrame*)ih->handle;
-  gtk_frame_set_label(frame, iupgtkStrConvertToUTF8(value));
+  if (iupAttribGetStr(ih, "_IUPFRAME_HAS_TITLE"))
+  {
+    GtkFrame* frame = (GtkFrame*)ih->handle;
+    gtk_frame_set_label(frame, iupgtkStrConvertToUTF8(value));
+  }
   return 0;
 }
 
@@ -132,7 +135,11 @@ static int gtkFrameMapMethod(Ihandle* ih)
   /* the container that will receive the child element. */
   fixed = gtk_fixed_new();
   if (iupAttribGet(ih, "_IUPFRAME_HAS_BGCOLOR"))
+#if GTK_CHECK_VERSION(2, 18, 0)
+    gtk_widget_set_has_window(fixed, TRUE);
+#else
     gtk_fixed_set_has_window((GtkFixed*)fixed, TRUE);
+#endif
   gtk_container_add((GtkContainer*)ih->handle, fixed);
   gtk_widget_show(fixed);
 
