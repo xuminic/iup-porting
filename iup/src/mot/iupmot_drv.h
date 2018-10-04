@@ -33,6 +33,7 @@ void iupmotKeyPressEvent(Widget w, Ihandle *ih, XEvent *evt, Boolean *cont);
 KeySym iupmotKeyCharToKeySym(char c);
 void iupmotButtonKeySetStatus(unsigned int state, unsigned int but, char* status, int doubleclick);
 int iupmotKeyDecode(XKeyEvent *evt);
+KeySym iupmotKeycodeToKeysym(unsigned int keycode);
 
 /* font */
 char* iupmotGetFontListAttrib(Ihandle *ih);
@@ -56,13 +57,14 @@ void iupmotEnterLeaveWindowEvent(Widget w, Ihandle *ih, XEvent *evt, Boolean *co
 void iupmotHelpCallback(Widget w, Ihandle *ih, XtPointer call_data);
 void iupmotSetString(Widget w, const char *resource, const char* value);
 char* iupmotConvertString(XmString str);
-void iupmotSetMnemonicTitle(Ihandle *ih, Widget w, const char* value);
+void iupmotSetMnemonicTitle(Ihandle *ih, Widget w, int pos, const char* value);
 void iupmotDisableDragSource(Widget w);
 void iupmotSetPixmap(Ihandle* ih, const char* name, const char* prop, int make_inactive);
 void iupmotSetGlobalColorAttrib(Widget w, const char* xmname, const char* name);
 void iupmotSetBgColor(Widget w, Pixel color);
 char* iupmotGetBgColorAttrib(Ihandle* ih);
 
+void iupmotSetPosition(Widget widget, int x, int y);
 void iupmotGetWindowSize(Ihandle *ih, int *width, int *height);
 
 char* iupmotGetXWindowAttrib(Ihandle *ih);

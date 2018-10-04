@@ -70,7 +70,9 @@ static void update_viewport(Ihandle* ih, cdCanvas *canvas, float posx, float pos
 static int action(Ihandle *ih)
 {
   cdCanvas *canvas = (cdCanvas*)IupGetAttribute(ih, "_CD_CANVAS");
-  
+
+printf("ACTION\n");
+  cdCanvasActivate(canvas);
   cdCanvasClear(canvas);
 
   cdCanvasForeground(canvas, CD_RED);
@@ -85,17 +87,26 @@ static int resize_cb(Ihandle *ih, int canvas_w, int canvas_h)
 {
   cdCanvas *canvas = (cdCanvas*)IupGetAttribute(ih, "_CD_CANVAS");
 
-  /* update CD canvas */
+printf("RESIZE_CB(%d, %d) RASTERSIZE=%s DRAWSIZE=%s \n", canvas_w, canvas_h, IupGetAttribute(ih, "RASTERSIZE"), IupGetAttribute(ih, "DRAWSIZE"));
+  /* When *AUTOHIDE=Yes, this can hide a scrollbar and so change the canvas drawsize */
+  update_scrollbar(ih, canvas_w, canvas_h);  
+printf("                                DRAWSIZE=%s \n", IupGetAttribute(ih, "DRAWSIZE"));
+  /* update the canvas size */
+  IupGetIntInt(ih, "DRAWSIZE", &canvas_w, &canvas_h);
+
+  /* update the application */
   cdCanvasActivate(canvas);
- 
-  update_scrollbar(ih, canvas_w, canvas_h);
+  update_scrollbar(ih, canvas_w, canvas_h);  
   update_viewport(ih, canvas, IupGetFloat(ih, "POSX"), IupGetFloat(ih, "POSY"));
+
   return IUP_DEFAULT;
 }
 
 static int scroll_cb(Ihandle *ih, int op, float posx, float posy)
 {
   cdCanvas *canvas = (cdCanvas*)IupGetAttribute(ih, "_CD_CANVAS");
+printf("SCROLL_CB(%g, %g)\n", posx, posy);
+  cdCanvasActivate(canvas);
   update_viewport(ih, canvas, posx, posy);
   IupRedraw(ih, 0);
   (void)op;
@@ -120,6 +131,7 @@ static int wheel_cb(Ihandle *ih,float delta,int x,int y,char* status)
   else
     scale += (int)delta;
 
+  cdCanvasActivate(canvas);
   cdCanvasGetSize(canvas, &canvas_w, &canvas_h, NULL, NULL);
   update_scrollbar(ih, canvas_w, canvas_h);
   update_viewport(ih, canvas, IupGetFloat(ih, "POSX"), IupGetFloat(ih, "POSY"));
@@ -157,6 +169,7 @@ void CanvasScrollbarTest(void)
   cnv = IupCanvas(NULL);
   IupSetAttribute(cnv, "RASTERSIZE", "300x200"); /* initial size */
   IupSetAttribute(cnv, "SCROLLBAR", "YES");
+//  IupSetAttribute(cnv, "EXPAND", "NO");
 
   IupSetCallback(cnv, "RESIZE_CB",  (Icallback)resize_cb);
   IupSetCallback(cnv, "ACTION",  (Icallback)action);

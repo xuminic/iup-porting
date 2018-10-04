@@ -6,6 +6,9 @@
 
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
+#if GTK_CHECK_VERSION(3, 0, 0)
+#include <gdk/gdkkeysyms-compat.h>
+#endif
 
 #include <stdlib.h>      
 #include <stdio.h>      
@@ -364,7 +367,7 @@ gboolean iupgtkKeyPressEvent(GtkWidget *widget, GdkEventKey *evt, Ihandle *ih)
         return TRUE;
     }
 
-    if (!iupKeyProcessNavigation(ih, code, evt->state & GDK_SHIFT_MASK))
+    if (iupKeyProcessNavigation(ih, code, evt->state & GDK_SHIFT_MASK))
       return TRUE;
 
     /* compensate the show-help limitation. 

@@ -6,6 +6,9 @@
 
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
+#if GTK_CHECK_VERSION(3, 0, 0)
+#include <gdk/gdkkeysyms-compat.h>
+#endif
 
 #ifdef HILDON
 #include <hildon/hildon-window.h>
@@ -209,7 +212,7 @@ static int gtkMenuMapMethod(Ihandle* ih)
     if (!ih->handle)
       return IUP_ERROR;
 
-    iupgtkBaseAddToParent(ih);
+    iupgtkAddToParent(ih);
 #endif
   }
   else

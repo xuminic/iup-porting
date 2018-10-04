@@ -228,15 +228,27 @@ void iupgtkFontUpdateObjectPangoLayout(Ihandle* ih, gpointer object)
 char* iupdrvGetSystemFont(void)
 {
   static char str[200]; /* must return a static string, because it will be used as the default value for the FONT attribute */
-  GtkStyle* style;
+  const PangoFontDescription* font_desc = NULL;
   GtkWidget* widget = gtk_invisible_new();
   gtk_widget_realize(widget);
-  style = gtk_widget_get_style(widget);
-  if (!style || !style->font_desc)
+#if GTK_CHECK_VERSION(3, 0, 0)
+  {
+    GtkStyleContext* context = gtk_widget_get_style_context(widget);
+    if (context)
+      font_desc = gtk_style_context_get_font(context, GTK_STATE_FLAG_NORMAL);
+  }
+#else
+  {
+    GtkStyle* style = gtk_widget_get_style(widget);
+    if (style)
+       font_desc = style->font_desc;
+  }
+#endif
+  if (!font_desc)
     strcpy(str, "Sans, 10");
   else
   {
-    char* desc = pango_font_description_to_string(style->font_desc);
+    char* desc = pango_font_description_to_string(font_desc);
     strcpy(str, desc);
     g_free(desc);
   }
@@ -302,13 +314,20 @@ char* iupgtkGetPangoLayoutAttrib(Ihandle *ih)
 
 char* iupgtkGetFontIdAttrib(Ihandle *ih)
 {
+  /* Used by IupGLCanvas for IupGLUseFont */
   IgtkFont* gtkfont = gtkFontGet(ih);
   if (!gtkfont)
     return NULL;
   else
   {
+#if GTK_CHECK_VERSION(3, 0, 0)
+    return NULL;  /* TODO: check gtkglarea for GTK3 support, not available yet. */
+#else
+    /* both fucntions are marked as deprecated in GDK (since 2.22) */
     GdkFont* gdk_font = gdk_font_from_description(gtkfont->fontdesc);
-    return (char*)gdk_font_id(gdk_font);  /* In UNIX will return an X Font ID, in Win32 will return an HFONT */
+    return (char*)gdk_font_id(gdk_font);  /* In UNIX will return an X Font ID, 
+                                             in Win32 will return an HFONT */
+#endif
   }
 }
 
@@ -325,7 +344,11 @@ int iupdrvSetStandardFontAttrib(Ihandle* ih, const char* value)
     so the font is enable for size calculation. */
   if (ih->handle && (ih->iclass->nativetype != IUP_TYPEVOID))
   {
-    gtk_widget_modify_font(ih->handle, gtkfont->fontdesc);
+#if GTK_CHECK_VERSION(3, 0, 0)
+    gtk_widget_override_font(ih->handle, gtkfont->fontdesc); 
+#else
+    gtk_widget_modify_font(ih->handle, gtkfont->fontdesc); 
+#endif
     iupgtkFontUpdatePangoLayout(ih, gtkFontGetWidgetPangoLayout(ih));
   }
 

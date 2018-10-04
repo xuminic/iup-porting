@@ -74,6 +74,7 @@ IupStoreAttribute
 IupStoreGlobal
 IupSubmenu
 IupSplit
+IupScrollBox
 IupText
 IupToggle
 IupUnMapFont
@@ -251,6 +252,7 @@ iupStrToDos
 iupStrReplace
 iupStrRemove
 iupStrProcessMnemonic
+iupStrFindMnemonic
 iupStrNextLine
 iupStrMessageShowError
 iupStrMessageGet
@@ -295,6 +297,8 @@ iupKeyCanCaps
 iupKeyCallKeyPressCb
 iupKeyCallKeyCb
 iupKeyProcessNavigation
+iupKeyProcessMnemonic
+iupKeySetMnemonic
 iupImageStockSet
 iupImageStockLoadAll
 iupImageColorMakeInactive
@@ -406,5 +410,7 @@ iupDrawSetClipRect
 iupDrawText
 iupDrawUpdateSize
 iupDrawImage
+iupDrawSelectRect
+iupDrawFocusRect
 iupGetFontInfo
 

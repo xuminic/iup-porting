@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include "iup.h"
 
 
@@ -95,12 +96,12 @@ void LabelTest(void)
   box1 = IupVbox(NULL);
   IupSetAttribute(box1, "MARGIN", "5x5");
   IupSetAttribute(box1, "GAP", "5");
-  IupSetAttribute(box1, "BGCOLOR", "75 150 170");
+  IupSetAttribute(box1, "BGCOLOR", "75 150 170");  /* label must be transparent for BGCOLOR */
   IupSetAttribute(box1, "PADDING", "5x5");
 
   label = IupLabel(NULL);
   IupSetAttribute(label, "TITLE", "Text Labels (згн)");
-  IupSetAttribute(label, "BGCOLOR", IupGetGlobal("DLGBGCOLOR"));
+  //IupSetAttribute(label, "BGCOLOR", IupGetGlobal("DLGBGCOLOR"));
   IupSetAttribute(label, "PADDING", "0x0");
   IupSetAttribute(label, "TIP", "Text Label");
   IupAppend(box1, label);
@@ -156,7 +157,7 @@ void LabelTest(void)
   //IupSetAttribute(label, "IMAGE", "../test/tecgraf.bmp");
   //IupSetAttribute(label, "IMAGE", "../test/file_large.xbm");
   //IupSetAttribute(label, "IMAGE", "gtk-open");
-  IupSetAttribute(label, "BGCOLOR", IupGetGlobal("DLGBGCOLOR"));
+  //IupSetAttribute(label, "BGCOLOR", IupGetGlobal("DLGBGCOLOR"));
   IupSetAttribute(label, "PADDING", "0x0");
   IupSetAttribute(label, "TIP", "Image Label");
   IupAppend(box2, label);
@@ -216,3 +217,4 @@ int main(int argc, char* argv[])
   return EXIT_SUCCESS;
 }
 #endif
+

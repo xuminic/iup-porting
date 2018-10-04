@@ -3,8 +3,9 @@
  *
  * See Copyright Notice in "iup.h"
  */
-
 #include <windows.h>
+#include <commdlg.h>
+
 #include <stdio.h>
 
 #include "iup.h"
@@ -16,6 +17,7 @@
 #include "iup_drvfont.h"
 
 #include "iupwin_drv.h"
+#include "iupwin_info.h"
 
 
 #define IUP_FONTFAMILYCOMBOBOX        0x0470
@@ -36,6 +38,7 @@ static UINT_PTR winFontDlgHookProc(HWND hWnd, UINT uiMsg, WPARAM wParam, LPARAM 
     ih->handle = hWnd;
     iupDialogUpdatePosition(ih);
     ih->handle = NULL;  /* reset handle */
+
     iupAttribSetStr(ih, "HWND", (char*)hWnd);  /* used by HELP_CB in winDialogBaseProc */
 
     hWndItem = GetDlgItem(hWnd, IUP_FONTFAMILYCOMBOBOX);
@@ -97,9 +100,14 @@ static int winFontDlgPopup(Ihandle* ih, int x, int y)
   
   choosefont.hwndOwner = parent;
   choosefont.lpLogFont = &logfont;
-  choosefont.Flags = CF_SCREENFONTS | CF_EFFECTS | CF_INITTOLOGFONTSTRUCT | CF_ENABLEHOOK;
+  choosefont.Flags = CF_SCREENFONTS | CF_EFFECTS | CF_INITTOLOGFONTSTRUCT;
   choosefont.lCustData = (LPARAM)ih;
-  choosefont.lpfnHook = (LPCFHOOKPROC)winFontDlgHookProc;
+
+  if (!iupwinIs8OrNew() || iupAttribGetBoolean(ih, "WIN8_FONT_HOOK"))
+  {
+    choosefont.lpfnHook = (LPCFHOOKPROC)winFontDlgHookProc;
+    choosefont.Flags |= CF_ENABLEHOOK;
+  }
 
   if (IupGetCallback(ih, "HELP_CB"))
     choosefont.Flags |= CF_SHOWHELP;

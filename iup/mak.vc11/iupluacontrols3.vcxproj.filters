@@ -1,0 +1,69 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{7ec1c50e-e853-4140-8e7e-193cd5e0c011}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;rc;def;r;odl;hpj;bat;for;f90</Extensions>
+    </Filter>
+    <Filter Include="Lua">
+      <UniqueIdentifier>{753b4ed2-05fa-4d86-877b-7a2603a9138a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Includes">
+      <UniqueIdentifier>{5e0dfc29-fb07-4d8c-9eaa-a87988d42e49}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\srclua3\il_cells.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\srclua3\il_colorbar.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\srclua3\il_colorbrowser.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\srclua3\il_dial.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\srclua3\il_gauge.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\srclua3\il_mask.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\srclua3\il_matrix.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\srclua3\iuplua_controls.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\srclua3\cells.lua">
+      <Filter>Lua</Filter>
+    </None>
+    <None Include="..\srclua3\colorbar.lua">
+      <Filter>Lua</Filter>
+    </None>
+    <None Include="..\srclua3\colorbrowser.lua">
+      <Filter>Lua</Filter>
+    </None>
+    <None Include="..\srclua3\dial.lua">
+      <Filter>Lua</Filter>
+    </None>
+    <None Include="..\srclua3\gauge.lua">
+      <Filter>Lua</Filter>
+    </None>
+    <None Include="..\srclua3\matrix.lua">
+      <Filter>Lua</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\srclua3\il_controls.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\iupluacontrols.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

@@ -27,10 +27,10 @@
 static void gtkDragDataReceived(GtkWidget *widget, GdkDragContext *drag_context, gint x, gint y,
                             GtkSelectionData *seldata, guint info, guint time, Ihandle *ih)
 {
-  IFnsCiii cbDrop = (IFnsCiii)IupGetCallback(ih, "DROPDATA_CB");
+  IFnsCiii cbDropData = (IFnsCiii)IupGetCallback(ih, "DROPDATA_CB");
   void* targetData = NULL;
   char* type;
-  int size, format, res;
+  int size, format;
   GdkDragAction action;
 
 #if GTK_CHECK_VERSION(2, 22, 0)
@@ -58,8 +58,8 @@ static void gtkDragDataReceived(GtkWidget *widget, GdkDragContext *drag_context,
     return;
   }
 
-  if(cbDrop)
-    res = cbDrop(ih, type, targetData, size, x, y);
+  if (cbDropData)
+    cbDropData(ih, type, targetData, size, x, y);
 
   gtk_drag_finish(drag_context, TRUE, FALSE, time);
 
@@ -105,7 +105,7 @@ static void gtkDragDataGet(GtkWidget *widget, GdkDragContext *drag_context, GtkS
     /* Zero-terminates the stored data. */
     ((guchar*)sourceData)[size] = 0;
 
-    gtk_selection_data_set(seldata, gdk_atom_intern(type, 0), 8, (guchar*)sourceData, size+1);
+    gtk_selection_data_set(seldata, gdk_atom_intern(type, FALSE), 8, (guchar*)sourceData, size+1);
 
     /* gtk_selection_data_set will copy the data */
     free(sourceData);
@@ -134,7 +134,7 @@ static gboolean gtkDragMotion(GtkWidget *widget, GdkDragContext *drag_context, g
     {
       char status[IUPKEY_STATUS_SIZE] = IUPKEY_STATUS_INIT;
       GdkModifierType mask;
-      gdk_window_get_pointer(iupgtkGetWindow(widget), NULL, NULL, &mask);
+      iupgtkWindowGetPointer(iupgtkGetWindow(widget), NULL, NULL, &mask);
 
       iupgtkButtonKeySetStatus(mask, 0, status, 0);
       cbDropMotion(ih, x, y, status);
@@ -185,12 +185,13 @@ static void gtkDragBegin(GtkWidget *widget, GdkDragContext *drag_context, Ihandl
   IFnii cbDragBegin = (IFnii)IupGetCallback(ih, "DRAGBEGIN_CB");
   if(cbDragBegin)
   {
-    int x, y;
-    gdk_window_get_pointer(iupgtkGetWindow(widget), &x, &y, NULL);
+    int x, y;  /* the returned position is not exactly the start position. */
+    iupgtkWindowGetPointer(iupgtkGetWindow(ih->handle), &x, &y, NULL);
 
     if (cbDragBegin(ih, x, y) == IUP_IGNORE)
       gdk_drag_abort(drag_context, 0);
   }
+  (void)widget;
 }
 
 static GtkTargetList* gtkCreateTargetList(const char* value)
@@ -203,13 +204,13 @@ static GtkTargetList* gtkCreateTargetList(const char* value)
   sprintf(valueCopy, "%s", value);
   while(iupStrToStrStr(valueCopy, valueTemp, valueCopy, ',') > 0)
   {
-    gtk_target_list_add(targetlist, gdk_atom_intern(valueTemp, 0), 0, info++);
+    gtk_target_list_add(targetlist, gdk_atom_intern(valueTemp, FALSE), 0, info++);
 
     if(iupStrEqualNoCase(valueCopy, valueTemp))
       break;
   }
 
-  if (targetlist->ref_count == 0)
+  if (info == 0)
   {
     gtk_target_list_unref(targetlist);
     return NULL;

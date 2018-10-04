@@ -28,21 +28,92 @@
 
 #include "iupgtk_drv.h"
 
+#if GTK_CHECK_VERSION(3, 0, 0)
+typedef struct _iupGtkFixed
+{
+  GtkFixed fixed;
+} iupGtkFixed;
+
+typedef struct _iupGtkFixedClass
+{
+  GtkFixedClass parent_class;
+} iupGtkFixedClass;
+
+static GType iup_gtk_fixed_get_type (void) G_GNUC_CONST;
+static void iup_gtk_fixed_class_init (iupGtkFixedClass *_class);
+static void iup_gtk_fixed_init (iupGtkFixed *fixed);
+static void iup_gtk_fixed_get_preferred_size (GtkWidget *widget, gint *minimum, gint *natural);
+
+G_DEFINE_TYPE (iupGtkFixed, iup_gtk_fixed, GTK_TYPE_FIXED)
+
+static void iup_gtk_fixed_class_init (iupGtkFixedClass *_class)
+{
+  GtkWidgetClass *widget_class = (GtkWidgetClass*) _class;
+  widget_class->get_preferred_width = iup_gtk_fixed_get_preferred_size;
+  widget_class->get_preferred_height = iup_gtk_fixed_get_preferred_size;
+}
+
+static void iup_gtk_fixed_init (iupGtkFixed *fixed)
+{
+  (void)fixed;
+}
+
+static void iup_gtk_fixed_get_preferred_size (GtkWidget *widget, gint *minimum, gint *natural)
+{
+  (void)widget;
+  /* all this is just to replace this method, so it will behave like GtkLayout. */
+  *minimum = 0;
+  *natural = 0;
+}
+
+static GtkWidget* iup_gtk_fixed_new(void)
+{
+  return g_object_new (iup_gtk_fixed_get_type(), NULL);
+}
+#endif
 
 /* WARNING: in GTK there are many controls that are not native windows, 
    so it GdkWindow will NOT return a native window exclusive of that control,
    in fact it can return a base native window shared by many controls.
    IupCanvas is a special case that uses an exclusive native window. */
 
-/* GTK only has absolute positioning using a GtkFixed container,
-   so all elements returned by iupChildTreeGetNativeParentHandle should be a GtkFixed. 
+/* GTK only has absolute positioning using a native container,
+   so all elements returned by iupChildTreeGetNativeParentHandle should be a native container. 
    If not looks in the native parent. */
-static GtkFixed* gtkGetFixedParent(Ihandle* ih)
+static GtkWidget* gtkGetNativeContainer(Ihandle* ih)
 {
   GtkWidget* widget = iupChildTreeGetNativeParentHandle(ih);
   while (widget && !GTK_IS_FIXED(widget))
     widget = gtk_widget_get_parent(widget);
-  return (GtkFixed*)widget;
+  return widget;
+}
+
+GtkWidget* iupgtkNativeContainerNew(void)
+{
+#if GTK_CHECK_VERSION(3, 0, 0)
+  return iup_gtk_fixed_new();
+#else
+  return gtk_fixed_new();
+#endif
+}
+
+void iupgtkNativeContainerAdd(GtkWidget* container, GtkWidget* widget)
+{
+  gtk_fixed_put(GTK_FIXED(container), widget, 0, 0);
+}
+
+void iupgtkNativeContainerMove(GtkWidget* container, GtkWidget* widget, int x, int y)
+{
+  gtk_fixed_move(GTK_FIXED(container), widget, x, y);
+}
+
+void iupgtkNativeContainerSetHasWindow(GtkWidget* container, int has_window)
+{
+#if GTK_CHECK_VERSION(2, 18, 0)
+  gtk_widget_set_has_window(container, has_window);
+#else
+  gtk_fixed_set_has_window(GTK_FIXED(container), has_window);
+#endif
 }
 
 const char* iupgtkGetWidgetClassName(GtkWidget* widget)
@@ -65,31 +136,36 @@ void iupdrvActivate(Ihandle* ih)
 void iupdrvReparent(Ihandle* ih)
 {
   GtkWidget* old_parent;
-  GtkWidget* new_parent = (GtkWidget*)gtkGetFixedParent(ih);
-  GtkWidget* widget = (GtkWidget*)iupAttribGet(ih, "_IUP_EXTRAPARENT");  /* here is used as the native child because is the outmost component of the elemement */
+  GtkWidget* new_parent = gtkGetNativeContainer(ih);
+  GtkWidget* widget = (GtkWidget*)iupAttribGet(ih, "_IUP_EXTRAPARENT");  /* here is used as the native child because is the outermost component of the elemement */
   if (!widget) widget = ih->handle;
   old_parent = gtk_widget_get_parent(widget);
   if (old_parent != new_parent)
     gtk_widget_reparent(widget, new_parent);
 }
 
-void iupgtkBaseAddToParent(Ihandle* ih)
+void iupgtkAddToParent(Ihandle* ih)
 {
-  GtkFixed* fixed = gtkGetFixedParent(ih);
-  GtkWidget* widget = (GtkWidget*)iupAttribGet(ih, "_IUP_EXTRAPARENT"); /* here is used as the native child because is the outmost component of the elemement */
+  GtkWidget* parent = gtkGetNativeContainer(ih);
+  GtkWidget* widget = (GtkWidget*)iupAttribGet(ih, "_IUP_EXTRAPARENT"); /* here is used as the native child because is the outermost component of the elemement */
   if (!widget) widget = ih->handle;
 
-  gtk_fixed_put(fixed, widget, 0, 0);
+  iupgtkNativeContainerAdd(parent, widget);
+}
+
+void iupgtkSetPosSize(GtkContainer* parent, GtkWidget* widget, int x, int y, int width, int height)
+{
+  iupgtkNativeContainerMove((GtkWidget*)parent, widget, x, y);
+  gtk_widget_set_size_request(widget, width, height);
 }
 
 void iupdrvBaseLayoutUpdateMethod(Ihandle *ih)
 {
-  GtkFixed* fixed = gtkGetFixedParent(ih);
+  GtkWidget* parent = gtkGetNativeContainer(ih);
   GtkWidget* widget = (GtkWidget*)iupAttribGet(ih, "_IUP_EXTRAPARENT");
   if (!widget) widget = ih->handle;
 
-  gtk_fixed_move(fixed, widget, ih->x, ih->y);
-  gtk_widget_set_size_request(widget, ih->currentwidth, ih->currentheight);
+  iupgtkSetPosSize(GTK_CONTAINER(parent), widget, ih->x, ih->y, ih->currentwidth, ih->currentheight);
 }
 
 void iupdrvBaseUnMapMethod(Ihandle* ih)
@@ -234,13 +310,18 @@ void iupdrvSetVisible(Ihandle* ih, int visible)
   }
 }
 
-int iupdrvIsVisible(Ihandle* ih)
+int iupgtkIsVisible(GtkWidget* widget)
 {
 #if GTK_CHECK_VERSION(2, 18, 0)
-  if (gtk_widget_get_visible(ih->handle))
+  return gtk_widget_get_visible(widget);
 #else
-  if (GTK_WIDGET_VISIBLE(ih->handle))
+  return GTK_WIDGET_VISIBLE(widget);
 #endif
+}
+
+int iupdrvIsVisible(Ihandle* ih)
+{
+  if (iupgtkIsVisible(ih->handle))
   {
     /* if marked as visible, since we use gtk_widget_hide and NOT gtk_widget_hide_all
        must check its parents. */
@@ -249,11 +330,7 @@ int iupdrvIsVisible(Ihandle* ih)
     {
       if (parent->iclass->nativetype != IUP_TYPEVOID)
       {
-#if GTK_CHECK_VERSION(2, 18, 0)
-        if (!gtk_widget_get_visible(parent->handle))
-#else
-        if (!GTK_WIDGET_VISIBLE(parent->handle))
-#endif
+        if (!iupgtkIsVisible(parent->handle))
           return 0;
       }
 
@@ -281,6 +358,43 @@ void iupdrvSetActive(Ihandle* ih, int enable)
   gtk_widget_set_sensitive(ih->handle, enable);
 }
 
+#if GTK_CHECK_VERSION(3, 0, 0)
+static void iupgdkRGBASet(GdkRGBA* rgba, unsigned char r, unsigned char g, unsigned char b)
+{
+  rgba->red = iupCOLOR8ToDouble(r);
+  rgba->green = iupCOLOR8ToDouble(g);
+  rgba->blue = iupCOLOR8ToDouble(b);
+  rgba->alpha = 1.0;
+}
+
+static GdkRGBA gtkDarkerRGBA(GdkRGBA *rgba)
+{
+  GdkRGBA dark_rgba = {0,0,0,1.0};
+
+  dark_rgba.red = (rgba->red*9)/10;
+  dark_rgba.green = (rgba->green*9)/10;
+  dark_rgba.blue = (rgba->blue*9)/10;
+
+  return dark_rgba;
+}
+
+static gdouble gtkCROPDouble(gdouble x)
+{
+  if (x > 1.0) return 1.0;
+  return x;
+}
+
+static GdkRGBA gtkLighterRGBA(GdkRGBA *rgba)
+{
+  GdkRGBA light_rgba = {0,0,0,1.0};
+
+  light_rgba.red = gtkCROPDouble((rgba->red*11)/10);
+  light_rgba.green = gtkCROPDouble((rgba->green*11)/10);
+  light_rgba.blue = gtkCROPDouble((rgba->blue*11)/10);
+
+  return light_rgba;
+}
+#else
 static GdkColor gtkDarkerColor(GdkColor *color)
 {
   GdkColor dark_color = {0L,0,0,0};
@@ -308,17 +422,42 @@ static GdkColor gtkLighterColor(GdkColor *color)
 
   return light_color;
 }
+#endif
 
-void iupgtkBaseSetBgColor(InativeHandle* handle, unsigned char r, unsigned char g, unsigned char b)
+void iupgtkSetBgColor(InativeHandle* handle, unsigned char r, unsigned char g, unsigned char b)
 {
+#if GTK_CHECK_VERSION(3, 0, 0)
+  GdkRGBA rgba, light_rgba, dark_rgba;
+  int is_txt = 0;
+
+  if (GTK_IS_TREE_VIEW(handle) ||
+      GTK_IS_TEXT_VIEW(handle) ||
+      GTK_IS_ENTRY(handle) ||
+      GTK_IS_COMBO_BOX(handle))
+    is_txt = 1;
+
+  iupgdkRGBASet(&rgba, r, g, b);
+  dark_rgba = gtkDarkerRGBA(&rgba);
+  light_rgba = gtkLighterRGBA(&rgba);
+
+  gtk_widget_override_background_color(handle, GTK_STATE_FLAG_NORMAL, &rgba);
+  gtk_widget_override_background_color(handle, GTK_STATE_ACTIVE, &dark_rgba);
+  gtk_widget_override_background_color(handle, GTK_STATE_PRELIGHT, &light_rgba);
+
+  if (is_txt)
+    gtk_widget_override_background_color(handle, GTK_STATE_INSENSITIVE, &light_rgba);
+  else
+    gtk_widget_override_background_color(handle, GTK_STATE_INSENSITIVE, &rgba);
+#else
   GtkRcStyle *rc_style;  
   GdkColor color;
 
   iupgdkColorSet(&color, r, g, b);
 
   rc_style = gtk_widget_get_modifier_style(handle);
-  rc_style->base[GTK_STATE_NORMAL] = rc_style->bg[GTK_STATE_NORMAL]   = rc_style->bg[GTK_STATE_INSENSITIVE] = color;
-  rc_style->bg[GTK_STATE_ACTIVE]   = rc_style->base[GTK_STATE_ACTIVE] = gtkDarkerColor(&color);
+
+  rc_style->base[GTK_STATE_NORMAL]   = rc_style->bg[GTK_STATE_NORMAL] = rc_style->bg[GTK_STATE_INSENSITIVE] = color;
+  rc_style->base[GTK_STATE_ACTIVE]   = rc_style->bg[GTK_STATE_ACTIVE] = gtkDarkerColor(&color);
   rc_style->base[GTK_STATE_PRELIGHT] = rc_style->bg[GTK_STATE_PRELIGHT] = rc_style->base[GTK_STATE_INSENSITIVE] = gtkLighterColor(&color);
 
   rc_style->color_flags[GTK_STATE_NORMAL] |= GTK_RC_BASE | GTK_RC_BG;
@@ -327,6 +466,37 @@ void iupgtkBaseSetBgColor(InativeHandle* handle, unsigned char r, unsigned char 
   rc_style->color_flags[GTK_STATE_INSENSITIVE] |= GTK_RC_BASE | GTK_RC_BG;
 
   gtk_widget_modify_style(handle, rc_style);
+#endif
+}
+
+void iupgtkSetFgColor(InativeHandle* handle, unsigned char r, unsigned char g, unsigned char b)
+{
+#if GTK_CHECK_VERSION(3, 0, 0)
+  GdkRGBA rgba;
+
+  iupgdkRGBASet(&rgba, r, g, b);
+
+  gtk_widget_override_color(handle, GTK_STATE_FLAG_NORMAL, &rgba);
+  gtk_widget_override_color(handle, GTK_STATE_ACTIVE, &rgba);
+  gtk_widget_override_color(handle, GTK_STATE_PRELIGHT, &rgba);
+#else
+  GtkRcStyle *rc_style;  
+  GdkColor color;
+
+  iupgdkColorSet(&color, r, g, b);
+
+  rc_style = gtk_widget_get_modifier_style(handle);  
+
+  rc_style->fg[GTK_STATE_ACTIVE] = rc_style->fg[GTK_STATE_NORMAL] = rc_style->fg[GTK_STATE_PRELIGHT] = color;
+  rc_style->text[GTK_STATE_ACTIVE] = rc_style->text[GTK_STATE_NORMAL] = rc_style->text[GTK_STATE_PRELIGHT] = color;
+
+  rc_style->color_flags[GTK_STATE_NORMAL] |= GTK_RC_TEXT | GTK_RC_FG;
+  rc_style->color_flags[GTK_STATE_ACTIVE] |= GTK_RC_TEXT | GTK_RC_FG;
+  rc_style->color_flags[GTK_STATE_PRELIGHT] |= GTK_RC_TEXT | GTK_RC_FG;
+
+  /* do not set at CHILD_CONTAINER */
+  gtk_widget_modify_style(handle, rc_style);
+#endif
 }
 
 int iupdrvBaseSetBgColorAttrib(Ihandle* ih, const char* value)
@@ -335,33 +505,11 @@ int iupdrvBaseSetBgColorAttrib(Ihandle* ih, const char* value)
   if (!iupStrToRGB(value, &r, &g, &b))
     return 0;
 
-  iupgtkBaseSetBgColor(ih->handle, r, g, b);
+  iupgtkSetBgColor(ih->handle, r, g, b);
 
   /* DO NOT NEED TO UPDATE GTK IMAGES SINCE THEY DO NOT DEPEND ON BGCOLOR */
 
   return 1;
-}
-
-void iupgtkBaseSetFgGdkColor(InativeHandle* handle, GdkColor *color)
-{
-  GtkRcStyle *rc_style;  
-
-  rc_style = gtk_widget_get_modifier_style(handle);  
-  rc_style->fg[GTK_STATE_ACTIVE] = rc_style->fg[GTK_STATE_NORMAL] = rc_style->fg[GTK_STATE_PRELIGHT] = *color;
-  rc_style->text[GTK_STATE_ACTIVE] = rc_style->text[GTK_STATE_NORMAL] = rc_style->text[GTK_STATE_PRELIGHT] = *color;
-  rc_style->color_flags[GTK_STATE_NORMAL] |= GTK_RC_TEXT | GTK_RC_FG;
-  rc_style->color_flags[GTK_STATE_ACTIVE] |= GTK_RC_TEXT | GTK_RC_FG;
-  rc_style->color_flags[GTK_STATE_PRELIGHT] |= GTK_RC_TEXT | GTK_RC_FG;
-
-  /* do not set at CHILD_CONTAINER */
-  gtk_widget_modify_style(handle, rc_style);
-}
-
-void iupgtkBaseSetFgColor(InativeHandle* handle, unsigned char r, unsigned char g, unsigned char b)
-{
-  GdkColor color;
-  iupgdkColorSet(&color, r, g, b);
-  iupgtkBaseSetFgGdkColor(handle, &color);
 }
 
 int iupdrvBaseSetFgColorAttrib(Ihandle* ih, const char* value)
@@ -370,13 +518,17 @@ int iupdrvBaseSetFgColorAttrib(Ihandle* ih, const char* value)
   if (!iupStrToRGB(value, &r, &g, &b))
     return 0;
 
-  iupgtkBaseSetFgColor(ih->handle, r, g, b);
+  iupgtkSetFgColor(ih->handle, r, g, b);
 
   return 1;
 }
 
 static GdkCursor* gtkEmptyCursor(Ihandle* ih)
 {
+#if GTK_CHECK_VERSION(2, 16, 0)
+  (void)ih;
+  return gdk_cursor_new(GDK_BLANK_CURSOR);
+#else  
   /* creates an empty cursor */
   GdkColor cursor_color = {0L,0,0,0};
   char bitsnull[1] = {0x00};
@@ -396,6 +548,7 @@ static GdkCursor* gtkEmptyCursor(Ihandle* ih)
   g_object_unref(pixmapnull);
 
   return cur;
+#endif
 }
 
 static GdkCursor* gtkGetCursor(Ihandle* ih, const char* name)
@@ -495,10 +648,18 @@ int iupdrvGetScrollbarSize(void)
   {
     GtkRequisition requisition;
     GtkWidget* win = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+#if GTK_CHECK_VERSION(3, 0, 0)
+    GtkWidget* sb = gtk_scrollbar_new(GTK_ORIENTATION_VERTICAL, NULL);
+#else
     GtkWidget* sb = gtk_vscrollbar_new(NULL);
+#endif
     gtk_container_add((GtkContainer*)win, sb);
     gtk_widget_realize(win);
+#if GTK_CHECK_VERSION(3, 0, 0)
+    gtk_widget_get_preferred_size(sb, NULL, &requisition);
+#else
     gtk_widget_size_request(sb, &requisition);
+#endif
     size = requisition.width+1;
     gtk_widget_destroy(win);
   }
@@ -508,6 +669,11 @@ int iupdrvGetScrollbarSize(void)
 
 void iupdrvDrawFocusRect(Ihandle* ih, void* _gc, int x, int y, int w, int h)
 {
+#if GTK_CHECK_VERSION(3, 0, 0)
+  cairo_t* cr = (cairo_t*)_gc;
+  GtkStyleContext* context = gtk_widget_get_style_context(ih->handle);
+  gtk_render_focus(context, cr, x, y, w, h);
+#else
   GdkWindow* window = iupgtkGetWindow(ih->handle);
   GtkStyle *style = gtk_widget_get_style(ih->handle);
 #if GTK_CHECK_VERSION(2, 18, 0)
@@ -516,6 +682,7 @@ void iupdrvDrawFocusRect(Ihandle* ih, void* _gc, int x, int y, int w, int h)
   GtkStateType state = GTK_WIDGET_STATE(ih->handle);
 #endif
   gtk_paint_focus(style, window, state, NULL, ih->handle, NULL, x, y, w, h);
+#endif
   (void)_gc;
 }
 
@@ -743,7 +910,7 @@ gboolean iupgtkMotionNotifyEvent(GtkWidget *widget, GdkEventMotion *evt, Ihandle
   if (evt->is_hint)
   {
     int x, y;
-    gdk_window_get_pointer(iupgtkGetWindow(widget), &x, &y, NULL);
+    iupgtkWindowGetPointer(iupgtkGetWindow(widget), &x, &y, NULL);
     evt->x = x;
     evt->y = y;
   }
@@ -843,7 +1010,11 @@ void iupdrvSendKey(int key, int press)
 void iupdrvWarpPointer(int x, int y)
 {
   /* VirtualBox does not reproduce the mouse move visually, but it is working. */
-#if GTK_CHECK_VERSION(2, 8, 0)
+#if GTK_CHECK_VERSION(3, 0, 0)
+  GdkDeviceManager* device_manager = gdk_display_get_device_manager(gdk_display_get_default());
+  GdkDevice* device = gdk_device_manager_get_client_pointer(device_manager);
+  gdk_device_warp(device, gdk_screen_get_default(), x, y);
+#elif GTK_CHECK_VERSION(2, 8, 0)
   gdk_display_warp_pointer(gdk_display_get_default(), gdk_screen_get_default(), x, y);
 #endif
 }
@@ -860,6 +1031,11 @@ void iupdrvSendMouse(int x, int y, int bt, int status)
     GtkWidget* grab_widget;
     gint origin_x, origin_y;
 
+#if GTK_CHECK_VERSION(3, 0, 0)
+    GdkDeviceManager* device_manager = gdk_display_get_device_manager(gdk_display_get_default());
+    GdkDevice* device = gdk_device_manager_get_client_pointer(device_manager);
+#endif
+
     GdkEventButton evt;
     memset(&evt, 0, sizeof(GdkEventButton));
     evt.send_event = TRUE;
@@ -867,13 +1043,23 @@ void iupdrvSendMouse(int x, int y, int bt, int status)
     evt.x_root = x;
     evt.y_root = y;
     evt.type = (status==0)? GDK_BUTTON_RELEASE: ((status==2)? GDK_2BUTTON_PRESS: GDK_BUTTON_PRESS);
+#if GTK_CHECK_VERSION(3, 0, 0)
+    evt.device = device;
+#else
     evt.device = gdk_device_get_core_pointer();
+#endif
 
     grab_widget = gtk_grab_get_current();
     if (grab_widget) 
       evt.window = iupgtkGetWindow(grab_widget);
     else
+    {
+#if GTK_CHECK_VERSION(3, 0, 0)
+      evt.window = gdk_device_get_window_at_position(device, NULL, NULL);
+#else
       evt.window = gdk_window_at_pointer(NULL, NULL);
+#endif
+    }
 
     switch(bt)
     {
@@ -971,3 +1157,21 @@ GdkWindow* iupgtkGetWindow(GtkWidget *widget)
   return widget->window;
 #endif
 }
+
+void iupgtkWindowGetPointer(GdkWindow *window, int *x, int *y, GdkModifierType *mask)
+{
+#if GTK_CHECK_VERSION(3, 0, 0)
+  GdkDisplay *display = gdk_window_get_display(window);
+  GdkDeviceManager* device_manager = gdk_display_get_device_manager(display);
+  GdkDevice* device = gdk_device_manager_get_client_pointer(device_manager);
+  gdk_window_get_device_position(window, device, x, y, mask);
+#else
+  gdk_window_get_pointer(window, x, y, mask);
+#endif
+}
+
+/* Deprecated but still used for GTK2:
+  gdk_bitmap_create_from_data  (since 2.22)
+  gdk_font_id
+  gdk_font_from_description
+*/

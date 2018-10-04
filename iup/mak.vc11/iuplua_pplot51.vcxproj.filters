@@ -1,0 +1,36 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{b58ecbd2-53b2-407c-8670-f5c4455a2d15}</UniqueIdentifier>
+      <Extensions>cpp;c;cxx;rc;def;r;odl;hpj;bat;for;f90</Extensions>
+    </Filter>
+    <Filter Include="Lua">
+      <UniqueIdentifier>{90e618f4-6bc8-4da5-b344-ff5b6490da16}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Includes">
+      <UniqueIdentifier>{0a1d6ccb-52a6-4e65-995d-9fb805e8337c}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\srclua5\il_pplot.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\srclua5\iuplua_pplot.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\srclua5\iuplua_pplot.def">
+      <Filter>Source Files</Filter>
+    </None>
+    <None Include="..\srclua5\pplot.lua">
+      <Filter>Lua</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\include\iuplua_pplot.h">
+      <Filter>Includes</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

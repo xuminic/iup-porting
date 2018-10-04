@@ -24,6 +24,9 @@ $(OBJDIR)/il_cbox.o: il_cbox.c /cygdrive/d/tecgraf/lua/include/lua.h \
 $(OBJDIR)/il_sbox.o: il_sbox.c ../include/iup.h ../include/iupkey.h \
  ../include/iupdef.h /cygdrive/d/tecgraf/lua/include/lua.h \
  ../include/iuplua.h il.h il_controls.h loh/sbox.loh
+$(OBJDIR)/il_scrollbox.o: il_scrollbox.c ../include/iup.h ../include/iupkey.h \
+ ../include/iupdef.h /cygdrive/d/tecgraf/lua/include/lua.h \
+ ../include/iuplua.h il.h il_controls.h loh/scrollbox.loh
 $(OBJDIR)/il_split.o: il_split.c ../include/iup.h ../include/iupkey.h \
  ../include/iupdef.h /cygdrive/d/tecgraf/lua/include/lua.h \
  ../include/iuplua.h il.h il_controls.h loh/split.loh

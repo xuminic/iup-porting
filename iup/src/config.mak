@@ -41,22 +41,32 @@ SRC = iup_array.c iup_callback.c iup_dlglist.c iup_attrib.c iup_focus.c iup_font
       iup_user.c iup_button.c iup_radio.c iup_toggle.c iup_progressbar.c iup_text.c iup_val.c \
       iup_box.c iup_hbox.c iup_vbox.c iup_cbox.c iup_class.c iup_classbase.c iup_maskmatch.c \
       iup_mask.c iup_maskparse.c iup_tabs.c iup_spin.c iup_list.c iup_getparam.c \
-      iup_sbox.c iup_normalizer.c iup_tree.c iup_split.c iup_layoutdlg.c iup_recplay.c
+      iup_sbox.c iup_scrollbox.c iup_normalizer.c iup_tree.c iup_split.c iup_layoutdlg.c iup_recplay.c
 
 ifdef USE_GTK
   CHECK_GTK = Yes
-  DEFINES += GTK_DISABLE_DEPRECATED
-  #DEFINES += GSEAL_ENABLE
+  DEFINES += GTK_DISABLE_DEPRECATED 
+  ifdef USE_GTK3
+    DEFINES += GDK_DISABLE_DEPRECATED GSEAL_ENABLE
+  endif
   INCLUDES += gtk
-    SRC += gtk/iupgtk_common.c gtk/iupgtk_focus.c gtk/iupgtk_font.c gtk/iupgtk_clipboard.c \
-           gtk/iupgtk_globalattrib.c gtk/iupgtk_key.c gtk/iupgtk_tips.c \
-           gtk/iupgtk_loop.c gtk/iupgtk_open.c gtk/iupgtk_messagedlg.c gtk/iupgtk_draw.c \
-           gtk/iupgtk_dialog.c gtk/iupgtk_timer.c gtk/iupgtk_image.c gtk/iupgtk_label.c \
-           gtk/iupgtk_colordlg.c gtk/iupgtk_fontdlg.c gtk/iupgtk_filedlg.c gtk/iupgtk_dragdrop.c \
-           gtk/iupgtk_button.c gtk/iupgtk_toggle.c gtk/iupgtk_progressbar.c \
-           gtk/iupgtk_text.c gtk/iupgtk_val.c gtk/iupgtk_frame.c gtk/iupgtk_canvas.c \
-           gtk/iupgtk_tabs.c gtk/iupgtk_menu.c gtk/iupgtk_list.c gtk/iupgtk_tree.c
+  SRC += gtk/iupgtk_focus.c gtk/iupgtk_clipboard.c gtk/iupgtk_val.c \
+         gtk/iupgtk_globalattrib.c gtk/iupgtk_key.c gtk/iupgtk_tips.c \
+         gtk/iupgtk_loop.c gtk/iupgtk_open.c gtk/iupgtk_messagedlg.c \
+         gtk/iupgtk_timer.c gtk/iupgtk_label.c gtk/iupgtk_font.c \
+         gtk/iupgtk_colordlg.c gtk/iupgtk_fontdlg.c gtk/iupgtk_filedlg.c \
+         gtk/iupgtk_button.c gtk/iupgtk_toggle.c gtk/iupgtk_dragdrop.c \
+         gtk/iupgtk_text.c gtk/iupgtk_frame.c gtk/iupgtk_progressbar.c \
+         gtk/iupgtk_tabs.c gtk/iupgtk_menu.c gtk/iupgtk_list.c gtk/iupgtk_tree.c \
+         gtk/iupgtk_canvas.c gtk/iupgtk_image.c gtk/iupgtk_dialog.c \
+         gtk/iupgtk_common.c
            
+  ifdef USE_GTK3
+    SRC += gtk/iupgtk_draw_cairo.c
+  else
+    SRC += gtk/iupgtk_draw.c
+  endif
+  
   ifneq ($(findstring Win, $(TEC_SYSNAME)), )
     DEFINES += _WIN32_WINNT=$(WIN32VER) _WIN32_IE=$(WIN32VER) WINVER=$(WIN32VER) NOTREEVIEW
     SRC += win/iupwindows_main.c win/iupwindows_help.c win/iupwindows_info.c

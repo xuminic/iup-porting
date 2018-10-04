@@ -10,10 +10,25 @@
 
 #ifdef USE_GDK
 #include <gtk/gtk.h>
+#ifdef USE_GTK3
 static void drawTest(Ihandle *ih)
 {
-  GtkWidget* widget = (GtkWidget*)IupGetAttribute(ih, "WID");
-  GdkGC* gc = widget->style->fg_gc[GTK_WIDGET_STATE(widget)];
+  cairo_t* cr = (cairo_t*)IupGetAttribute(ih, "CAIRO_CR");
+  int w = IupGetInt(ih, "PREVIEWWIDTH");
+  int h = IupGetInt(ih, "PREVIEWHEIGHT");
+ 
+  cairo_set_source_rgba(cr, 1.0, 0, 0, 1.0);
+  cairo_move_to(cr, 0, 0);
+  cairo_line_to(cr, w-1, h-1);
+  cairo_move_to(cr, 0, h-1);
+  cairo_line_to(cr, w-1, 0);
+  cairo_stroke(cr);
+}
+#else
+static void drawTest(Ihandle *ih)
+{
+  GdkWindow* wnd = (GdkWindow*)IupGetAttribute(ih, "DRAWABLE");
+  GdkGC* gc = gdk_gc_new(wnd);
   int w = IupGetInt(ih, "PREVIEWWIDTH");
   int h = IupGetInt(ih, "PREVIEWHEIGHT");
   GdkColor color;
@@ -21,9 +36,12 @@ static void drawTest(Ihandle *ih)
   color.red = 65535;  color.green = 0;  color.blue  = 0;
   gdk_gc_set_rgb_fg_color(gc, &color);
 
-  gdk_draw_line(widget->window, gc, 0, 0, w-1, h-1);
-  gdk_draw_line(widget->window, gc, 0, h-1, w-1, 0);
+  gdk_draw_line(wnd, gc, 0, 0, w-1, h-1);
+  gdk_draw_line(wnd, gc, 0, h-1, w-1, 0);
+
+  g_object_unref(gc); 
 }
+#endif
 #else
 #ifdef WIN32
 #undef _WIN32_WINNT

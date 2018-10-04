@@ -1,8 +1,10 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "iup.h"
 #include "iupkey.h"
+
 
 static Ihandle* load_image_LogoTecgraf(void)
 {
@@ -180,6 +182,21 @@ static int cbRemoveTab(Ihandle* ih)
   return IUP_DEFAULT;
 }
 
+static void TestFocusInChild(Ihandle* ih, int pos)
+{
+  /* Works only in Windows, GTK will set the focus to the first child always */
+  if(pos==0)
+  {
+    Ihandle* text = IupGetDialogChild(ih, "ATEXT");
+    IupSetFocus(text);  
+  }
+  else if(pos==4)
+  {
+    Ihandle* button = IupGetDialogChild(ih, "EEEEEBUTTON");
+    IupSetFocus(button);
+  }
+}
+
 static int cbTabChange(Ihandle* ih, Ihandle* new_tab, Ihandle* old_tab)
 {
   printf("new Tab: %s, old Tab: %s\n", IupGetAttribute(new_tab, "TABTITLE"), IupGetAttribute(old_tab, "TABTITLE"));
@@ -189,6 +206,7 @@ static int cbTabChange(Ihandle* ih, Ihandle* new_tab, Ihandle* old_tab)
 static int cbTabChangePos(Ihandle* ih, int new_tab, int old_tab)
 {
   printf("new Tab: %d, old Tab: %d\n", new_tab, old_tab);
+  TestFocusInChild(ih, new_tab);
   return IUP_DEFAULT;
 }
 
@@ -246,21 +264,26 @@ static int enterwindow_cb(Ihandle *ih)
 
 static Ihandle* CreateTabs(int tab)
 {
-  Ihandle *vboxA, *vboxB, *vboxG,
+  Ihandle *vboxA, *vboxB, *vboxG, *text, *button,
           *vboxC, *vboxD,*vboxE, *vboxF, *vboxH, *vboxI,
           *tabs;
+
+  text = IupText(NULL);
+  IupSetAttribute(text, "NAME", "ATEXT");
+  button  = IupButton("Button EEEFOCUS", "cbChildButton");
+  IupSetAttribute(button, "NAME", "EEEEEBUTTON");
 
 //  if (tab)  // to test Tabs inside Tabs
   //  vboxA = IupVbox(CreateTabs(0), NULL);
 //  else
     vboxA = IupFrame(IupVbox(IupFill(), IupLabel("Label AAA"), IupButton("Button AAA", "cbChildButton"), //NULL));
-                     IupText(NULL), IupToggle("Button TTTT", "cbChildButton"), 
+                     text, IupToggle("Button TTTT", "cbChildButton"), 
                      IupVal(NULL), IupSetAttributes(IupProgressBar(), "VALUE=0.5"), NULL));
   vboxB = IupFrame(IupVbox(IupLabel("Label BBB"), IupButton("Button BBB", "cbChildButton"), NULL));
   vboxC = IupFrame(IupVbox(IupLabel("Label CCC"), IupButton("Button CCC", "cbChildButton"), NULL));
   vboxD = IupFrame(IupVbox(IupLabel("Label DDD"), IupButton("Button DDD", "cbChildButton"), NULL));
   vboxE = IupVbox(IupFill(), IupLabel("Label EEE"), IupButton("Button EEE", "cbChildButton"), 
-                  IupButton("Button EEE", "cbChildButton"), IupButton("Button EEE", "cbChildButton"), NULL);
+                  button, IupButton("Button EEE", "cbChildButton"), NULL);
   vboxF = IupVbox(IupLabel("Label FFF"), IupButton("Button FFF", "cbChildButton"), NULL);
   vboxG = IupVbox(IupLabel("Label GGG"), IupButton("Button GGG", "cbChildButton"), NULL);
   vboxH = IupVbox(IupLabel("Label HHH"), IupButton("Button HHH", "cbChildButton"), NULL);
@@ -286,12 +309,11 @@ static Ihandle* CreateTabs(int tab)
 
   tabs = IupTabs(vboxA, vboxB, vboxC, vboxD, vboxE, vboxF, vboxG, vboxH, vboxI, NULL);
 
-//  IupSetCallback(tabs, "TABCHANGE_CB", (Icallback)cbTabChange);
+  //IupSetCallback(tabs, "TABCHANGE_CB", (Icallback)cbTabChange);
   IupSetCallback(tabs, "TABCHANGEPOS_CB", (Icallback)cbTabChangePos);
 
   //IupSetAttributeHandle(tabs, "TABIMAGE1", load_image_LogoTecgraf());
   IupSetAttributeHandle(tabs, "TABIMAGE1", load_image_TestImage());
- 
 
   // In Windows, must be set before map
 //  IupSetAttribute(tabs, "MULTILINE", "YES");

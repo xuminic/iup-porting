@@ -1,6 +1,6 @@
 PROJNAME = iup
 APPNAME = iuptest
-APPTYPE = CONSOLE
+APPTYPE = console
 
 ifdef GTK_DEFAULT
   ifdef USE_MOTIF
@@ -64,6 +64,7 @@ SRC += tree.c
 SRC += zbox.c
 SRC += scanf.c
 SRC += sbox.c
+SRC += scrollbox.c
 SRC += clipboard.c
 SRC += split.c
 

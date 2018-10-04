@@ -5,7 +5,7 @@
  */
 
 #include <Xm/Xm.h>
-#include <Xm/ScrolledW.h>
+#include <Xm/BulletinB.h>
 #include <Xm/DrawingA.h>
 #include <Xm/ScrollBar.h>
 
@@ -33,8 +33,7 @@
 #include "iupmot_color.h"
 
 
-
-static void motDialogScrollbarCallback(Widget w, XtPointer client_data, XtPointer call_data)
+static void motCanvasScrollbarCallback(Widget w, XtPointer client_data, XtPointer call_data)
 {
   int op = (int)client_data, ipage, ipos;
   Ihandle *ih;
@@ -43,7 +42,8 @@ static void motDialogScrollbarCallback(Widget w, XtPointer client_data, XtPointe
   (void)call_data;
 
   XtVaGetValues(w, XmNuserData, &ih, NULL);
-  if (!ih) return;
+  if (!ih) 
+    return;
 
   XtVaGetValues(w, 
     XmNvalue, &ipos, 
@@ -76,22 +76,89 @@ static void motDialogScrollbarCallback(Widget w, XtPointer client_data, XtPointe
   }
 }
 
+static void motCanvasSetSize(Ihandle *ih, Widget sb_win, int setsize)
+{
+  Widget sb_horiz = (Widget)iupAttribGet(ih, "_IUPMOT_SBHORIZ");
+  Widget sb_vert = (Widget)iupAttribGet(ih, "_IUPMOT_SBVERT");
+  int sb_vert_width=0, sb_horiz_height=0;
+  int width, height;
+  Dimension border;
+
+  /* IMPORTANT:
+   The border, added by the Core, is NOT included in the Motif size.
+   So when setting the size, we must compensate the border, 
+   so the actual size will be the size we expect. */
+  XtVaGetValues(sb_win, XmNborderWidth, &border, NULL);
+  width = ih->currentwidth - 2*border;
+  height = ih->currentheight - 2*border;
+
+  /* avoid abort in X */
+  if (width <= 0) width = 1;
+  if (height <= 0) height = 1;
+
+  if (setsize)
+  {
+    XtVaSetValues(sb_win,
+      XmNwidth, (XtArgVal)width,
+      XmNheight, (XtArgVal)height,
+      NULL);
+  }
+
+  if (sb_vert && XtIsManaged(sb_vert))
+    sb_vert_width = iupdrvGetScrollbarSize();
+  if (sb_horiz && XtIsManaged(sb_horiz))
+    sb_horiz_height = iupdrvGetScrollbarSize();
+
+  if (sb_vert_width)
+  {
+    XtVaSetValues(sb_vert,
+      XmNwidth, (XtArgVal)sb_vert_width,
+      XmNheight, (XtArgVal)height-sb_horiz_height,
+      NULL);
+    iupmotSetPosition(sb_vert, width-sb_vert_width, 0);
+  }
+  if (sb_horiz_height)
+  {
+    XtVaSetValues(sb_horiz,
+      XmNwidth, (XtArgVal)width-sb_vert_width,
+      XmNheight, (XtArgVal)sb_horiz_height,
+      NULL);
+    iupmotSetPosition(sb_horiz, 0, height-sb_horiz_height);
+  }
+
+  XtVaSetValues(ih->handle,
+    XmNwidth, (XtArgVal)width-sb_vert_width,
+    XmNheight, (XtArgVal)height-sb_horiz_height,
+    NULL);
+}
+
+static void motCanvasUpdateScrollLayout(Ihandle *ih)
+{
+  Widget sb_win = (Widget)iupAttribGet(ih, "_IUP_EXTRAPARENT");
+  motCanvasSetSize(ih, sb_win, 0);
+}
+
 static void motCanvasResizeCallback(Widget w, Ihandle *ih, XtPointer call_data)
 {
-  Dimension width, height;
   IFnii cb;
   (void)call_data;
 
-  if (!XtWindow(w) || !ih) return;
+  if (!XtWindow(w) || !ih) 
+    return;
 
-  /* client size */
-  XtVaGetValues(w, XmNwidth, &width,
-                   XmNheight, &height,
-                   NULL);
+  cb = (IFnii)IupGetCallback(ih, "RESIZE_CB");
+  if (cb && !(ih->data->inside_resize))
+  {
+    /* client size */
+    Dimension width, height;
+    XtVaGetValues(w, XmNwidth, &width,
+                     XmNheight, &height,
+                     NULL);
 
-  cb = (IFnii)IupGetCallback(ih,"RESIZE_CB");
-  if (cb)
-    cb(ih,width,height);
+    ih->data->inside_resize = 1;  /* avoid recursion */
+    cb(ih, width, height);
+    ih->data->inside_resize = 0;
+  }
 }
 
 static int motCanvasSetBgColorAttrib(Ihandle* ih, const char* value);
@@ -101,10 +168,11 @@ static void motCanvasExposeCallback(Widget w, Ihandle *ih, XtPointer call_data)
   IFnff cb;
   (void)call_data;
 
-  if (!XtWindow(w) || !ih) return;
+  if (!XtWindow(w) || !ih) 
+    return;
 
   cb = (IFnff)IupGetCallback(ih,"ACTION");
-  if (cb)
+  if (cb && !(ih->data->inside_resize))
   {
     if (!iupAttribGet(ih, "_IUPMOT_NO_BGCOLOR"))
       motCanvasSetBgColorAttrib(ih, iupAttribGetStr(ih, "BGCOLOR"));  /* reset to update window attributes */
@@ -181,8 +249,7 @@ static int motCanvasSetDXAttrib(Ihandle* ih, const char *value)
     double posx, xmin, xmax, linex;
     float dx;
     int iposx, ipagex, ilinex;
-    Widget sb_horiz, sb_win = (Widget)iupAttribGet(ih, "_IUP_EXTRAPARENT");
-    XtVaGetValues(sb_win, XmNhorizontalScrollBar, &sb_horiz, NULL);
+    Widget sb_horiz = (Widget)iupAttribGet(ih, "_IUPMOT_SBHORIZ");
     if (!sb_horiz) return 1;
 
     if (!iupStrToFloat(value, &dx))
@@ -212,16 +279,28 @@ static int motCanvasSetDXAttrib(Ihandle* ih, const char *value)
     if (dx >= (xmax-xmin))
     {
       if (iupAttribGetBoolean(ih, "XAUTOHIDE"))
-        XtUnmanageChild(sb_horiz);
+      {
+        if (XtIsManaged(sb_horiz))
+        {
+          XtUnmanageChild(sb_horiz);
+          motCanvasUpdateScrollLayout(ih);
+        }
+      }
       else
-        XtSetSensitive(sb_horiz, 0);
+        XtSetSensitive(sb_horiz, False);
+
+      ih->data->posx = (float)xmin;
+      XtVaSetValues(sb_horiz, XmNvalue, IUP_SB_MIN, NULL);
       return 1;
     }
     else
     {
       if (!XtIsManaged(sb_horiz))
+      {
         XtManageChild(sb_horiz);
-      XtSetSensitive(sb_horiz, 1);
+        motCanvasUpdateScrollLayout(ih);
+      }
+      XtSetSensitive(sb_horiz, True);
     }
 
     motCanvasSetScrollInfo(sb_horiz, IUP_SB_MIN, IUP_SB_MAX, iposx, ipagex, ilinex);
@@ -242,8 +321,7 @@ static int motCanvasSetPosXAttrib(Ihandle* ih, const char *value)
     double xmin, xmax, dx;
     float posx;
     int iposx, ipagex;
-    Widget sb_horiz, sb_win = (Widget)iupAttribGet(ih, "_IUP_EXTRAPARENT");
-    XtVaGetValues(sb_win, XmNhorizontalScrollBar, &sb_horiz, NULL);
+    Widget sb_horiz = (Widget)iupAttribGet(ih, "_IUPMOT_SBHORIZ");
     if (!sb_horiz) return 1;
 
     if (!iupStrToFloat(value, &posx))
@@ -272,8 +350,7 @@ static int motCanvasSetDYAttrib(Ihandle* ih, const char *value)
     double posy, ymin, ymax, liney;
     float dy;
     int iposy, ipagey, iliney;
-    Widget sb_vert, sb_win = (Widget)iupAttribGet(ih, "_IUP_EXTRAPARENT");
-    XtVaGetValues(sb_win, XmNverticalScrollBar, &sb_vert, NULL);
+    Widget sb_vert = (Widget)iupAttribGet(ih, "_IUPMOT_SBVERT");
     if (!sb_vert) return 1;
 
     if (!iupStrToFloat(value, &dy))
@@ -303,16 +380,28 @@ static int motCanvasSetDYAttrib(Ihandle* ih, const char *value)
     if (dy >= (ymax-ymin))
     {
       if (iupAttribGetBoolean(ih, "YAUTOHIDE"))
-        XtUnmanageChild(sb_vert);
+      {
+        if (XtIsManaged(sb_vert))
+        {
+          XtUnmanageChild(sb_vert);
+          motCanvasUpdateScrollLayout(ih);
+        }
+      }
       else
-        XtSetSensitive(sb_vert, 0);
+        XtSetSensitive(sb_vert, False);
+
+      ih->data->posy = (float)ymin;
+      XtVaSetValues(sb_vert, XmNvalue, IUP_SB_MIN, NULL);
       return 1;
     }
     else
     {
       if (!XtIsManaged(sb_vert))
+      {
         XtManageChild(sb_vert);
-      XtSetSensitive(sb_vert, 1);
+        motCanvasUpdateScrollLayout(ih);
+      }
+      XtSetSensitive(sb_vert, True);
     }
 
     motCanvasSetScrollInfo(sb_vert, IUP_SB_MIN, IUP_SB_MAX, iposy, ipagey, iliney);
@@ -333,8 +422,7 @@ static int motCanvasSetPosYAttrib(Ihandle* ih, const char *value)
     double ymin, ymax, dy;
     float posy;
     int iposy, ipagey;
-    Widget sb_vert, sb_win = (Widget)iupAttribGet(ih, "_IUP_EXTRAPARENT");
-    XtVaGetValues(sb_win, XmNverticalScrollBar, &sb_vert, NULL);
+    Widget sb_vert = (Widget)iupAttribGet(ih, "_IUPMOT_SBVERT");
     if (!sb_vert) return 1;
 
     if (!iupStrToFloat(value, &posy))
@@ -401,10 +489,10 @@ static int motCanvasSetBgColorAttrib(Ihandle* ih, const char* value)
 
     iupmotSetBgColor(sb_win, color);
 
-    XtVaGetValues(sb_win, XmNverticalScrollBar, &sb, NULL);
+    sb = (Widget)iupAttribGet(ih, "_IUPMOT_SBVERT");
     if (sb) iupmotSetBgColor(sb, color);
 
-    XtVaGetValues(sb_win, XmNhorizontalScrollBar, &sb, NULL);
+    sb = (Widget)iupAttribGet(ih, "_IUPMOT_SBHORIZ");
     if (sb) iupmotSetBgColor(sb, color);
   }
 
@@ -424,26 +512,8 @@ static int motCanvasSetBgColorAttrib(Ihandle* ih, const char* value)
 static void motCanvasLayoutUpdateMethod(Ihandle *ih)
 {
   Widget sb_win = (Widget)iupAttribGet(ih, "_IUP_EXTRAPARENT");
-  Dimension border;
-
-  /* IMPORTANT:
-   The ScrolledWindow border, added by the Core, is NOT included in the Motif size.
-   So when setting the size, we must compensate the border, 
-   so the actual size will be the size we expect.
-  */
-
-  XtVaGetValues(sb_win, XmNborderWidth, &border, NULL);
-
-  /* avoid abort in X */
-  if (ih->currentwidth <= 2*border) ih->currentwidth = 2*border+1;
-  if (ih->currentheight <= 2*border) ih->currentheight = 2*border+1;
-
-  XtVaSetValues(sb_win,
-    XmNx, (XtArgVal)ih->x,
-    XmNy, (XtArgVal)ih->y,
-    XmNwidth, (XtArgVal)(ih->currentwidth-2*border),
-    XmNheight, (XtArgVal)(ih->currentheight-2*border),
-    NULL);
+  motCanvasSetSize(ih, sb_win, 1);
+  iupmotSetPosition(sb_win, ih->x, ih->y);
 }
 
 static int motCanvasMapMethod(Ihandle* ih)
@@ -458,15 +528,18 @@ static int motCanvasMapMethod(Ihandle* ih)
 
   ih->data->sb = iupBaseGetScrollbar(ih);
 
-  /******************************/
-  /* Create the scrolled window */
-  /******************************/
+  /*********************/
+  /* Create the parent */
+  /*********************/
 
   iupMOT_SETARG(args, num_args, XmNmappedWhenManaged, False);  /* not visible when managed */
-  iupMOT_SETARG(args, num_args, XmNscrollingPolicy, XmAPPLICATION_DEFINED);
-  iupMOT_SETARG(args, num_args, XmNvisualPolicy, XmVARIABLE);
-  iupMOT_SETARG(args, num_args, XmNspacing, 0); /* no space between scrollbars and draw area */
   iupMOT_SETARG(args, num_args, XmNshadowThickness, 0);
+  iupMOT_SETARG(args, num_args, XmNmarginWidth, 0);
+  iupMOT_SETARG(args, num_args, XmNmarginHeight, 0);
+  iupMOT_SETARG(args, num_args, XmNwidth, 100);  /* set this to avoid size calculation problems */
+  iupMOT_SETARG(args, num_args, XmNheight, 100);
+  iupMOT_SETARG(args, num_args, XmNresizePolicy, XmRESIZE_NONE);
+  iupMOT_SETARG(args, num_args, XmNnavigationType, XmTAB_GROUP);
 
   if (iupAttribGetBoolean(ih, "BORDER"))
   {
@@ -478,7 +551,7 @@ static int motCanvasMapMethod(Ihandle* ih)
   
   sb_win = XtCreateManagedWidget(
     iupDialogGetChildIdStr(ih),  /* child identifier */
-    xmScrolledWindowWidgetClass,     /* widget class */
+    xmBulletinBoardWidgetClass,     /* widget class */
     iupChildTreeGetNativeParentHandle(ih), /* widget parent */
     args, num_args);
 
@@ -542,7 +615,6 @@ static int motCanvasMapMethod(Ihandle* ih)
     iupmotDialogResetVisual(ih);
 
   iupAttribSetStr(ih, "_IUP_EXTRAPARENT", (char*)sb_win);
-  XtVaSetValues(sb_win, XmNworkWindow, ih->handle, NULL);
 
   {
     XSetWindowAttributes attrs;
@@ -565,14 +637,14 @@ static int motCanvasMapMethod(Ihandle* ih)
       XmNuserData, ih,
       NULL);
 
-    XtAddCallback(sb_horiz, XmNvalueChangedCallback, motDialogScrollbarCallback, (void*)IUP_SBPOSH);
-    XtAddCallback(sb_horiz, XmNdragCallback, motDialogScrollbarCallback, (void*)IUP_SBDRAGH);
-    XtAddCallback(sb_horiz, XmNdecrementCallback, motDialogScrollbarCallback, (void*)IUP_SBLEFT);
-    XtAddCallback(sb_horiz, XmNincrementCallback, motDialogScrollbarCallback, (void*)IUP_SBRIGHT);
-    XtAddCallback(sb_horiz, XmNpageDecrementCallback, motDialogScrollbarCallback, (void*)IUP_SBPGLEFT);
-    XtAddCallback(sb_horiz, XmNpageIncrementCallback, motDialogScrollbarCallback, (void*)IUP_SBPGRIGHT);
+    XtAddCallback(sb_horiz, XmNvalueChangedCallback, motCanvasScrollbarCallback, (void*)IUP_SBPOSH);
+    XtAddCallback(sb_horiz, XmNdragCallback, motCanvasScrollbarCallback, (void*)IUP_SBDRAGH);
+    XtAddCallback(sb_horiz, XmNdecrementCallback, motCanvasScrollbarCallback, (void*)IUP_SBLEFT);
+    XtAddCallback(sb_horiz, XmNincrementCallback, motCanvasScrollbarCallback, (void*)IUP_SBRIGHT);
+    XtAddCallback(sb_horiz, XmNpageDecrementCallback, motCanvasScrollbarCallback, (void*)IUP_SBPGLEFT);
+    XtAddCallback(sb_horiz, XmNpageIncrementCallback, motCanvasScrollbarCallback, (void*)IUP_SBPGRIGHT);
 
-    XtVaSetValues(sb_win, XmNhorizontalScrollBar, sb_horiz, NULL);
+    iupAttribSetStr(ih, "_IUPMOT_SBHORIZ", (char*)sb_horiz);
   }
 
   if (ih->data->sb & IUP_SB_VERT)
@@ -584,14 +656,14 @@ static int motCanvasMapMethod(Ihandle* ih)
       XmNuserData, ih,
       NULL);
 
-    XtAddCallback(sb_vert, XmNvalueChangedCallback, motDialogScrollbarCallback, (void*)IUP_SBPOSV);
-    XtAddCallback(sb_vert, XmNdragCallback, motDialogScrollbarCallback, (void*)IUP_SBDRAGV);
-    XtAddCallback(sb_vert, XmNdecrementCallback, motDialogScrollbarCallback, (void*)IUP_SBUP);
-    XtAddCallback(sb_vert, XmNincrementCallback, motDialogScrollbarCallback, (void*)IUP_SBDN);
-    XtAddCallback(sb_vert, XmNpageDecrementCallback, motDialogScrollbarCallback, (void*)IUP_SBPGUP);
-    XtAddCallback(sb_vert, XmNpageIncrementCallback, motDialogScrollbarCallback, (void*)IUP_SBPGDN);
+    XtAddCallback(sb_vert, XmNvalueChangedCallback, motCanvasScrollbarCallback, (void*)IUP_SBPOSV);
+    XtAddCallback(sb_vert, XmNdragCallback, motCanvasScrollbarCallback, (void*)IUP_SBDRAGV);
+    XtAddCallback(sb_vert, XmNdecrementCallback, motCanvasScrollbarCallback, (void*)IUP_SBUP);
+    XtAddCallback(sb_vert, XmNincrementCallback, motCanvasScrollbarCallback, (void*)IUP_SBDN);
+    XtAddCallback(sb_vert, XmNpageDecrementCallback, motCanvasScrollbarCallback, (void*)IUP_SBPGUP);
+    XtAddCallback(sb_vert, XmNpageIncrementCallback, motCanvasScrollbarCallback, (void*)IUP_SBPGDN);
 
-    XtVaSetValues(sb_win, XmNverticalScrollBar, sb_vert, NULL);
+    iupAttribSetStr(ih, "_IUPMOT_SBVERT", (char*)sb_vert);
   }
 
   XtAddCallback(ih->handle, XmNhelpCallback, (XtCallbackProc)iupmotHelpCallback, (XtPointer)ih);
@@ -632,8 +704,6 @@ void iupdrvCanvasInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "DY", NULL, motCanvasSetDYAttrib, "0.1", NULL, IUPAF_NO_INHERIT);  /* force new default value */
   iupClassRegisterAttribute(ic, "POSX", iupCanvasGetPosXAttrib, motCanvasSetPosXAttrib, "0", NULL, IUPAF_NO_INHERIT);  /* force new default value */
   iupClassRegisterAttribute(ic, "POSY", iupCanvasGetPosYAttrib, motCanvasSetPosYAttrib, "0", NULL, IUPAF_NO_INHERIT);  /* force new default value */
-  iupClassRegisterAttribute(ic, "YAUTOHIDE", NULL, NULL, "YES", NULL, IUPAF_NOT_MAPPED);
-  iupClassRegisterAttribute(ic, "XAUTOHIDE", NULL, NULL, "YES", NULL, IUPAF_NOT_MAPPED);
 
   /* IupCanvas X only */
   iupClassRegisterAttribute(ic, "XWINDOW", motCanvasGetXWindowAttrib, NULL, NULL, NULL, IUPAF_NO_INHERIT|IUPAF_NO_STRING);

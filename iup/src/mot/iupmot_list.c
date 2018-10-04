@@ -9,6 +9,8 @@
 #include <Xm/ComboBox.h>
 #include <Xm/ScrolledW.h>
 #include <Xm/TextF.h>
+#include <Xm/Transfer.h>
+#include <Xm/DragDrop.h>
 #include <X11/keysym.h>
 
 #include <stdlib.h>
@@ -38,6 +40,13 @@
 
 static void motListComboBoxSelectionCallback(Widget w, Ihandle* ih, XmComboBoxCallbackStruct* call_data);
 
+
+void* iupdrvListGetImageHandle(Ihandle* ih, int id)
+{
+  (void)ih;
+  (void)id;
+  return NULL;
+}
 
 void iupdrvListAddItemSpace(Ihandle* ih, int *h)
 {
@@ -74,15 +83,26 @@ void iupdrvListAddBorders(Ihandle* ih, int *x, int *y)
 
 static int motListConvertXYToPos(Ihandle* ih, int x, int y)
 {
+  int count, pos;
   (void)x;
+
+  if (ih->data->is_dropdown)
+    return -1;
+
   if (ih->data->has_editbox)
   {
     Widget cblist;
     XtVaGetValues(ih->handle, XmNlist, &cblist, NULL);
-    return XmListYToPos(cblist, (Position)y);   /* XmListYToPos returns start at 1 */
+    pos = XmListYToPos(cblist, (Position)y);   /* XmListYToPos returns start at 1 */
   }
   else
-    return XmListYToPos(ih->handle, (Position)y);
+    pos = XmListYToPos(ih->handle, (Position)y);
+
+  XtVaGetValues(ih->handle, XmNitemCount, &count, NULL);
+  if (pos <= 0 || pos >= count)
+    return -1;
+  else
+    return pos;
 }
 
 int iupdrvListGetCount(Ihandle* ih)
@@ -194,11 +214,11 @@ void iupdrvListRemoveAllItems(Ihandle* ih)
 
 static char* motListGetIdValueAttrib(Ihandle* ih, int id)
 {
-  int pos = iupListGetPos(ih, id);
+  int pos = iupListGetPosAttrib(ih, id);
   if (pos >= 0)
   {
     XmString* items;
-    XtVaGetValues(ih->handle, XmNitems, &items, NULL);
+    XtVaGetValues(ih->handle, XmNitems, &items, NULL);  /* returns the actual list, not a copy */
     return iupmotConvertString(items[pos]);
   }
   return NULL;
@@ -937,6 +957,222 @@ static int motListSetClipboardAttrib(Ihandle *ih, const char *value)
 
 /*********************************************************************************/
 
+static void motListDragTransferProc(Widget drop_context, Ihandle* ih, Atom *seltype, Atom *type, XtPointer value, unsigned long *length, int format)
+{
+  Atom atomListItem = XInternAtom(iupmot_display, "LIST_ITEM", False);
+  int idDrag = (int)value;  /* starts at 1 */
+  int idDrop = iupAttribGetInt(ih, "_IUPLIST_DROPITEM");  /* starts at 1 */
+
+  if (idDrop==0)
+    return;
+
+  /* shift to start at 0 */
+  idDrag--;
+  idDrop--;
+
+  if (*type == atomListItem)
+  {
+    int is_ctrl;
+
+    if (iupListCallDragDropCb(ih, idDrag, idDrop, &is_ctrl) == IUP_CONTINUE)  /* starts at 0 */
+    {
+      char* text = motListGetIdValueAttrib(ih, idDrag+1); /* starts at 1 */
+      int count = iupdrvListGetCount(ih);
+        
+      /* Copy the item to the idDrop position */
+      if (idDrop >= 0 && idDrop < count) /* starts at 0 */
+      {
+        iupdrvListInsertItem(ih, idDrop, text);   /* starts at 0, insert before */
+        if (idDrag > idDrop)
+          idDrag++;
+      }
+      else  /* idDrop = -1 */
+      {
+        iupdrvListAppendItem(ih, text);
+        idDrop = count;  /* new item is the previous count */
+      }
+
+      /* Selects the drop item */
+      XmListSelectPos(ih->handle, idDrop+1, FALSE);    /* starts at 1 */
+      iupAttribSetInt(ih, "_IUPLIST_OLDVALUE", idDrop+1);  /* starts at 1 */
+
+      /* Remove the Drag item if moving */
+      if (!is_ctrl)
+        iupdrvListRemoveItem(ih, idDrag);   /* starts at 0 */
+    }
+  }
+
+  iupAttribSetStr(ih, "_IUPLIST_DROPITEM", NULL);
+
+  (void)drop_context;
+  (void)seltype;
+  (void)format;
+  (void)length;
+}
+
+static void motListDropProc(Widget w, XtPointer client_data, XmDropProcCallbackStruct* drop_data)
+{
+  Atom atomListItem = XInternAtom(iupmot_display, "LIST_ITEM", False);
+  XmDropTransferEntryRec transferList[2];
+  Arg args[10];
+  int i, num_args = 0;
+  Widget drop_context;
+  Cardinal numExportTargets;
+  Atom *exportTargets;
+  Boolean found = False;
+  Ihandle* ih = NULL;
+  (void)client_data;
+
+  drop_context = drop_data->dragContext;
+
+  /* retrieve the data targets */
+  XtVaGetValues(drop_context, XmNexportTargets, &exportTargets,
+    XmNnumExportTargets, &numExportTargets, 
+    NULL);
+
+  for (i = 0; i < (int)numExportTargets; i++) 
+  {
+    if (exportTargets[i] == atomListItem) 
+    {
+      found = True;
+      break;
+    }
+  }
+
+  XtVaGetValues(w, XmNuserData, &ih, NULL);
+  if(!ih->handle)
+    found = False;
+
+  num_args = 0;
+  if ((!found) || (drop_data->dropAction != XmDROP) ||  (drop_data->operation != XmDROP_COPY && drop_data->operation != XmDROP_MOVE)) 
+  {
+    iupMOT_SETARG(args, num_args, XmNtransferStatus, XmTRANSFER_FAILURE);
+    iupMOT_SETARG(args, num_args, XmNnumDropTransfers, 0);
+  }
+  else 
+  {
+    transferList[0].target = atomListItem;
+    transferList[0].client_data = (XtPointer)ih;
+    iupMOT_SETARG(args, num_args, XmNdropTransfers, transferList);
+    iupMOT_SETARG(args, num_args, XmNnumDropTransfers, 1);
+    iupMOT_SETARG(args, num_args, XmNtransferProc, motListDragTransferProc);
+  }
+
+  XmDropTransferStart(drop_context, args, num_args);
+}
+
+static void motListDragDropFinishCallback(Widget drop_context, XtPointer client_data, XtPointer call_data)
+{
+  Widget source_icon = NULL;
+  XtVaGetValues(drop_context, XmNsourceCursorIcon, &source_icon, NULL);
+  if (source_icon)
+    XtDestroyWidget(source_icon);
+  (void)call_data;
+  (void)client_data;
+}
+
+static void motListDragMotionCallback(Widget drop_context, Ihandle *ih, XmDragMotionCallbackStruct* drag_motion)
+{
+  (void)drop_context;
+  if (!iupAttribGet(ih, "NODRAGFEEDBACK"))
+  {
+    int idDrop;
+    int x = drag_motion->x;
+    int y = drag_motion->y;
+    iupdrvScreenToClient(ih, &x, &y);
+    
+    idDrop = motListConvertXYToPos(ih, x, y);  /* starts at 1 */
+    iupAttribSetInt(ih, "_IUPLIST_DROPITEM", idDrop);  /* starts at 1 */
+
+    XmListSelectPos(ih->handle, idDrop, FALSE);  /* starts at 1 */
+  }
+}
+
+static Boolean motListConvertProc(Widget drop_context, Atom *selection, Atom *target, Atom *type_return,
+                                  XtPointer *value_return, unsigned long *length_return, int *format_return)
+{
+  Atom atomMotifDrop = XInternAtom(iupmot_display, "_MOTIF_DROP", False);
+  Atom atomTreeItem = XInternAtom(iupmot_display, "LIST_ITEM", False);
+  int idDrag = 0;
+
+  /* check if we are dealing with a drop */
+  if (*selection != atomMotifDrop || *target != atomTreeItem)
+    return False;
+
+  XtVaGetValues(drop_context, XmNclientData, &idDrag, NULL);  /* starts at 1 */
+  if (!idDrag)
+    return False;
+
+  /* format the value for transfer */
+  *type_return = atomTreeItem;
+  *value_return = (XtPointer)idDrag;  /* starts at 1 */
+  *length_return = 1;
+  *format_return = 32;
+  return True;
+}
+
+static void motListDragStart(Widget w, XButtonEvent* evt, String* params, Cardinal* num_params)
+{
+  Atom atomListItem = XInternAtom(iupmot_display, "LIST_ITEM", False);
+  Atom exportList[1];
+  Widget drop_context;
+  int idDrag, num_args = 0;
+  Arg args[40];
+  Ihandle *ih = NULL;
+
+  XtVaGetValues(w, XmNuserData, &ih, NULL);
+  if(!ih->handle)
+    return;
+
+  exportList[0] = atomListItem;
+  idDrag = motListConvertXYToPos(ih, evt->x, evt->y);  /* starts at 1 */
+
+  /* specify resources for DragContext for the transfer */
+  num_args = 0;
+  iupMOT_SETARG(args, num_args, XmNexportTargets, exportList);
+  iupMOT_SETARG(args, num_args, XmNnumExportTargets, 1);
+  iupMOT_SETARG(args, num_args, XmNdragOperations, XmDROP_MOVE|XmDROP_COPY);
+  iupMOT_SETARG(args, num_args, XmNconvertProc, motListConvertProc);
+  iupMOT_SETARG(args, num_args, XmNclientData, idDrag);
+
+  /* start the drag and register a callback to clean up when done */
+  drop_context = XmDragStart(w, (XEvent*)evt, args, num_args);
+
+  XtAddCallback(drop_context, XmNdragDropFinishCallback, (XtCallbackProc)motListDragDropFinishCallback, NULL);
+  XtAddCallback(drop_context, XmNdragMotionCallback, (XtCallbackProc)motListDragMotionCallback, (XtPointer)ih);
+
+  iupAttribSetStr(ih, "_IUPLIST_DROPITEM", NULL);
+
+  (void)params;
+  (void)num_params;
+}
+
+static void motListEnableDragDrop(Widget w)
+{
+  Atom atomListItem = XInternAtom(iupmot_display, "LIST_ITEM", False);
+  Atom importList[1];
+  Arg args[40];
+  int num_args = 0;
+  char dragTranslations[] = "#override <Btn2Down>: iupListStartDrag()";
+  static int do_rec = 0;
+  if (!do_rec)
+  {
+    XtActionsRec rec = {"iupListStartDrag", (XtActionProc)motListDragStart};
+    XtAppAddActions(iupmot_appcontext, &rec, 1);
+    do_rec = 1;
+  }
+  XtOverrideTranslations(w, XtParseTranslationTable(dragTranslations));
+
+  importList[0] = atomListItem;
+  iupMOT_SETARG(args, num_args, XmNimportTargets, importList);
+  iupMOT_SETARG(args, num_args, XmNnumImportTargets, 1);
+  iupMOT_SETARG(args, num_args, XmNdropSiteOperations, XmDROP_MOVE|XmDROP_COPY);
+  iupMOT_SETARG(args, num_args, XmNdropProc, motListDropProc);
+  XmDropSiteRegister(w, args, num_args);
+}
+
+/*********************************************************************************/
+
 
 static void motListEditModifyVerifyCallback(Widget cbedit, Ihandle *ih, XmTextVerifyPtr text)
 {
@@ -948,21 +1184,23 @@ static void motListEditModifyVerifyCallback(Widget cbedit, Ihandle *ih, XmTextVe
   if (iupAttribGet(ih, "_IUPMOT_DISABLE_TEXT_CB"))
     return;
 
-  cb = (IFnis)IupGetCallback(ih, "EDIT_CB");
-  if (!cb && !ih->data->mask)
-    return;
-
   if (text->event && text->event->type == KeyPress)
   {
     unsigned int state = ((XKeyEvent*)text->event)->state;
     if (state & ControlMask ||  /* Ctrl */
-        state & Mod1Mask || 
-        state & Mod5Mask ||  /* Alt */
+        state & Mod1Mask || state & Mod5Mask ||  /* Alt */
         state & Mod4Mask) /* Apple/Win */
+    {
+      text->doit = False;     /* abort processing */
       return;
+    }
 
-    motcode = XKeycodeToKeysym(iupmot_display, ((XKeyEvent*)text->event)->keycode, 0);
+    motcode = iupmotKeycodeToKeysym(((XKeyEvent*)text->event)->keycode);
   }
+
+  cb = (IFnis)IupGetCallback(ih, "EDIT_CB");
+  if (!cb && !ih->data->mask)
+    return;
 
   value = XmTextFieldGetString(cbedit);
   start = text->startPos;
@@ -1048,7 +1286,7 @@ static void motListEditKeyPressEvent(Widget cbedit, Ihandle *ih, XKeyEvent *evt,
 
   if (evt->state & ControlMask)   /* Ctrl */
   {
-    KeySym motcode = XKeycodeToKeysym(iupmot_display, evt->keycode, 0);
+    KeySym motcode = iupmotKeycodeToKeysym(evt->keycode);
     if (motcode == XK_c)
     {
       motListSetClipboardAttrib(ih, "COPY");
@@ -1346,7 +1584,7 @@ static int motListMapMethod(Ihandle* ih)
 
       /* Disable Drag Source */
       iupmotDisableDragSource(cblist);
-  }
+    }
   }
   else
   {
@@ -1366,14 +1604,20 @@ static int motListMapMethod(Ihandle* ih)
     XtAddCallback (ih->handle, XmNdefaultActionCallback, (XtCallbackProc)motListDefaultActionCallback, (XtPointer)ih);
   }
 
-  /* Disable Drag Source */
-  iupmotDisableDragSource(ih->handle);
-
   /* initialize the widget */
   if (ih->data->is_dropdown || ih->data->has_editbox)
     XtRealizeWidget(ih->handle);
   else
     XtRealizeWidget(parent);
+
+  /* Enable internal drag and drop support */
+  if(ih->data->show_dragdrop && !ih->data->is_dropdown && !ih->data->is_multiple)
+  {   
+    motListEnableDragDrop(ih->handle);
+    XtVaSetValues(ih->handle, XmNuserData, ih, NULL);  /* to be used in motListDragStart and motListDragTransferProc */
+  }
+  else
+    iupmotDisableDragSource(ih->handle);  /* Disable Drag Source */
 
   if (IupGetGlobal("_IUP_RESET_TXTCOLORS"))
   {

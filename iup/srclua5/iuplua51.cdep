@@ -202,6 +202,12 @@ $(OBJDIR)/il_sbox.o: il_sbox.c /cygdrive/d/tecgraf/lua5.1/include/lua.h \
  /cygdrive/d/tecgraf/lua5.1/include/lua.h ../include/iup.h \
  ../include/iupkey.h ../include/iupdef.h ../include/iuplua.h il.h \
  lh/sbox.lh
+$(OBJDIR)/il_scrollbox.o: il_scrollbox.c /cygdrive/d/tecgraf/lua5.1/include/lua.h \
+ /cygdrive/d/tecgraf/lua5.1/include/luaconf.h \
+ /cygdrive/d/tecgraf/lua5.1/include/lauxlib.h \
+ /cygdrive/d/tecgraf/lua5.1/include/lua.h ../include/iup.h \
+ ../include/iupkey.h ../include/iupdef.h ../include/iuplua.h il.h \
+ lh/scrollbox.lh
 $(OBJDIR)/il_split.o: il_split.c /cygdrive/d/tecgraf/lua5.1/include/lua.h \
  /cygdrive/d/tecgraf/lua5.1/include/luaconf.h \
  /cygdrive/d/tecgraf/lua5.1/include/lauxlib.h \

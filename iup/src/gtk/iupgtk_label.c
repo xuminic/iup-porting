@@ -247,12 +247,20 @@ static int gtkLabelMapMethod(Ihandle* ih)
     if (iupStrEqualNoCase(value, "HORIZONTAL"))
     {
       ih->data->type = IUP_LABEL_SEP_HORIZ;
+#if GTK_CHECK_VERSION(3, 0, 0)
+      label = gtk_separator_new(GTK_ORIENTATION_HORIZONTAL);
+#else
       label = gtk_hseparator_new();
+#endif
     }
     else /* "VERTICAL" */
     {
       ih->data->type = IUP_LABEL_SEP_VERT;
+#if GTK_CHECK_VERSION(3, 0, 0)
+      label = gtk_separator_new(GTK_ORIENTATION_VERTICAL);
+#else
       label = gtk_vseparator_new();
+#endif
     }
   }
   else
@@ -276,7 +284,7 @@ static int gtkLabelMapMethod(Ihandle* ih)
   ih->handle = label;
 
   /* add to the parent, all GTK controls must call this. */
-  iupgtkBaseAddToParent(ih);
+  iupgtkAddToParent(ih);
 
   g_signal_connect(G_OBJECT(ih->handle), "button-press-event", G_CALLBACK(iupgtkButtonEvent), ih);
   g_signal_connect(G_OBJECT(ih->handle), "button-release-event",G_CALLBACK(iupgtkButtonEvent), ih);
@@ -306,7 +314,7 @@ void iupdrvLabelInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "ACTIVE", iupBaseGetActiveAttrib, gtkLabelSetActiveAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_DEFAULT);
 
   /* Visual */
-  iupClassRegisterAttribute(ic, "BGCOLOR", NULL, iupdrvBaseSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_DEFAULT);
+  iupClassRegisterAttribute(ic, "BGCOLOR", iupBaseNativeParentGetBgColorAttrib, NULL, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_DEFAULT);
 
   /* Special */
   iupClassRegisterAttribute(ic, "FGCOLOR", NULL, iupdrvBaseSetFgColorAttrib, IUPAF_SAMEASSYSTEM, "DLGFGCOLOR", IUPAF_DEFAULT);

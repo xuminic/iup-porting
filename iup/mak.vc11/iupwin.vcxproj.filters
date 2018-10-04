@@ -1,0 +1,138 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="inc">
+      <UniqueIdentifier>{6d4dfa6e-9701-4c88-b21c-da0ad08160d7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{4e29927d-783b-4a64-b3e7-13d4d8fecea1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src_controls">
+      <UniqueIdentifier>{fe82c00f-6a89-49d9-a8cc-40135f393787}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\src\win\iupwin_brush.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\win\iupwin_draw.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\win\iupwin_drv.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\win\iupwin_handle.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\win\iupwin_info.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\win\iupwin_brush.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_common.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_dragdrop.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_draw.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_focus.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_font.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_globalattrib.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_handle.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_info.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_key.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_loop.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_open.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_tips.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_touch.c">
+      <Filter>src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_button.c">
+      <Filter>src_controls</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_canvas.c">
+      <Filter>src_controls</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_clipboard.c">
+      <Filter>src_controls</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_colordlg.c">
+      <Filter>src_controls</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_dialog.c">
+      <Filter>src_controls</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_filedlg.c">
+      <Filter>src_controls</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_fontdlg.c">
+      <Filter>src_controls</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_frame.c">
+      <Filter>src_controls</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_image.c">
+      <Filter>src_controls</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_label.c">
+      <Filter>src_controls</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_list.c">
+      <Filter>src_controls</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_menu.c">
+      <Filter>src_controls</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_messagedlg.c">
+      <Filter>src_controls</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_progressbar.c">
+      <Filter>src_controls</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_tabs.c">
+      <Filter>src_controls</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_text.c">
+      <Filter>src_controls</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_timer.c">
+      <Filter>src_controls</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_toggle.c">
+      <Filter>src_controls</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_tree.c">
+      <Filter>src_controls</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\win\iupwin_val.c">
+      <Filter>src_controls</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\src\iup.def" />
+  </ItemGroup>
+</Project>

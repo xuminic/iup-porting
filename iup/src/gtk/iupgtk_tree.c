@@ -6,6 +6,9 @@
 
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
+#if GTK_CHECK_VERSION(3, 0, 0)
+#include <gdk/gdkkeysyms-compat.h>
+#endif
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -951,7 +954,7 @@ static int gtkTreeSetSpacingAttrib(Ihandle* ih, const char* value)
     GtkCellRenderer *renderer_chk = (GtkCellRenderer*)iupAttribGet(ih, "_IUPGTK_RENDERER_CHECK");
     GtkCellRenderer *renderer_img = (GtkCellRenderer*)iupAttribGet(ih, "_IUPGTK_RENDERER_IMG");
     GtkCellRenderer *renderer_txt = (GtkCellRenderer*)iupAttribGet(ih, "_IUPGTK_RENDERER_TEXT");
-    g_object_set(G_OBJECT(renderer_chk), "ypad", ih->data->spacing, NULL);
+    if (renderer_chk) g_object_set(G_OBJECT(renderer_chk), "ypad", ih->data->spacing, NULL);
     g_object_set(G_OBJECT(renderer_img), "ypad", ih->data->spacing, NULL);
     g_object_set(G_OBJECT(renderer_txt), "ypad", ih->data->spacing, NULL);
     return 0;
@@ -1691,7 +1694,7 @@ static int gtkTreeSetImageAttrib(Ihandle* ih, int id, const char* value)
                                            IUPGTK_TREE_HAS_IMAGE, FALSE, -1);
   }
 
-  return 1;
+  return 0;
 }
 
 static int gtkTreeSetImageBranchExpandedAttrib(Ihandle* ih, const char* value)
@@ -1741,14 +1744,14 @@ static int gtkTreeSetBgColorAttrib(Ihandle* ih, const char* value)
       if (!GTK_IS_SCROLLED_WINDOW(scrolled_window))
         scrolled_window = (GtkScrolledWindow*)iupAttribGet(ih, "_IUPGTK_SCROLLED_WINDOW");
 
-      iupgtkBaseSetBgColor((GtkWidget*)scrolled_window, r, g, b);
+      iupgtkSetBgColor((GtkWidget*)scrolled_window, r, g, b);
 
 #if GTK_CHECK_VERSION(2, 8, 0)
       sb = gtk_scrolled_window_get_hscrollbar(scrolled_window);
-      if (sb) iupgtkBaseSetBgColor(sb, r, g, b);
+      if (sb) iupgtkSetBgColor(sb, r, g, b);
 
       sb = gtk_scrolled_window_get_vscrollbar(scrolled_window);
-      if (sb) iupgtkBaseSetBgColor(sb, r, g, b);
+      if (sb) iupgtkSetBgColor(sb, r, g, b);
 #endif
     }
   }
@@ -1762,7 +1765,7 @@ static int gtkTreeSetBgColorAttrib(Ihandle* ih, const char* value)
     GtkCellRenderer* renderer_img = (GtkCellRenderer*)iupAttribGet(ih, "_IUPGTK_RENDERER_IMG");
     GdkColor color;
     iupgdkColorSet(&color, r, g, b);
-    g_object_set(G_OBJECT(renderer_chk), "cell-background-gdk", &color, NULL);
+    if (renderer_chk) g_object_set(G_OBJECT(renderer_chk), "cell-background-gdk", &color, NULL);
     g_object_set(G_OBJECT(renderer_txt), "cell-background-gdk", &color, NULL);
     g_object_set(G_OBJECT(renderer_img), "cell-background-gdk", &color, NULL);
   }
@@ -1780,7 +1783,7 @@ static int gtkTreeSetFgColorAttrib(Ihandle* ih, const char* value)
   if (!iupStrToRGB(value, &r, &g, &b))
     return 0;
 
-  iupgtkBaseSetFgColor(ih->handle, r, g, b);
+  iupgtkSetFgColor(ih->handle, r, g, b);
 
   {
     GtkCellRenderer* renderer_txt = (GtkCellRenderer*)iupAttribGet(ih, "_IUPGTK_RENDERER_TEXT");
@@ -1892,11 +1895,19 @@ static void gtkTreeCellTextEditingStarted(GtkCellRenderer *cell, GtkCellEditable
 
   gtk_tree_model_get(model, &iterItem, IUPGTK_TREE_FONT, &fontdesc, -1);
   if (fontdesc)
+  {
+#if GTK_CHECK_VERSION(3, 0, 0)
+    gtk_widget_override_font(GTK_WIDGET(editable), fontdesc);
+#else
     gtk_widget_modify_font(GTK_WIDGET(editable), fontdesc);
+#endif
+  }
 
   gtk_tree_model_get(model, &iterItem, IUPGTK_TREE_COLOR, &color, -1);
   if (color)
-    iupgtkBaseSetFgGdkColor(GTK_WIDGET(editable), color);
+    iupgtkSetFgColor(GTK_WIDGET(editable), iupCOLORDoubleTO8(color->red), 
+                                               iupCOLORDoubleTO8(color->green), 
+                                               iupCOLORDoubleTO8(color->blue));
 
   (void)cell;
 }
@@ -1955,7 +1966,6 @@ static void gtkTreeDragDataReceived(GtkWidget *widget, GdkDragContext *context, 
 {
   GtkTreePath* pathDrag = (GtkTreePath*)iupAttribGet(ih, "_IUPTREE_DRAGITEM");
   GtkTreePath* pathDrop = NULL;
-  int accepted = FALSE;
   int is_ctrl;
 
   gtk_tree_view_get_dest_row_at_pos(GTK_TREE_VIEW(ih->handle), x, y, &pathDrop, NULL);
@@ -1985,8 +1995,6 @@ static void gtkTreeDragDataReceived(GtkWidget *widget, GdkDragContext *context, 
       has_parent = gtk_tree_model_iter_parent(model, &iterNextParent, &iterParent);
       iterParent = iterNextParent;
     }
-
-    accepted = TRUE;
 
     if (gtkTreeCallDragDropCb(ih, &iterDrag, &iterDrop, &is_ctrl) == IUP_CONTINUE && !equal_nodes)
     {
@@ -2659,7 +2667,7 @@ static int gtkTreeMapMethod(Ihandle* ih)
   g_signal_connect(G_OBJECT(ih->handle), "button-release-event",G_CALLBACK(gtkTreeButtonEvent), ih);
 
   /* add to the parent, all GTK controls must call this. */
-  iupgtkBaseAddToParent(ih);
+  iupgtkAddToParent(ih);
 
   if (!iupAttribGetBoolean(ih, "CANFOCUS"))
     iupgtkSetCanFocus(ih->handle, 0);
@@ -2682,6 +2690,9 @@ static int gtkTreeMapMethod(Ihandle* ih)
   IupSetCallback(ih, "_IUP_XY2POS_CB", (Icallback)gtkTreeConvertXYToPos);
 
   iupdrvTreeUpdateMarkMode(ih);
+
+  /* update a mnemonic in a label if necessary */
+  iupgtkUpdateMnemonic(ih);
 
   return IUP_NOERROR;
 }

@@ -6,7 +6,13 @@
 
 #include <windows.h>
 #include <uxtheme.h>
+
+#if (_MSC_VER >= 1700)  /* Visual C++ 11.0 ( Visual Studio 2012) */
+#include <vssym32.h>
+#else
 #include <tmschema.h>
+#endif
+
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -316,7 +322,6 @@ void iupdrvDrawFocusRect(Ihandle* ih, void* gc, int x, int y, int w, int h)
 {
   HDC hDC = (HDC)gc;
   RECT rect;
-  (void)ih;
 
   rect.left = x;  
   rect.top = y;  
@@ -324,6 +329,7 @@ void iupdrvDrawFocusRect(Ihandle* ih, void* gc, int x, int y, int w, int h)
   rect.bottom = y+h;
 
   DrawFocusRect(hDC, &rect);
+  (void)ih;
 }
 
 void iupwinDrawParentBackground(Ihandle* ih, HDC hDC, RECT* rect)
@@ -415,12 +421,16 @@ void iupDrawUpdateSize(IdrawCanvas* dc)
 {
   int w, h;
   RECT rect;
+
   GetClientRect(dc->ih->handle, &rect);
   w = rect.right - rect.left;
   h = rect.bottom - rect.top;
 
   if (w != dc->w || h != dc->h)
   {
+    dc->w = w;
+    dc->h = h;
+
     SelectObject(dc->hBitmapDC, dc->hOldBitmap);
     DeleteObject(dc->hBitmap);
     DeleteDC(dc->hBitmapDC);
@@ -451,11 +461,6 @@ void iupDrawParentBackground(IdrawCanvas* dc)
   char* color = iupBaseNativeParentGetBgColorAttrib(dc->ih);
   iupStrToRGB(color, &r, &g, &b);
   iupDrawRectangle(dc, 0, 0, dc->w-1, dc->h-1, r, g, b, IUP_DRAW_FILL);
-}
-
-void iupDrawRectangleInvert(IdrawCanvas* dc, int x1, int y1, int x2, int y2)
-{
-  BitBlt(dc->hBitmapDC, x1, y1, x2-x1+1, y2-y1+1, dc->hBitmapDC, x1, y1, DSTINVERT);
 }
 
 void iupDrawRectangle(IdrawCanvas* dc, int x1, int y1, int x2, int y2, unsigned char r, unsigned char g, unsigned char b, int style)
@@ -617,4 +622,21 @@ void iupDrawImage(IdrawCanvas* dc, const char* name, int make_inactive, int x, i
 
   if (hMask)
     DeleteObject(hMask);
+}
+
+void iupDrawSelectRect(IdrawCanvas* dc, int x, int y, int w, int h)
+{
+  BitBlt(dc->hBitmapDC, x, y, w, h, dc->hBitmapDC, x, y, DSTINVERT);
+}
+
+void iupDrawFocusRect(IdrawCanvas* dc, int x, int y, int w, int h)
+{
+  RECT rect;
+
+  rect.left = x;  
+  rect.top = y;  
+  rect.right = x+w;  
+  rect.bottom = y+h;
+
+  DrawFocusRect(dc->hDC, &rect);
 }

@@ -17,6 +17,7 @@
 #include "iup_str.h"
 #include "iup_drv.h"
 #include "iup_drvfont.h"
+#include "iup_drvinfo.h"
 #include "iup_stdcontrols.h"
 #include "iup_layout.h"
 #include "iup_mask.h"
@@ -172,7 +173,7 @@ void iupListMultipleCallActionCallback(Ihandle* ih, IFnsii cb, IFns multi_cb, in
   free(str);
 }
 
-int iupListGetPos(Ihandle* ih, int pos)
+int iupListGetPosAttrib(Ihandle* ih, int pos)
 {
   int count;
 
@@ -276,7 +277,7 @@ int iupListSetIdValueAttrib(Ihandle* ih, int pos, const char* value)
     else if (pos == count)
       iupdrvListAppendItem(ih, value);
   }
-  return 1;
+  return 0;
 }
 
 static int iListSetAppendItemAttrib(Ihandle* ih, const char* value)
@@ -294,7 +295,7 @@ static int iListSetInsertItemAttrib(Ihandle* ih, int id, const char* value)
     return 0;
   if (value)
   {
-    int pos = iupListGetPos(ih, id);
+    int pos = iupListGetPosAttrib(ih, id);
     if (pos >= 0)
       iupdrvListInsertItem(ih, pos, value);
     else if (pos == -2)
@@ -317,7 +318,7 @@ static int iListSetRemoveItemAttrib(Ihandle* ih, const char* value)
     int id;
     if (iupStrToInt(value, &id))
     {
-      int pos = iupListGetPos(ih, id);
+      int pos = iupListGetPosAttrib(ih, id);
       if (pos >= 0)
         iupdrvListRemoveItem(ih, pos);
     }
@@ -579,6 +580,59 @@ static char* iListGetShowImageAttrib(Ihandle* ih)
     return "NO";
 }
 
+int iupListCallDragDropCb(Ihandle* ih, int drag_id, int drop_id, int *is_ctrl)
+{
+  IFniiii cbDragDrop = (IFniiii)IupGetCallback(ih, "DRAGDROP_CB");
+  int is_shift = 0;
+  char key[5];
+  iupdrvGetKeyState(key);
+  if (key[0] == 'S')
+    is_shift = 1;
+  if (key[1] == 'C')
+    *is_ctrl = 1;
+  else
+    *is_ctrl = 0;
+
+  /* ignore a drop that will do nothing */
+  if ((*is_ctrl)==0 && (drag_id+1 == drop_id || drag_id == drop_id))
+    return IUP_DEFAULT;
+  if ((*is_ctrl)!=0 && drag_id == drop_id)
+    return IUP_DEFAULT;
+
+  drag_id++;
+  if (drop_id < 0)
+    drop_id = -1;
+  else
+    drop_id++;
+
+  if (cbDragDrop)
+    return cbDragDrop(ih, drag_id, drop_id, is_shift, *is_ctrl);  /* starts at 1 */
+
+  return IUP_CONTINUE; /* allow to move/copy by default if callback not defined */
+}
+
+static char* iListGetShowDragDropAttrib(Ihandle* ih)
+{
+  if (ih->data->show_dragdrop)
+    return "YES";
+  else
+    return "NO";
+}
+
+static int iListSetShowDragDropAttrib(Ihandle* ih, const char* value)
+{
+  /* valid only before map */
+  if (ih->handle)
+    return 0;
+
+  if (iupStrBoolean(value))
+    ih->data->show_dragdrop = 1;
+  else
+    ih->data->show_dragdrop = 0;
+
+  return 0;
+}
+
 
 /*****************************************************************************************/
 
@@ -596,16 +650,27 @@ static int iListCreateMethod(Ihandle* ih, void** params)
 
 static void iListGetItemImageInfo(Ihandle *ih, int id, int *img_w, int *img_h)
 {
-  char str[20];
-  char *value;
-
   *img_w = 0;
   *img_h = 0;
 
-  sprintf(str, "IMAGE%d", id);
-  value = iupAttribGet(ih, str);
-  if (value)
-    iupImageGetInfo(value, img_w, img_h, NULL);
+  if (!ih->handle)
+  {
+    char *value;
+    char str[20];
+    sprintf(str, "IMAGE%d", id);
+    value = iupAttribGet(ih, str);
+    if (value)
+      iupImageGetInfo(value, img_w, img_h, NULL);
+  }
+  else
+  {
+    void* handle = iupdrvListGetImageHandle(ih, id);
+    if (handle)
+    {
+      int bpp;
+      iupdrvImageGetInfo(handle, img_w, img_h, &bpp);
+    }
+  }
 }
 
 static void iListGetNaturalItemsSize(Ihandle *ih, int *w, int *h)
@@ -781,12 +846,12 @@ Iclass* iupListNewClass(void)
   /* Callbacks */
   iupClassRegisterCallback(ic, "ACTION", "sii");
   iupClassRegisterCallback(ic, "MULTISELECT_CB", "s");
-  iupClassRegisterCallback(ic, "DROPFILES_CB", "siii");
   iupClassRegisterCallback(ic, "DROPDOWN_CB", "i");
   iupClassRegisterCallback(ic, "DBLCLICK_CB", "is");
   iupClassRegisterCallback(ic, "VALUECHANGED_CB", "");
   iupClassRegisterCallback(ic, "MOTION_CB", "iis");
   iupClassRegisterCallback(ic, "BUTTON_CB", "iiiis");
+  iupClassRegisterCallback(ic, "DRAGDROP_CB", "iiii");
 
   iupClassRegisterCallback(ic, "EDIT_CB", "is");
   iupClassRegisterCallback(ic, "CARET_CB", "iii");
@@ -824,6 +889,7 @@ Iclass* iupListNewClass(void)
   iupClassRegisterAttribute(ic, "VISIBLELINES", NULL, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 
   iupClassRegisterAttribute(ic, "SHOWIMAGE", iListGetShowImageAttrib, iListSetShowImageAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "SHOWDRAGDROP", iListGetShowDragDropAttrib, iListSetShowDragDropAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 
   iupdrvListInitClass(ic);
 

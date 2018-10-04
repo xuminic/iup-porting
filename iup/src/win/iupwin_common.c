@@ -3,13 +3,12 @@
  *
  * See Copyright Notice in "iup.h"
  */
+#include <windows.h>
+#include <commctrl.h>
 
 #include <stdio.h>              
 #include <stdlib.h>
 #include <string.h>             
-
-#include <windows.h>
-#include <commctrl.h>
 
 #include "iup.h"
 #include "iupcbs.h"
@@ -31,6 +30,8 @@
 #include "iupwin_brush.h"
 #include "iupwin_info.h"
 
+
+static UINT WM_DRAGLISTMSG = 0;
 
 /* Not defined in compilers older than VC9 or WinSDK older than 6.0 */
 #ifndef MAPVK_VK_TO_VSC
@@ -61,10 +62,19 @@ void iupdrvActivate(Ihandle* ih)
 {
   /* do not use BM_CLICK because it changes the focus 
      and does not animates the button press */
+
+  /* draw highlight */
   SendMessage(ih->handle, BM_SETSTATE, TRUE, 0);
   IupFlush();
   Sleep(150);
+
+  if (IupClassMatch(ih, "toggle"))
+    IupSetAttribute(ih, "VALUE", "TOGGLE");
+
+  /* notify */
   SendMessage(GetParent(ih->handle), WM_COMMAND, MAKEWPARAM(0, BN_CLICKED), (LPARAM)ih->handle);
+
+  /* remove highlight */
   SendMessage(ih->handle, BM_SETSTATE, FALSE, 0);
 }
 
@@ -213,8 +223,6 @@ void iupwinSetStyle(Ihandle* ih, DWORD value, int set)
 
 int iupwinBaseProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result)
 { 
-  (void)lp;
-
   switch (msg)
   {
   case WM_GETDLGCODE:
@@ -355,15 +363,11 @@ LRESULT CALLBACK iupwinBaseWinProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
   int ret = 0;
   LRESULT result = 0;
   IwinProc winProc;
-  WNDPROC oldProc;
   Ihandle *ih;
 
   ih = iupwinHandleGet(hwnd); 
   if (!ih)
     return DefWindowProc(hwnd, msg, wp, lp);  /* should never happen */
-
-  /* retrieve the control previous procedure for subclassing */
-  oldProc = (WNDPROC)IupGetCallback(ih, "_IUPWIN_OLDPROC_CB");
 
   /* check if the element defines a custom procedure */
   winProc = (IwinProc)IupGetCallback(ih, "_IUPWIN_CTRLPROC_CB");
@@ -375,7 +379,11 @@ LRESULT CALLBACK iupwinBaseWinProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
   if (ret)
     return result;
   else
+  {
+    /* retrieve the control previous procedure for subclassing */
+    WNDPROC oldProc = (WNDPROC)IupGetCallback(ih, "_IUPWIN_OLDPROC_CB");
     return CallWindowProc(oldProc, hwnd, msg, wp, lp);
+  }
 }
 
 static Ihandle* winContainerWmCommandGetIhandle(Ihandle *ih, WPARAM wp, LPARAM lp)
@@ -524,6 +532,21 @@ int iupwinBaseContainerProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT
       }
       break;
     }
+  default:
+    {
+      /* sent to the list parent */
+      if (msg == WM_DRAGLISTMSG)
+      {
+        DRAGLISTINFO* lpDrag = (DRAGLISTINFO*) lp;
+        Ihandle *child = iupwinHandleGet(lpDrag->hWnd);
+        if (child && winCheckParent(child, ih))
+        {
+          *result = iupwinListProcessDND(child, lpDrag->uNotification, lpDrag->ptCursor);
+          return 1;
+        }
+      }
+      break;
+    }
   }
 
   return iupwinBaseProc(ih, msg, wp, lp, result);
@@ -618,6 +641,21 @@ int iupdrvBaseSetTitleAttrib(Ihandle* ih, const char* value)
   if (!value) value = "";
   SetWindowText(ih->handle, value);
   return 0;
+}
+
+void iupwinSetMnemonicTitle(Ihandle *ih, int pos, const char* value)
+{
+  int c;
+
+  if (!value) 
+    value = "";
+
+  c = iupStrFindMnemonic(value);
+  if (c != 0)
+  {
+    if (ih->iclass->nativetype != IUP_TYPEMENU)
+      iupKeySetMnemonic(ih, c, pos);
+  }
 }
 
 char* iupdrvBaseGetTitleAttrib(Ihandle* ih)
@@ -753,6 +791,9 @@ void iupdrvBaseRegisterCommonAttrib(Iclass* ic)
   iupClassRegisterAttribute(ic, "TIPBALLOON", NULL, NULL, IUPAF_SAMEASSYSTEM, NULL, IUPAF_NOT_MAPPED);
   iupClassRegisterAttribute(ic, "TIPBALLOONTITLE", NULL, NULL, IUPAF_SAMEASSYSTEM, NULL, IUPAF_NOT_MAPPED);
   iupClassRegisterAttribute(ic, "TIPBALLOONTITLEICON", NULL, NULL, IUPAF_SAMEASSYSTEM, NULL, IUPAF_NOT_MAPPED);
+
+  if (!WM_DRAGLISTMSG)
+    WM_DRAGLISTMSG = RegisterWindowMessage(DRAGLISTMSGSTRING);
 }
 
 int iupwinButtonDown(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp)

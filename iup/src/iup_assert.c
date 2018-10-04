@@ -30,13 +30,15 @@ void iupError(const char* format, ...)
   vsnprintf(msg, size, format, arglist);
   va_end(arglist);
 #if IUP_ASSERT_CONSOLE 
-  fprintf(stderr, msg);
+  fprintf(stderr, "%s", msg);
 #else
   if (iupIsOpened())
     iupStrMessageShowError(NULL, iupStrGetMemoryCopy(msg));
   else
-    fprintf(stderr, msg);
+    fprintf(stderr, "%s", msg);
 #endif
+  /* set the breakpoint here, just after the assert dialog */
+  size = 0;
 }
 
 void iupAssert(const char* expr, const char* file, int line, const char* func)

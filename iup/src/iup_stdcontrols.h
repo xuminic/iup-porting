@@ -47,6 +47,7 @@ Iclass* iupCboxNewClass(void);
 Iclass* iupSboxNewClass(void);
 Iclass* iupNormalizerNewClass(void);
 Iclass* iupSplitNewClass(void);
+Iclass* iupScrollBoxNewClass(void);
 
 Iclass* iupTimerNewClass(void);
 Iclass* iupImageNewClass(void);
@@ -68,6 +69,7 @@ void iupdrvFileDlgInitClass(Iclass* ic);
 typedef struct _iupCanvas {
   int sb;    /* scrollbar configuration, valid only after map, use iupBaseGetScrollbar before map */
   float posx, posy;
+  int inside_resize;
 } iupCanvas;
 
 #ifdef __cplusplus

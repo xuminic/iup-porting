@@ -6,6 +6,9 @@
 
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
+#if GTK_CHECK_VERSION(3, 0, 0)
+#include <gdk/gdkkeysyms-compat.h>
+#endif
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -191,8 +194,14 @@ static int gtkListSetStandardFontAttrib(Ihandle* ih, const char* value)
     if (ih->data->has_editbox)
     {
       GtkEntry* entry = (GtkEntry*)iupAttribGet(ih, "_IUPGTK_ENTRY");
+#if GTK_CHECK_VERSION(3, 0, 0)
+      gtk_widget_override_font((GtkWidget*)entry, (PangoFontDescription*)iupgtkGetPangoFontDescAttrib(ih));
+#else
       gtk_widget_modify_font((GtkWidget*)entry, (PangoFontDescription*)iupgtkGetPangoFontDescAttrib(ih));
+#endif
       iupgtkFontUpdatePangoLayout(ih, gtk_entry_get_layout(entry));
+
+      gtk_entry_set_width_chars(entry, 1);  /* minimum size */
     }
   }
   return 1;
@@ -200,7 +209,7 @@ static int gtkListSetStandardFontAttrib(Ihandle* ih, const char* value)
 
 static char* gtkListGetIdValueAttrib(Ihandle* ih, int id)
 {
-  int pos = iupListGetPos(ih, id);
+  int pos = iupListGetPosAttrib(ih, id);
   if (pos >= 0)
   {
     GtkTreeIter iter;
@@ -233,7 +242,7 @@ static void gtkComboBoxChildrenToggleCb(GtkWidget *widget, gpointer client_data)
 static void gtkComboBoxChildrenBgColorCb(GtkWidget *widget, gpointer client_data)
 {
   GdkColor* c = (GdkColor*)client_data;
-  iupgtkBaseSetBgColor(widget, (unsigned char)c->red, (unsigned char)c->green, (unsigned char)c->blue);
+  iupgtkSetBgColor(widget, (unsigned char)c->red, (unsigned char)c->green, (unsigned char)c->blue);
 }
 
 static int gtkListSetBgColorAttrib(Ihandle* ih, const char* value)
@@ -253,14 +262,14 @@ static int gtkListSetBgColorAttrib(Ihandle* ih, const char* value)
       if (!GTK_IS_SCROLLED_WINDOW(scrolled_window))
         scrolled_window = (GtkScrolledWindow*)iupAttribGet(ih, "_IUPGTK_SCROLLED_WINDOW");
 
-      iupgtkBaseSetBgColor((GtkWidget*)scrolled_window, r, g, b);
+      iupgtkSetBgColor((GtkWidget*)scrolled_window, r, g, b);
 
 #if GTK_CHECK_VERSION(2, 8, 0)
       sb = gtk_scrolled_window_get_hscrollbar(scrolled_window);
-      if (sb) iupgtkBaseSetBgColor(sb, r, g, b);
+      if (sb) iupgtkSetBgColor(sb, r, g, b);
 
       sb = gtk_scrolled_window_get_vscrollbar(scrolled_window);
-      if (sb) iupgtkBaseSetBgColor(sb, r, g, b);
+      if (sb) iupgtkSetBgColor(sb, r, g, b);
 #endif
     }
   }
@@ -271,7 +280,7 @@ static int gtkListSetBgColorAttrib(Ihandle* ih, const char* value)
   if (ih->data->has_editbox)
   {
     GtkWidget* entry = (GtkWidget*)iupAttribGet(ih, "_IUPGTK_ENTRY");
-    iupgtkBaseSetBgColor(entry, r, g, b);
+    iupgtkSetBgColor(entry, r, g, b);
   }
 
   if (ih->data->is_dropdown)
@@ -283,12 +292,8 @@ static int gtkListSetBgColorAttrib(Ihandle* ih, const char* value)
     c.red = r;
     gtk_container_forall(container, gtkComboBoxChildrenBgColorCb, &c);
 
-    if (!ih->data->has_editbox)
-    {
-      GtkWidget* box = (GtkWidget*)iupAttribGet(ih, "_IUP_EXTRAPARENT");
-      if (box)
-        iupgtkBaseSetBgColor(box, r, g, b);
-    }
+    /* do not set for the event_box or 
+       there will be an invalid background outside the dropdown */
   }
 
   /* TODO: this test is not necessary, 
@@ -315,12 +320,12 @@ static int gtkListSetFgColorAttrib(Ihandle* ih, const char* value)
   if (!iupStrToRGB(value, &r, &g, &b))
     return 0;
 
-  iupgtkBaseSetFgColor(ih->handle, r, g, b);
+  iupgtkSetFgColor(ih->handle, r, g, b);
 
   if (ih->data->has_editbox)
   {
     GtkWidget* entry = (GtkWidget*)iupAttribGet(ih, "_IUPGTK_ENTRY");
-    iupgtkBaseSetFgColor(entry, r, g, b);
+    iupgtkSetFgColor(entry, r, g, b);
   }
 
   /* TODO: see comment in BGCOLOR */
@@ -545,8 +550,8 @@ static int gtkListSetPaddingAttrib(Ihandle* ih, const char* value)
 #if GTK_CHECK_VERSION(2, 10, 0)
     GtkEntry* entry;
     GtkBorder border;
-    border.bottom = border.top = ih->data->vert_padding;
-    border.left = border.right = ih->data->horiz_padding;
+    border.bottom = border.top = (gint16)ih->data->vert_padding;
+    border.left = border.right = (gint16)ih->data->horiz_padding;
     entry = (GtkEntry*)iupAttribGet(ih, "_IUPGTK_ENTRY");
     gtk_entry_set_inner_border(entry, &border);
 #endif
@@ -906,13 +911,171 @@ static int gtkListSetImageAttrib(Ihandle* ih, int id, const char* value)
   GtkTreeModel* model = gtkListGetModel(ih);
   GdkPixbuf* pixImage = iupImageGetImage(value, ih, 0);
   GtkTreeIter iter;
-  int pos = iupListGetPos(ih, id);
+  int pos = iupListGetPosAttrib(ih, id);
 
   if (!ih->data->show_image || !gtk_tree_model_iter_nth_child(model, &iter, NULL, pos))
     return 0;
 
   gtk_list_store_set(GTK_LIST_STORE(model), &iter, IUPGTK_LIST_IMAGE, pixImage, -1);
-  return 1;
+  return 0;
+}
+
+void* iupdrvListGetImageHandle(Ihandle* ih, int id)
+{
+  GdkPixbuf* pixImage;
+  GtkTreeModel* model = gtkListGetModel(ih);
+  GtkTreeIter iter;
+
+  if (!gtk_tree_model_iter_nth_child(model, &iter, NULL, id-1))
+    return NULL;
+
+  gtk_tree_model_get(model, &iter, IUPGTK_LIST_IMAGE, &pixImage, -1);
+
+  return pixImage;
+}
+
+/*********************************************************************************/
+
+static void gtkListDragDataReceived(GtkWidget *widget, GdkDragContext *context, gint x, gint y, 
+                                    GtkSelectionData *selection_data, guint info, guint time, Ihandle* ih)
+{
+  int is_ctrl;
+  int idDrag = iupAttribGetInt(ih, "_IUPLIST_DRAGITEM");  /* starts at 1 */
+  int idDrop = gtkListConvertXYToPos(ih, x, y); /* starts at 1 */
+
+  /* shift to start at 0 */
+  idDrag--;
+  idDrop--;
+
+  if (iupListCallDragDropCb(ih, idDrag, idDrop, &is_ctrl) == IUP_CONTINUE)  /* starts at 0 */
+  {
+    GtkTreePath* path;
+    GtkTreeSelection* selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(ih->handle));
+    int count = iupdrvListGetCount(ih);
+    GtkTreeModel *model = gtkListGetModel(ih);
+    GtkTreeIter iterDrag, iterDrop;
+    gchar *text = NULL;
+    GdkPixbuf *pixImage = NULL;
+
+    /* Copy text and image of the dragged item */
+    gtk_tree_model_iter_nth_child(model, &iterDrag, NULL, idDrag);  /* starts at 0 */
+    gtk_tree_model_get(model, &iterDrag, IUPGTK_LIST_TEXT, &text, 
+                                         IUPGTK_LIST_IMAGE, &pixImage, -1);
+
+    /* Copy the item to the idDrop position */
+    if (idDrop >= 0 && idDrop < count) /* starts at 0 */
+    {
+      iupdrvListInsertItem(ih, idDrop, "");   /* starts at 0, insert before */
+      if (idDrag > idDrop)
+        idDrag++;
+    }
+    else  /* idDrop = -1 */
+    {
+      iupdrvListAppendItem(ih, "");
+      idDrop = count;  /* new item is the previous count */
+    }
+
+    gtk_tree_model_iter_nth_child(model, &iterDrop, NULL, idDrop);  /* starts at 0 */
+    gtk_list_store_set(GTK_LIST_STORE(model), &iterDrop, IUPGTK_LIST_TEXT, text, -1);
+    gtk_list_store_set(GTK_LIST_STORE(model), &iterDrop, IUPGTK_LIST_IMAGE, pixImage, -1);
+    g_free(text);
+    if (pixImage) g_object_unref(pixImage);
+
+    /* Selects the drop item */
+    path = gtk_tree_path_new_from_indices(idDrop, -1);  /* starts at 0 */
+    gtk_tree_selection_select_path(selection, path);
+    gtk_tree_path_free(path);
+    iupAttribSetInt(ih, "_IUPLIST_OLDVALUE", idDrop+1);  /* starts at 1 */
+
+    /* Remove the Drag item if moving */
+    if (!is_ctrl)
+      iupdrvListRemoveItem(ih, idDrag);   /* starts at 0 */
+  }
+
+  iupAttribSetStr(ih, "_IUPLIST_DRAGITEM", NULL);
+
+  (void)widget;
+  (void)info;
+  (void)context;
+  (void)time;
+  (void)selection_data;
+}
+
+static gboolean gtkListDragMotion(GtkWidget *widget, GdkDragContext *context, gint x, gint y, guint time, Ihandle* ih)
+{
+  GtkTreePath* path;
+  GtkTreeViewDropPosition pos;
+  if (gtk_tree_view_get_dest_row_at_pos(GTK_TREE_VIEW(ih->handle), x, y, &path, &pos))
+  {
+    if (pos == GTK_TREE_VIEW_DROP_BEFORE) pos = GTK_TREE_VIEW_DROP_INTO_OR_BEFORE;
+    if (pos == GTK_TREE_VIEW_DROP_AFTER) pos = GTK_TREE_VIEW_DROP_INTO_OR_AFTER;
+    /* highlight row */
+    gtk_tree_view_set_drag_dest_row(GTK_TREE_VIEW(widget), path, pos);
+    gtk_tree_path_free(path);
+
+#if GTK_CHECK_VERSION(2, 22, 0)
+    gdk_drag_status(context, gdk_drag_context_get_suggested_action(context), time);
+#else
+    gdk_drag_status(context, context->suggested_action, time);
+#endif
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+static void gtkListDragBegin(GtkWidget *widget, GdkDragContext *context, Ihandle* ih)
+{
+  int x = iupAttribGetInt(ih, "_IUPLIST_DRAG_X");
+  int y = iupAttribGetInt(ih, "_IUPLIST_DRAG_Y");
+  int idDrag = gtkListConvertXYToPos(ih, x, y);   /* starts at 1 */
+  iupAttribSetInt(ih, "_IUPLIST_DRAGITEM", idDrag);
+  (void)context;
+  (void)widget;
+}
+
+static gboolean gtkListDragButtonEvent(GtkWidget *widget, GdkEventButton *evt, Ihandle *ih)
+{
+  if (iupgtkButtonEvent(widget, evt, ih) == TRUE)
+    return TRUE;
+
+  if (evt->type == GDK_BUTTON_PRESS && evt->button == 1)  /* left single press */
+  {
+    iupAttribSetInt(ih, "_IUPLIST_DRAG_X", (int)evt->x);
+    iupAttribSetInt(ih, "_IUPLIST_DRAG_Y", (int)evt->y);
+  }
+
+  return FALSE;
+}
+
+static void gtkListEnableDragDrop(Ihandle* ih)
+{
+  const GtkTargetEntry row_targets[] = {
+    /* use a custom target to avoid the internal gtkTreView DND */
+    { "IUP_LIST_TARGET", GTK_TARGET_SAME_WIDGET, 0 }
+  };
+
+  gtk_tree_view_enable_model_drag_source (GTK_TREE_VIEW(ih->handle),
+    GDK_BUTTON1_MASK,
+    row_targets,
+    G_N_ELEMENTS (row_targets),
+    GDK_ACTION_MOVE|GDK_ACTION_COPY);
+  gtk_tree_view_enable_model_drag_dest (GTK_TREE_VIEW(ih->handle),
+    row_targets,
+    G_N_ELEMENTS (row_targets),
+    GDK_ACTION_MOVE|GDK_ACTION_COPY);
+
+  /* let gtkTreView begin the drag, then use the signal to save the drag start path */
+  g_signal_connect_after(G_OBJECT(ih->handle),  "drag-begin", G_CALLBACK(gtkListDragBegin), ih);
+
+  /* to avoid drop between nodes. */
+  g_signal_connect(G_OBJECT(ih->handle), "drag-motion", G_CALLBACK(gtkListDragMotion), ih);
+
+  /* to avoid the internal gtkTreView DND, we do the drop manually */
+  g_signal_connect(G_OBJECT(ih->handle), "drag-data-received", G_CALLBACK(gtkListDragDataReceived), ih);
+
+  /* to save X,Y position */
+  g_signal_connect(G_OBJECT(ih->handle), "button-press-event", G_CALLBACK(gtkListDragButtonEvent), ih);
 }
 
 /*********************************************************************************/
@@ -993,7 +1156,7 @@ static gboolean gtkListEditKeyPressEvent(GtkWidget* entry, GdkEventKey *evt, Iha
       gtk_tree_selection_select_path(selection, path);
       g_signal_handlers_unblock_by_func(G_OBJECT(selection), G_CALLBACK(gtkListSelectionChanged), ih);
       gtk_tree_path_free(path);
-      iupAttribSetInt(ih, "_IUPLIST_OLDVALUE", pos);
+      iupAttribSetInt(ih, "_IUPLIST_OLDVALUE", pos+1); /* starts at 1 */
 
       if (!model) model = gtkListGetModel(ih);
 
@@ -1357,10 +1520,13 @@ static int gtkListMapMethod(Ihandle* ih)
     {
       GtkWidget *toggle;
 
-      /* had to add an event box so it can be positioned in IupMatrix */
-      GtkWidget *box = gtk_event_box_new();
-      gtk_container_add((GtkContainer*)box, ih->handle);
-      iupAttribSetStr(ih, "_IUP_EXTRAPARENT", (char*)box);
+      /* had to add an event box so it can be positioned in an IupCanvas based control */
+      if (ih->parent->iclass->nativetype == IUP_TYPECANVAS)
+      {
+        GtkWidget *box = gtk_event_box_new();
+        gtk_container_add((GtkContainer*)box, ih->handle);
+        iupAttribSetStr(ih, "_IUP_EXTRAPARENT", (char*)box);
+      }
 
       /* use the internal toggle for keyboard, focus and enter/leave */
       gtk_container_forall((GtkContainer*)ih->handle, gtkComboBoxChildrenToggleCb, &toggle);
@@ -1418,7 +1584,11 @@ static int gtkListMapMethod(Ihandle* ih)
 
     if (ih->data->has_editbox)
     {
+#if GTK_CHECK_VERSION(3, 0, 0)
+      GtkBox* vbox = (GtkBox*)gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+#else
       GtkBox* vbox = (GtkBox*)gtk_vbox_new(FALSE, 0);
+#endif
 
       GtkWidget *entry = gtk_entry_new();
       gtk_widget_show(entry);
@@ -1519,11 +1689,15 @@ static int gtkListMapMethod(Ihandle* ih)
     g_signal_connect(G_OBJECT(ih->handle), "button-release-event",G_CALLBACK(iupgtkButtonEvent), ih);
   }
 
+  /* Enable internal drag and drop support */
+  if(ih->data->show_dragdrop && !ih->data->is_dropdown && !ih->data->is_multiple)
+    gtkListEnableDragDrop(ih);
+
   if (iupAttribGetBoolean(ih, "SORT"))
     gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(store), IUPGTK_LIST_TEXT, GTK_SORT_ASCENDING);
 
   /* add to the parent, all GTK controls must call this. */
-  iupgtkBaseAddToParent(ih);
+  iupgtkAddToParent(ih);
 
   if (scrolled_window)
     gtk_widget_realize((GtkWidget*)scrolled_window);
@@ -1536,6 +1710,9 @@ static int gtkListMapMethod(Ihandle* ih)
   IupSetCallback(ih, "_IUP_XY2POS_CB", (Icallback)gtkListConvertXYToPos);
 
   iupListSetInitialItems(ih);
+
+  /* update a mnemonic in a label if necessary */
+  iupgtkUpdateMnemonic(ih);
 
   return IUP_NOERROR;
 }

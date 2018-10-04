@@ -131,8 +131,10 @@ static void createimgs(void)
 
 static int togglecb(Ihandle *self, int v)
 {
-  if (v == 1) printf("Toggle %s - ON\n", IupGetAttribute(self, "NAME")); 
-  else printf("Toggle %s - OFF\n", IupGetAttribute(self, "NAME")); 
+  if (v == 1) 
+    printf("Toggle %s - ON\n", IupGetAttribute(self, "NAME")); 
+  else 
+    printf("Toggle %s - OFF\n", IupGetAttribute(self, "NAME")); 
   return IUP_DEFAULT;
 }
 
@@ -208,9 +210,9 @@ void ToggleTest(void)
 
   toggle1 = IupToggle(NULL, NULL);
   toggle2 = IupToggle(NULL, NULL);
-  toggle3 = IupToggle("Text Toggle", NULL);
+  toggle3 = IupToggle("&Text Toggle", NULL);
 //  toggle4 = IupToggle("blue foreground color", NULL);
-  toggle4 = IupToggle("Radio &Text", NULL);
+  toggle4 = IupToggle("&Radio Text", NULL);
   toggle5 = IupToggle("red background color", NULL);
   toggle6 = IupToggle("multiple lines\nsecond line", NULL);
   toggle7 = IupToggle("INACTIVE", NULL);

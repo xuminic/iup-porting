@@ -59,14 +59,42 @@ static unsigned char pixmap_cursor [ ] =
 } ;
 
 //#define USE_GDK
+//#undef USE_GDK
 
 /* draw a rectangle that has w=600 always, white background and a red X */
 #ifdef USE_GDK
 #include <gtk/gtk.h>
+#ifdef USE_GTK3
 static void drawTest(Ihandle *ih, int posx)
 {
-  GtkWidget* widget = (GtkWidget*)IupGetAttribute(ih, "WID");
-  GdkGC* gc = widget->style->fg_gc[GTK_WIDGET_STATE(widget)];
+  int w, h;
+  GdkWindow* wnd = (GdkWindow*)IupGetAttribute(ih, "DRAWABLE");
+  cairo_t* cr = (cairo_t*)IupGetAttribute(ih, "CAIRO_CR");
+
+  w = gdk_window_get_width(wnd);
+  h = gdk_window_get_height(wnd);
+
+  /* white background */
+  cairo_set_source_rgba(cr, 1.0, 1.0, 1.0, 1.0);
+  cairo_rectangle(cr, 0, 0, w, h);
+  cairo_fill(cr);
+
+  /* virtual size */
+  w = 600; 
+
+  /* red X */
+  cairo_set_source_rgba(cr, 1.0, 0, 0, 1.0);
+  cairo_move_to(cr, -posx, 0);
+  cairo_line_to(cr, w-posx, h);
+  cairo_move_to(cr, -posx, h);
+  cairo_line_to(cr, w-posx, 0);
+  cairo_stroke(cr);
+}
+#else
+static void drawTest(Ihandle *ih, int posx)
+{
+  GdkWindow* wnd = (GdkWindow*)IupGetAttribute(ih, "DRAWABLE");
+  GdkGC* gc = gdk_gc_new(wnd);
   int w, h;
   GdkColor color;
 
@@ -75,15 +103,19 @@ static void drawTest(Ihandle *ih, int posx)
   /* white background */
   color.red = 65535;  color.green = 65535;  color.blue  = 65535;
   gdk_gc_set_rgb_fg_color(gc, &color);
-  gdk_draw_rectangle(widget->window, gc, TRUE, 0, 0, w, h);
+  gdk_draw_rectangle(wnd, gc, TRUE, 0, 0, w, h);
+
+  w = 600; /* virtual size */
 
   /* red X */
-  w = 600; /* virtual size */
   color.red = 65535;  color.green = 0;  color.blue  = 0;
   gdk_gc_set_rgb_fg_color(gc, &color);
-  gdk_draw_line(widget->window, gc, -posx, 0, w-posx, h);
-  gdk_draw_line(widget->window, gc, -posx, h, w-posx, 0);
+  gdk_draw_line(wnd, gc, -posx, 0, w-posx, h);
+  gdk_draw_line(wnd, gc, -posx, h, w-posx, 0);
+
+  g_object_unref(gc); 
 }
+#endif
 #else
 #ifdef WIN32
 #undef _WIN32_WINNT
@@ -188,7 +220,7 @@ static int dropfiles_cb(Ihandle *ih, const char* filename, int num, int x, int y
 
 static int resize_cb(Ihandle *ih, int w, int h)
 {
-  printf("RESIZE_CB(%d, %d) RASTERSIZE=%s CLIENTSIZE=%s\n", w, h, IupGetAttribute(ih, "RASTERSIZE"), IupGetAttribute(ih, "CLIENTSIZE"));
+  printf("RESIZE_CB(%d, %d) RASTERSIZE=%s DRAWSIZE=%s \n", w, h, IupGetAttribute(ih, "RASTERSIZE"), IupGetAttribute(ih, "DRAWSIZE"));
 
   /* update page size */
   IupSetfAttribute(ih, "DX", "%d", w);
@@ -301,13 +333,15 @@ void CanvasTest(void)
   IupAppend(box, canvas);
   IupSetAttribute(canvas, "RASTERSIZE", "300x200");
   IupSetAttribute(canvas, "TIP", "Canvas Tip");
-  IupSetAttribute(canvas, "SCROLLBAR", "YES");
+  IupSetAttribute(canvas, "SCROLLBAR", "HORIZONTAL");
+  //IupSetAttribute(canvas, "BGCOLOR", "0 255 0");
+//  IupSetAttribute(canvas, "SCROLLBAR", "NO");
 //  IupSetAttribute(canvas, "XAUTOHIDE", "NO");
   IupSetAttribute(canvas, "XMAX", "600");
   IupSetAttribute(canvas, "DX", "300");  /* use a 1x1 scale, this value is updated in RESIZE_CB,
                                            so when the canvas is larger than 600 
                                            it will hide the scrollbar */
-  IupSetAttributeHandle(canvas, "CURSOR", image);
+  //IupSetAttributeHandle(canvas, "CURSOR", image);
   IupSetAttribute(canvas, "DROPTARGET", "YES");
   IupSetAttribute(canvas, "DROPTYPES", "TEXT");
   IupSetCallback (canvas, "DROPDATA_CB", (Icallback)testDropData_cb);

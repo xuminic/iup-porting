@@ -205,8 +205,7 @@ static int motKeyMap2Iup(unsigned int state, int i)
   int code = 0;
   if (state & ControlMask)   /* Ctrl */
     code = motkey_map[i].c_iupcode;
-  else if (state & Mod1Mask || 
-           state & Mod5Mask) /* Alt */
+  else if (state & Mod1Mask || state & Mod5Mask) /* Alt */
     code = motkey_map[i].m_iupcode;
   else if (state & Mod4Mask) /* Apple/Win */
     code = motkey_map[i].y_iupcode;
@@ -228,10 +227,19 @@ static int motKeyMap2Iup(unsigned int state, int i)
   return code;
 }
 
+KeySym iupmotKeycodeToKeysym(unsigned int keycode)
+{
+#ifdef TODO_X_DEPRECATED  /* TODO: how to detect that XKeycodeToKeysym is deprecated? Can we alsways use XkbKeycodeToKeysym? */
+  return XkbKeycodeToKeysym(iupmot_display, keycode, 0, 0);
+#else
+  return XKeycodeToKeysym(iupmot_display, keycode, 0);
+#endif
+}
+
 int iupmotKeyDecode(XKeyEvent *evt)
 {
   int i;
-  KeySym motcode = XKeycodeToKeysym(iupmot_display, evt->keycode, 0);
+  KeySym motcode = iupmotKeycodeToKeysym(evt->keycode);
   int count = sizeof(motkey_map)/sizeof(motkey_map[0]);
 
   if ((evt->state & Mod2Mask) && /* NumLock */
@@ -334,24 +342,6 @@ void iupmotKeyPressEvent(Widget w, Ihandle *ih, XEvent *evt, Boolean *cont)
   if (code == 0) 
       return;
 
-  if ((((XKeyEvent*)evt)->state & Mod1Mask || ((XKeyEvent*)evt)->state & Mod5Mask))  /* Alt */
-  {
-    KeySym motcode = XKeycodeToKeysym(iupmot_display, ((XKeyEvent*)evt)->keycode, 0);
-    if (motcode < 128)
-    {
-      IFni cb;
-      Ihandle* dialog = IupGetDialog(ih);
-      char attrib[22] = "_IUPMOT_MNEMONIC_ _CB";
-      attrib[17] = (char)toupper(motcode);
-      cb = (IFni)IupGetCallback(dialog, attrib);
-      if (cb) 
-      {
-        cb(dialog, attrib[17]);
-        return;
-      }
-    }
-  }
-
   result = iupKeyCallKeyCb(ih, code);
   if (result == IUP_CLOSE)
   {
@@ -383,7 +373,20 @@ void iupmotKeyPressEvent(Widget w, Ihandle *ih, XEvent *evt, Boolean *cont)
       }
     }
 
-    if (!iupKeyProcessNavigation(ih, code, ((XKeyEvent*)evt)->state & ShiftMask))
+    if ((((XKeyEvent*)evt)->state & Mod1Mask || ((XKeyEvent*)evt)->state & Mod5Mask))   /* Alt + mnemonic */
+    {
+      KeySym motcode = iupmotKeycodeToKeysym(((XKeyEvent*)evt)->keycode);
+      if (motcode < 128)
+      {
+        if (iupKeyProcessMnemonic(ih, motcode))
+        {
+          *cont = False;
+          return;
+        }
+      }
+    }
+
+    if (iupKeyProcessNavigation(ih, code, ((XKeyEvent*)evt)->state & ShiftMask))
     {
       *cont = False;
       return;

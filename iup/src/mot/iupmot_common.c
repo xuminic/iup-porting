@@ -37,31 +37,10 @@
 
 void iupdrvActivate(Ihandle* ih)
 {
-  if (IupClassMatch(ih, "text"))
-    XmProcessTraversal(ih->handle, XmTRAVERSE_CURRENT);
-  else
-    XtCallActionProc(ih->handle, "ArmAndActivate", 0, 0, 0 );
+  XtCallActionProc(ih->handle, "ArmAndActivate", 0, 0, 0 );
 }
 
-static int motActivateMnemonic(Ihandle *dialog, int c)
-{
-  Ihandle *ih;
-  char attrib[19] = "_IUPMOT_MNEMONIC_ ";
-  attrib[17] = (char)c;
-  ih = (Ihandle*)iupAttribGet(dialog, attrib);
-  if (iupObjectCheck(ih))
-  {
-    Widget w = (Widget)iupAttribGet(ih, attrib);
-    if (w)
-      XtCallActionProc(w, "ArmAndActivate", 0, 0, 0 );
-    else
-      iupdrvActivate(ih);
-    return IUP_IGNORE;
-  }
-  return IUP_CONTINUE;
-}
-
-void iupmotSetMnemonicTitle(Ihandle *ih, Widget w, const char* value)
+void iupmotSetMnemonicTitle(Ihandle *ih, Widget w, int pos, const char* value)
 {
   char c;
   char* str;
@@ -79,26 +58,7 @@ void iupmotSetMnemonicTitle(Ihandle *ih, Widget w, const char* value)
     XtVaSetValues(w, XmNmnemonic, keysym, NULL);   /* works only for menus, but underlines the letter */
 
     if (ih->iclass->nativetype != IUP_TYPEMENU)
-    {
-      Ihandle* dialog = IupGetDialog(ih);
-      char attrib[22] = "_IUPMOT_MNEMONIC_ \0CB";
-      attrib[17] = (char)toupper(c);
-
-      /* used by motActivateMnemonic */
-      if (IupClassMatch(ih, "label"))
-        iupAttribSetStr(dialog, attrib, (char*)iupFocusNextInteractive(ih));
-      else
-      {
-        iupAttribSetStr(dialog, attrib, (char*)ih);
-
-        if (ih->handle != w)
-          iupAttribSetStr(ih, attrib, (char*)w);
-      }
-
-      /* used by iupmotKeyPressEvent */
-      attrib[18] = '_';
-      IupSetCallback(dialog, attrib, (Icallback)motActivateMnemonic);
-    }
+      iupKeySetMnemonic(ih, c, pos);
 
     iupmotSetString(w, XmNlabelString, str);
     free(str);
@@ -198,6 +158,31 @@ void iupdrvReparent(Ihandle* ih)
   }
 }
 
+extern void XtMoveWidget(Widget, _XtPosition, _XtPosition);
+
+void iupmotSetPosition(Widget widget, int x, int y)
+{
+  /* avoid setting both at the same time,
+     so if one is invalid all will fail */
+  XtVaSetValues(widget,
+    XmNx, (XtArgVal)x,
+    NULL);
+  XtVaSetValues(widget,
+    XmNy, (XtArgVal)y,
+    NULL);
+
+  /* to position ouside parent area */
+  {
+    int new_x, new_y;
+    XtVaGetValues(widget,
+      XmNx, &new_x,
+      XmNy, &new_y,
+      NULL);
+    if (x!=new_x || y!=new_y)
+      XtMoveWidget(widget, x, y);
+  }
+}
+
 void iupdrvBaseLayoutUpdateMethod(Ihandle *ih)
 {
   Widget widget = (Widget)iupAttribGet(ih, "_IUP_EXTRAPARENT");
@@ -208,11 +193,11 @@ void iupdrvBaseLayoutUpdateMethod(Ihandle *ih)
   if (ih->currentheight == 0) ih->currentheight = 1;
 
   XtVaSetValues(widget,
-    XmNx, (XtArgVal)ih->x,
-    XmNy, (XtArgVal)ih->y,
     XmNwidth, (XtArgVal)ih->currentwidth,
     XmNheight, (XtArgVal)ih->currentheight,
     NULL);
+
+  iupmotSetPosition(widget, ih->x, ih->y);
 }
 
 void iupdrvBaseUnMapMethod(Ihandle* ih)
@@ -372,9 +357,11 @@ char* iupmotGetXWindowAttrib(Ihandle *ih)
 
 void iupmotSetBgColor(Widget w, Pixel color)
 {
-  Pixel fgcolor;
+  Pixel fgcolor = (Pixel)-1;
   XtVaGetValues(w, XmNforeground, &fgcolor, NULL);
+
   XmChangeColor(w, color);
+
   /* XmChangeColor also sets the XmNforeground color, so we must reset to the previous one. */
   XtVaSetValues(w, XmNforeground, fgcolor, NULL);
   XtVaSetValues(w, XmNbackgroundPixmap, XmUNSPECIFIED_PIXMAP, NULL);

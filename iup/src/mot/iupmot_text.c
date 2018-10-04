@@ -472,7 +472,7 @@ static int motTextSetScrollToAttrib(Ihandle* ih, const char* value)
 
   if (ih->data->is_multiline)
   {
-    int lin = 1, col = 1, pos;
+    int lin = 1, col = 1;
     char* str;
 
     iupStrToIntInt(value, &lin, &col, ',');
@@ -816,21 +816,23 @@ static void motTextModifyVerifyCallback(Widget w, Ihandle *ih, XmTextVerifyPtr t
     return;
   }
 
-  cb = (IFnis)IupGetCallback(ih, "ACTION");
-  if (!cb && !ih->data->mask)
-    return;
-
   if (text->event && text->event->type == KeyPress)
   {
     unsigned int state = ((XKeyEvent*)text->event)->state;
     if (state & ControlMask ||  /* Ctrl */
-        state & Mod1Mask || 
-        state & Mod5Mask ||  /* Alt */
+        state & Mod1Mask || state & Mod5Mask ||  /* Alt */
         state & Mod4Mask) /* Apple/Win */
+    {
+      text->doit = False;     /* abort processing */
       return;
+    }
 
-    motcode = XKeycodeToKeysym(iupmot_display, ((XKeyEvent*)text->event)->keycode, 0);
+    motcode = iupmotKeycodeToKeysym(((XKeyEvent*)text->event)->keycode);
   }
+
+  cb = (IFnis)IupGetCallback(ih, "ACTION");
+  if (!cb && !ih->data->mask)
+    return;
 
   value = XmTextGetString(ih->handle);
   start = text->startPos;
@@ -967,7 +969,7 @@ static void motTextKeyPressEvent(Widget w, Ihandle *ih, XKeyEvent *evt, Boolean 
 
   if (evt->state & ControlMask)   /* Ctrl */
   {
-    KeySym motcode = XKeycodeToKeysym(iupmot_display, evt->keycode, 0);
+    KeySym motcode = iupmotKeycodeToKeysym(evt->keycode);
     if (motcode == XK_c || motcode == XK_x || motcode == XK_v || motcode == XK_a)
     {
       ih->data->disable_callbacks = -1; /* let callbacks be processed in motTextSetClipboardAttrib */
@@ -991,7 +993,7 @@ static void motTextKeyPressEvent(Widget w, Ihandle *ih, XKeyEvent *evt, Boolean 
   spinbox = (Widget)iupAttribGet(ih, "_IUP_EXTRAPARENT");
   if (spinbox && XmIsSpinBox(spinbox))
   {
-    KeySym motcode = XKeycodeToKeysym(iupmot_display, evt->keycode, 0);
+    KeySym motcode = iupmotKeycodeToKeysym(evt->keycode);
     if (motcode == XK_Left || motcode == XK_Right)
     {
       /* avoid spin increment using Left/Right arrows, 
@@ -1019,21 +1021,21 @@ static void motTextLayoutUpdateMethod(Ihandle* ih)
   if (spinbox && XmIsSpinBox(spinbox))
   {
     /* avoid abort in X */
-    if (ih->currentwidth == 0) ih->currentwidth = 1;
+    if (ih->currentwidth == 0) ih->currentwidth = 2;
     if (ih->currentheight == 0) ih->currentheight = 1;
+
+    XtVaSetValues(spinbox,
+      XmNwidth, (XtArgVal)ih->currentwidth,
+      XmNheight, (XtArgVal)ih->currentheight,
+      XmNarrowSize, ih->currentheight/2,
+      NULL);
 
     XtVaSetValues(ih->handle,
       XmNwidth, (XtArgVal)ih->currentwidth-ih->currentheight/2,
       XmNheight, (XtArgVal)ih->currentheight,
       NULL);
 
-    XtVaSetValues(spinbox,
-      XmNx, (XtArgVal)ih->x,
-      XmNy, (XtArgVal)ih->y,
-      XmNwidth, (XtArgVal)ih->currentwidth,
-      XmNheight, (XtArgVal)ih->currentheight,
-      XmNarrowSize, ih->currentheight/2,
-      NULL);
+    iupmotSetPosition(spinbox, ih->x, ih->y);
   }
   else
   {

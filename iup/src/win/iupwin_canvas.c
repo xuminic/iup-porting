@@ -50,8 +50,8 @@ static int winCanvasSetBgColorAttrib(Ihandle *ih, const char *value)
   iupdrvPostRedraw(ih);
   return 1;
 }
-
-static int winCanvasSetDXAttrib(Ihandle *ih, const char *value)
+              
+static int winCanvasSetDXAttrib(Ihandle* ih, const char *value)
 {
   if (ih->data->sb & IUP_SB_HORIZ)
   {
@@ -75,6 +75,9 @@ static int winCanvasSetDXAttrib(Ihandle *ih, const char *value)
         ShowScrollBar(ih->handle, SB_HORZ, FALSE);
       else
         EnableScrollBar(ih->handle, SB_HORZ, ESB_DISABLE_BOTH);
+
+      ih->data->posx = (float)xmin;
+      SetScrollPos(ih->handle, SB_HORZ, IUP_SB_MIN, TRUE);
       return 1;
     }
     else
@@ -116,12 +119,12 @@ static int winCanvasSetPosXAttrib(Ihandle *ih, const char *value)
     iupCanvasCalcScrollIntPos(xmin, xmax, dx, posx, 
                               IUP_SB_MIN, IUP_SB_MAX, &ipagex, &iposx);
 
-    SetScrollPos(ih->handle,SB_HORZ,iposx,TRUE);
+    SetScrollPos(ih->handle, SB_HORZ, iposx, TRUE);
   }
   return 1;
 }
 
-static int winCanvasSetDYAttrib(Ihandle *ih, const char *value)
+static int winCanvasSetDYAttrib(Ihandle* ih, const char *value)
 {
   if (ih->data->sb & IUP_SB_VERT)
   {
@@ -145,6 +148,9 @@ static int winCanvasSetDYAttrib(Ihandle *ih, const char *value)
         ShowScrollBar(ih->handle, SB_VERT, FALSE);
       else
         EnableScrollBar(ih->handle, SB_VERT, ESB_DISABLE_BOTH);
+
+      ih->data->posy = (float)ymin;
+      SetScrollPos(ih->handle, SB_VERT, IUP_SB_MIN, TRUE);
       return 1;
     }
     else
@@ -186,7 +192,7 @@ static int winCanvasSetPosYAttrib(Ihandle *ih, const char *value)
     iupCanvasCalcScrollIntPos(ymin, ymax, dy, posy, 
                               IUP_SB_MIN, IUP_SB_MAX, &ipagey, &iposy);
 
-    SetScrollPos(ih->handle,SB_VERT,iposy,TRUE);
+    SetScrollPos(ih->handle, SB_VERT, iposy, TRUE);
   }
   return 1;
 }
@@ -269,7 +275,7 @@ static void winCanvasUpdateHorScroll(Ihandle* ih, WORD winop)
   iupCanvasCalcScrollRealPos(xmin, xmax, &posx, 
                              IUP_SB_MIN, IUP_SB_MAX, ipagex, &iposx);
 
-  SetScrollPos(ih->handle,SB_HORZ,iposx,TRUE);
+  SetScrollPos(ih->handle, SB_HORZ, iposx, TRUE);
   ih->data->posx = (float)posx;
 
   cb = (IFniff)IupGetCallback(ih,"SCROLL_CB");
@@ -345,7 +351,7 @@ static void winCanvasUpdateVerScroll(Ihandle* ih, WORD winop)
   iupCanvasCalcScrollRealPos(ymin, ymax, &posy, 
                              IUP_SB_MIN, IUP_SB_MAX, ipagey, &iposy);
 
-  SetScrollPos(ih->handle,SB_VERT,iposy,TRUE);
+  SetScrollPos(ih->handle, SB_VERT, iposy, TRUE);
   ih->data->posy = (float)posy;
 
   cb = (IFniff)IupGetCallback(ih,"SCROLL_CB");
@@ -393,7 +399,7 @@ static int winCanvasProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *r
   case WM_PAINT:
     {
       IFnff cb = (IFnff)IupGetCallback(ih, "ACTION");
-      if (cb)
+      if (cb && !(ih->data->inside_resize))
       {
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(ih->handle, &ps);
@@ -411,13 +417,19 @@ static int winCanvasProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *r
   case WM_SIZE:
     {
       IFnii cb = (IFnii)IupGetCallback(ih, "RESIZE_CB");
-      if (cb)
+      if (cb && !(ih->data->inside_resize))
       {
-        RECT rect;
-        GetClientRect(ih->handle, &rect);
-        cb(ih, rect.right-rect.left, rect.bottom-rect.top);
         /* w=LOWORD (lp), h=HIWORD(lp) can not be used because an invalid size 
            at the first time of WM_SIZE with scroolbars. */
+        int w, h;
+        RECT rect;
+        GetClientRect(ih->handle, &rect);
+        w = rect.right-rect.left;
+        h = rect.bottom-rect.top;
+
+        ih->data->inside_resize = 1;  /* avoid recursion */
+        cb(ih, w, h);
+        ih->data->inside_resize = 0;
       }
 
       if (!iupAttribGetBoolean(ih, "MDICLIENT"))
@@ -755,8 +767,8 @@ void iupdrvCanvasInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "DY", NULL, winCanvasSetDYAttrib, "0.1", NULL, IUPAF_NO_INHERIT);  /* force new default value */
   iupClassRegisterAttribute(ic, "POSX", iupCanvasGetPosXAttrib, winCanvasSetPosXAttrib, "0", NULL, IUPAF_NO_INHERIT);  /* force new default value */
   iupClassRegisterAttribute(ic, "POSY", iupCanvasGetPosYAttrib, winCanvasSetPosYAttrib, "0", NULL, IUPAF_NO_INHERIT);  /* force new default value */
-  iupClassRegisterAttribute(ic, "XAUTOHIDE", NULL, NULL, "YES", NULL, IUPAF_NOT_MAPPED);
-  iupClassRegisterAttribute(ic, "YAUTOHIDE", NULL, NULL, "YES", NULL, IUPAF_NOT_MAPPED);
+  iupClassRegisterAttribute(ic, "XAUTOHIDE", NULL, NULL, "YES", NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "YAUTOHIDE", NULL, NULL, "YES", NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 
   /* IupCanvas Windows only */
   iupClassRegisterAttribute(ic, "HWND", iupBaseGetWidAttrib, NULL, NULL, NULL, IUPAF_NO_STRING|IUPAF_NO_INHERIT);

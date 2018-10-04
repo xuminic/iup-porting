@@ -78,11 +78,7 @@ void iupdrvDialogGetPosition(Ihandle *ih, InativeHandle* handle, int *x, int *y)
   if (!handle)
     handle = ih->handle;
 
-#if GTK_CHECK_VERSION(2, 18, 0)
-  if (gtk_widget_get_visible(handle))
-#else
-  if (GTK_WIDGET_VISIBLE(handle))
-#endif
+  if (iupgtkIsVisible(handle))
   {
     gint gx, gy;
     gtk_window_get_position((GtkWindow*)handle, &gx, &gy);
@@ -303,7 +299,8 @@ static gboolean gtkDialogConfigureEvent(GtkWidget *widget, GdkEventConfigure *ev
     gtk_widget_set_size_request(ih->data->menu->handle, evt->width, -1);
 #endif
 
-  if (ih->data->ignore_resize) return FALSE; 
+  if (ih->data->ignore_resize) 
+    return FALSE; 
 
   old_width = iupAttribGetInt(ih, "_IUPGTK_OLD_WIDTH");
   old_height = iupAttribGetInt(ih, "_IUPGTK_OLD_HEIGHT");
@@ -445,7 +442,7 @@ static int gtkDialogMapMethod(Ihandle* ih)
   int decorations = 0;
   int functions = 0;
   InativeHandle* parent;
-  GtkWidget* fixed;
+  GtkWidget* inner_parent;
   int has_titlebar = 0;
 
 #ifdef HILDON
@@ -496,9 +493,9 @@ static int gtkDialogMapMethod(Ihandle* ih)
     gtk_window_set_type_hint(GTK_WINDOW(ih->handle), GDK_WINDOW_TYPE_HINT_DIALOG);
 
   /* the container that will receive the child element. */
-  fixed = gtk_fixed_new();
-  gtk_container_add((GtkContainer*)ih->handle, fixed);
-  gtk_widget_show(fixed);
+  inner_parent = iupgtkNativeContainerNew();
+  gtk_container_add((GtkContainer*)ih->handle, inner_parent);
+  gtk_widget_show(inner_parent);
 
   /* initialize the widget */
   gtk_widget_realize(ih->handle);
@@ -557,18 +554,6 @@ static int gtkDialogMapMethod(Ihandle* ih)
   if (IupGetCallback(ih, "DROPFILES_CB"))
     iupAttribSetStr(ih, "DROPFILESTARGET", "YES");
 
-  {
-    /* Reset the DLGBGCOLOR global attribute 
-       if it is the first time a dialog is created. 
-       The value returned by gtk_style_new is not accurate. */
-    GtkStyle* style = gtk_widget_get_style(ih->handle);
-    if (style && IupGetGlobal("_IUP_RESET_GLOBALCOLORS"))
-    {
-      iupgtkUpdateGlobalColors(style);
-      IupSetGlobal("_IUP_RESET_GLOBALCOLORS", NULL);
-    }
-  }
-
   /* configure the size range */
   gtkDialogSetMinMax(ih, 1, 1, 65535, 65535);  /* MINSIZE and MAXSIZE default values */
 
@@ -583,7 +568,7 @@ static int gtkDialogMapMethod(Ihandle* ih)
 
 static void gtkDialogUnMapMethod(Ihandle* ih)
 {
-  GtkWidget* fixed;
+  GtkWidget* inner_parent;
 #if GTK_CHECK_VERSION(2, 10, 0)
   GtkStatusIcon* status_icon;
 #endif
@@ -600,9 +585,9 @@ static void gtkDialogUnMapMethod(Ihandle* ih)
     g_object_unref(status_icon);
 #endif
 
-  fixed = gtk_bin_get_child((GtkBin*)ih->handle);
-  gtk_widget_unrealize(fixed);
-  gtk_widget_destroy(fixed);  
+  inner_parent = gtk_bin_get_child((GtkBin*)ih->handle);
+  gtk_widget_unrealize(inner_parent);
+  gtk_widget_destroy(inner_parent);  
 
   gtk_widget_unrealize(ih->handle); /* To match the call to gtk_widget_realize */
   gtk_widget_destroy(ih->handle);   /* To match the call to gtk_window_new     */
@@ -847,6 +832,11 @@ static int gtkDialogSetBackgroundAttrib(Ihandle* ih, const char* value)
 {
   if (iupdrvBaseSetBgColorAttrib(ih, value))
   {
+#if GTK_CHECK_VERSION(3, 0, 0)
+    GdkWindow* window = iupgtkGetWindow(ih->handle);
+    if (window)
+      gdk_window_set_background_pattern(window, NULL);
+#else
     GtkStyle *style = gtk_widget_get_style(ih->handle);
     if (style->bg_pixmap[GTK_STATE_NORMAL])
     {
@@ -854,6 +844,7 @@ static int gtkDialogSetBackgroundAttrib(Ihandle* ih, const char* value)
       style->bg_pixmap[GTK_STATE_NORMAL] = NULL;
       gtk_widget_set_style(ih->handle, style);
     }
+#endif
     return 1;
   }
   else
@@ -861,14 +852,39 @@ static int gtkDialogSetBackgroundAttrib(Ihandle* ih, const char* value)
     GdkPixbuf* pixbuf = iupImageGetImage(value, ih, 0);
     if (pixbuf)
     {
+#if GTK_CHECK_VERSION(3, 0, 0)
+    GdkWindow* window = iupgtkGetWindow(ih->handle);
+    if (window)
+    {
+      /* TODO: this is NOT working!!!! */
+      cairo_pattern_t* pattern;
+      cairo_surface_t* surface;
+      cairo_t* cr;
+
+      int width = gdk_pixbuf_get_width(pixbuf);
+      int height = gdk_pixbuf_get_height(pixbuf);
+
+      surface = gdk_window_create_similar_surface(window, CAIRO_CONTENT_COLOR_ALPHA, width, height);
+      cr = cairo_create(surface);
+      gdk_cairo_set_source_pixbuf (cr, pixbuf, 0, 0);
+      cairo_paint (cr);
+      cairo_destroy (cr);
+
+      pattern = cairo_pattern_create_for_surface(surface);
+      gdk_window_set_background_pattern(window, pattern);
+      cairo_pattern_destroy (pattern);
+
+      cairo_surface_destroy(surface);
+    }
+#else
       GdkPixmap* pixmap;
-      GtkStyle *style;
+      GtkStyle *style = gtk_style_copy(gtk_widget_get_style(ih->handle));
 
       gdk_pixbuf_render_pixmap_and_mask(pixbuf, &pixmap, NULL, 255);
 
-      style = gtk_style_copy(gtk_widget_get_style(ih->handle));
       style->bg_pixmap[GTK_STATE_NORMAL] = pixmap;
       gtk_widget_set_style(ih->handle, style);
+#endif
 
       return 1;
     }

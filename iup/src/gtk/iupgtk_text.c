@@ -36,7 +36,11 @@
 
 void iupdrvTextAddSpin(int *w, int h)
 {
+#if GTK_CHECK_VERSION(3, 0, 0)
+  int spin_size = 2*22;
+#else
   int spin_size = 16;
+#endif
   *w += spin_size;
   (void)h;
 }
@@ -1017,8 +1021,8 @@ static int gtkTextSetPaddingAttrib(Ihandle* ih, const char* value)
     {
 #if GTK_CHECK_VERSION(2, 10, 0)
       GtkBorder border;
-      border.bottom = border.top = ih->data->vert_padding;
-      border.left = border.right = ih->data->horiz_padding;
+      border.bottom = border.top = (gint16)ih->data->vert_padding;
+      border.left = border.right = (gint16)ih->data->horiz_padding;
       gtk_entry_set_inner_border(GTK_ENTRY(ih->handle), &border);
 #endif
     }
@@ -1137,14 +1141,14 @@ static int gtkTextSetBgColorAttrib(Ihandle* ih, const char* value)
     {
       GtkWidget* sb;
 
-      iupgtkBaseSetBgColor((GtkWidget*)scrolled_window, r, g, b);
+      iupgtkSetBgColor((GtkWidget*)scrolled_window, r, g, b);
 
 #if GTK_CHECK_VERSION(2, 8, 0)
       sb = gtk_scrolled_window_get_hscrollbar(scrolled_window);
-      if (sb) iupgtkBaseSetBgColor(sb, r, g, b);
+      if (sb) iupgtkSetBgColor(sb, r, g, b);
 
       sb = gtk_scrolled_window_get_vscrollbar(scrolled_window);
-      if (sb) iupgtkBaseSetBgColor(sb, r, g, b);
+      if (sb) iupgtkSetBgColor(sb, r, g, b);
 #endif
     }
   }
@@ -1695,6 +1699,7 @@ static int gtkTextMapMethod(Ihandle* ih)
     ih->data->has_formatting = 0;
 
     gtk_entry_set_has_frame((GtkEntry*)ih->handle, IupGetInt(ih, "BORDER"));
+    gtk_entry_set_width_chars((GtkEntry*)ih->handle, 1);  /* minimum size */
 
     if (iupAttribGetBoolean(ih, "PASSWORD"))
       gtk_entry_set_visibility((GtkEntry*)ih->handle, FALSE);
@@ -1718,7 +1723,7 @@ static int gtkTextMapMethod(Ihandle* ih)
   }
 
   /* add to the parent, all GTK controls must call this. */
-  iupgtkBaseAddToParent(ih);
+  iupgtkAddToParent(ih);
 
   if (!iupAttribGetBoolean(ih, "CANFOCUS"))
     iupgtkSetCanFocus(ih->handle, 0);

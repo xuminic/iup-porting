@@ -62,12 +62,12 @@ static int gtkFrameSetBgColorAttrib(Ihandle* ih, const char* value)
     return 0;
 
   if (label)
-    iupgtkBaseSetBgColor(label, r, g, b);
+    iupgtkSetBgColor(label, r, g, b);
 
   if (iupAttribGet(ih, "_IUPFRAME_HAS_BGCOLOR"))
   {
-    GtkWidget* fixed = gtk_bin_get_child((GtkBin*)ih->handle);
-    iupgtkBaseSetBgColor(fixed, r, g, b);
+    GtkWidget* inner_parent = gtk_bin_get_child((GtkBin*)ih->handle);
+    iupgtkSetBgColor(inner_parent, r, g, b);
   }
 
   return 1;
@@ -82,7 +82,7 @@ static int gtkFrameSetFgColorAttrib(Ihandle* ih, const char* value)
   if (!iupStrToRGB(value, &r, &g, &b))
     return 0;
 
-  iupgtkBaseSetFgColor(label, r, g, b);
+  iupgtkSetFgColor(label, r, g, b);
 
   return 1;
 }
@@ -96,7 +96,12 @@ static int gtkFrameSetStandardFontAttrib(Ihandle* ih, const char* value)
     GtkWidget* label = gtk_frame_get_label_widget((GtkFrame*)ih->handle);
     if (!label) return 1;
 
-    gtk_widget_modify_font(label, (PangoFontDescription*)iupgtkGetPangoFontDescAttrib(ih));
+#if GTK_CHECK_VERSION(3, 0, 0)
+    gtk_widget_override_font((GtkWidget*)label, (PangoFontDescription*)iupgtkGetPangoFontDescAttrib(ih));
+#else
+    gtk_widget_modify_font((GtkWidget*)label, (PangoFontDescription*)iupgtkGetPangoFontDescAttrib(ih));
+#endif
+
     iupgtkFontUpdatePangoLayout(ih, gtk_label_get_layout((GtkLabel*)label));
   }
   return 1;
@@ -111,7 +116,7 @@ static void* gtkFrameGetInnerNativeContainerHandleMethod(Ihandle* ih, Ihandle* c
 static int gtkFrameMapMethod(Ihandle* ih)
 {
   char *value, *title;
-  GtkWidget *fixed;
+  GtkWidget *inner_parent;
 
   if (!ih->parent)
     return IUP_ERROR;
@@ -137,18 +142,14 @@ static int gtkFrameMapMethod(Ihandle* ih)
   }
 
   /* the container that will receive the child element. */
-  fixed = gtk_fixed_new();
+  inner_parent = iupgtkNativeContainerNew();
   if (iupAttribGet(ih, "_IUPFRAME_HAS_BGCOLOR"))
-#if GTK_CHECK_VERSION(2, 18, 0)
-    gtk_widget_set_has_window(fixed, TRUE);
-#else
-    gtk_fixed_set_has_window((GtkFixed*)fixed, TRUE);
-#endif
-  gtk_container_add((GtkContainer*)ih->handle, fixed);
-  gtk_widget_show(fixed);
+    iupgtkNativeContainerSetHasWindow(inner_parent, TRUE);
+  gtk_container_add((GtkContainer*)ih->handle, inner_parent);
+  gtk_widget_show(inner_parent);
 
   /* Add to the parent, all GTK controls must call this. */
-  iupgtkBaseAddToParent(ih);
+  iupgtkAddToParent(ih);
 
   gtk_widget_realize(ih->handle);
 
