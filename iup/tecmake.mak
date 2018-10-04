@@ -6,8 +6,7 @@
 
 #---------------------------------#
 # Tecmake Version
-VERSION = 4.0
-
+VERSION = 4.1
 
 #---------------------------------#
 # First target 
@@ -41,6 +40,9 @@ ifndef TEC_UNAME
     TEC_SYSARCH:=ppc
   endif
   ifeq ($(TEC_SYSNAME), Darwin)
+    TEC_SYSNAME:=MacOS
+    TEC_SYSVERSION:=$(shell sw_vers -productVersion|cut -f1 -d.)
+    TEC_SYSMINOR:=$(shell sw_vers -productVersion|cut -f2 -d.)
     TEC_SYSARCH:=$(shell uname -p)
   endif
 
@@ -102,13 +104,16 @@ ifndef TEC_UNAME
     endif
   endif
 
-  # Darwin and Intel
-  ifeq ($(TEC_SYSNAME), Darwin)
-  ifeq ($(TEC_SYSARCH), x86)
-      TEC_UNAME:=$(TEC_UNAME)x86
+  # MacOS and Intel
+  ifeq ($(TEC_SYSNAME), MacOS)
+    ifeq ($(TEC_SYSMINOR), 6)
+      TEC_SYSARCH:=x64
+    else
+      ifeq ($(TEC_SYSARCH), x86)
+        TEC_UNAME:=$(TEC_UNAME)x86
+      endif
     endif
   endif
-
 endif
 
 
@@ -116,7 +121,7 @@ endif
 # System Info
 .PHONY: sysinfo
 sysinfo:
-	@echo ''; echo 'Tecmake - System Info'
+	@echo ''; echo 'Tecmake: System Info'
 	@echo 'TEC_SYSNAME = $(TEC_SYSNAME)'
 	@echo 'TEC_SYSVERSION = $(TEC_SYSVERSION)'
 	@echo 'TEC_SYSMINOR = $(TEC_SYSMINOR)'
@@ -189,7 +194,7 @@ endif
 ifneq ($(findstring Linux, $(TEC_UNAME)), )
   GTK_DEFAULT = Yes
 endif  
-ifneq ($(findstring Darwin, $(TEC_UNAME)), )
+ifneq ($(findstring MacOS, $(TEC_UNAME)), )
   GTK_DEFAULT = Yes
 endif  
 ifneq ($(findstring FreeBSD, $(TEC_UNAME)), )
@@ -254,9 +259,6 @@ DEPEND := $(TARGETNAME).dep
 ifdef DEPENDDIR
   DEPEND := $(DEPENDDIR)/$(TARGETNAME).dep.$(TEC_UNAME)
 endif
-
-SRCLUADIR ?= $(SRCDIR)
-LOHDIR ?= $(SRCLUADIR)
 
 ifeq ($(MAKETYPE), APP)
   TARGETROOT ?= $(PROJDIR)/bin
@@ -335,23 +337,48 @@ ifndef LINKER
   endif
 endif
 
+ifdef NO_ECHO
+  ECHO:=@
+endif
 
 #---------------------------------#
 # LO and LOH Suffix
 
-ifeq ($(TEC_BYTEORDER), TEC_BIGENDIAN)
-  ifeq ($(TEC_WORDSIZE), TEC_64)
-    LO_SUFFIX ?= _be64
+SRCLUADIR ?= $(SRCDIR)
+LOHDIR ?= $(SRCLUADIR)
+
+ifdef USE_LOH_SUBDIR
+  ifeq ($(TEC_BYTEORDER), TEC_BIGENDIAN)
+    ifeq ($(TEC_WORDSIZE), TEC_64)
+      LOH_SUBDIR ?= be64
+    else
+      LOH_SUBDIR ?= be32
+    endif
   else
-    LO_SUFFIX ?= _be32
+    ifeq ($(TEC_WORDSIZE), TEC_64)
+      LOH_SUBDIR ?= le64
+    else
+      LOH_SUBDIR ?= le32
+    endif
   endif
+  LOHDIR := $(LOHDIR)/$(LOH_SUBDIR)
+  INCLUDES += $(LOHDIR)
 else
-  ifeq ($(TEC_WORDSIZE), TEC_64)
-    LO_SUFFIX ?= _le64
+  ifeq ($(TEC_BYTEORDER), TEC_BIGENDIAN)
+    ifeq ($(TEC_WORDSIZE), TEC_64)
+      LO_SUFFIX ?= _be64
+    else
+      LO_SUFFIX ?= _be32
+    endif
   else
-    LO_SUFFIX ?=
+    ifeq ($(TEC_WORDSIZE), TEC_64)
+      LO_SUFFIX ?= _le64
+    else
+      LO_SUFFIX ?=
+    endif
   endif
 endif
+
 
 
 #---------------------------------#
@@ -376,8 +403,22 @@ MOTIFGL_LIB := GLw              #include <GL/GLwMDrawA.h>
 #GLUT_LIB := 
 #GLUT_INC := 
 
+# Definitions for GTK
+ifdef GTK_BASE
+  GTK := $(GTK_BASE)
+else
+  ifneq ($(findstring MacOS, $(TEC_UNAME)), )
+  # Option 1 - Fink GTK port
+    GTK = /sw
+  # Option 3 - GTK-OSX Framework
+  #   GTK := /Users/cpts/gtk/inst
+  else
+    GTK = /usr
+  endif
+endif
 
 ifneq ($(findstring Linux, $(TEC_UNAME)), )
+  UNIX_LINUX = Yes
   ifdef BUILD_64
     ifeq ($(TEC_SYSARCH), ia64)
       STDFLAGS += -fPIC
@@ -394,6 +435,7 @@ ifneq ($(findstring Linux, $(TEC_UNAME)), )
 endif
 
 ifneq ($(findstring IRIX, $(TEC_UNAME)), )
+  UNIX_POSIX = Yes
   LD = ld
   STDLDFLAGS := -elf -shared -rdata_shared -soname lib$(TARGETNAME).so
   RANLIB := /bin/true
@@ -414,6 +456,7 @@ ifneq ($(findstring IRIX, $(TEC_UNAME)), )
 endif
 
 ifneq ($(findstring AIX, $(TEC_UNAME)), ) 
+  UNIX_POSIX = Yes
   NO_DYNAMIC ?= Yes
   ifdef BUILD_64
     ifdef USE_CC  
@@ -426,6 +469,7 @@ ifneq ($(findstring AIX, $(TEC_UNAME)), )
 endif
 
 ifneq ($(findstring HP-UX, $(TEC_UNAME)), )
+  UNIX_POSIX = Yes
   NO_DYNAMIC ?= Yes
   MOTIF_INC := /usr/include/Motif2.1
   X11_LIBS := Xt Xext X11
@@ -438,6 +482,7 @@ ifneq ($(findstring HP-UX, $(TEC_UNAME)), )
 endif
 
 ifneq ($(findstring SunOS, $(TEC_UNAME)), )
+  UNIX_POSIX = Yes
   LD = ld
   STDLDFLAGS := -G
   X11_INC := /usr/openwin/share/include
@@ -457,7 +502,8 @@ ifneq ($(findstring SunOS, $(TEC_UNAME)), )
   endif
 endif
 
-ifneq ($(findstring Darwin, $(TEC_UNAME)), )
+ifneq ($(findstring MacOS, $(TEC_UNAME)), )
+  UNIX_BSD = Yes
   X11_LIBS := Xmu Xp Xt Xext X11
   X11_LIB := /usr/X11R6/lib
   X11_INC := /usr/X11R6/include
@@ -470,13 +516,20 @@ ifneq ($(findstring Darwin, $(TEC_UNAME)), )
   else
     STDLDFLAGS := -bundle -undefined dynamic_lookup
   endif
+  ifdef USE_OPENGL
+    ifeq ($(TEC_SYSMINOR), 5)
+      #Darwin9 Only - OpenGL bug fix for Fink, when the message bellow appears
+      #   ld: cycle in dylib re-exports with /usr/X11R6/lib/libGL.dylib
+      LFLAGS += -dylib_file /System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libGL.dylib:/System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libGL.dylib
+    endif
+  endif
 endif
 
 ifneq ($(findstring FreeBSD, $(TEC_UNAME)), )
+  BSD = Yes
   X11_LIB := /usr/X11R6/lib
   X11_INC := /usr/X11R6/include
 endif
-
 
 #---------------------------------#
 # Allows an extra configuration file.
@@ -551,7 +604,7 @@ ifdef USE_IUP3
   override USE_IUP = Yes
 # Inside Tecgraf only  
   ifndef IUP3_BUILD
-#  IUP := $(IUP)3
+#    IUP := $(IUP)3
   endif
 endif 
 
@@ -605,18 +658,8 @@ endif
 ifdef USE_CDLUA
   override USE_CD = Yes
   ifdef USE_STATIC
-    ifdef USE_IUP
-      ifdef USE_OLDNAMES
-        SLIB += $(CD)/lib/$(TEC_UNAME_LIB_DIR)/libcdluaiup$(LIBLUASUFX).a
-      endif
-    endif
     SLIB += $(CD)/lib/$(TEC_UNAME_LIB_DIR)/libcdlua$(LIBLUASUFX).a
   else
-    ifdef USE_IUP
-      ifdef USE_OLDNAMES
-        LIBS += cdluaiup$(LIBLUASUFX)
-      endif
-    endif
     LIBS += cdlua$(LIBLUASUFX)
   endif
 endif
@@ -625,9 +668,7 @@ ifdef USE_IUPLUA
   override USE_IUP = Yes
   ifdef USE_STATIC
     ifdef USE_CD
-      ifndef USE_OLDNAMES
-        SLIB += $(IUP)/lib/$(TEC_UNAME_LIB_DIR)/libiupluacd$(LIBLUASUFX).a
-      endif
+      SLIB += $(IUP)/lib/$(TEC_UNAME_LIB_DIR)/libiupluacd$(LIBLUASUFX).a
     endif
     ifdef USE_OPENGL
       SLIB += $(IUP)/lib/$(TEC_UNAME_LIB_DIR)/libiupluagl$(LIBLUASUFX).a
@@ -635,9 +676,7 @@ ifdef USE_IUPLUA
     SLIB += $(IUP)/lib/$(TEC_UNAME_LIB_DIR)/libiuplua$(LIBLUASUFX).a
   else
     ifdef USE_CD
-      ifndef USE_OLDNAMES
-        LIBS += iupluacd$(LIBLUASUFX)
-      endif
+      LIBS += iupluacd$(LIBLUASUFX)
     endif
     ifdef USE_OPENGL
       LIBS += iupluagl$(LIBLUASUFX)
@@ -685,6 +724,7 @@ ifdef USE_IUP
         IUPSUFX := mot
       else
         override USE_GTK = Yes
+        override USE_GDK = Yes
       endif
     else
       ifdef USE_GTK
@@ -698,9 +738,7 @@ ifdef USE_IUP
   endif
   ifdef USE_STATIC
     ifdef USE_CD
-      ifndef USE_OLDNAMES
-        SLIB += $(IUP)/lib/$(TEC_UNAME_LIB_DIR)/libiupcd.a
-      endif
+      SLIB += $(IUP)/lib/$(TEC_UNAME_LIB_DIR)/libiupcd.a
     endif
     ifdef USE_OPENGL
       SLIB += $(IUP)/lib/$(TEC_UNAME_LIB_DIR)/libiupgl.a
@@ -708,9 +746,7 @@ ifdef USE_IUP
     SLIB += $(IUP)/lib/$(TEC_UNAME_LIB_DIR)/libiup$(IUPSUFX).a
   else
     ifdef USE_CD
-      ifndef USE_OLDNAMES
-        LIBS += iupcd
-      endif
+      LIBS += iupcd
     endif
     ifdef USE_OPENGL
       LIBS += iupgl
@@ -722,63 +758,53 @@ ifdef USE_IUP
 endif
 
 ifdef USE_CD
+  CDSUFX := 
   override USE_X11 = Yes
+  ifndef USE_CD_OLD  
+    ifdef GTK_DEFAULT
+      ifdef USE_MOTIF
+        CDSUFX := x11
+      endif
+    else
+      ifdef USE_GTK
+        CDSUFX := gdk
+      endif
+    endif
+  endif
   ifdef USE_STATIC
-    ifdef USE_IUP
-      ifdef USE_OLDNAMES
-        SLIB += $(CD)/lib/$(TEC_UNAME_LIB_DIR)/libcdiup.a
-      endif
-    endif
     ifdef USE_XRENDER
-      ifdef USE_OLDNAMES
-        SLIB += $(CD)/lib/$(TEC_UNAME_LIB_DIR)/libcdxrender.a
-      else
-        SLIB += $(CD)/lib/$(TEC_UNAME_LIB_DIR)/libcdcontextplus.a
-      endif
-    endif
-    ifdef USE_GDK
-      SLIB += $(CD)/lib/$(TEC_UNAME_LIB_DIR)/libcdgdk.a
-    else
-      SLIB += $(CD)/lib/$(TEC_UNAME_LIB_DIR)/libcd.a
-    endif
-    ifdef USE_XRENDER
+      CHECK_XRENDER = Yes
+      SLIB += $(CD)/lib/$(TEC_UNAME_LIB_DIR)/libcdcontextplus.a
       LIBS += Xrender Xft
-    else
-      ifndef USE_GTK
-        ifndef USE_OLDNAMES
-          # Freetype is included in GTK
-          SLIB += $(CD)/lib/$(TEC_UNAME_LIB_DIR)/libfreetype.a
-        endif 
-      endif
+    endif
+    ifdef USE_CAIRO
+      # To use Cairo with X11 base driver (NOT for GDK)
+      # Can NOT be used together with XRender
+      SLIB += $(CD)/lib/$(TEC_UNAME_LIB_DIR)/libcdcairo.a
+      LIBS += pangocairo-1.0 cairo
+    endif
+    SLIB += $(CD)/lib/$(TEC_UNAME_LIB_DIR)/libcd$(CDSUFX).a
+    ifndef USE_GTK
+      # Freetype is already included in GTK
+      SLIB += $(CD)/lib/$(TEC_UNAME_LIB_DIR)/libfreetype.a
     endif
   else
-    ifdef USE_IUP
-      ifdef USE_OLDNAMES
-        LIBS += cdiup
-      endif
-    endif
     ifdef USE_XRENDER
-      ifdef USE_OLDNAMES
-        LIBS += cdxrender
-      else
-        LIBS += cdcontextplus
-      endif
-    endif
-    ifdef USE_GDK
-      LIBS += cdgdk
-    else
-      LIBS += cd
-    endif
-    LDIR += $(CD)/lib/$(TEC_UNAME_LIB_DIR)
-    ifdef USE_XRENDER
+      CHECK_XRENDER = Yes
+      LIBS += cdcontextplus
       LIBS += Xrender Xft
-    else
-      ifndef USE_GTK
-        ifndef USE_OLDNAMES
-          # Freetype is included in GTK
-          LIBS += freetype
-        endif
-      endif
+    endif
+    ifdef USE_CAIRO
+      # To use Cairo with X11 base driver (NOT for GDK)
+      # Can NOT be used together with XRender
+      LIBS += cdcairo
+      LIBS += pangocairo-1.0 cairo
+    endif
+    LIBS += cd$(CDSUFX)
+    LDIR += $(CD)/lib/$(TEC_UNAME_LIB_DIR)
+    ifndef USE_GTK
+      # Freetype is already included in GTK
+      LIBS += freetype
     endif
   endif
   INCLUDES += $(CD)/include
@@ -826,10 +852,10 @@ ifdef USE_MOTIF
 endif
 
 ifdef USE_GTK
-  ifneq ($(findstring Darwin, $(TEC_UNAME)), )
+  CHECK_GTK = Yes
+  ifneq ($(findstring MacOS, $(TEC_UNAME)), )
 # Option 1 - Fink GTK port
-    GTK_BASE ?= /sw
-    LDIR += $(GTK_BASE)/lib
+    LDIR += $(GTK)/lib
     override USE_X11 = Yes
     LIBS += gtk-x11-2.0 gdk-x11-2.0 pangox-1.0
 # Option 2 - Imendio Framework
@@ -838,8 +864,7 @@ ifdef USE_GTK
 #   STDINCS += /Library/Frameworks/Cairo.framework/Headers
 #   LFLAGS += -framework Gtk
 # Option 3 - GTK-OSX Framework
-#   GTK_BASE := /Users/cpts/gtk/inst
-#   LDIR += $(GTK_BASE)/lib
+#   LDIR += $(GTK)/lib
 #   LFLAGS += -framework Carbon
 #   LIBS += gtk-quartz-2.0 gdk-quartz-2.0 pangoft2-1.0
 
@@ -848,23 +873,24 @@ ifdef USE_GTK
     # if not the default, then include it for linker
     # must be before the default
     ifdef GTK_BASE
-      LDIR += $(GTK_BASE)/lib
+      LDIR += $(GTK)/lib
     endif
-    GTK_BASE ?= /usr
     override USE_X11 = Yes
     LIBS += gtk-x11-2.0 gdk-x11-2.0 pangox-1.0
   endif
   
   LIBS += gdk_pixbuf-2.0 pango-1.0 gobject-2.0 gmodule-2.0 glib-2.0
-  STDINCS += $(GTK_BASE)/include/atk-1.0 $(GTK_BASE)/include/gtk-2.0 $(GTK_BASE)/include/cairo $(GTK_BASE)/include/pango-1.0 $(GTK_BASE)/include/glib-2.0
+  STDINCS += $(GTK)/include/atk-1.0 $(GTK)/include/gtk-2.0 $(GTK)/include/cairo $(GTK)/include/pango-1.0 $(GTK)/include/glib-2.0
   
   ifeq ($(TEC_SYSARCH), x64)
-    STDINCS += $(GTK_BASE)/lib64/glib-2.0/include $(GTK_BASE)/lib64/gtk-2.0/include
+    STDINCS += $(GTK)/lib64/glib-2.0/include $(GTK)/lib64/gtk-2.0/include
+    # Add also these to avoid errors in systems that lib64 does not exists
+    STDINCS += $(GTK)/lib/glib-2.0/include $(GTK)/lib/gtk-2.0/include
   else
   ifeq ($(TEC_SYSARCH), ia64)
-    STDINCS += $(GTK_BASE)/lib64/glib-2.0/include $(GTK_BASE)/lib64/gtk-2.0/include
+    STDINCS += $(GTK)/lib64/glib-2.0/include $(GTK)/lib64/gtk-2.0/include
   else
-    STDINCS += $(GTK_BASE)/lib/glib-2.0/include $(GTK_BASE)/lib/gtk-2.0/include
+    STDINCS += $(GTK)/lib/glib-2.0/include $(GTK)/lib/gtk-2.0/include
   endif
   endif
   ifneq ($(findstring FreeBSD, $(TEC_UNAME)), )
@@ -889,6 +915,8 @@ endif
 LIBS += m
 
 ifneq ($(findstring cygw, $(TEC_UNAME)), )
+  WIN_OTHER := Yes
+  
   # INCLUDES for dependencies, remove references to "c:" and similars
   DEPINCS := $(patsubst c:%, /cygdrive/c%, $(INCLUDES))
   DEPINCS := $(patsubst d:%, /cygdrive/d%, $(DEPINCS))
@@ -944,7 +972,11 @@ else
   ifeq ($(NO_DYNAMIC), Yes) 
     TARGET := $(TARGETDIR)/$(TARGETSLIBNAME)
   else
+  ifeq ($(NO_STATIC), Yes) 
+    TARGET := $(TARGETDIR)/$(TARGETDLIBNAME)
+  else
     TARGET := $(TARGETDIR)/$(TARGETSLIBNAME) $(TARGETDIR)/$(TARGETDLIBNAME)
+  endif
   endif
 endif
 
@@ -987,19 +1019,46 @@ VPATH = .:$(foreach dir,$(P-SRC),$(if $(dir)="./",:$(dir)))
 
 .PHONY: tecmake 
 ifeq ($(MAKETYPE), APP)
-  tecmake: print-start directories application scripts
+  tecmake: print-start system-check directories application scripts
 else
   ifeq ($(NO_DYNAMIC), Yes) 
-    tecmake: print-start directories static-lib
+    tecmake: print-start system-check directories static-lib
   else
-    tecmake: print-start directories static-lib dynamic-lib
+  ifeq ($(NO_STATIC), Yes) 
+    tecmake: print-start system-check directories dynamic-lib
+  else
+    tecmake: print-start system-check directories static-lib dynamic-lib
+  endif
   endif
 endif
 
 .PHONY: print-start
 print-start:
-	@echo ''; echo 'Tecmake - Starting [ $(TARGETNAME):$(TEC_UNAME) ]'
+	@echo ''; echo 'Tecmake: starting [ $(TARGETNAME):$(TEC_UNAME) ]'
 
+.PHONY: system-check
+system-check:
+  ifdef CHECK_XRENDER
+    ifdef UNIX_POSIX
+			@echo ''; echo 'Tecmake: check failed, XRender NOT available in this system.'; echo ''; exit 1;
+    endif
+  endif
+  ifdef CHECK_GTK
+    ifdef UNIX_POSIX
+		@echo ''; echo 'Tecmake: check failed, GTK NOT available in this system.'; echo ''; exit 1;
+    else
+      ifneq ($(findstring Linux24, $(TEC_UNAME)), )
+        ifndef GTK_BASE
+					@echo ''; echo 'Tecmake: check failed, GTK too OLD in this system.'; echo ''; exit 1;
+        endif  
+      endif  
+    endif
+  endif
+  ifdef CHECK_GDIPLUS
+    ifdef WIN_OTHER
+			@echo ''; echo 'Tecmake: check failed, GDI+ NOT available in this system.'; echo ''; exit 1;
+    endif
+  endif
   
 #---------------------------------#
 # Dynamic Library Build
@@ -1008,8 +1067,9 @@ print-start:
 dynamic-lib: $(TARGETDIR)/$(TARGETDLIBNAME)
 
 $(TARGETDIR)/$(TARGETDLIBNAME) : $(LOHS) $(OBJS) $(EXTRADEPS)
-	$(LD) $(STDLDFLAGS) -o $@ $(OBJS) $(SLIB) $(LFLAGS)
-	@echo 'Tecmake - Dynamic Library ($@) Done.'; echo ''
+	@echo ''; echo Tecmake: linking $(@F) ...
+	$(ECHO)$(LD) $(STDLDFLAGS) -o $@ $(OBJS) $(SLIB) $(LFLAGS)
+	@echo ''; echo 'Tecmake: Dynamic Library ($@) Done.'; echo ''
 
   
 #---------------------------------#
@@ -1019,9 +1079,11 @@ $(TARGETDIR)/$(TARGETDLIBNAME) : $(LOHS) $(OBJS) $(EXTRADEPS)
 static-lib: $(TARGETDIR)/$(TARGETSLIBNAME)
 
 $(TARGETDIR)/$(TARGETSLIBNAME) : $(LOHS) $(OBJS) $(EXTRADEPS)
-	$(AR) $(STDLFLAGS) $@ $(OBJS) $(SLIB) $(LCFLAGS)
-	-$(RANLIB) $@
-	@echo 'Tecmake - Static Library ($@) Done.'; echo ''
+	@echo ''; echo Tecmake: librarian $(@F) ...
+	$(ECHO)$(AR) $(STDLFLAGS) $@ $(OBJS) $(SLIB) $(LCFLAGS)
+	@echo ''; echo Tecmake: updating lib TOC $(@F) ...
+	$(ECHO)-$(RANLIB) $@
+	@echo ''; echo 'Tecmake: Static Library ($@) Done.'; echo ''
 
   
 #---------------------------------#
@@ -1031,12 +1093,13 @@ $(TARGETDIR)/$(TARGETSLIBNAME) : $(LOHS) $(OBJS) $(EXTRADEPS)
 application: $(TARGETDIR)/$(TARGETAPPNAME)
 
 $(TARGETDIR)/$(TARGETAPPNAME) : $(LOHS) $(OBJS) $(EXTRADEPS)
-	$(LINKER) -o $@ $(OBJS) $(SLIB) $(LFLAGS)
+	@echo ''; echo Tecmake: linking $(@F) ...
+	$(ECHO)$(LINKER) -o $@ $(OBJS) $(SLIB) $(LFLAGS)
 	@if [ ! -z "$(STRIP)" ]; then \
-	   echo "Striping debug information" ;\
+	   echo ''; echo 'Tecmake: striping debug information' ;\
 	   strip $@ ;\
 	 fi
-	@echo 'Tecmake - Application ($@) Done.'; echo ''
+	@echo ''; echo 'Tecmake: Application ($@) Done.'; echo ''
 
   
 #---------------------------------#
@@ -1053,7 +1116,7 @@ else
 endif
   
 $(SRELEASE): $(MAKENAME)
-	@echo 'Building script $(@F)'
+	@echo ''; echo 'Tecmake: building script $(@F)'
 	@echo "#!/bin/csh" > $@
 	@echo "# Script generated automatically by tecmake v$(VERSION)" >> $@
 	@echo "# Remove the comment bellow to set the LD_LIBRARY_PATH if needed." >> $@
@@ -1091,52 +1154,51 @@ endif
 # Compilation Rules
 
 $(OBJDIR)/%.o:  $(SRCDIR)/%.c
-	@echo Compiling $(<F)...
-	$(CC) -c $(CFLAGS) -o $@ $<
+	@echo ''; echo Tecmake: compiling $(<F) ...
+	$(ECHO)$(CC) -c $(CFLAGS) -o $@ $<
 
 $(OBJDIR)/%.o:  $(SRCDIR)/%.cpp
-	@echo Compiling $(<F)...
-	$(CPPC) -c $(CXXFLAGS) -o $@ $<
+	@echo ''; echo Tecmake: compiling $(<F) ...
+	$(ECHO)$(CPPC) -c $(CXXFLAGS) -o $@ $<
 
 $(OBJDIR)/%.o:  $(SRCDIR)/%.cxx
-	@echo Compiling $(<F)...
-	$(CPPC) -c $(CXXFLAGS) -o $@ $<
+	@echo ''; echo Tecmake: compiling $(<F) ...
+	$(ECHO)$(CPPC) -c $(CXXFLAGS) -o $@ $<
 
 $(OBJDIR)/%.o:  $(SRCDIR)/%.cc
-	@echo Compiling $(<F)...
-	$(CPPC) -c $(CXXFLAGS) -o $@ $<
+	@echo ''; echo Tecmake: compiling $(<F) ...
+	$(ECHO)$(CPPC) -c $(CXXFLAGS) -o $@ $<
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.f
-	@echo Compiling $(<F)...
-	$(FC) -c $(FFLAGS) -o $@ $<
+	@echo ''; echo Tecmake: compiling $(<F) ...
+	$(ECHO)$(FC) -c $(FFLAGS) -o $@ $<
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.for
-	@echo Compiling $(<F)...
-	$(FC) -c $(FFLAGS) -o $@ $<
+	@echo ''; echo Tecmake: compiling $(<F) ...
+	$(ECHO)$(FC) -c $(FFLAGS) -o $@ $<
 
 $(OBJDIR)/%.ro:  $(SRCDIR)/%.rc
-	@echo Compiling $(<F)...
-	$(RCC) $(RCFLAGS) -O coff -o $@ $<
+	@echo ''; echo Tecmake: compiling $(<F) ...
+	$(ECHO)$(RCC) $(RCFLAGS) -O coff -o $@ $<
 
 $(LOHDIR)/%.loh:  $(OBJROOT)/%.lo
-	@echo Generating $(<F)...
-	$(BIN2C) $< > $@
+	@echo ''; echo Tecmake: generating $(<F) ...
+	$(ECHO)$(BIN2C) $< > $@
 
 $(OBJROOT)/%$(LO_SUFFIX).lo:  $(SRCLUADIR)/%.lua
-	@echo Compiling $(<F)...
-	$(LUAC) -o $@ $<
+	@echo ''; echo Tecmake: compiling $(<F) ...
+	$(ECHO)$(LUAC) -o $@ $<
 
 ifdef LOHPACK
 $(LOHDIR)/$(LOHPACK):  $(SRCLUA)
-	@echo Generating $(<F)...
-	$(LUABIN) $(LUAPRE) $(LUAPREFLAGS) -l $(SRCLUADIR) -o $@ $(SRCLUA)
+	@echo ''; echo Tecmake: generating $(<F) ...
+	$(ECHO)$(LUABIN) $(LUAPRE) $(LUAPREFLAGS) -l $(SRCLUADIR) -o $@ $(SRCLUA)
 endif
 
   
 #---------------------------------#
 # Dependencies
 
-# make depend
 #   Build dependencies
 .PHONY: depend
 depend: $(DEPEND)
@@ -1146,12 +1208,12 @@ $(DEPEND): $(MAKENAME)
 	  @echo "" > $(DEPEND)
 	  @which $(CPPC) 2> /dev/null 1>&2 ;\
 	  if [ $$? -eq 0 ]; then \
-	    echo "Building dependencies... (can be slow)" ;\
+	    echo "Tecmake: Building Dependencies ... [ $(DEPEND) ] (can be slow)" ;\
 	    $(CPPC) $(DEPINCS) $(DEFINES) $(STDDEFS) -MM $(SOURCES) | \
 	    sed -e '1,$$s/^\([^ ]\)/$$(OBJDIR)\/\1/' > $(DEPEND) ;\
 	  else \
 	    echo "" ;\
-	    echo "$(CPPC) not found. Dependencies can not be built." ;\
+	    echo "Tecmake: error, $(CPPC) not found. Dependencies can not be built." ;\
 	    echo "Must set USE_NODEPEND=Yes." ;\
 	    echo "" ;\
 	    exit 1 ;\
@@ -1168,57 +1230,47 @@ endif
 #---------------------------------#
 # Management Rules
 
-# make clean-extra
 #   Remove extra files
 .PHONY: clean-extra
 clean-extra:
 	rm -f $(DEPEND) $(SRELEASE) so_locations
 	
-# make clean-lohs
 #   Remove Lua object inclusion files
 .PHONY: clean-lohs
 clean-lohs:
 	rm -f $(LOS) $(LOHS)
 	
-# make clean-obj
 #   Remove object files
 .PHONY: clean-obj
 clean-obj:
 	rm -f $(OBJS)
 
-# make clean-target
 #   Remove target
 .PHONY: clean-target
 clean-target:
 	rm -f $(TARGET)
 
-# make clean-dir
 .PHONY: clean-dir
 clean-dir:
 	rm -fr $(OBJROOT) $(TARGETROOT)
 
-# make clean
 #   Remove target and object files
 .PHONY: clean
 clean: clean-target clean-obj
 
-# make strip
 #   Remove symbols from executables
 .PHONY: strip
 strip:
 	test -r $(TARGETDIR)/$(TARGETAPPNAME) && strip $(TARGETDIR)/$(TARGETAPPNAME)
 
-# make rebuild
 #   Rebuild target and object files 
 .PHONY: rebuild
 rebuild: clean-extra clean-lohs clean-obj clean-target tecmake
 
-# make relink
 #   Rebuild target without rebuilding object files 
 .PHONY: relink
 relink: clean-target tecmake
 
-# make clean-all-obj
 #   Remove target and object files
 .PHONY: clean-all-obj
 clean-all-obj:
@@ -1226,7 +1278,6 @@ clean-all-obj:
 	  (cd $(OBJROOT)/$$d; echo $(OBJ) | xargs rm -f) ;\
 	done
 
-# make clean-all-target
 #   Remove libraries and executables for all platforms
 .PHONY: clean-all-target
 clean-all-target:

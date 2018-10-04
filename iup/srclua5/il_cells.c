@@ -16,17 +16,17 @@
 static int cells_width_cb(Ihandle *self, int p0)
 {
   lua_State *L = iuplua_call_start(self, "width_cb");
-  lua_pushnumber(L, p0);
+  lua_pushinteger(L, p0);
   return iuplua_call(L, 1);
 }
 
 static int cells_mousemotion_cb(Ihandle *self, int p0, int p1, int p2, int p3, char * p4)
 {
   lua_State *L = iuplua_call_start(self, "mousemotion_cb");
-  lua_pushnumber(L, p0);
-  lua_pushnumber(L, p1);
-  lua_pushnumber(L, p2);
-  lua_pushnumber(L, p3);
+  lua_pushinteger(L, p0);
+  lua_pushinteger(L, p1);
+  lua_pushinteger(L, p2);
+  lua_pushinteger(L, p3);
   lua_pushstring(L, p4);
   return iuplua_call(L, 5);
 }
@@ -34,12 +34,12 @@ static int cells_mousemotion_cb(Ihandle *self, int p0, int p1, int p2, int p3, c
 static int cells_mouseclick_cb(Ihandle *self, int p0, int p1, int p2, int p3, int p4, int p5, char * p6)
 {
   lua_State *L = iuplua_call_start(self, "mouseclick_cb");
-  lua_pushnumber(L, p0);
-  lua_pushnumber(L, p1);
-  lua_pushnumber(L, p2);
-  lua_pushnumber(L, p3);
-  lua_pushnumber(L, p4);
-  lua_pushnumber(L, p5);
+  lua_pushinteger(L, p0);
+  lua_pushinteger(L, p1);
+  lua_pushinteger(L, p2);
+  lua_pushinteger(L, p3);
+  lua_pushinteger(L, p4);
+  lua_pushinteger(L, p5);
   lua_pushstring(L, p6);
   return iuplua_call(L, 7);
 }
@@ -59,31 +59,31 @@ static int cells_nlines_cb(Ihandle *self)
 static int cells_scrolling_cb(Ihandle *self, int p0, int p1)
 {
   lua_State *L = iuplua_call_start(self, "scrolling_cb");
-  lua_pushnumber(L, p0);
-  lua_pushnumber(L, p1);
+  lua_pushinteger(L, p0);
+  lua_pushinteger(L, p1);
   return iuplua_call(L, 2);
 }
 
 static int cells_height_cb(Ihandle *self, int p0)
 {
   lua_State *L = iuplua_call_start(self, "height_cb");
-  lua_pushnumber(L, p0);
+  lua_pushinteger(L, p0);
   return iuplua_call(L, 1);
 }
 
 static int cells_hspan_cb(Ihandle *self, int p0, int p1)
 {
   lua_State *L = iuplua_call_start(self, "hspan_cb");
-  lua_pushnumber(L, p0);
-  lua_pushnumber(L, p1);
+  lua_pushinteger(L, p0);
+  lua_pushinteger(L, p1);
   return iuplua_call(L, 2);
 }
 
 static int cells_vspan_cb(Ihandle *self, int p0, int p1)
 {
   lua_State *L = iuplua_call_start(self, "vspan_cb");
-  lua_pushnumber(L, p0);
-  lua_pushnumber(L, p1);
+  lua_pushinteger(L, p0);
+  lua_pushinteger(L, p1);
   return iuplua_call(L, 2);
 }
 
@@ -110,25 +110,13 @@ int iupcellslua_open(lua_State * L)
   iuplua_register_cb(L, "VSPAN_CB", (lua_CFunction)cells_vspan_cb, NULL);
 
 #ifdef IUPLUA_USELOH
-#ifdef TEC_BIGENDIAN
-#ifdef TEC_64
-#include "loh/cells_be64.loh"
+#include "cells.loh"
 #else
-#include "loh/cells_be32.loh"
-#endif
-#else
-#ifdef TEC_64
-#ifdef WIN64
-#include "loh/cells_le64w.loh"
-#else
-#include "loh/cells_le64.loh"
-#endif
-#else
-#include "loh/cells.loh"
-#endif
-#endif
+#ifdef IUPLUA_USELZH
+#include "cells.lzh"
 #else
   iuplua_dofile(L, "cells.lua");
+#endif
 #endif
 
   return 0;

@@ -25,26 +25,26 @@ static int Image (lua_State * L)
     int i, j;
 
     /* get the number of lines */
-    h = luaL_getn(L, 1);  
+    h = iuplua_getn(L, 1);  
 
     /* get the number of columns of the first line */
-    lua_pushnumber(L, 1);
+    lua_pushinteger(L, 1);
     lua_gettable(L, 1);
-    w = luaL_getn(L, -1);  
+    w = iuplua_getn(L, -1);  
     lua_pop(L, 1);
     
     pixels = (unsigned char *) malloc (h*w);
 
     for (i=1; i<=h; i++)
     {
-      lua_pushnumber(L, i);
+      lua_pushinteger(L, i);
       lua_gettable(L, 1);
       for (j=1; j<=w; j++)
       {
         int idx = (i-1)*w+(j-1);
-        lua_pushnumber(L, j);
+        lua_pushinteger(L, j);
         lua_gettable(L, -2);
-        pixels[idx] = (unsigned char)lua_tonumber(L, -1);
+        pixels[idx] = (unsigned char)lua_tointeger(L, -1);
         lua_pop(L, 1);
       }
       lua_pop(L, 1);
@@ -53,7 +53,7 @@ static int Image (lua_State * L)
     ih = IupImage(w,h,pixels);  
     free(pixels);
 
-    num_colors = luaL_getn(L, 2);
+    num_colors = iuplua_getn(L, 2);
     num_colors = num_colors>255? 255: num_colors;
     for(c=1; c<=num_colors; c++)
     {
@@ -71,7 +71,7 @@ static int Image (lua_State * L)
     ih = IupImage(w, h, pixels);
     free(pixels);
 
-    num_colors = luaL_getn(L, 4);
+    num_colors = iuplua_getn(L, 4);
     num_colors = num_colors>256? 256: num_colors;
     for(c=1; c<=num_colors; c++)
     {
@@ -93,25 +93,13 @@ int iupimagelua_open(lua_State * L)
 
 
 #ifdef IUPLUA_USELOH
-#ifdef TEC_BIGENDIAN
-#ifdef TEC_64
-#include "loh/image_be64.loh"
+#include "image.loh"
 #else
-#include "loh/image_be32.loh"
-#endif
-#else
-#ifdef TEC_64
-#ifdef WIN64
-#include "loh/image_le64w.loh"
-#else
-#include "loh/image_le64.loh"
-#endif
-#else
-#include "loh/image.loh"
-#endif
-#endif
+#ifdef IUPLUA_USELZH
+#include "image.lzh"
 #else
   iuplua_dofile(L, "image.lua");
+#endif
 #endif
 
   return 0;

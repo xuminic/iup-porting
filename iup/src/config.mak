@@ -1,11 +1,11 @@
 PROJNAME = iup
-LIBNAME = iup
+LIBNAME := iup
 OPT = YES
 
 ifdef GTK_DEFAULT
   ifdef USE_MOTIF
-    # Build Motif version in Linux,Darwin,FreeBSD
-    LIBNAME = iupmot
+    # Build Motif version in Linux and BSD
+    LIBNAME := $(LIBNAME)mot
   else
     ifeq ($(findstring Win, $(TEC_SYSNAME)), )
       # Force definition if not in Windows
@@ -15,7 +15,7 @@ ifdef GTK_DEFAULT
 else  
   ifdef USE_GTK
     # Build GTK version in IRIX,SunOS,AIX,Win32
-    LIBNAME = iupgtk
+    LIBNAME := $(LIBNAME)gtk
   else
     ifeq ($(findstring Win, $(TEC_SYSNAME)), )
       # Force definition if not in Windows
@@ -42,6 +42,7 @@ SRC = iup_array.c iup_callback.c iup_dlglist.c iup_attrib.c iup_focus.c iup_font
       iup_sbox.c iup_normalizer.c iup_tree.c iup_split.c
 
 ifdef USE_GTK
+  CHECK_GTK = Yes
   DEFINES += GTK_DISABLE_DEPRECATED
   INCLUDES += gtk
     SRC += gtk/iupgtk_common.c gtk/iupgtk_focus.c gtk/iupgtk_font.c gtk/iupgtk_clipboard.c \
@@ -108,7 +109,8 @@ endif
 
 ifneq ($(findstring dll, $(TEC_UNAME)), )
   DEFINES += IUP_DLL
-  SRC += iup_dll.rc
+  INCLUDES += ../etc
+  SRC += ../etc/iup.rc
   DEF_FILE = iup.def
 endif
 
@@ -129,4 +131,10 @@ endif
 ifeq "$(TEC_UNAME)" "owc1"
   # Necessary or IUP 3 will not work in Open Watcom
   DBG=Yes
+endif
+
+ifneq ($(findstring MacOS, $(TEC_UNAME)), )
+  ifneq ($(TEC_SYSMINOR), 4)
+    BUILD_DYLIB=Yes
+  endif
 endif

@@ -22,6 +22,9 @@ function iup_console.print_version_info()
 
   local mot = iup.GetGlobal("MOTIFVERSION")
   if (mot) then str = iup_console.concat(str, "  Motif Version: ", mot) end
+  
+  local gtk = iup.GetGlobal("GTKVERSION")
+  if (gtk) then str = iup_console.concat(str, "  GTK Version: ", gtk) end
 
   str = iup_console.concat(str, "  Screen Size: " .. iup.GetGlobal("SCREENSIZE"))
   str = iup_console.concat(str, "  Screen Depth: " .. iup.GetGlobal("SCREENDEPTH"))
@@ -36,7 +39,7 @@ end
 -- Console Dialog
 
 iup_console.lastfilename = nil -- Last file open
-iup_console.mlCode = iup.multiline{expand="YES", size="200x120", font="COURIER_NORMAL_10"}
+iup_console.mlCode = iup.multiline{expand="YES", size="200x120", font="Courier, 10"}
 iup_console.lblPosition = iup.label{title="0:0", size="50x"}
 iup_console.lblFileName = iup.label{title="", size="50x", expand="HORIZONTAL"}
 
@@ -207,7 +210,7 @@ iup_console.dlgAbout = iup.dialog
 iup_console.dlgMain:show()
 iup.SetFocus(iup_console.mlCode)
 
-if (not iup.MainLoopLevel or iup.MainLoopLevel()==0) then
+if (iup.MainLoopLevel()==0) then
   iup.MainLoop()
 end
 

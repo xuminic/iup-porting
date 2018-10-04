@@ -113,7 +113,7 @@ static int report (lua_State *L, int status) {
 static int traceback (lua_State *L) {
   if (!lua_isstring(L, 1))  /* 'message' not a string? */
     return 1;  /* keep it intact */
-  lua_getfield(L, LUA_GLOBALSINDEX, "debug");
+  lua_getglobal(L, "debug");
   if (!lua_istable(L, -1)) {
     lua_pop(L, 1);
     return 1;
@@ -189,7 +189,7 @@ static int dolibrary (lua_State *L, const char *name) {
 
 static const char *get_prompt (lua_State *L, int firstline) {
   const char *p;
-  lua_getfield(L, LUA_GLOBALSINDEX, firstline ? "_PROMPT" : "_PROMPT2");
+  lua_getglobal(L, firstline ? "_PROMPT" : "_PROMPT2");
   p = lua_tostring(L, -1);
   if (p == NULL) p = (firstline ? LUA_PROMPT : LUA_PROMPT2);
   lua_pop(L, 1);  /* remove global */
@@ -415,24 +415,17 @@ static void iuplua_openlibs (lua_State *L) {
 #endif
 }
 
-static void iuplua_input (lua_State *L) {
-#ifdef TEC_BIGENDIAN
-#ifdef TEC_64
-#include "loh/console5_be64.loh"
+static void iuplua_input (lua_State *L) 
+{
+#ifdef IUPLUA_USELOH
+#include "console5.loh"
 #else
-#include "loh/console5_be32.loh"
-#endif  
+#ifdef IUPLUA_USELZH
+#include "console5.lzh"
 #else
-#ifdef TEC_64
-#ifdef WIN64
-#include "loh/console5_le64w.loh"
-#else
-#include "loh/console5_le64.loh"
-#endif  
-#else
-#include "loh/console5.loh"
-#endif  
-#endif  
+  luaL_dofile(L, "console5.lua");
+#endif
+#endif
 }
 /******************* IUP *********************/
 

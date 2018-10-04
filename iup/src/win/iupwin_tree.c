@@ -3,7 +3,6 @@
  *
  * See Copyright Notice in iup.h
  */
-
 #undef NOTREEVIEW
 #include <windows.h>
 #include <commctrl.h>
@@ -82,16 +81,6 @@ static HTREEITEM winTreeFindNodeXY(Ihandle* ih, int x, int y)
   TVHITTESTINFO info;
   info.pt.x = x;
   info.pt.y = y;
-  return (HTREEITEM)SendMessage(ih->handle, TVM_HITTEST, 0, (LPARAM)(LPTVHITTESTINFO)&info);
-}
-
-static HTREEITEM winTreeFindNodePointed(Ihandle* ih)
-{
-  TVHITTESTINFO info;
-  DWORD pos = GetMessagePos();
-  info.pt.x = LOWORD(pos);
-  info.pt.y = HIWORD(pos);
-  ScreenToClient(ih->handle, &info.pt);
   return (HTREEITEM)SendMessage(ih->handle, TVM_HITTEST, 0, (LPARAM)(LPTVHITTESTINFO)&info);
 }
 
@@ -381,7 +370,7 @@ static void winTreeSelectRange(Ihandle* ih, HTREEITEM hItem1, HTREEITEM hItem2, 
   int i;
   int id1 = iupTreeFindNodeId(ih, hItem1);
   int id2 = iupTreeFindNodeId(ih, hItem2);
-  if (id2 == -1) id2 = ih->data->node_count-1;
+  
   if (id1 > id2)
   {
     int tmp = id1;
@@ -403,13 +392,19 @@ static void winTreeSelectRange(Ihandle* ih, HTREEITEM hItem1, HTREEITEM hItem2, 
 
 static void winTreeSelectAll(Ihandle* ih)
 {
-  HTREEITEM hItemRoot = (HTREEITEM)SendMessage(ih->handle, TVM_GETNEXTITEM, TVGN_ROOT, 0);
-  winTreeSelectRange(ih, hItemRoot, NULL, 0);
+  int i;
+  for (i = 0; i < ih->data->node_count; i++)
+    winTreeSelectNode(ih, ih->data->node_cache[i].node_handle, 1);
 }
 
 static void winTreeClearSelection(Ihandle* ih, HTREEITEM hItemExcept)
 {
-  winTreeSelectRange(ih, hItemExcept, hItemExcept, 1);
+  int i;
+  for (i = 0; i < ih->data->node_count; i++)
+  {
+    if (ih->data->node_cache[i].node_handle != hItemExcept)
+      winTreeSelectNode(ih, ih->data->node_cache[i].node_handle, 0);
+  }
 }
 
 static int winTreeInvertSelectFunc(Ihandle* ih, HTREEITEM hItem, int id, void* userdata)
@@ -1507,7 +1502,7 @@ static int winTreeSetDelNodeAttrib(Ihandle* ih, const char* name_id, const char*
     iupAttribSetStr(ih, "_IUPTREE_IGNORE_SELECTION_CB", "1");
     hItemFocus = iupdrvTreeGetFocusNode(ih);
 
-    for(i = 1; i < ih->data->node_count; /* increment only if not removed */)
+    for(i = 0; i < ih->data->node_count; /* increment only if not removed */)
     {
       if (winTreeIsNodeSelected(ih, ih->data->node_cache[i].node_handle))
       {
@@ -2009,6 +2004,17 @@ static int winTreeMouseMultiSelect(Ihandle* ih, int x, int y)
   return 0;
 }
 
+static void winTreeCallRightClickCb(Ihandle* ih, int x, int y)
+{
+  HTREEITEM hItem = winTreeFindNodeXY(ih, x, y);
+  if (hItem)
+  {
+    IFni cbRightClick = (IFni)IupGetCallback(ih, "RIGHTCLICK_CB");
+    if (cbRightClick)
+      cbRightClick(ih, iupTreeFindNodeId(ih, hItem));
+  }
+}
+
 static int winTreeProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result)
 {
   switch (msg)
@@ -2150,8 +2156,11 @@ static int winTreeProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *res
       }
     }
     break;
-  case WM_MBUTTONDOWN:
   case WM_RBUTTONDOWN:
+    winTreeCallRightClickCb(ih, (int)(short)LOWORD(lp), (int)(short)HIWORD(lp));
+    *result = 0;
+    return 1;  /* must abort the normal behavior, because it is weird and just causes trouble */
+  case WM_MBUTTONDOWN:
   case WM_LBUTTONDBLCLK:
   case WM_MBUTTONDBLCLK:
   case WM_RBUTTONDBLCLK:
@@ -2365,13 +2374,6 @@ static int winTreeWmNotify(Ihandle* ih, NMHDR* msg_info, int *result)
       *result = TRUE;  /* prevent the change */
       return 1;
     }
-  }
-  else if(msg_info->code == NM_RCLICK)
-  {
-    HTREEITEM hItem = winTreeFindNodePointed(ih);
-    IFni cbRightClick  = (IFni)IupGetCallback(ih, "RIGHTCLICK_CB");
-    if (cbRightClick)
-      cbRightClick(ih, iupTreeFindNodeId(ih, hItem));
   }
   else if (msg_info->code == NM_CUSTOMDRAW)
   {

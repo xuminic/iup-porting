@@ -16,30 +16,30 @@
 static int colorbar_switch_cb(Ihandle *self, int p0, int p1)
 {
   lua_State *L = iuplua_call_start(self, "switch_cb");
-  lua_pushnumber(L, p0);
-  lua_pushnumber(L, p1);
+  lua_pushinteger(L, p0);
+  lua_pushinteger(L, p1);
   return iuplua_call(L, 2);
 }
 
 static int colorbar_select_cb(Ihandle *self, int p0, int p1)
 {
   lua_State *L = iuplua_call_start(self, "select_cb");
-  lua_pushnumber(L, p0);
-  lua_pushnumber(L, p1);
+  lua_pushinteger(L, p0);
+  lua_pushinteger(L, p1);
   return iuplua_call(L, 2);
 }
 
 static char * colorbar_cell_cb(Ihandle *self, int p0)
 {
   lua_State *L = iuplua_call_start(self, "cell_cb");
-  lua_pushnumber(L, p0);
+  lua_pushinteger(L, p0);
   return iuplua_call_rs(L, 1);
 }
 
 static int colorbar_extended_cb(Ihandle *self, int p0)
 {
   lua_State *L = iuplua_call_start(self, "extended_cb");
-  lua_pushnumber(L, p0);
+  lua_pushinteger(L, p0);
   return iuplua_call(L, 1);
 }
 
@@ -61,25 +61,13 @@ int iupcolorbarlua_open(lua_State * L)
   iuplua_register_cb(L, "EXTENDED_CB", (lua_CFunction)colorbar_extended_cb, NULL);
 
 #ifdef IUPLUA_USELOH
-#ifdef TEC_BIGENDIAN
-#ifdef TEC_64
-#include "loh/colorbar_be64.loh"
+#include "colorbar.loh"
 #else
-#include "loh/colorbar_be32.loh"
-#endif
-#else
-#ifdef TEC_64
-#ifdef WIN64
-#include "loh/colorbar_le64w.loh"
-#else
-#include "loh/colorbar_le64.loh"
-#endif
-#else
-#include "loh/colorbar.loh"
-#endif
-#endif
+#ifdef IUPLUA_USELZH
+#include "colorbar.lzh"
 #else
   iuplua_dofile(L, "colorbar.lua");
+#endif
 #endif
 
   return 0;

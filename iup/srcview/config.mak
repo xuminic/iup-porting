@@ -1,5 +1,5 @@
 PROJNAME = iup
-APPNAME = iupview
+APPNAME := iupview
 OPT = YES
 
 SRC = iup_view.c
@@ -14,13 +14,13 @@ USE_IUP3 = Yes
 
 ifdef GTK_DEFAULT
   ifdef USE_MOTIF
-    # Build Motif version in Linux,Darwin,FreeBSD
-    APPNAME = iupviewmot
+    # Build Motif version in Linux and BSD
+    APPNAME := $(APPNAME)mot
   endif
 else  
   ifdef USE_GTK
     # Build GTK version in IRIX,SunOS,AIX,Win32
-    APPNAME = iupviewgtk
+    APPNAME := $(APPNAME)gtk
   endif
 endif
 

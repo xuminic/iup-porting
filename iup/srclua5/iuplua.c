@@ -26,12 +26,14 @@
              /*************************************/
              /* iuplua_dostring and iuplua_dofile */
 
+/* report, traceback and docall were adapted from "lua.c" */
+
 static void error_message(lua_State *L, const char *msg, const char* traceback)
 {
   lua_getglobal(L, "iup");
   lua_pushstring(L, "_ERRORMESSAGE");
   lua_gettable(L, -2);
-  lua_remove(L, -2);
+  lua_remove(L, -2);  /* remove "iup" from stack */
 
   if(lua_isnil(L, -1))
   {
@@ -43,18 +45,17 @@ static void error_message(lua_State *L, const char *msg, const char* traceback)
     fflush(stderr);
     return;
   }
+
   lua_pushstring(L, msg);
   lua_pushstring(L, traceback);
-  lua_call(L, 2, 0);
+  lua_call(L, 2, 0);  /* iup._ERRORMESSAGE(msg, traceback) */
 }
 
 static int report (lua_State *L, int status, int concat_traceback)
 {
-  if (status && !lua_isnil(L, -1)) 
+  if (status != LUA_OK && !lua_isnil(L, -1)) 
   {
     const char *msg = lua_tostring(L, -2);
-
-
 
     const char *traceback;
     if (msg == NULL) {
@@ -70,13 +71,14 @@ static int report (lua_State *L, int status, int concat_traceback)
       traceback = lua_tostring(L, -1);
     }
     error_message(L, msg, traceback);
-    lua_pop(L, 2);
+    lua_pop(L, 2);  /* remove msg and traceback from stack */
   }
   return status;
 }
 
-static int traceback (lua_State *L) {
-  lua_getfield(L, LUA_GLOBALSINDEX, "debug");
+static int traceback (lua_State *L) 
+{
+  lua_getglobal(L, "debug");
   if (!lua_istable(L, -1)) {
     lua_pop(L, 1);
     return 1;
@@ -97,7 +99,7 @@ static int traceback (lua_State *L) {
   lua_pushvalue(L, -3);
   lua_settable(L, -3);
 
-  lua_pop(L, 2);
+  lua_pop(L, 2);  /* remove "iup" and "iup._LASTTRACEBACK" from stack */
   return 1;
 }
 
@@ -109,15 +111,17 @@ static int docall (lua_State *L, int narg, int nret)
   lua_insert(L, base);  /* put it under chunk and args */
   status = lua_pcall(L, narg, nret, base);
   lua_remove(L, base);  /* remove traceback function */
-  if (status != 0) 
+  if (status != LUA_OK) 
   {
     /* force a complete garbage collection in case of errors */
     lua_gc(L, LUA_GCCOLLECT, 0);
+
     /* put _LASTTRACEBACK at stack position 2 */
     lua_getglobal(L, "iup");
     lua_pushliteral(L, "_LASTTRACEBACK");
     lua_gettable(L, -2);
-    lua_remove(L, -2);
+    lua_remove(L, -2);  /* remove "iup" from stack */
+
     if (!lua_isstring(L, -1)) 
     {
       lua_pop(L, 1);
@@ -129,7 +133,7 @@ static int docall (lua_State *L, int narg, int nret)
       lua_pushnil(L);
       lua_settable(L, -3);
 
-      lua_pop(L, 1);
+      lua_pop(L, 1);  /* remove "iup" from stack */
     }
   }
   return status;
@@ -138,15 +142,33 @@ static int docall (lua_State *L, int narg, int nret)
 int iuplua_dofile(lua_State *L, const char *filename)
 {
   int status = luaL_loadfile(L, filename);
-  if (status == 0)
+  if (status == LUA_OK)
     status = docall(L, 0, 0);
+  else if (status == LUA_ERRFILE)
+  {
+    char *dir = getenv("IUPLUA_DIR");
+    if (dir)
+    {
+      char* full_name = iupStrFileMakeFileName(dir, filename);
+      if (full_name)
+      {
+        /* remove the error string from the stack, and try again */
+        lua_remove(L, -1);
+
+        status = luaL_loadfile(L, full_name);
+        free(full_name);
+        if (status == LUA_OK)
+          status = docall(L, 0, 0);
+      }
+    }
+  }
   return report(L, status, 1);
 }
 
 int iuplua_dostring(lua_State *L, const char *s, const char *name)
 {
   int status = luaL_loadbuffer(L, s, strlen(s), name);
-  if (status == 0)
+  if (status == LUA_OK)
     status = docall(L, 0, 0);
   return report(L, status, 1);
 }
@@ -167,7 +189,7 @@ Ihandle *iuplua_checkihandle(lua_State *L, int pos)
   lua_getmetatable(L, pos);   /* t2 = metatable(stack(pos)) */
   lua_pushstring(L, "iup handle");
   lua_gettable(L, LUA_REGISTRYINDEX);  /* t = registry["iup handle"] */
-  if (lua_equal(L, -2, -1))   /* check (t2==t)? */
+  if (lua_rawequal(L, -2, -1))   /* check (t2==t)? */
   {
     lua_pop (L, 2);
     return *(Ihandle**)lua_touserdata(L, pos);
@@ -198,17 +220,18 @@ void iuplua_pushihandle(lua_State *L, Ihandle *ih)
     char* sref = IupGetAttribute(ih, "_IUPLUA_WIDGET_TABLE_REF");
     if (!sref)
     {
-      lua_getglobal(L,"iup");
+      lua_getglobal(L, "iup");
       lua_pushstring(L,"RegisterHandle");
-      lua_gettable(L, -2);  /* f = iup.RegisterHandle */
-      lua_remove(L, -2);
-      iuplua_pushihandle_raw(L, ih);  /* push ih */
-      lua_pushstring(L, IupGetClassName(ih));  /* push type */
-      lua_call(L, 2, 1);          /* call f(ih, type) */
+      lua_gettable(L, -2);
+      lua_remove(L, -2);  /* remove "iup" from stack */
+
+      iuplua_pushihandle_raw(L, ih);
+      lua_pushstring(L, IupGetClassName(ih));
+      lua_call(L, 2, 1);  /* iup.RegisterHandle(ih, type) */
     }
     else
     {
-      iuplua_pushihandle_raw(L, ih);  /* push ih */
+      iuplua_pushihandle_raw(L, ih);
       lua_pushstring(L, "iup handle");
       lua_gettable(L, LUA_REGISTRYINDEX);  /* t = registry["iup handle"] */
       lua_setmetatable(L, -2);    /* metatable(ih) = t */
@@ -254,11 +277,11 @@ char ** iuplua_checkstring_array(lua_State *L, int pos)
 {
   int i,n;
   char **v;
-  n = luaL_getn(L,pos);
+  n = iuplua_getn(L,pos);
   v = (char **) malloc (n*sizeof(char *));
   for(i=1; i<=n; i++)
   {
-    lua_pushnumber(L,i);
+    lua_pushinteger(L,i);
     lua_gettable(L,pos);
     v[i-1] = (char*)lua_tostring(L, -1);
     lua_pop(L,1);
@@ -270,13 +293,13 @@ int * iuplua_checkint_array(lua_State *L, int pos)
 {
   int i,n;
   int *v;
-  n = luaL_getn(L,pos);
+  n = iuplua_getn(L,pos);
   v = (int *) malloc (n*sizeof(int));
   for(i=1; i<=n; i++)
   {
-    lua_pushnumber(L,i);
+    lua_pushinteger(L,i);
     lua_gettable(L,pos);
-    v[i-1] = (int)lua_tonumber(L, -1);
+    v[i-1] = lua_tointeger(L, -1);
     lua_pop(L,1);
   }
   return v;
@@ -286,7 +309,7 @@ unsigned char* iuplua_checkuchar_array(lua_State *L, int pos, int count)
 {
   int i,n;
   unsigned char *v;
-  n = luaL_getn(L,pos);
+  n = iuplua_getn(L,pos);
   if (n != count)
   {
     lua_pushstring(L, "invalid number of elements in array");
@@ -295,9 +318,9 @@ unsigned char* iuplua_checkuchar_array(lua_State *L, int pos, int count)
   v = (unsigned char *) malloc (n*sizeof(unsigned char));
   for(i=1; i<=n; i++)
   {
-    lua_pushnumber(L,i);
+    lua_pushinteger(L,i);
     lua_gettable(L,pos);
-    v[i-1] = (unsigned char)lua_tonumber(L, -1);
+    v[i-1] = (unsigned char)lua_tointeger(L, -1);
     lua_pop(L,1);
   }
   return v;
@@ -306,11 +329,11 @@ unsigned char* iuplua_checkuchar_array(lua_State *L, int pos, int count)
 Ihandle ** iuplua_checkihandle_array(lua_State *L, int pos)
 {
   Ihandle **v;
-  int i, n = luaL_getn(L, pos);
+  int i, n = iuplua_getn(L, pos);
   v = (Ihandle **) malloc ((n+1)*sizeof(Ihandle *));
   for (i=1; i<=n; i++)
   {
-    lua_pushnumber(L,i);
+    lua_pushinteger(L,i);
     lua_gettable(L,pos);
     v[i-1] = iuplua_checkihandle(L, -1);
     lua_pop(L,1);
@@ -337,10 +360,10 @@ lua_State* iuplua_call_start(Ihandle *ih, const char* name)
   lua_State *L = iuplua_getstate(ih);
 
   /* prepare to call iup.CallMethod(name, handle, ...) */
-  lua_getglobal(L,"iup");
+  lua_getglobal(L, "iup");
   lua_pushstring(L,"CallMethod");
   lua_gettable(L, -2);
-  lua_remove(L, -2);
+  lua_remove(L, -2);  /* remove "iup" from stack */
 
   lua_pushstring(L, name);
   iuplua_pushihandle(L, ih);
@@ -352,7 +375,7 @@ int iuplua_call(lua_State* L, int nargs)
   int status = docall(L, nargs+2, 1);
   report(L, status, 0);
 
-  if (status)
+  if (status != LUA_OK)
     return IUP_DEFAULT;
   else
   {
@@ -367,7 +390,7 @@ char* iuplua_call_rs(lua_State *L, int nargs)
   int status = docall(L, nargs+2, 1);
   report(L, status, 0);
 
-  if (status)
+  if (status != LUA_OK)
     return NULL;
   else
   {
@@ -386,13 +409,15 @@ int iuplua_call_raw(lua_State* L, int nargs, int nresults)
 
 void iuplua_register_cb(lua_State *L, const char* name, lua_CFunction func, const char* type)
 {
-  lua_getglobal(L,"iup");
+  lua_getglobal(L, "iup");
   lua_pushstring(L,"RegisterCallback");
   lua_gettable(L, -2);
+  lua_remove(L, -2);  /* remove "iup" from stack */
+
   lua_pushstring(L, name);
   lua_pushcfunction(L, func);
   lua_pushstring(L, type);
-  lua_call(L, 3, 0); 
+  lua_call(L, 3, 0);  /* iup.RegisterCallback(name, func, type) */
 }
 
 /* iup.SetCallback(handle, name, func, value) */
@@ -563,7 +588,7 @@ int iuplua_opencall_internal(lua_State * L)
   s = lua_tostring(L, -1);
   if (s && strcmp(s, "INTERNAL")==0)
     ret = 1;
-  lua_pop(L,2);
+  lua_pop(L,2);  /* remove "iup" and "iup._IUPOPEN_CALL" from stack */
   return ret;
 }
 
@@ -600,7 +625,7 @@ static int getfocus_cb(Ihandle *self)
 static int k_any(Ihandle *self, int c)
 {
   lua_State *L = iuplua_call_start(self, "k_any");
-  lua_pushnumber(L, c);
+  lua_pushinteger(L, c);
   return iuplua_call(L, 1);
 }
 
@@ -615,8 +640,8 @@ static int Idlecall(void)
   int ret = 0;
   lua_State *L = (lua_State *) IupGetGlobal("_IUP_LUA_DEFAULT_STATE");
   lua_getglobal(L, "_IUP_LUA_IDLE_FUNC_"); 
-  lua_call(L, 0, 1);
-  ret = (int) lua_tonumber(L, -1);
+  lua_call(L, 0, 1);  /* _IUP_LUA_IDLE_FUNC_() */
+  ret = lua_tointeger(L, -1);
   lua_pop(L, 1);
   return ret;
 }
@@ -646,15 +671,15 @@ static int GetFromC(lua_State *L)
   const char *a;
   if (!lua_istable(L, -1)) 
   {
-    lua_pushstring(L, "IupGetFromC: wrong arguments to function"); 
+    lua_pushstring(L, "iup.GetFromC: wrong arguments to function"); 
     lua_error(L);
     return 0;
   }
-  lua_pushnumber(L, 1);
+  lua_pushinteger(L, 1);
   lua_gettable(L, -2);
   if (!lua_isstring(L, -1)) 
   {
-    lua_pushstring(L, "IupGetFromC: wrong arguments to function"); 
+    lua_pushstring(L, "iup.GetFromC: wrong arguments to function"); 
     lua_error(L);
     return 0;
   }
@@ -676,7 +701,7 @@ static int GetFromC(lua_State *L)
 static void register_key(char *name, int code, void* user_data)
 {
   lua_State *L = (lua_State*)user_data;
-  lua_pushnumber(L, code); 
+  lua_pushinteger(L, code); 
   lua_setfield(L, -2, name);
 }
 
@@ -705,11 +730,11 @@ static int il_open(lua_State * L)
   if (lua_istable(L, -1))
   {
     int i;
-    argc = luaL_getn(L, -1);
+    argc = iuplua_getn(L, -1);
     argv = malloc(sizeof(char*)*argc);
     for(i=1; i<=argc; i++)
     {
-      lua_pushnumber(L,i);
+      lua_pushinteger(L,i);
       lua_gettable(L,-2);
       argv[i-1] = (char*)lua_tostring(L, -1);
       lua_pop(L,1);
@@ -806,31 +831,16 @@ int iuplua_open(lua_State * L)
   IupSetGlobal("_IUP_LUA_DEFAULT_STATE", (char *) L);  
 
 #ifdef IUPLUA_USELOH
-#ifdef TEC_BIGENDIAN
-#ifdef TEC_64
-#include "loh/iuplua_be64.loh"
-#include "loh/constants_be64.loh"
+#include "iuplua.loh"
+#include "constants.loh"
 #else
-#include "loh/iuplua_be32.loh"
-#include "loh/constants_be32.loh"
-#endif  
-#else
-#ifdef TEC_64
-#ifdef WIN64
-#include "loh/iuplua_le64w.loh"
-#include "loh/constants_le64w.loh"
-#else
-#include "loh/iuplua_le64.loh"
-#include "loh/constants_le64.loh"
-#endif  
-#else
-#include "loh/iuplua.loh"
-#include "loh/constants.loh"
-#endif  
-#endif  
+#ifdef IUPLUA_USELZH
+#include "iuplua.lzh"
+#include "constants.lzh"
 #else
   iuplua_dofile(L, "iuplua.lua");
   iuplua_dofile(L, "constants.lua");
+#endif
 #endif
 
   /* Register the common callbacks */
@@ -893,8 +903,3 @@ int luaopen_iuplua(lua_State* L)
   return iuplua_open(L);
 }
 
-/* obligatory to use require"iuplua51" */
-int luaopen_iuplua51(lua_State* L)
-{
-  return iuplua_open(L);
-}

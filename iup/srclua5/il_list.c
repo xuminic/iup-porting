@@ -15,7 +15,7 @@
 static int list_dropdown_cb(Ihandle *self, int p0)
 {
   lua_State *L = iuplua_call_start(self, "dropdown_cb");
-  lua_pushnumber(L, p0);
+  lua_pushinteger(L, p0);
   return iuplua_call(L, 1);
 }
 
@@ -23,15 +23,15 @@ static int list_action(Ihandle *self, char * p0, int p1, int p2)
 {
   lua_State *L = iuplua_call_start(self, "action");
   lua_pushstring(L, p0);
-  lua_pushnumber(L, p1);
-  lua_pushnumber(L, p2);
+  lua_pushinteger(L, p1);
+  lua_pushinteger(L, p2);
   return iuplua_call(L, 3);
 }
 
 static int list_dblclick_cb(Ihandle *self, int p0, char * p1)
 {
   lua_State *L = iuplua_call_start(self, "dblclick_cb");
-  lua_pushnumber(L, p0);
+  lua_pushinteger(L, p0);
   lua_pushstring(L, p1);
   return iuplua_call(L, 2);
 }
@@ -39,7 +39,7 @@ static int list_dblclick_cb(Ihandle *self, int p0, char * p1)
 static int list_edit_cb(Ihandle *self, int p0, char * p1)
 {
   lua_State *L = iuplua_call_start(self, "edit_cb");
-  lua_pushnumber(L, p0);
+  lua_pushinteger(L, p0);
   lua_pushstring(L, p1);
   return iuplua_call(L, 2);
 }
@@ -70,25 +70,13 @@ int iuplistlua_open(lua_State * L)
   iuplua_register_cb(L, "MULTISELECT_CB", (lua_CFunction)list_multiselect_cb, NULL);
 
 #ifdef IUPLUA_USELOH
-#ifdef TEC_BIGENDIAN
-#ifdef TEC_64
-#include "loh/list_be64.loh"
+#include "list.loh"
 #else
-#include "loh/list_be32.loh"
-#endif
-#else
-#ifdef TEC_64
-#ifdef WIN64
-#include "loh/list_le64w.loh"
-#else
-#include "loh/list_le64.loh"
-#endif
-#else
-#include "loh/list.loh"
-#endif
-#endif
+#ifdef IUPLUA_USELZH
+#include "list.lzh"
 #else
   iuplua_dofile(L, "list.lua");
+#endif
 #endif
 
   return 0;

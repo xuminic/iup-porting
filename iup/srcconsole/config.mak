@@ -1,22 +1,33 @@
 PROJNAME = iup
-APPNAME = iuplua51
+APPNAME := iuplua
 APPTYPE = CONSOLE
+
+ifdef USE_LUA52
+  LOHDIR = loh52
+  SRC = iup_lua52.c
+  APPNAME := $(APPNAME)52
+else
+  USE_LUA51 = Yes
+  LOHDIR = loh51
+  SRC = iup_lua51.c
+  APPNAME := $(APPNAME)51
+endif
 
 ifdef GTK_DEFAULT
   ifdef USE_MOTIF
-    # Build Motif version in Linux,Darwin,FreeBSD
-    APPNAME = iuplua51mot
+    # Build Motif version in Linux and BSD
+    APPNAME := $(APPNAME)mot
   endif
 else  
   ifdef USE_GTK
     # Build GTK version in IRIX,SunOS,AIX,Win32
-    APPNAME = iuplua51gtk
+    APPNAME := $(APPNAME)gtk
   endif
 endif
 
-LOHDIR = loh
+DEFINES = IUPLUA_USELOH
+USE_LOH_SUBDIR = Yes
 SRCLUA = console5.lua
-SRC = iup_lua51.c
 
 # Disable strip
 STRIP = 
@@ -32,7 +43,6 @@ ifdef DBG
   USE_IUPLUA = Yes
   USE_IUP3 = Yes
   USE_STATIC = Yes
-  USE_LUA51 = Yes
   
   ifdef DBG_DIR
     IUPLIB = $(IUP)/lib/$(TEC_UNAME)d
@@ -44,7 +54,7 @@ ifdef DBG
     IMLIB = $(IM)/lib/$(TEC_UNAME)
   endif  
   
-  DEFINES = USE_STATIC
+  DEFINES += USE_STATIC
 
   ifeq "$(TEC_UNAME)" "SunOS510x86"
     IUPLUA_NO_GL = Yes
@@ -110,18 +120,16 @@ else
   ifneq ($(findstring Win, $(TEC_SYSNAME)), )
     # Dinamically link in Windows, when not debugging
     # Must call "tecmake dll8" so USE_* will use the correct TEC_UNAME
-    USE_LUA51 = Yes
     USE_DLL = Yes
     GEN_MANIFEST = No
   else
     # In UNIX Lua is always statically linked, late binding is used.
     # Except in Cygwin and MacOSX
     ifeq ($(findstring cygw, $(TEC_UNAME)), )
-      ifeq ($(findstring Darwin, $(TEC_UNAME)), )
+      ifeq ($(findstring MacOS, $(TEC_UNAME)), )
         USE_STATIC = Yes
       endif
     endif
-    USE_LUA51 = Yes
   endif
 endif
 
@@ -135,7 +143,7 @@ ifneq ($(findstring cygw, $(TEC_UNAME)), )
   LIBS += readline history
 endif
 
-ifneq ($(findstring Darwin, $(TEC_UNAME)), )
+ifneq ($(findstring MacOS, $(TEC_UNAME)), )
   LIBS += readline
 endif
 

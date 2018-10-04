@@ -16,8 +16,8 @@
 static int pplot_edit_cb(Ihandle *self, int p0, int p1, float p2, float p3, float p4, float p5)
 {
   lua_State *L = iuplua_call_start(self, "edit_cb");
-  lua_pushnumber(L, p0);
-  lua_pushnumber(L, p1);
+  lua_pushinteger(L, p0);
+  lua_pushinteger(L, p1);
   lua_pushnumber(L, p2);
   lua_pushnumber(L, p3);
   lua_pushnumber(L, p4);
@@ -40,15 +40,15 @@ static int pplot_selectbegin_cb(Ihandle *self)
 static int pplot_postdraw_cb(Ihandle *self, int p0)
 {
   lua_State *L = iuplua_call_start(self, "postdraw_cb");
-  lua_pushnumber(L, p0);
+  lua_pushinteger(L, p0);
   return iuplua_call(L, 1);
 }
 
 static int pplot_delete_cb(Ihandle *self, int p0, int p1, float p2, float p3)
 {
   lua_State *L = iuplua_call_start(self, "delete_cb");
-  lua_pushnumber(L, p0);
-  lua_pushnumber(L, p1);
+  lua_pushinteger(L, p0);
+  lua_pushinteger(L, p1);
   lua_pushnumber(L, p2);
   lua_pushnumber(L, p3);
   return iuplua_call(L, 4);
@@ -57,7 +57,7 @@ static int pplot_delete_cb(Ihandle *self, int p0, int p1, float p2, float p3)
 static int pplot_predraw_cb(Ihandle *self, int p0)
 {
   lua_State *L = iuplua_call_start(self, "predraw_cb");
-  lua_pushnumber(L, p0);
+  lua_pushinteger(L, p0);
   return iuplua_call(L, 1);
 }
 
@@ -70,11 +70,11 @@ static int pplot_selectend_cb(Ihandle *self)
 static int pplot_select_cb(Ihandle *self, int p0, int p1, float p2, float p3, int p4)
 {
   lua_State *L = iuplua_call_start(self, "select_cb");
-  lua_pushnumber(L, p0);
-  lua_pushnumber(L, p1);
+  lua_pushinteger(L, p0);
+  lua_pushinteger(L, p1);
   lua_pushnumber(L, p2);
   lua_pushnumber(L, p3);
-  lua_pushnumber(L, p4);
+  lua_pushinteger(L, p4);
   return iuplua_call(L, 5);
 }
 
@@ -125,25 +125,13 @@ int iuppplotlua_open(lua_State * L)
   iuplua_pplotfuncs_open(L);
 
 #ifdef IUPLUA_USELOH
-#ifdef TEC_BIGENDIAN
-#ifdef TEC_64
-#include "loh/pplot_be64.loh"
+#include "pplot.loh"
 #else
-#include "loh/pplot_be32.loh"
-#endif
-#else
-#ifdef TEC_64
-#ifdef WIN64
-#include "loh/pplot_le64w.loh"
-#else
-#include "loh/pplot_le64.loh"
-#endif
-#else
-#include "loh/pplot.loh"
-#endif
-#endif
+#ifdef IUPLUA_USELZH
+#include "pplot.lzh"
 #else
   iuplua_dofile(L, "pplot.lua");
+#endif
 #endif
 
   return 0;

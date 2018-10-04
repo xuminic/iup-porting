@@ -15,16 +15,16 @@
 static int text_caret_cb(Ihandle *self, int p0, int p1, int p2)
 {
   lua_State *L = iuplua_call_start(self, "caret_cb");
-  lua_pushnumber(L, p0);
-  lua_pushnumber(L, p1);
-  lua_pushnumber(L, p2);
+  lua_pushinteger(L, p0);
+  lua_pushinteger(L, p1);
+  lua_pushinteger(L, p2);
   return iuplua_call(L, 3);
 }
 
 static int text_action(Ihandle *self, int p0, char * p1)
 {
   lua_State *L = iuplua_call_start(self, "action");
-  lua_pushnumber(L, p0);
+  lua_pushinteger(L, p0);
   lua_pushstring(L, p1);
   return iuplua_call(L, 2);
 }
@@ -52,25 +52,13 @@ int iuptextlua_open(lua_State * L)
   iuplua_register_cb(L, "VALUECHANGED_CB", (lua_CFunction)text_valuechanged_cb, NULL);
 
 #ifdef IUPLUA_USELOH
-#ifdef TEC_BIGENDIAN
-#ifdef TEC_64
-#include "loh/text_be64.loh"
+#include "text.loh"
 #else
-#include "loh/text_be32.loh"
-#endif
-#else
-#ifdef TEC_64
-#ifdef WIN64
-#include "loh/text_le64w.loh"
-#else
-#include "loh/text_le64.loh"
-#endif
-#else
-#include "loh/text.loh"
-#endif
-#endif
+#ifdef IUPLUA_USELZH
+#include "text.lzh"
 #else
   iuplua_dofile(L, "text.lua");
+#endif
 #endif
 
   return 0;

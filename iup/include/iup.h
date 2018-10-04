@@ -21,9 +21,9 @@ extern "C" {
 #define IUP_NAME "IUP - Portable User Interface"
 #define IUP_COPYRIGHT  "Copyright (C) 1994-2010 Tecgraf, PUC-Rio."
 #define IUP_DESCRIPTION	"Portable toolkit for building graphical user interfaces."
-#define IUP_VERSION "3.1"         /* bug fixes are reported only by IupVersion functions */
-#define IUP_VERSION_NUMBER 301000
-#define IUP_VERSION_DATE "2010/04/22"
+#define IUP_VERSION "3.2"         /* bug fixes are reported only by IupVersion functions */
+#define IUP_VERSION_NUMBER 302000
+#define IUP_VERSION_DATE "2010/06/26"  /* does not include bug fix releases */
 
 typedef struct Ihandle_ Ihandle;
 typedef int (*Icallback)(Ihandle*);
@@ -91,6 +91,7 @@ int       IupGetInt2       (Ihandle* ih, const char* name);
 int       IupGetIntInt     (Ihandle *ih, const char* name, int *i1, int *i2);
 float     IupGetFloat      (Ihandle* ih, const char* name);
 void      IupSetfAttribute (Ihandle* ih, const char* name, const char* format, ...);
+void      IupResetAttribute(Ihandle *ih, const char* name);
 int       IupGetAllAttributes(Ihandle* ih, char** names, int n);
 Ihandle*  IupSetAtt(const char* handle_name, Ihandle* ih, const char* name, ...);
 
