@@ -132,7 +132,8 @@ static int gtkFrameMapMethod(Ihandle* ih)
   /* the container that will receive the child element. */
   fixed = gtk_fixed_new();
   if (iupAttribGet(ih, "_IUPFRAME_HAS_BGCOLOR"))
-    gtk_fixed_set_has_window((GtkFixed*)fixed, TRUE);
+    //gtk_fixed_set_has_window((GtkFixed*)fixed, TRUE);
+    gtk_widget_set_has_window(fixed, TRUE);
   gtk_container_add((GtkContainer*)ih->handle, fixed);
   gtk_widget_show(fixed);
 

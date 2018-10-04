@@ -299,7 +299,7 @@ ifdef DBG
 endif
 
 OBJDIR := $(OBJROOT)/$(TEC_UNAME_DIR)
-TARGETDIR := $(TARGETROOT)/$(TEC_UNAME_DIR)
+TARGETDIR := $(TARGETROOT)
 
 # Change linker if any C++ source
 ifndef LINKER
@@ -814,25 +814,25 @@ ifdef USE_GTK
     GTK_BASE := /Users/cpts/gtk/inst
     LDIR += $(GTK_BASE)/lib
     LFLAGS += -framework Carbon
-    LIBS += gtk-quartz-2.0 gdk-quartz-2.0 pangoft2-1.0
+    #LIBS += gtk-quartz-2.0 gdk-quartz-2.0 pangoft2-1.0
 
-    LIBS += freetype
+    #LIBS += freetype
   else
     GTK_BASE := /usr
     override USE_X11 = Yes
-    LIBS += gtk-x11-2.0 gdk-x11-2.0 pangox-1.0
+    #LIBS += gtk-x11-2.0 gdk-x11-2.0 pangox-1.0
   endif
-  LIBS += gdk_pixbuf-2.0 pango-1.0 gobject-2.0 gmodule-2.0 glib-2.0
-  STDINCS += $(GTK_BASE)/include/atk-1.0 $(GTK_BASE)/include/gtk-2.0 $(GTK_BASE)/include/cairo $(GTK_BASE)/include/pango-1.0 $(GTK_BASE)/include/glib-2.0
-  ifeq ($(TEC_SYSARCH), x64)
-    STDINCS += $(GTK_BASE)/lib64/glib-2.0/include $(GTK_BASE)/lib64/gtk-2.0/include
-  else
-  ifeq ($(TEC_SYSARCH), ia64)
-    STDINCS += $(GTK_BASE)/lib64/glib-2.0/include $(GTK_BASE)/lib64/gtk-2.0/include
-  else
-    STDINCS += $(GTK_BASE)/lib/glib-2.0/include $(GTK_BASE)/lib/gtk-2.0/include
-  endif
-  endif
+  #LIBS += gdk_pixbuf-2.0 pango-1.0 gobject-2.0 gmodule-2.0 glib-2.0
+  #STDINCS += $(GTK_BASE)/include/atk-1.0 $(GTK_BASE)/include/gtk-2.0 $(GTK_BASE)/include/cairo $(GTK_BASE)/include/pango-1.0 $(GTK_BASE)/include/glib-2.0
+  #ifeq ($(TEC_SYSARCH), x64)
+  #  STDINCS += $(GTK_BASE)/lib64/glib-2.0/include $(GTK_BASE)/lib64/gtk-2.0/include
+  #else
+  #ifeq ($(TEC_SYSARCH), ia64)
+  #  STDINCS += $(GTK_BASE)/lib64/glib-2.0/include $(GTK_BASE)/lib64/gtk-2.0/include
+  #else
+  #  STDINCS += $(GTK_BASE)/lib/glib-2.0/include $(GTK_BASE)/lib/gtk-2.0/include
+  #endif
+  #endif
   ifneq ($(findstring FreeBSD, $(TEC_UNAME)), )
     STDINCS += /lib/X11R6/include/gtk-2.0  
   endif
@@ -875,6 +875,9 @@ LIBS := $(addprefix -l, $(LIBS))
 ifdef LDIR
   LDIR := $(addprefix -L, $(LDIR))
 endif
+
+LIBS += `pkg-config gtk+-2.0 --libs`
+STDINCS += `pkg-config gtk+-2.0 --cflags`
 
 
 #---------------------------------#
@@ -956,7 +959,7 @@ print-start:
 # Dynamic Library Build
 
 .PHONY: dynamic-lib
-dynamic-lib: $(TARGETDIR)/$(TARGETDLIBNAME)
+dynamic-lib:
 
 $(TARGETDIR)/$(TARGETDLIBNAME) : $(LOHS) $(OBJS) $(EXTRADEPS)
 	$(LD) $(STDLDFLAGS) -o $@ $(OBJS) $(SLIB) $(LFLAGS)

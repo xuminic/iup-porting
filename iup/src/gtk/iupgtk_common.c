@@ -202,7 +202,8 @@ void iupdrvSetVisible(Ihandle* ih, int visible)
 
 int iupdrvIsVisible(Ihandle* ih)
 {
-  if (GTK_WIDGET_VISIBLE(ih->handle))
+  //if (GTK_WIDGET_VISIBLE(ih->handle))
+  if (gtk_widget_get_visible(ih->handle))
   {
     /* if marked as visible, since we use gtk_widget_hide and NOT gtk_widget_hide_all
        must check its parents. */
@@ -211,7 +212,8 @@ int iupdrvIsVisible(Ihandle* ih)
     {
       if (parent->iclass->nativetype != IUP_TYPEVOID)
       {
-        if (!GTK_WIDGET_VISIBLE(parent->handle))
+        //if (!GTK_WIDGET_VISIBLE(parent->handle))
+        if (!gtk_widget_get_visible(parent->handle))
           return 0;
       }
 
@@ -225,7 +227,8 @@ int iupdrvIsVisible(Ihandle* ih)
 
 int iupdrvIsActive(Ihandle *ih)
 {
-  return (GTK_WIDGET_IS_SENSITIVE(ih->handle));
+  //return (GTK_WIDGET_IS_SENSITIVE(ih->handle));
+  return (gtk_widget_is_sensitive (ih->handle));
 }
 
 void iupdrvSetActive(Ihandle* ih, int enable)
@@ -573,7 +576,8 @@ void iupdrvDrawFocusRect(Ihandle* ih, void* _gc, int x, int y, int w, int h)
   GtkStyle *style = gtk_widget_get_style(ih->handle);
   (void)_gc;
 
-  gtk_paint_focus(style, window, GTK_WIDGET_STATE(ih->handle), NULL, ih->handle, NULL, x, y, w, h);
+  //gtk_paint_focus(style, window, GTK_WIDGET_STATE(ih->handle), NULL, ih->handle, NULL, x, y, w, h);
+  gtk_paint_focus(style, window, gtk_widget_get_state (ih->handle), NULL, ih->handle, NULL, x, y, w, h);
 }
 
 void iupdrvBaseRegisterCommonAttrib(Iclass* ic)
