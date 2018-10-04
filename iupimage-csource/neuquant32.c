@@ -89,6 +89,7 @@ void initnet(thepic,len,sample,colours)
 unsigned char *thepic;
 int len;
 int sample;
+int colours;
 {
 	register int i;
 	register int *p;
@@ -312,7 +313,7 @@ register int al,b,g,r;
    ---------------------------------------------------- */
 
 void altersingle(alpha,i,al,b,g,r)
-register int alpha,i,b,g,r;
+register int alpha,i,al,b,g,r;
 {
 	register int *n;
 

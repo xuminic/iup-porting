@@ -263,7 +263,7 @@ int tuner_gui_status(TuneGUI *gui, int which, int val)
  */
 static void *task_command(void *arg)
 {
-	TuneGUI	*gui = (TuneGUI *)arg;
+	//TuneGUI	*gui = (TuneGUI *)arg;
 
 	pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
 
@@ -275,7 +275,8 @@ static void *task_command(void *arg)
 
 int main(int argc, char **argv)
 {
-	pthread_t	task_cmd, task_gui;
+	//pthread_t	task_cmd;
+	pthread_t	task_gui;
 	TuneGUI		*gui;
 
 	gui = tuner_gui_init(&argc, &argv);
