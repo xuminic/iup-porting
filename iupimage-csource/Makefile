@@ -1,4 +1,11 @@
 
+# #define CASE(a,b)   case COMBO(a,b): for(i=x-1; i >= 0; --i, src += a, dest += b)
+# causes many 
+#   warning: this ‘for’ clause does not guard... [-Wmisleading-indentation]
+# in statement like 
+#   CASE(1,2) dest[0]=src[0], dest[1]=255; break;
+# so suppress it would be an idea.
+
 CC	= gcc
 AR	= ar
 CP	= cp
@@ -8,7 +15,7 @@ IUPDIR	= ../iup
 
 INCS	= -I. -I$(IUPDIR)/include `pkg-config gtk+-2.0 --cflags`
 LIBS	= -L$(IUPDIR)/lib -liup `pkg-config gtk+-2.0 --libs`
-CFLAGS	= -Wall -O3
+CFLAGS	= -Wall -O3 -Wno-misleading-indentation
 
 CHAN	= 0
 IMAGE	= RGB_24bits_palette_sample_image.jpg
