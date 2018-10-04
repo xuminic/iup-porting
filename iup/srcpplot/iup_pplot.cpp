@@ -11,6 +11,16 @@
 #pragma warning(disable: 4512)
 #endif
 
+//#define USE_OPENGL 1
+
+#ifdef USE_OPENGL
+#ifdef WIN32
+#include <windows.h>
+#endif
+#include <GL/gl.h>
+//#include <GL/glu.h>
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -20,12 +30,18 @@
 #include "iupcbs.h"
 #include "iup_pplot.h"
 #include "iupkey.h"
+#ifdef USE_OPENGL
+#include "iupgl.h"
+#endif
 
 #include <cd.h>
+#ifdef USE_OPENGL
+#include <cdgl.h>
+#else
 #include <cdiup.h>
 #include <cddbuf.h>
 #include <cdirgb.h>
-#include <cdgdiplus.h>
+#endif
 
 #include "iup_class.h"
 #include "iup_register.h"
@@ -65,14 +81,14 @@ typedef int (*IFniiffff)(Ihandle*, int, int, float, float, float*, float*); /* e
 /* callback: forward redraw request to PPlot object */
 static int iPPlotRedraw_CB(Ihandle* ih)
 {
-  ih->data->plt->Draw(0);  /* full redraw only if nothing changed */
+  ih->data->plt->Draw(0, 1);  /* full redraw only if nothing changed */
   return IUP_DEFAULT;
 }
 
 /* callback: forward resize request to PPlot object */
-static int iPPlotResize_CB(Ihandle* ih)
+static int iPPlotResize_CB(Ihandle* ih, int w, int h)
 {
-  ih->data->plt->Resize();
+  ih->data->plt->Resize(w, h);
   return IUP_DEFAULT;
 }
 
@@ -105,7 +121,7 @@ void IupPPlotBegin(Ihandle* ih, int strXdata)
     return;
 
   if (ih->iclass->nativetype != IUP_TYPECANVAS || 
-      !iupStrEqual(ih->iclass->name, "pplot"))
+      !IupClassMatch(ih, "pplot"))
     return;
 
   PlotDataBase* inXData = (PlotDataBase*)iupAttribGet(ih, "_IUP_PPLOT_XDATA");
@@ -123,7 +139,6 @@ void IupPPlotBegin(Ihandle* ih, int strXdata)
 
   iupAttribSetStr(ih, "_IUP_PPLOT_XDATA",    (char*)inXData);
   iupAttribSetStr(ih, "_IUP_PPLOT_YDATA",    (char*)inYData);
-  iupAttribSetStr(ih, "_IUP_PPLOT_STRXDATA", (char*)(strXdata? "1": "0"));
 }
 
 void IupPPlotAdd(Ihandle* ih, float x, float y)
@@ -133,14 +148,13 @@ void IupPPlotAdd(Ihandle* ih, float x, float y)
     return;
 
   if (ih->iclass->nativetype != IUP_TYPECANVAS || 
-      !iupStrEqual(ih->iclass->name, "pplot"))
+      !IupClassMatch(ih, "pplot"))
     return;
 
   PlotData* inXData = (PlotData*)iupAttribGet(ih, "_IUP_PPLOT_XDATA");
   PlotData* inYData = (PlotData*)iupAttribGet(ih, "_IUP_PPLOT_YDATA");
-  int strXdata = iupAttribGetInt(ih, "_IUP_PPLOT_STRXDATA");
 
-  if (!inYData || !inXData || strXdata)
+  if (!inYData || !inXData || inXData->IsString())
     return;
 
   inXData->push_back(x);
@@ -154,14 +168,13 @@ void IupPPlotAddStr(Ihandle* ih, const char* x, float y)
     return;
 
   if (ih->iclass->nativetype != IUP_TYPECANVAS || 
-      !iupStrEqual(ih->iclass->name, "pplot"))
+      !IupClassMatch(ih, "pplot"))
     return;
 
   StringPlotData *inXData = (StringPlotData*)iupAttribGet(ih, "_IUP_PPLOT_XDATA");
-  PlotData   *inYData = (PlotData*)iupAttribGet(ih, "_IUP_PPLOT_YDATA");
-  int strXdata = iupAttribGetInt(ih, "_IUP_PPLOT_STRXDATA");
+  PlotData *inYData = (PlotData*)iupAttribGet(ih, "_IUP_PPLOT_YDATA");
 
-  if (!inYData || !inXData || !strXdata)
+  if (!inYData || !inXData || !inXData->IsString())
     return;
 
   inXData->AddItem(x);
@@ -175,14 +188,15 @@ void IupPPlotInsertStr(Ihandle* ih, int inIndex, int inSampleIndex, const char* 
     return;
 
   if (ih->iclass->nativetype != IUP_TYPECANVAS || 
-      !iupStrEqual(ih->iclass->name, "pplot"))
+      !IupClassMatch(ih, "pplot"))
     return;
 
   PlotDataBase* theXDataBase = ih->data->plt->_plot.mPlotDataContainer.GetXData(inIndex);
   PlotDataBase* theYDataBase = ih->data->plt->_plot.mPlotDataContainer.GetYData(inIndex);
   StringPlotData *theXData = (StringPlotData*)theXDataBase;
-  PlotData   *theYData = (PlotData*)theYDataBase;
-  if (!theYData || !theXData)
+  PlotData *theYData = (PlotData*)theYDataBase;
+
+  if (!theYData || !theXData || !theXData->IsString())
     return;
 
   theXData->InsertItem(inSampleIndex, inX);
@@ -196,18 +210,125 @@ void IupPPlotInsert(Ihandle* ih, int inIndex, int inSampleIndex, float inX, floa
     return;
 
   if (ih->iclass->nativetype != IUP_TYPECANVAS || 
-      !iupStrEqual(ih->iclass->name, "pplot"))
+      !IupClassMatch(ih, "pplot"))
     return;
 
   PlotDataBase* theXDataBase = ih->data->plt->_plot.mPlotDataContainer.GetXData(inIndex);
   PlotDataBase* theYDataBase = ih->data->plt->_plot.mPlotDataContainer.GetYData(inIndex);
   PlotData* theXData = (PlotData*)theXDataBase;
   PlotData* theYData = (PlotData*)theYDataBase;
-  if (!theYData || !theXData)
+
+  if (!theYData || !theXData || theXData->IsString())
     return;
 
   theXData->insert(theXData->begin()+inSampleIndex, inX);
   theYData->insert(theYData->begin()+inSampleIndex, inY);
+}
+
+void IupPPlotAddPoints(Ihandle* ih, int inIndex, float *x, float *y, int count)
+{
+  iupASSERT(iupObjectCheck(ih));
+  if (!iupObjectCheck(ih))
+    return;
+
+  if (ih->iclass->nativetype != IUP_TYPECANVAS || 
+      !IupClassMatch(ih, "pplot"))
+    return;
+
+  PlotDataBase* theXDataBase = ih->data->plt->_plot.mPlotDataContainer.GetXData(inIndex);
+  PlotDataBase* theYDataBase = ih->data->plt->_plot.mPlotDataContainer.GetYData(inIndex);
+  PlotData* inXData = (PlotData*)theXDataBase;
+  PlotData* inYData = (PlotData*)theYDataBase;
+
+  if (!inYData || !inXData || inXData->IsString())
+    return;
+
+  for (int i=0; i<count; i++)
+  {
+    inXData->push_back(x[i]);
+    inYData->push_back(y[i]);
+  }
+}
+
+void IupPPlotAddStrPoints(Ihandle* ih, int inIndex, const char** x, float* y, int count)
+{
+  iupASSERT(iupObjectCheck(ih));
+  if (!iupObjectCheck(ih))
+    return;
+
+  if (ih->iclass->nativetype != IUP_TYPECANVAS || 
+      !IupClassMatch(ih, "pplot"))
+    return;
+
+  PlotDataBase* theXDataBase = ih->data->plt->_plot.mPlotDataContainer.GetXData(inIndex);
+  PlotDataBase* theYDataBase = ih->data->plt->_plot.mPlotDataContainer.GetYData(inIndex);
+  StringPlotData *inXData = (StringPlotData*)theXDataBase;
+  PlotData   *inYData = (PlotData*)theYDataBase;
+
+  if (!inYData || !inXData || !inXData->IsString())
+    return;
+
+  for (int i=0; i<count; i++)
+  {
+    inXData->AddItem(x[i]);
+    inYData->push_back(y[i]);
+  }
+}
+
+void IupPPlotInsertStrPoints(Ihandle* ih, int inIndex, int inSampleIndex, const char** inX, float* inY, int count)
+{
+  iupASSERT(iupObjectCheck(ih));
+  if (!iupObjectCheck(ih))
+    return;
+
+  if (ih->iclass->nativetype != IUP_TYPECANVAS || 
+      !IupClassMatch(ih, "pplot"))
+    return;
+
+  PlotDataBase* theXDataBase = ih->data->plt->_plot.mPlotDataContainer.GetXData(inIndex);
+  PlotDataBase* theYDataBase = ih->data->plt->_plot.mPlotDataContainer.GetYData(inIndex);
+  StringPlotData *theXData = (StringPlotData*)theXDataBase;
+  PlotData   *theYData = (PlotData*)theYDataBase;
+
+  if (!theYData || !theXData || !theXData->IsString())
+    return;
+
+  PlotData::iterator iterY = theYData->begin()+inSampleIndex;
+  for (int i=0; i<count; i++)
+  {
+    theXData->InsertItem(inSampleIndex+i, inX[i]);
+    theYData->insert(iterY, inY[i]);
+    iterY++;
+  }
+}
+
+void IupPPlotInsertPoints(Ihandle* ih, int inIndex, int inSampleIndex, float *inX, float *inY, int count)
+{
+  iupASSERT(iupObjectCheck(ih));
+  if (!iupObjectCheck(ih))
+    return;
+
+  if (ih->iclass->nativetype != IUP_TYPECANVAS || 
+      !IupClassMatch(ih, "pplot"))
+    return;
+
+  PlotDataBase* theXDataBase = ih->data->plt->_plot.mPlotDataContainer.GetXData(inIndex);
+  PlotDataBase* theYDataBase = ih->data->plt->_plot.mPlotDataContainer.GetYData(inIndex);
+  PlotData* theXData = (PlotData*)theXDataBase;
+  PlotData* theYData = (PlotData*)theYDataBase;
+
+  if (!theYData || !theXData || theXData->IsString())
+    return;
+
+  PlotData::iterator iterX = theXData->begin()+inSampleIndex;
+  PlotData::iterator iterY = theXData->begin()+inSampleIndex;
+  for (int i=0; i<count; i++)
+  {
+    theXData->insert(iterX, inX[i]);
+    theYData->insert(iterY, inY[i]);
+    iterX++;
+    iterY++;
+  }
 }
 
 int IupPPlotEnd(Ihandle* ih)
@@ -217,7 +338,7 @@ int IupPPlotEnd(Ihandle* ih)
     return -1;
 
   if (ih->iclass->nativetype != IUP_TYPECANVAS || 
-      !iupStrEqual(ih->iclass->name, "pplot"))
+      !IupClassMatch(ih, "pplot"))
     return -1;
 
   PlotDataBase* inXData = (PlotDataBase*)iupAttribGet(ih, "_IUP_PPLOT_XDATA");
@@ -246,7 +367,7 @@ void IupPPlotTransform(Ihandle* ih, float x, float y, int *ix, int *iy)
     return;
 
   if (ih->iclass->nativetype != IUP_TYPECANVAS || 
-      !iupStrEqual(ih->iclass->name, "pplot"))
+      !IupClassMatch(ih, "pplot"))
     return;
 
   if (ix) *ix = ih->data->plt->_plot.Round(ih->data->plt->_plot.mXTrafo->Transform(x));
@@ -261,7 +382,7 @@ void IupPPlotPaintTo(Ihandle* ih, void* _cnv)
     return;
 
   if (ih->iclass->nativetype != IUP_TYPECANVAS || 
-      !iupStrEqual(ih->iclass->name, "pplot"))
+      !IupClassMatch(ih, "pplot"))
     return;
 
   ih->data->plt->DrawTo((cdCanvas *)_cnv);
@@ -403,7 +524,7 @@ bool PEditInteractionIup::Impl_Calculate (Painter &inPainter, PPlot& inPPlot)
 
 void PEditInteractionIup::HandleCursorKey (const PlotDataSelection *inPlotDataSelection, PlotDataBase* inXData, PlotDataBase* inYData, int inIndex)
 {
-  float theXDelta = 0; // pixels
+  float theXDelta = 0; /* pixels */
   if (mKeyEvent.IsArrowLeft () || mKeyEvent.IsArrowRight ())
   {
     theXDelta = 1;
@@ -415,7 +536,7 @@ void PEditInteractionIup::HandleCursorKey (const PlotDataSelection *inPlotDataSe
       theXDelta *= 10;
   }
 
-  float theYDelta = 0; // pixels
+  float theYDelta = 0; /* pixels */
   if (mKeyEvent.IsArrowDown () || mKeyEvent.IsArrowUp ())
   {
     theYDelta = 1;
@@ -446,7 +567,7 @@ void PEditInteractionIup::HandleCursorKey (const PlotDataSelection *inPlotDataSe
       if (theYDelta)
       {
         float theYPixels = mPPlot.mYTrafo->Transform(theY);
-        theYPixels -= theYDelta;  // in pixels Y is descending
+        theYPixels -= theYDelta;  /* in pixels Y is descending */
         newY = mPPlot.mYTrafo->TransformBack(theYPixels);
       }
 
@@ -518,14 +639,16 @@ InteractionContainerIup::InteractionContainerIup(PPlot &inPPlot, Ihandle* inHand
 PPainterIup::PPainterIup(Ihandle *ih) : 
   Painter(),
   _ih(ih),
+#ifndef USE_OPENGL
   _cdcanvas(NULL),
+#endif
   _cddbuffer(NULL),
   _mouseDown(0),
   _currentDataSetIndex(-1),
   _redraw(1)
 {
-  _plot.mShowLegend = false; // change default to hidden
-  _plot.mPlotBackground.mTransparent = false;  // always draw the background
+  _plot.mShowLegend = false; /* change default to hidden */
+  _plot.mPlotBackground.mTransparent = false;  /* always draw the background */
   _plot.mMargins.mLeft = 15;
   _plot.mMargins.mBottom = 15;
   _plot.mMargins.mTop = 30;
@@ -701,7 +824,7 @@ static int iPPlotGetCDMarkStyle(const char* value)
 static int iPPlotSetRedrawAttrib(Ihandle* ih, const char* value)
 {
   (void)value;  /* not used */
-  ih->data->plt->Draw(1);   /* force a full redraw here */
+  ih->data->plt->Draw(1, 1);   /* force a full redraw here */
   return 0;
 }
 
@@ -1697,7 +1820,7 @@ static int iPPlotSetAxisXReverseAttrib(Ihandle* ih, const char* value)
   AxisSetup* axis = &ih->data->plt->_plot.mXAxisSetup;
 
   if(iupStrEqualNoCase(value, "YES") || iupStrEqualNoCase(value, "ON"))
-    axis->mAscending = false; // inverted for X
+    axis->mAscending = false; /* inverted for X */
   else 
     axis->mAscending = true;
 
@@ -1710,7 +1833,7 @@ static int iPPlotSetAxisYReverseAttrib(Ihandle* ih, const char* value)
   AxisSetup* axis = &ih->data->plt->_plot.mYAxisSetup;
 
   if(iupStrEqualNoCase(value, "YES") || iupStrEqualNoCase(value, "ON"))
-    axis->mAscending = true; // NOT inverted for Y
+    axis->mAscending = true; /* NOT inverted for Y  */
   else 
     axis->mAscending = false;
 
@@ -2423,7 +2546,7 @@ void PPainterIup::MouseButton(int btn, int stat, int x, int y, char *r)
 
   if( _InteractionContainer->HandleMouseEvent(theEvent))
   {
-    this->Draw(1);
+    this->Draw(1, 1);
   } 
   else
   {
@@ -2459,7 +2582,7 @@ void PPainterIup::MouseMove(int x, int y)
 
   if(_InteractionContainer->HandleMouseEvent(theEvent))
   {
-    this->Draw(1);
+    this->Draw(1, 1);
   } 
   else
   {
@@ -2525,7 +2648,7 @@ void PPainterIup::KeyPress(int c, int press)
 
   if(_InteractionContainer->HandleKeyEvent(theEvent))
   {
-    this->Draw(1);
+    this->Draw(1, 1);
   } 
   else
   {
@@ -2534,11 +2657,14 @@ void PPainterIup::KeyPress(int c, int press)
 }
 
 /* Draw */
-void PPainterIup::Draw(int force)
+void PPainterIup::Draw(int force, int flush)
 {
   if (!_cddbuffer)
     return;
 
+#ifdef USE_OPENGL
+  IupGLMakeCurrent(_ih);
+#endif
   cdCanvasActivate(_cddbuffer);
 
   if (force || _redraw)
@@ -2548,12 +2674,20 @@ void PPainterIup::Draw(int force)
     _redraw = 0;
   }
 
-  cdCanvasFlush(_cddbuffer);
+  if (flush)
+  {
+    cdCanvasFlush(_cddbuffer);
+
+#ifdef USE_OPENGL
+    IupGLSwapBuffers(_ih);
+#endif
+  }
 }
 
 /* Resize */
-void PPainterIup::Resize()
+void PPainterIup::Resize(int w, int h)
 {
+#ifndef USE_OPENGL
   if (!_cddbuffer)
   {
     /* update canvas size */
@@ -2565,9 +2699,27 @@ void PPainterIup::Resize()
     else
       _cddbuffer = cdCreateCanvas(CD_DBUFFER, _cdcanvas);
   }
+#endif
 
   if (!_cddbuffer)
     return;
+
+#ifdef USE_OPENGL
+  IupGLMakeCurrent(_ih);
+
+//  glViewport(0, 0, w, h);
+
+  //glMatrixMode(GL_PROJECTION);
+  //glLoadIdentity();
+  //gluOrtho2D(0, w, 0, h);
+
+  //glMatrixMode(GL_MODELVIEW);
+  //glLoadIdentity();
+
+  char StrData[100];
+  sprintf(StrData, "%dx%d", w, h);
+  cdCanvasSetAttribute(_cddbuffer, "SIZE", StrData);
+#endif
 
   /* update canvas size */
   cdCanvasActivate(_cddbuffer);
@@ -2581,17 +2733,22 @@ void PPainterIup::Resize()
 void PPainterIup::DrawTo(cdCanvas *usrCnv)
 {
   cdCanvas *old_cddbuffer  = _cddbuffer;
-  cdCanvas *old_cdcanvas   = _cdcanvas;
-  
-  _cdcanvas = _cddbuffer = usrCnv;
+  _cddbuffer = usrCnv;
 
-  if(!_cddbuffer)
+#ifndef USE_OPENGL
+  cdCanvas *old_cdcanvas   = _cdcanvas;
+  _cdcanvas = usrCnv;
+#endif
+
+  if (!_cddbuffer)
     return;
 
-  Draw(1);
+  Draw(1, 0); /* no flush here */
 
   _cddbuffer = old_cddbuffer;
+#ifndef USE_OPENGL
   _cdcanvas  = old_cdcanvas;
+#endif
 }
 
 void PPainterIup::FillArrow(int inX1, int inY1, int inX2, int inY2, int inX3, int inY3)
@@ -2779,6 +2936,16 @@ static int iPPlotMapMethod(Ihandle* ih)
   if (IupGetInt(ih, "USE_GDI+"))
     old_gdi = cdUseContextPlus(1);
 
+#ifdef USE_OPENGL
+  char StrData[100];
+  int w, h;
+  IupGetIntInt(ih, "DRAWSIZE", &w, &h);
+  sprintf(StrData, "%dx%d", w, h);
+
+  ih->data->plt->_cddbuffer = cdCreateCanvas(CD_GL, StrData);
+  if (!ih->data->plt->_cddbuffer)
+    return IUP_ERROR;
+#else
   ih->data->plt->_cdcanvas = cdCreateCanvas(CD_IUP, ih);
   if (!ih->data->plt->_cdcanvas)
     return IUP_ERROR;
@@ -2791,6 +2958,7 @@ static int iPPlotMapMethod(Ihandle* ih)
 
   if (IupGetInt(ih, "USE_GDI+"))
     cdUseContextPlus(old_gdi);
+#endif
 
   ih->data->plt->_redraw = 1;
 
@@ -2805,11 +2973,13 @@ static void iPPlotUnMapMethod(Ihandle* ih)
     ih->data->plt->_cddbuffer = NULL;
   }
 
+#ifndef USE_OPENGL
   if (ih->data->plt->_cdcanvas != NULL)
   {
     cdKillCanvas(ih->data->plt->_cdcanvas);
     ih->data->plt->_cdcanvas = NULL;
   }
+#endif
 }
 
 static void iPPlotDestroyMethod(Ihandle* ih)
@@ -2822,7 +2992,7 @@ static int iPPlotCreateMethod(Ihandle* ih, void **params)
   (void)params;
 
   /* free the data alocated by IupCanvas */
-  if (ih->data) free(ih->data);
+  free(ih->data);
   ih->data = iupALLOCCTRLDATA();
 
   /* Initializing object with no cd canvases */
@@ -2835,12 +3005,20 @@ static int iPPlotCreateMethod(Ihandle* ih, void **params)
   IupSetCallback(ih, "MOTION_CB",   (Icallback)iPPlotMouseMove_CB);
   IupSetCallback(ih, "KEYPRESS_CB", (Icallback)iPPlotKeyPress_CB);
 
+#ifdef USE_OPENGL
+  IupSetAttribute(ih, "BUFFER", "DOUBLE");
+#endif
+
   return IUP_NOERROR;
 }
 
-static Iclass* iupPPlotGetClass(void)
+static Iclass* iPPlotNewClass(void)
 {
-  Iclass* ic = iupClassNew(iupCanvasGetClass());
+#ifdef USE_OPENGL
+  Iclass* ic = iupClassNew(iupRegisterFindClass("glcanvas"));
+#else
+  Iclass* ic = iupClassNew(iupRegisterFindClass("canvas"));
+#endif
 
   ic->name = "pplot";
   ic->format = NULL;  /* none */
@@ -2849,6 +3027,7 @@ static Iclass* iupPPlotGetClass(void)
   ic->is_interactive = 1;
 
   /* Class functions */
+  ic->New = iPPlotNewClass;
   ic->Create  = iPPlotCreateMethod;
   ic->Destroy = iPPlotDestroyMethod;
   ic->Map     = iPPlotMapMethod;
@@ -2963,9 +3142,13 @@ Ihandle* IupPPlot(void)
 
 void IupPPlotOpen(void)
 {
+#ifdef USE_OPENGL
+  IupGLCanvasOpen();
+#endif
+
   if (!IupGetGlobal("_IUP_PPLOT_OPEN"))
   {
-    iupRegisterClass(iupPPlotGetClass());
+    iupRegisterClass(iPPlotNewClass());
     IupSetGlobal("_IUP_PPLOT_OPEN", "1");
   }
 }

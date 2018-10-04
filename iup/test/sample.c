@@ -174,6 +174,7 @@ static int enterwindow_cb(Ihandle *ih)
   return IUP_DEFAULT;
 }
 
+/* Internal SDK function */
 char *iupKeyCodeToName(int code);
 
 static int k_any(Ihandle *ih, int c)
@@ -182,6 +183,9 @@ static int k_any(Ihandle *ih, int c)
     printf("K_ANY(%s, %d = %s \'%c\')\n", IupGetClassName(ih), c, iupKeyCodeToName(c), (char)c);
   else
     printf("K_ANY(%s, %d = %s)\n", IupGetClassName(ih), c, iupKeyCodeToName(c));
+  if (c==K_r) { IupRecordInput("inputtest.iup", IUP_RECTEXT); return IUP_IGNORE; }  //IUP_RECBINARY, IUP_RECTEXT 
+  if (c==K_s) { IupRecordInput(NULL, 0); IupPlayInput(NULL); return IUP_IGNORE; }
+  if (c==K_p) { IupPlayInput("inputtest.iup"); return IUP_IGNORE; }
   return IUP_CONTINUE;
 }
 
@@ -191,9 +195,35 @@ static int help_cb(Ihandle* ih)
   return IUP_DEFAULT;
 }
 
+static void show_menu(Ihandle* ih)
+{
+  int x, y;
+
+  Ihandle* menu_file = IupMenu(
+    IupSetAttributes(IupItem("Item with Image", "item_cb"), "IMAGE=image_tec"),
+    IupSetAttributes(IupItem("Toggle using VALUE", NULL), "VALUE=ON, KEY=K_V"), 
+    IupSetAttributes(IupItem("Auto &Toggle", "item_cb"), "AUTOTOGGLE=YES, VALUE=OFF, IMAGE=image_test, IMPRESS=image_test_pressed"), 
+    IupSeparator(), 
+    IupItem("E&xit (Close)", NULL), 
+    NULL);
+  Ihandle* menu = IupMenu(
+    IupSetAttributes(IupSubmenu("Submenu", menu_file), "KEY=K_S, IMAGE=image_tec"), 
+    IupItem("Item", "item_cb"), 
+    IupSetAttributes(IupItem("Item", "item_cb"), "VALUE=ON"), 
+    IupSetAttributes(IupItem("Item", "item_cb"), "KEY=K_I, IMAGE=image_tec"), 
+    NULL);
+
+  x = IupGetInt(ih, "X");
+  y = IupGetInt(ih, "Y") + IupGetInt2(ih, "RASTERSIZE");
+
+  IupPopup(menu, x, y);
+  IupDestroy(menu);
+}
+
 static int action1_cb(Ihandle* ih)
 {
-  IupSetAttribute(IupGetDialog(ih), "BACKGROUND", "255 128 128");
+//  IupSetAttribute(IupGetDialog(ih), "BACKGROUND", "255 128 128");
+  show_menu(ih);
   return IUP_DEFAULT;
 }
 
@@ -226,6 +256,26 @@ static Ihandle* set_callbacks(Ihandle* ih)
   return ih;
 }
 
+static void globalkeypress_cb(int code, int pressed)
+{
+  printf("GLOBALKEYPRESS_CB(code=%s, pressed=%d)\n", iupKeyCodeToName(code), pressed);
+}
+
+static void globalmotion_cb(int x, int y, char* status)
+{
+  printf("GLOBALMOTION_CB(x=%d, y=%d, status=%s)\n", x, y, status);
+}
+
+static void globalbutton_cb(int button, int pressed, int x, int y, char* status)
+{
+  printf("GLOBALBUTTON_CB(button=%c, pressed=%d, x=%d, y=%d, status=%s)\n", (char)button, pressed, x, y, status);
+}
+
+static void globalwheel_cb(float delta,int x, int y, char* status)
+{
+  printf("GLOBALWHEEL_CB(delta=%g, x=%d, y=%d, status=%s)\n", delta, x, y, status);
+}
+
 void SampleTest(void)
 {
   Ihandle *mnu, *_hbox_1, *_cnv_1, *_vbox_1, *dlg, *img, 
@@ -252,6 +302,7 @@ void SampleTest(void)
     IupSubmenu("IupSubmenu 1", IupMenu(
       IupSetAttributes(IupItem("IupItem 1 Checked", NULL), "VALUE=ON"),
       IupSeparator(),
+
       IupSetAttributes(IupItem("IupItem 2 Disabled", NULL), "ACTIVE=NO"),
       NULL)),
     IupItem("IupItem 3", NULL),
@@ -409,6 +460,11 @@ void SampleTest(void)
 
   IupSetCallback(dlg, "COPYDATA_CB", (Icallback)copydata_cb);
 
+  //IupSetGlobal("INPUTCALLBACKS", "Yes");
+  //IupSetFunction("GLOBALKEYPRESS_CB", (Icallback)globalkeypress_cb);
+  //IupSetFunction("GLOBALMOTION_CB", (Icallback)globalmotion_cb);
+  //IupSetFunction("GLOBALBUTTON_CB", (Icallback)globalbutton_cb);
+  //IupSetFunction("GLOBALWHEEL_CB", (Icallback)globalwheel_cb);
 
   IupMap(dlg);
 

@@ -365,6 +365,30 @@ static char* iMatrixGetEditModeAttrib(Ihandle* ih)
     return "NO";
 }
 
+static int iMatrixSetEditNextAttrib(Ihandle* ih, const char* value)
+{
+  if (iupStrEqualNoCase(value, "COL"))
+    ih->data->editnext = IMAT_EDITNEXT_COL;
+  else if (iupStrEqualNoCase(value, "COLCR"))
+    ih->data->editnext = IMAT_EDITNEXT_COLCR;
+  else if (iupStrEqualNoCase(value, "LINCR"))
+    ih->data->editnext = IMAT_EDITNEXT_LINCR;
+  else
+    ih->data->editnext = IMAT_EDITNEXT_LIN;
+  return 0;
+}
+
+static char* iMatrixGetEditNextAttrib(Ihandle* ih)
+{
+  switch (ih->data->editnext)
+  {
+  case IMAT_EDITNEXT_COL: return "COL";
+  case IMAT_EDITNEXT_LINCR: return "LINCR";
+  case IMAT_EDITNEXT_COLCR: return "COLCR";
+  default: return "LIN";
+  }
+}
+
 static int iMatrixSetActiveAttrib(Ihandle* ih, const char* value)
 {
   iupBaseSetActiveAttrib(ih, value);
@@ -372,30 +396,41 @@ static int iMatrixSetActiveAttrib(Ihandle* ih, const char* value)
   return 0;
 }
 
-static int iMatrixHasTitleHeight(Ihandle* ih)
+static int iMatrixHasColWidth(Ihandle* ih, int col)
 {
-  char* value = iupAttribGet(ih, "HEIGHT0");
-  if(!value)
-    value = iupAttribGet(ih, "RASTERHEIGHT0");
+  char str[100];
+  char* value;
+
+  sprintf(str, "WIDTH%d", col);
+  value = iupAttribGet(ih, str);
+  if (!value)
+  {
+    sprintf(str, "RASTERWIDTH%d", col);
+    value = iupAttribGet(ih, str);
+  }
   return (value!=NULL);
 }
 
-static int iMatrixHasTitleWidth(Ihandle* ih)
+static int iMatrixHasLineHeight(Ihandle* ih, int lin)
 {
-  char* value = iupAttribGet(ih, "WIDTH0");
-  if(!value)
-    value = iupAttribGet(ih, "RASTERWIDTH0");
+  char str[100];
+  char* value;
+
+  sprintf(str, "HEIGHT%d", lin);
+  value = iupAttribGet(ih, str);
+  if (!value)
+  {
+    sprintf(str, "RASTERHEIGHT%d", lin);
+    value = iupAttribGet(ih, str);
+  }
   return (value!=NULL);
 }
 
-static void iupMatrixFitLines(Ihandle* ih, int height)
+static void iMatrixFitLines(Ihandle* ih, int height)
 {
   /* expand each line height to fit the matrix height */
-  int line_height, lin, callback_mode = ih->data->callback_mode,
+  int line_height, lin, empty, has_line_height,
       *empty_lines, empty_num=0, visible_num, empty_lin_visible = 0;
-
-  if (!ih->handle && IupGetCallback(ih, "VALUE_CB"))
-    callback_mode = 1;
 
   visible_num = iupAttribGetInt(ih, "NUMLIN_VISIBLE")+1;  /* include the title line */
 
@@ -404,28 +439,28 @@ static void iupMatrixFitLines(Ihandle* ih, int height)
   /* ignore the lines that already have HEIGHT or RASTERHEIGHT */
   for(lin = 0; lin < ih->data->lines.num; lin++)
   {
-    /* use text size for titles when NOT in callback mode at line 0 */
-    line_height = iupMatrixAuxGetLineHeight(ih, lin, (lin==0 && !callback_mode)? 1: 0);  
-    if (lin==0 && line_height && !iMatrixHasTitleHeight(ih))
-    {
-      /* this means that the line size was calculated from text, 
-         so it can be changed by this function */
-      if (lin < visible_num)
-        empty_lin_visible++;
+    has_line_height = iMatrixHasLineHeight(ih, lin);
+    empty = 1;
 
-      empty_lines[empty_num] = lin;
-      empty_num++;
-    }
-    else if (line_height)
+    /* when lin==0 the line exists if size is defined, 
+       but also exists if some title text is defined in non callback mode. */
+    line_height = iupMatrixAuxGetLineHeight(ih, lin, lin==0? 1: 0);
+
+    /* the line does not exists */
+    if (lin==0 && !has_line_height && !line_height)
+      empty = 0;  /* don't resize this line */
+
+    /* if the height is defined to be 0, it can not be used */
+    if (has_line_height && !line_height)
+      empty = 0;  /* don't resize this line */
+
+    if (line_height)
     {
-      /* if there is a line size, then it is not free */
       if (lin < visible_num)
         height -= line_height;
     }
-    else if (lin!=0 || !callback_mode)
+    else if (empty)
     {
-      /* here line size is 0, and it is free, but
-         when lin=0 can use it only when NOT in callback mode */
       if (lin < visible_num)
         empty_lin_visible++;
 
@@ -451,14 +486,11 @@ static void iupMatrixFitLines(Ihandle* ih, int height)
   free(empty_lines);
 }
 
-static void iupMatrixFitColumns(Ihandle* ih, int width)
+static void iMatrixFitColumns(Ihandle* ih, int width)
 {
   /* expand each column width to fit the matrix width */
-  int column_width, col, callback_mode = ih->data->callback_mode,
+  int column_width, col, empty, has_col_width,
       *empty_columns, empty_num=0, visible_num, empty_col_visible = 0;
-
-  if (!ih->handle && IupGetCallback(ih, "VALUE_CB"))
-    callback_mode = 1;
 
   visible_num = iupAttribGetInt(ih, "NUMCOL_VISIBLE")+1;  /* include the title column */
 
@@ -467,28 +499,28 @@ static void iupMatrixFitColumns(Ihandle* ih, int width)
   /* ignore the columns that already have WIDTH or RASTERWIDTH */
   for(col = 0; col < ih->data->columns.num; col++)
   {
-    /* use text size for titles when NOT in callback mode at col 0 */
-    column_width = iupMatrixAuxGetColumnWidth(ih, col, (col==0 && callback_mode)? 1: 0);  
-    if (col==0 && column_width && !iMatrixHasTitleWidth(ih))
-    {
-      /* this means that the column size was calculated from text, 
-         so it can be changed by this function */
-      if (col < visible_num)
-        empty_col_visible++;
+    has_col_width = iMatrixHasColWidth(ih, col);
+    empty = 1;
 
-      empty_columns[empty_num] = col;
-      empty_num++;
-    }
-    else if (column_width)
+    /* when col==0 the col exists if size is defined, 
+       but also exists if some title text is defined in non callback mode. */
+    column_width = iupMatrixAuxGetColumnWidth(ih, col, col==0? 1: 0);
+
+    /* the col does not exists */
+    if (col==0 && !has_col_width && !column_width)
+      empty = 0;  /* don't resize this col */
+
+    /* if the width is defined to be 0, it can not be used */
+    if (has_col_width && !column_width)
+      empty = 0;  /* don't resize this col */
+
+    if (column_width)
     {
-      /* if there is a column size, then it is not free */
       if (col < visible_num)
         width -= column_width;
     }
-    else if (col!=0 || !callback_mode)
+    else if (empty)
     {
-      /* here column size is 0, and it is free, but
-         when col=0 can use it only when NOT in callback mode */
       if (col < visible_num)
         empty_col_visible++;
 
@@ -535,26 +567,105 @@ static int iMatrixSetFitToSizeAttrib(Ihandle* ih, const char* value)
   IupGetIntInt(ih, "RASTERSIZE", &w, &h);
 
   if (iupStrEqualNoCase(value, "LINES"))
-    iupMatrixFitLines(ih, h-sb_h);
+    iMatrixFitLines(ih, h-sb_h);
   else if (iupStrEqualNoCase(value, "COLUMNS"))
-    iupMatrixFitColumns(ih, w-sb_w);
+    iMatrixFitColumns(ih, w-sb_w);
   else
   {
-    iupMatrixFitLines(ih, h-sb_h);
-    iupMatrixFitColumns(ih, w-sb_w);
+    iMatrixFitLines(ih, h-sb_h);
+    iMatrixFitColumns(ih, w-sb_w);
   }
 
   ih->data->need_calcsize = 1;
-  IupUpdate(ih);
+  if (ih->handle)
+    iupMatrixDraw(ih, 1);
   return 0;
 }
 
-static int iMatrixSetWidthAttrib(Ihandle* ih, int col, const char* value)
+static void iMatrixFitColText(Ihandle* ih, int col)
 {
-  (void)value;
-  (void)col;
+  /* find the largest cel in the col */
+  int lin, max_width = 0, max;
+  char str[100];
+
+  for(lin = 0; lin < ih->data->lines.num; lin++)
+  {
+    char* title_value = iupMatrixCellGetValue(ih, lin, col);
+    if (title_value && title_value[0])
+    {
+      int w;
+      iupdrvFontGetMultiLineStringSize(ih, title_value, &w, NULL);
+      if (w > max_width)
+        max_width = w;
+    }
+  }
+
+  sprintf(str, "FITMAXWIDTH%d", col);
+  max = iupAttribGetInt(ih, str);
+  if (max && max > max_width)
+    max_width = max;
+
+  sprintf(str, "RASTERWIDTH%d", col);
+  iupAttribSetInt(ih, str, max_width);
+}
+
+static void iMatrixFitLineText(Ihandle* ih, int line)
+{
+  /* find the highest cel in the line */
+  int col, max_height = 0, max;
+  char str[100];
+
+  for(col = 0; col < ih->data->columns.num; col++)
+  {
+    char* title_value = iupMatrixCellGetValue(ih, line, col);
+    if (title_value && title_value[0])
+    {
+      int h;
+      iupdrvFontGetMultiLineStringSize(ih, title_value, NULL, &h);
+      if (h > max_height)
+        max_height = h;
+    }
+  }
+
+  sprintf(str, "FITMAXHEIGHT%d", line);
+  max = iupAttribGetInt(ih, str);
+  if (max && max > max_height)
+    max_height = max;
+
+  sprintf(str, "RASTERHEIGHT%d", line);
+  iupAttribSetInt(ih, str, max_height);
+}
+
+static int iMatrixSetFitToTextAttrib(Ihandle* ih, const char* value)
+{
+  if (!value || value[0]==0)
+    return 0;
+
+  if (value[0] == 'C')
+  {
+    int col;
+    if (iupStrToInt(value+1, &col))
+      iMatrixFitColText(ih, col);
+  }
+  else if (value[0] == 'L')
+  {
+    int line;
+    if (iupStrToInt(value+1, &line))
+      iMatrixFitLineText(ih, line);
+  }
+
   ih->data->need_calcsize = 1;
-  IupUpdate(ih);
+  if (ih->handle)
+    iupMatrixDraw(ih, 1);
+  return 0;
+}
+
+static int iMatrixSetSizeAttrib(Ihandle* ih, int pos, const char* value)
+{
+  (void)pos;
+  (void)value;
+  ih->data->need_calcsize = 1;
+  IupUpdate(ih);  /* post a redraw */
   return 1;
 }
 
@@ -563,41 +674,14 @@ static char* iMatrixGetWidthAttrib(Ihandle* ih, int col)
   return iupMatrixGetSize(ih, col, IMAT_PROCESS_COL, 0);
 }
 
-static int iMatrixSetHeightAttrib(Ihandle* ih, int lin, const char* value)
-{
-  (void)value;
-  (void)lin;
-  ih->data->need_calcsize = 1;
-  IupUpdate(ih);
-  return 1;
-}
-
 static char* iMatrixGetHeightAttrib(Ihandle* ih, int lin)
 {
   return iupMatrixGetSize(ih, lin, IMAT_PROCESS_LIN, 0);
 }
 
-static int iMatrixSetRasterWidthAttrib(Ihandle* ih, int col, const char* value)
-{
-  (void)value;
-  (void)col;
-  ih->data->need_calcsize = 1;
-  IupUpdate(ih);
-  return 1;
-}
-
 static char* iMatrixGetRasterWidthAttrib(Ihandle* ih, int col)
 {
   return iupMatrixGetSize(ih, col, IMAT_PROCESS_COL, 1);
-}
-
-static int iMatrixSetRasterHeightAttrib(Ihandle* ih, int lin, const char* value)
-{
-  (void)value;
-  (void)lin;
-  ih->data->need_calcsize = 1;
-  IupUpdate(ih);
-  return 1;
 }
 
 static char* iMatrixGetRasterHeightAttrib(Ihandle* ih, int lin)
@@ -608,7 +692,7 @@ static char* iMatrixGetRasterHeightAttrib(Ihandle* ih, int lin)
 static char* iMatrixGetAlignmentAttrib(Ihandle* ih, int col)
 {
   char* align;
-  char str[50];
+  char str[100];
   sprintf(str, "ALIGNMENT%d", col);
   align = iupAttribGet(ih, str);
   if (!align)
@@ -660,29 +744,29 @@ static int iMatrixSetFlagsAttrib(Ihandle* ih, int lin, int col, const char* valu
 
 static int iMatrixSetBgColorAttrib(Ihandle* ih, int lin, int col, const char* value)
 {
-  return iMatrixSetFlagsAttrib(ih, lin, col, value, IUPMAT_BGCOLOR);
+  return iMatrixSetFlagsAttrib(ih, lin, col, value, IMAT_HAS_BGCOLOR);
 }
 
 static int iMatrixSetFgColorAttrib(Ihandle* ih, int lin, int col, const char* value)
 {
-  return iMatrixSetFlagsAttrib(ih, lin, col, value, IUPMAT_FGCOLOR);
+  return iMatrixSetFlagsAttrib(ih, lin, col, value, IMAT_HAS_FGCOLOR);
 }
 
 static int iMatrixSetFontAttrib(Ihandle* ih, int lin, int col, const char* value)
 {
-  return iMatrixSetFlagsAttrib(ih, lin, col, value, IUPMAT_FONT);
+  return iMatrixSetFlagsAttrib(ih, lin, col, value, IMAT_HAS_FONT);
 }
 
 static int iMatrixSetFrameHorizColorAttrib(Ihandle* ih, int lin, int col, const char* value)
 {
   ih->data->checkframecolor = value!=NULL;
-  return iMatrixSetFlagsAttrib(ih, lin, col, value, IUPMAT_FRAMEHCOLOR);
+  return iMatrixSetFlagsAttrib(ih, lin, col, value, IMAT_HAS_FRAMEHCOLOR);
 }
 
 static int iMatrixSetFrameVertColorAttrib(Ihandle* ih, int lin, int col, const char* value)
 {
   ih->data->checkframecolor = value!=NULL;
-  return iMatrixSetFlagsAttrib(ih, lin, col, value, IUPMAT_FRAMEVCOLOR);
+  return iMatrixSetFlagsAttrib(ih, lin, col, value, IMAT_HAS_FRAMEVCOLOR);
 }
 
 static char* iMatrixGetFontAttrib(Ihandle* ih, int lin, int col)
@@ -815,7 +899,7 @@ static int iMatrixCreateMethod(Ihandle* ih, void **params)
   }
 
   /* free the data allocated by IupCanvas */
-  if (ih->data) free(ih->data);
+  free(ih->data);
   ih->data = iupALLOCCTRLDATA();
 
   /* change the IupCanvas default values */
@@ -992,9 +1076,9 @@ static void iMatrixCreateCursor(void)
   IupSetHandle("matrx_img_cur_excel",  imgcursor);  /* for backward compatibility */
 }
 
-Iclass* iupMatrixGetClass(void)
+Iclass* iupMatrixNewClass(void)
 {
-  Iclass* ic = iupClassNew(iupCanvasGetClass());
+  Iclass* ic = iupClassNew(iupRegisterFindClass("canvas"));
 
   ic->name = "matrix";
   ic->format = "a"; /* one ACTION_CB callback name */
@@ -1004,6 +1088,7 @@ Iclass* iupMatrixGetClass(void)
   ic->has_attrib_id = 2;   /* has attributes with IDs that must be parsed */
 
   /* Class functions */
+  ic->New = iupMatrixNewClass;
   ic->Create  = iMatrixCreateMethod;
   ic->Map     = iMatrixMapMethod;
   ic->UnMap   = iMatrixUnMapMethod;
@@ -1024,7 +1109,7 @@ Iclass* iupMatrixGetClass(void)
   iupClassRegisterCallback(ic, "BGCOLOR_CB", "iiIII");
   iupClassRegisterCallback(ic, "FGCOLOR_CB", "iiIII");
   iupClassRegisterCallback(ic, "FONT_CB", "ii=s");
-  iupClassRegisterCallback(ic, "DRAW_CB", "iiiiii");
+  iupClassRegisterCallback(ic, "DRAW_CB", "iiiiiiv");
   iupClassRegisterCallback(ic, "DROPCHECK_CB", "ii");
   /* --- Editing --- */
   iupClassRegisterCallback(ic, "DROP_CB", "nii");
@@ -1068,11 +1153,14 @@ Iclass* iupMatrixGetClass(void)
   iupClassRegisterAttribute(ic, "NUMCOL_VISIBLE_LAST", NULL, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "WIDTHDEF", NULL, NULL, IUPAF_SAMEASSYSTEM, "80", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "HEIGHTDEF", NULL, NULL, IUPAF_SAMEASSYSTEM, "8", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
-  iupClassRegisterAttributeId(ic, "WIDTH", iMatrixGetWidthAttrib, iMatrixSetWidthAttrib, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
-  iupClassRegisterAttributeId(ic, "HEIGHT", iMatrixGetHeightAttrib, iMatrixSetHeightAttrib, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
-  iupClassRegisterAttributeId(ic, "RASTERWIDTH", iMatrixGetRasterWidthAttrib, iMatrixSetRasterWidthAttrib, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
-  iupClassRegisterAttributeId(ic, "RASTERHEIGHT", iMatrixGetRasterHeightAttrib, iMatrixSetRasterHeightAttrib, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "WIDTH", iMatrixGetWidthAttrib, iMatrixSetSizeAttrib, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "HEIGHT", iMatrixGetHeightAttrib, iMatrixSetSizeAttrib, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "RASTERWIDTH", iMatrixGetRasterWidthAttrib, iMatrixSetSizeAttrib, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "RASTERHEIGHT", iMatrixGetRasterHeightAttrib, iMatrixSetSizeAttrib, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "FITTOSIZE", NULL, iMatrixSetFitToSizeAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "FITTOTEXT", NULL, iMatrixSetFitToTextAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "FITMAXHEIGHT", NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "FITMAXWIDTH", NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 
   /* IupMatrix Attributes - MARK */
   iupClassRegisterAttribute(ic, "MARKED", iupMatrixGetMarkedAttrib, iupMatrixSetMarkedAttrib, NULL, NULL, IUPAF_NO_INHERIT);  /* noticed that MARKED must be mapped */
@@ -1092,6 +1180,7 @@ Iclass* iupMatrixGetClass(void)
   iupClassRegisterAttribute(ic, "ORIGIN", iMatrixGetOriginAttrib, iMatrixSetOriginAttrib, NULL, NULL, IUPAF_NO_SAVE|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SHOW", NULL, iMatrixSetShowAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "EDIT_MODE", iMatrixGetEditModeAttrib, iMatrixSetEditModeAttrib, NULL, NULL, IUPAF_NO_SAVE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "EDITNEXT", iMatrixGetEditNextAttrib, iMatrixSetEditNextAttrib, IUPAF_SAMEASSYSTEM, "LIN", IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "REDRAW", NULL, iupMatrixDrawSetRedrawAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
 
   /* IupMatrix Attributes - EDITION */

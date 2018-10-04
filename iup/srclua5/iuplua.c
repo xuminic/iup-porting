@@ -241,22 +241,13 @@ void iuplua_pushihandle(lua_State *L, Ihandle *ih)
     lua_pushnil(L);
 }
 
-void iuplua_removeihandle(lua_State *L, Ihandle *ih)
+static int il_destroy_cb(Ihandle* ih)
 {
-  char* sref;
-
-  /* called from Destroy.
-     must also remove references from the children. */
-  Ihandle* child = IupGetNextChild(ih, NULL);
-  while(child)
-  {
-    iuplua_removeihandle(L, child);
-    child = IupGetNextChild(ih, child);
-  }
-
-  sref = IupGetAttribute(ih, "_IUPLUA_WIDGET_TABLE_REF");
+  /* called from IupDestroy. */
+  char* sref = IupGetAttribute(ih, "_IUPLUA_WIDGET_TABLE_REF");
   if (sref)
   {
+    lua_State *L = iuplua_getstate(ih);
     int ref = atoi(sref);
 
     /* removes the ihandle reference in the lua table */
@@ -270,14 +261,24 @@ void iuplua_removeihandle(lua_State *L, Ihandle *ih)
     /* removes the association of the ihandle with the lua table */
     lua_unref(L, ref);  /* this is the complement of SetWidget */
     IupSetAttribute(ih, "_IUPLUA_WIDGET_TABLE_REF", NULL);
+    IupSetCallback(ih, "LDESTROY_CB", NULL);
   }
+
+  return IUP_DEFAULT;
 }
 
-char ** iuplua_checkstring_array(lua_State *L, int pos)
+char** iuplua_checkstring_array(lua_State *L, int pos, int n)
 {
-  int i,n;
+  int i;
   char **v;
-  n = iuplua_getn(L,pos);
+
+  luaL_checktype(L, pos, LUA_TTABLE);
+  if (n==0) 
+    n = iuplua_getn(L, pos);
+  else if (n != iuplua_getn(L, pos))
+    luaL_error(L, "Invalid number of elements (n!=count).");
+  if (n<=0) luaL_error(L, "Invalid number of elements.");
+
   v = (char **) malloc (n*sizeof(char *));
   for(i=1; i<=n; i++)
   {
@@ -289,11 +290,18 @@ char ** iuplua_checkstring_array(lua_State *L, int pos)
   return v;
 }
 
-int * iuplua_checkint_array(lua_State *L, int pos)
+int* iuplua_checkint_array(lua_State *L, int pos, int n)
 {
-  int i,n;
+  int i;
   int *v;
-  n = iuplua_getn(L,pos);
+
+  luaL_checktype(L, pos, LUA_TTABLE);
+  if (n==0) 
+    n = iuplua_getn(L, pos);
+  else if (n != iuplua_getn(L, pos))
+    luaL_error(L, "Invalid number of elements (n!=count).");
+  if (n<=0) luaL_error(L, "Invalid number of elements.");
+
   v = (int *) malloc (n*sizeof(int));
   for(i=1; i<=n; i++)
   {
@@ -305,16 +313,41 @@ int * iuplua_checkint_array(lua_State *L, int pos)
   return v;
 }
 
-unsigned char* iuplua_checkuchar_array(lua_State *L, int pos, int count)
+float* iuplua_checkfloat_array(lua_State *L, int pos, int n)
 {
-  int i,n;
-  unsigned char *v;
-  n = iuplua_getn(L,pos);
-  if (n != count)
+  int i;
+  float* v;
+
+  luaL_checktype(L, pos, LUA_TTABLE);
+  if (n==0) 
+    n = iuplua_getn(L, pos);
+  else if (n != iuplua_getn(L, pos))
+    luaL_error(L, "Invalid number of elements (n!=count).");
+  if (n<=0) luaL_error(L, "Invalid number of elements (n>0).");
+    
+  v = (float *) malloc (n*sizeof(float));
+  for(i=1; i<=n; i++)
   {
-    lua_pushstring(L, "invalid number of elements in array");
-    lua_error(L);
+    lua_pushinteger(L,i);
+    lua_gettable(L,pos);
+    v[i-1] = (float)lua_tonumber(L, -1);
+    lua_pop(L,1);
   }
+  return v;
+}
+
+unsigned char* iuplua_checkuchar_array(lua_State *L, int pos, int n)
+{
+  int i;
+  unsigned char *v;
+
+  luaL_checktype(L, pos, LUA_TTABLE);
+  if (n==0) 
+    n = iuplua_getn(L, pos);
+  else if (n != iuplua_getn(L, pos))
+    luaL_error(L, "Invalid number of elements (n!=count).");
+  if (n<=0) luaL_error(L, "Invalid number of elements (n>0).");
+
   v = (unsigned char *) malloc (n*sizeof(unsigned char));
   for(i=1; i<=n; i++)
   {
@@ -326,10 +359,18 @@ unsigned char* iuplua_checkuchar_array(lua_State *L, int pos, int count)
   return v;
 }
 
-Ihandle ** iuplua_checkihandle_array(lua_State *L, int pos)
+Ihandle ** iuplua_checkihandle_array(lua_State *L, int pos, int n)
 {
+  int i;
   Ihandle **v;
-  int i, n = iuplua_getn(L, pos);
+
+  luaL_checktype(L, pos, LUA_TTABLE);
+  if (n==0) 
+    n = iuplua_getn(L, pos);
+  else if (n != iuplua_getn(L, pos))
+    luaL_error(L, "Invalid number of elements (n!=count).");
+  if (n<=0) luaL_error(L, "Invalid number of elements (n>0).");
+
   v = (Ihandle **) malloc ((n+1)*sizeof(Ihandle *));
   for (i=1; i<=n; i++)
   {
@@ -566,6 +607,7 @@ static int SetWidget(lua_State *L)
   {
     int ref = lua_ref(L, 1);
     IupSetfAttribute(ih, "_IUPLUA_WIDGET_TABLE_REF", "%d", ref);  /* this must be a non-inheritable attribute */
+    IupSetCallback(ih, "LDESTROY_CB", il_destroy_cb);
   }
   return 0;
 }

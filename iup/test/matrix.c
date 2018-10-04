@@ -14,6 +14,24 @@ static int mousemove_cb(Ihandle *ih, int lin, int col)
   return IUP_DEFAULT;
 }
 
+static int drop(Ihandle *self, Ihandle *drop, int lin, int col)
+{
+  printf("drop_cb(%d, %d)\n", lin, col);
+  if(lin == 3 && col == 1)
+  {
+    IupSetAttribute(drop, "1", "A - Test of Very Big String for Dropdown!");
+    IupSetAttribute(drop, "2", "B");
+    IupSetAttribute(drop, "3", "C");
+    IupSetAttribute(drop, "4", "XXX");
+    IupSetAttribute(drop, "5", "5");
+    IupSetAttribute(drop, "6", "6");
+    IupSetAttribute(drop, "7", "7");
+    IupSetAttribute(drop, "8", NULL);
+    return IUP_DEFAULT;
+  }
+  return IUP_IGNORE;
+}
+
 static int dropcheck_cb(Ihandle *self, int lin, int col)
 {
   if (lin == 3 && col == 1)
@@ -44,8 +62,9 @@ static Ihandle* create_matrix(void)
   IupSetAttribute(mat, "2:2", "8.1");
   IupSetAttribute(mat, "3:1", "3.4");
   IupSetAttribute(mat, "3:3", "Font Test");
-//  IupSetAttribute(mat, "WIDTH2", "90");
 //  IupSetAttribute(mat, "HEIGHT2", "30");
+//  IupSetAttribute(mat, "WIDTH2", "190");
+//  IupSetAttributeId(mat, "WIDTH", 2, "190");
   IupSetAttribute(mat,"SORTSIGN2","DOWN");
 //  IupSetAttribute(mat, "WIDTHDEF", "34");
 //  IupSetAttribute(mat,"MULTILINE", "YES");
@@ -94,6 +113,7 @@ static Ihandle* create_matrix(void)
   IupSetAttribute(mat, "0:8", "Column Title Test");
   IupSetAttribute(mat, "NUMCOL_VISIBLE", "3");
   IupSetAttribute(mat, "NUMLIN_VISIBLE", "5");
+//  IupSetAttribute(mat,"EDITNEXT","COLCR");
 
 //  IupSetAttribute(mat,"RASTERSIZE","x300");
 //  IupSetAttribute(mat,"FITTOSIZE","LINES");
@@ -108,6 +128,7 @@ static Ihandle* create_matrix(void)
   //}
 
   IupSetCallback(mat, "DROPCHECK_CB", (Icallback)dropcheck_cb);
+  IupSetCallback(mat,"DROP_CB",(Icallback)drop);
 //  IupSetCallback(mat, "MOUSEMOVE_CB", (Icallback)mousemove_cb);
 
   return mat;

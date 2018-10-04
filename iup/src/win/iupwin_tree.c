@@ -31,17 +31,8 @@
 #include "iupwin_info.h"
 
 
-typedef struct _winTreeItemData
-{
-  COLORREF color;
-  unsigned char kind;
-  HFONT hFont;
-  short image;
-  short image_expanded;
-} winTreeItemData;
 
-/* Vista Only */
-
+/* Not defined for Cygwin and MingW */
 #ifndef TVN_ITEMCHANGING                          
 typedef struct tagNMTVITEMCHANGE {
     NMHDR hdr;
@@ -62,6 +53,17 @@ typedef struct tagNMTVITEMCHANGE {
 #ifndef TVM_SETEXTENDEDSTYLE
 #define TVM_SETEXTENDEDSTYLE      (TV_FIRST + 44)
 #endif
+/* End Cygwin/MingW */
+
+
+typedef struct _winTreeItemData
+{
+  COLORREF color;
+  unsigned char kind;
+  HFONT hFont;
+  short image;
+  short image_expanded;
+} winTreeItemData;
 
 
 static void winTreeSetFocusNode(Ihandle* ih, HTREEITEM hItem);
@@ -167,6 +169,7 @@ void iupdrvTreeAddNode(Ihandle* ih, int id, int kind, const char* title, int add
   itemData->image_expanded = -1;
   itemData->kind = (unsigned char)kind;
 
+  ZeroMemory(&item, sizeof(TVITEM));
   item.mask = TVIF_PARAM | TVIF_IMAGE | TVIF_SELECTEDIMAGE | TVIF_TEXT; 
   item.pszText = (char*)title;
   item.lParam = (LPARAM)itemData;
@@ -436,18 +439,6 @@ static int winTreeSelectedArrayFunc(Ihandle* ih, HTREEITEM hItem, int id, winTre
   }
 
   return 1;
-}
-
-static Iarray* winTreeGetSelectedArray(Ihandle* ih)
-{
-  Iarray* markedArray = iupArrayCreate(1, sizeof(HTREEITEM));
-  winTreeSelArray selarray;
-  selarray.markedArray = markedArray;
-  selarray.is_handle = 1;
-
-  iupTreeForEach(ih, (iupTreeNodeFunc)winTreeSelectedArrayFunc, &selarray);
-
-  return markedArray;
 }
 
 static Iarray* winTreeGetSelectedArrayId(Ihandle* ih)
@@ -1868,6 +1859,16 @@ static void winTreeDragMove(Ihandle* ih, int x, int y)
 
   if (hItemDrop)
   {
+    if (!iupAttribGetBoolean(ih, "DROPEQUALDRAG"))
+    {
+      HTREEITEM hItemDrag = (HTREEITEM)iupAttribGet(ih, "_IUPTREE_DRAGITEM");
+      if (hItemDrop == hItemDrag)
+      {
+        iupAttribSetStr(ih, "_IUPTREE_DROPITEM", NULL);
+        return;
+      }
+    }
+
     if(dragImageList)
       ImageList_DragShowNolock(FALSE);
 
@@ -2550,7 +2551,7 @@ void iupdrvTreeInitClass(Iclass* ic)
   /* Visual */
   iupClassRegisterAttribute(ic, "BGCOLOR", winTreeGetBgColorAttrib, winTreeSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "TXTBGCOLOR", IUPAF_NO_SAVE|IUPAF_DEFAULT);
   iupClassRegisterAttribute(ic, "FGCOLOR", NULL, winTreeSetFgColorAttrib, IUPAF_SAMEASSYSTEM, "TXTFGCOLOR", IUPAF_DEFAULT);
-  iupClassRegisterAttribute(ic, "AUTOREDRAW", NULL, iupwinSetAutoRedrawAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AUTOREDRAW", NULL, iupwinSetAutoRedrawAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
 
   /* IupTree Attributes - GENERAL */
   iupClassRegisterAttribute(ic, "EXPANDALL",  NULL, winTreeSetExpandAllAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);

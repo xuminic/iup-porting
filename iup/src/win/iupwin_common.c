@@ -30,13 +30,10 @@
 #include "iupwin_handle.h"
 #include "iupwin_brush.h"
 
+
 /* Not defined in compilers older than VC9 or WinSDK older than 6.0 */
 #ifndef MAPVK_VK_TO_VSC
 #define MAPVK_VK_TO_VSC     (0)
-#endif
-
-#ifndef  XBUTTON1
-#define XBUTTON1      0x0001     /* not defined in MingW3 */
 #endif
 
 int iupwinClassExist(const char* name)
@@ -136,6 +133,16 @@ void iupdrvScreenToClient(Ihandle* ih, int *x, int *y)
   p.x = *x;
   p.y = *y;
   ScreenToClient(ih->handle, &p);
+  *x = p.x;
+  *y = p.y;
+}
+
+void iupdrvClientToScreen(Ihandle* ih, int *x, int *y)
+{
+  POINT p;
+  p.x = *x;
+  p.y = *y;
+  ClientToScreen(ih->handle, &p);
   *x = p.x;
   *y = p.y;
 }
@@ -593,8 +600,6 @@ int iupdrvBaseSetZorderAttrib(Ihandle* ih, const char* value)
 
 void iupdrvSetVisible(Ihandle* ih, int visible)
 {
-  if (iupStrEqual(ih->iclass->name, "colorbar"))
-    ih=ih;
   ShowWindow(ih->handle, visible? SW_SHOWNORMAL: SW_HIDE);
 }
 
@@ -640,24 +645,6 @@ int iupwinSetDragDropAttrib(Ihandle* ih, const char* value)
   else
     DragAcceptFiles(ih->handle, FALSE);
   return 1;
-}
-
-char *iupdrvBaseGetXAttrib(Ihandle *ih)
-{
-  char* str = iupStrGetMemory(20);
-  RECT rect;
-  GetWindowRect(ih->handle, &rect);
-  sprintf(str, "%d", (int)rect.left);
-  return str;
-}
-
-char *iupdrvBaseGetYAttrib(Ihandle *ih)
-{
-  char* str = iupStrGetMemory(20);
-  RECT rect;
-  GetWindowRect(ih->handle, &rect);
-  sprintf(str, "%d", (int)rect.top);
-  return str;
 }
 
 char* iupdrvBaseGetClientSizeAttrib(Ihandle* ih)
@@ -1032,45 +1019,92 @@ void iupdrvSendKey(int key, int press)
   }
 }
 
-void iupdrvSendMouse(int x, int y, int bt, int status)
+void iupdrvWarpPointer(int x, int y)
 {
   SetCursorPos(x, y);
+}
 
-  if (status != -1)
+static int winGetButtonStatus(int bt, int status)
+{
+  switch(bt)
   {
-    INPUT input[1];
-    ZeroMemory(input, sizeof(INPUT));
+  case IUP_BUTTON1:
+    return (status==0)? MOUSEEVENTF_LEFTUP: MOUSEEVENTF_LEFTDOWN;
+  case IUP_BUTTON2:
+    return (status==0)? MOUSEEVENTF_MIDDLEUP: MOUSEEVENTF_MIDDLEDOWN;
+  case IUP_BUTTON3:
+    return (status==0)? MOUSEEVENTF_RIGHTUP: MOUSEEVENTF_RIGHTDOWN;
+  case IUP_BUTTON4:
+    return (status==0)? MOUSEEVENTF_XUP: MOUSEEVENTF_XDOWN;
+  case IUP_BUTTON5:
+    return (status==0)? MOUSEEVENTF_XUP: MOUSEEVENTF_XDOWN;
+  default:
+    return 0;
+  }
+}
 
-    input[0].type = INPUT_MOUSE;
-    input[0].mi.dx = x;
-    input[0].mi.dy = y;
-    input[0].mi.dwFlags = MOUSEEVENTF_ABSOLUTE;
+void iupdrvSendMouse(int x, int y, int bt, int status)
+{
+  INPUT input;
+  ZeroMemory(&input, sizeof(INPUT));
+
+  input.type = INPUT_MOUSE;
+  input.mi.dx = x;
+  input.mi.dy = y;
+  input.mi.dwFlags = MOUSEEVENTF_ABSOLUTE;
+  input.mi.dwExtraInfo = GetMessageExtraInfo();
+
+  /* PROBLEMS:
+    Menu items are not activated. Although submenus open, menu items even in the menu bar are not activated.
+    Inside the FileOpen dialog, clicks in the folder navigation list are not correctly interpreted.
+  */
+
+  if (status==-1)
+  {
+    input.mi.dwFlags |= MOUSEEVENTF_MOVE;
+  }
+  else
+  {
+    input.mi.dwFlags |= winGetButtonStatus(bt, status);
 
     switch(bt)
     {
-    case IUP_BUTTON1:
-      input[0].mi.dwFlags |= (status==1)? MOUSEEVENTF_LEFTDOWN: MOUSEEVENTF_LEFTUP;
-      break;
-    case IUP_BUTTON2:
-      input[0].mi.dwFlags |= (status==1)? MOUSEEVENTF_MIDDLEDOWN: MOUSEEVENTF_MIDDLEUP;
-      break;
-    case IUP_BUTTON3:
-      input[0].mi.dwFlags |= (status==1)? MOUSEEVENTF_RIGHTDOWN: MOUSEEVENTF_RIGHTUP;
+    case 'W':
+      input.mi.mouseData = status*120;
+      input.mi.dwFlags |= MOUSEEVENTF_WHEEL;
       break;
     case IUP_BUTTON4:
-      input[0].mi.mouseData = XBUTTON1;
-      input[0].mi.dwFlags |= (status==1)? MOUSEEVENTF_XDOWN: MOUSEEVENTF_XUP;
+      input.mi.mouseData = XBUTTON1;
       break;
     case IUP_BUTTON5:
-      input[0].mi.mouseData = XBUTTON2;
-      input[0].mi.dwFlags |= (status==1)? MOUSEEVENTF_XDOWN: MOUSEEVENTF_XUP;
+      input.mi.mouseData = XBUTTON2;
       break;
-    default:
-      return;
     }
-
-    SendInput(1, input, sizeof(INPUT));
   }
+
+  if (status == 2)  /* double click */
+  {
+    SendInput(1, &input, sizeof(INPUT));  /* press */
+
+    input.mi.dwFlags = MOUSEEVENTF_ABSOLUTE;
+    input.mi.dwFlags |= winGetButtonStatus(bt, 0);
+    SendInput(1, &input, sizeof(INPUT));  /* release */
+
+    input.mi.dwFlags = MOUSEEVENTF_ABSOLUTE;
+    input.mi.dwFlags |= winGetButtonStatus(bt, 1);
+    SendInput(1, &input, sizeof(INPUT));  /* press */
+
+    input.mi.dwFlags = MOUSEEVENTF_ABSOLUTE;
+    input.mi.dwFlags |= winGetButtonStatus(bt, 0);
+    SendInput(1, &input, sizeof(INPUT));  /* release */
+  }
+  else
+    SendInput(1, &input, sizeof(INPUT));
+
+  /* always update cursor */
+  /* in Windows, update cursor after mouse messages */
+  /* this will NOT generate and extra motion event */
+  iupdrvWarpPointer(x, y);
 }
 
 int iupwinSetAutoRedrawAttrib(Ihandle* ih, const char* value)

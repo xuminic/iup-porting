@@ -6,7 +6,7 @@
 
 #---------------------------------#
 # Tecmake Version
-VERSION = 4.3
+VERSION = 4.4
 
 
 #---------------------------------#
@@ -239,6 +239,11 @@ ifndef NO_GTK_DEFAULT
   endif
   ifneq ($(findstring FreeBSD, $(TEC_UNAME)), )
     GTK_DEFAULT = Yes
+  endif
+  ifneq ($(findstring SunOS, $(TEC_UNAME)), )
+    ifeq ($(TEC_SYSARCH), x86)
+      GTK_DEFAULT = Yes
+    endif
   endif
 endif
 
@@ -679,16 +684,19 @@ endif
 ifdef USE_IUPCONTROLS
   override USE_CD = Yes
   override USE_IUP = Yes
+  IUP_LIB ?= $(IUP)/lib/$(TEC_UNAME_LIB_DIR)
+  
   ifdef USE_IUPLUA
     ifdef USE_STATIC
-      SLIB += $(IUP)/lib/$(TEC_UNAME_LIB_DIR)/libiupluacontrols$(LIBLUASUFX).a
+      SLIB += $(IUP_LIB)/libiupluacontrols$(LIBLUASUFX).a
     else
       LIBS += iupluacontrols$(LIBLUASUFX)
     endif
     override USE_CDLUA = Yes
   endif
+  
   ifdef USE_STATIC
-    SLIB += $(IUP)/lib/$(TEC_UNAME_LIB_DIR)/libiupcontrols.a
+    SLIB += $(IUP_LIB)/libiupcontrols.a
   else
     LIBS += iupcontrols
   endif
@@ -696,8 +704,9 @@ endif
 
 ifdef USE_IMLUA
   override USE_IM = Yes
+  IM_LIB ?= $(IM)/lib/$(TEC_UNAME_LIB_DIR)
   ifdef USE_STATIC
-    SLIB += $(IM)/lib/$(TEC_UNAME_LIB_DIR)/libimlua$(LIBLUASUFX).a
+    SLIB += $(IM_LIB)/libimlua$(LIBLUASUFX).a
   else
     LIBS += imlua$(LIBLUASUFX)
   endif
@@ -705,8 +714,9 @@ endif
 
 ifdef USE_CDLUA
   override USE_CD = Yes
+  CD_LIB ?= $(CD)/lib/$(TEC_UNAME_LIB_DIR)
   ifdef USE_STATIC
-    SLIB += $(CD)/lib/$(TEC_UNAME_LIB_DIR)/libcdlua$(LIBLUASUFX).a
+    SLIB += $(CD_LIB)/libcdlua$(LIBLUASUFX).a
   else
     LIBS += cdlua$(LIBLUASUFX)
   endif
@@ -714,14 +724,16 @@ endif
 
 ifdef USE_IUPLUA
   override USE_IUP = Yes
+  IUP_LIB ?= $(IUP)/lib/$(TEC_UNAME_LIB_DIR)
+  
   ifdef USE_STATIC
     ifdef USE_CD
-      SLIB += $(IUP)/lib/$(TEC_UNAME_LIB_DIR)/libiupluacd$(LIBLUASUFX).a
+      SLIB += $(IUP_LIB)/libiupluacd$(LIBLUASUFX).a
     endif
     ifdef USE_OPENGL
-      SLIB += $(IUP)/lib/$(TEC_UNAME_LIB_DIR)/libiupluagl$(LIBLUASUFX).a
+      SLIB += $(IUP_LIB)/libiupluagl$(LIBLUASUFX).a
     endif
-    SLIB += $(IUP)/lib/$(TEC_UNAME_LIB_DIR)/libiuplua$(LIBLUASUFX).a
+    SLIB += $(IUP_LIB)/libiuplua$(LIBLUASUFX).a
   else
     ifdef USE_CD
       LIBS += iupluacd$(LIBLUASUFX)
@@ -755,13 +767,17 @@ ifdef USE_LUA
     endif
   endif
 
-  LUA_INC   ?= $(LUA)/include
+  LUA_INC ?= $(LUA)/include
   INCLUDES += $(LUA_INC)
 
   LUA_BIN ?= $(LUA)/bin/$(TEC_UNAME)
-  BIN2C     := $(LUA_BIN)/bin2c$(LUA_SUFFIX)
-  LUAC      := $(LUA_BIN)/luac$(LUA_SUFFIX)
-  LUABIN    := $(LUA_BIN)/lua$(LUA_SUFFIX)
+  ifdef USE_BIN2C_LUA
+    BIN2C := $(LUA_BIN)/lua$(LUA_SUFFIX) $(BIN2C_PATH)bin2c.lua
+  else
+    BIN2C := $(LUA_BIN)/bin2c$(LUA_SUFFIX)
+  endif
+  LUAC   := $(LUA_BIN)/luac$(LUA_SUFFIX)
+  LUABIN := $(LUA_BIN)/lua$(LUA_SUFFIX)
 endif
 
 ifdef USE_IUP
@@ -789,14 +805,17 @@ ifdef USE_IUP
       override USE_MOTIF = Yes
     endif
   endif
+  
+  IUP_LIB ?= $(IUP)/lib/$(TEC_UNAME_LIB_DIR)
+
   ifdef USE_STATIC
     ifdef USE_CD
-      SLIB += $(IUP)/lib/$(TEC_UNAME_LIB_DIR)/libiupcd.a
+      SLIB += $(IUP_LIB)/libiupcd.a
     endif
     ifdef USE_OPENGL
-      SLIB += $(IUP)/lib/$(TEC_UNAME_LIB_DIR)/libiupgl.a
+      SLIB += $(IUP_LIB)/libiupgl.a
     endif
-    SLIB += $(IUP)/lib/$(TEC_UNAME_LIB_DIR)/libiup$(IUP_SUFFIX).a
+    SLIB += $(IUP_LIB)/libiup$(IUP_SUFFIX).a
   else
     ifdef USE_CD
       LIBS += iupcd
@@ -805,9 +824,11 @@ ifdef USE_IUP
       LIBS += iupgl
     endif
     LIBS += iup$(IUP_SUFFIX)
-    LDIR += $(IUP)/lib/$(TEC_UNAME_LIB_DIR)
+    LDIR += $(IUP_LIB)
   endif
-  INCLUDES += $(IUP)/include
+
+  IUP_INC ?= $(IUP)/include
+  INCLUDES += $(IUP_INC)
 endif
 
 ifdef USE_CD
@@ -826,22 +847,32 @@ ifdef USE_CD
       endif
     endif
   endif
+  
+  CD_LIB ?= $(CD)/lib/$(TEC_UNAME_LIB_DIR)
+  
   ifdef USE_STATIC
     ifdef USE_XRENDER
       CHECK_XRENDER = Yes
-      SLIB += $(CD)/lib/$(TEC_UNAME_LIB_DIR)/libcdcontextplus.a
+      SLIB += $(CD_LIB)/libcdcontextplus.a
       LIBS += Xrender Xft
     endif
     ifdef USE_CAIRO
       # To use Cairo with X11 base driver (NOT for GDK)
       # Can NOT be used together with XRender
-      SLIB += $(CD)/lib/$(TEC_UNAME_LIB_DIR)/libcdcairo.a
+      SLIB += $(CD_LIB)/libcdcairo.a
       LIBS += pangocairo-1.0 cairo
     endif
-    SLIB += $(CD)/lib/$(TEC_UNAME_LIB_DIR)/libcd$(CD_SUFFIX).a
+    SLIB += $(CD_LIB)/libcd$(CD_SUFFIX).a
     ifndef USE_GTK
       # Freetype is already included in GTK
-      SLIB += $(CD)/lib/$(TEC_UNAME_LIB_DIR)/libfreetype.a
+      SLIB += $(CD_LIB)/libfreetype.a
+    else
+      ifneq ($(findstring cygw, $(TEC_UNAME)), )
+        SLIB += $(CD_LIB)/libfreetype-6.a
+      else
+        # Use freetype from the system
+        LIBS += freetype
+      endif
     endif
   else
     ifdef USE_XRENDER
@@ -856,10 +887,10 @@ ifdef USE_CD
       LIBS += pangocairo-1.0 cairo
     endif
     LIBS += cd$(CD_SUFFIX)
-    LDIR += $(CD)/lib/$(TEC_UNAME_LIB_DIR)
+    LDIR += $(CD_LIB)
     ifndef USE_GTK
-      # Freetype is already included in GTK
       ifndef NO_OVERRIDE
+        # Freetype is already included in GTK
         ifneq ($(findstring cygw, $(TEC_UNAME)), )
           LIBS += freetype-6
         else
@@ -868,17 +899,22 @@ ifdef USE_CD
       endif
     endif
   endif
-  INCLUDES += $(CD)/include
+
+  CD_INC ?= $(CD)/include
+  INCLUDES += $(CD_INC)
 endif
 
 ifdef USE_IM
+  IM_LIB ?= $(IM)/lib/$(TEC_UNAME_LIB_DIR)
   ifdef USE_STATIC
-    SLIB += $(IM)/lib/$(TEC_UNAME_LIB_DIR)/libim.a
+    SLIB += $(IM_LIB)/libim.a
   else
     LIBS += im
-    LDIR += $(IM)/lib/$(TEC_UNAME_LIB_DIR)
+    LDIR += $(IM_LIB)
   endif
-  INCLUDES += $(IM)/include
+
+  IM_INC ?= $(IM)/include
+  INCLUDES += $(IM_INC)
 endif
 
 ifdef USE_GLUT
@@ -919,8 +955,10 @@ endif
 ifdef USE_GTK
   ifdef USE_PKGCONFIG
     # get compile/link flags via pkg-config
-    STDFLAGS += $(shell pkg-config --cflags gtk+-2.0 gdk-2.0)
-    LIBS += $(shell pkg-config --libs gtk+-2.0 gdk-2.0)
+    PKGINCS += $(shell pkg-config --cflags gtk+-2.0 gdk-2.0 gtk+-unix-print-2.0)
+    PKGLIBS += $(shell pkg-config --libs gtk+-2.0 gdk-2.0)
+    GTK_BASE := $(shell pkg-config --variable=prefix gtk+-2.0)
+    GTK := $(GTK_BASE)    
   else
     CHECK_GTK = Yes
     ifneq ($(findstring MacOS, $(TEC_UNAME)), )
@@ -954,7 +992,7 @@ ifdef USE_GTK
     endif
 
     LIBS += gdk_pixbuf-2.0 pango-1.0 gobject-2.0 gmodule-2.0 glib-2.0
-    STDINCS += $(GTK)/include/atk-1.0 $(GTK)/include/gtk-2.0 $(GTK)/include/cairo $(GTK)/include/pango-1.0 $(GTK)/include/glib-2.0
+    STDINCS += $(GTK)/include/atk-1.0 $(GTK)/include/gtk-2.0 $(GTK)/include/gdk-pixbuf-2.0 $(GTK)/include/cairo $(GTK)/include/pango-1.0 $(GTK)/include/glib-2.0
 
     ifeq ($(TEC_SYSARCH), x64)
       STDINCS += $(GTK)/lib64/glib-2.0/include $(GTK)/lib64/gtk-2.0/include
@@ -994,8 +1032,10 @@ LIBS += m
 ifneq ($(findstring cygw, $(TEC_UNAME)), )
   WIN_OTHER := Yes
 
+  DEPINCS := $(INCLUDES) $(EXTRAINCS)
+  
   # INCLUDES for dependencies, remove references to "c:" and similars
-  DEPINCS := $(patsubst c:%, /cygdrive/c%, $(INCLUDES))
+  DEPINCS := $(patsubst c:%, /cygdrive/c%, $(DEPINCS))
   DEPINCS := $(patsubst d:%, /cygdrive/d%, $(DEPINCS))
   DEPINCS := $(patsubst x:%, /cygdrive/x%, $(DEPINCS))
   DEPINCS := $(patsubst t:%, /cygdrive/t%, $(DEPINCS))
@@ -1011,7 +1051,7 @@ endif
 #---------------------------------#
 #  Building compilation flags that are sets
 
-DEPINCS ?= $(INCLUDES)
+DEPINCS ?= $(INCLUDES) $(EXTRAINCS)
 DEPINCS := $(addprefix -I, $(DEPINCS))
 
 INCLUDES := $(addprefix -I, $(INCLUDES))
@@ -1029,11 +1069,11 @@ endif
 # Definitions of private variables
 
 # Library flags for application and dynamic library linker
-LFLAGS += $(LDIR) $(LIBS)
+LFLAGS += $(LDIR) $(LIBS) $(PKGLIBS)
 # C compiler flags
-CFLAGS   = $(FLAGS) $(STDFLAGS) $(INCLUDES) $(STDINCS) $(EXTRAINCS) $(DEFINES) $(STDDEFS)
+CFLAGS   = $(FLAGS) $(STDFLAGS) $(INCLUDES) $(STDINCS) $(PKGINCS) $(EXTRAINCS) $(DEFINES) $(STDDEFS)
 # C++ compiler flags
-CXXFLAGS = $(CPPFLAGS) $(STDFLAGS) $(INCLUDES) $(STDINCS) $(EXTRAINCS) $(DEFINES) $(STDDEFS)
+CXXFLAGS = $(CPPFLAGS) $(STDFLAGS) $(INCLUDES) $(STDINCS) $(PKGINCS) $(EXTRAINCS) $(DEFINES) $(STDDEFS)
 
 # Sources with relative path
 SOURCES := $(addprefix $(SRCDIR)/, $(SRC))

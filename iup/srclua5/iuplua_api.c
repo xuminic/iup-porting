@@ -59,7 +59,6 @@ static int Append(lua_State *L)
 static int Destroy(lua_State *L)
 {
   Ihandle* ih = iuplua_checkihandle(L,1);
-  iuplua_removeihandle(L, ih);
   IupDestroy(ih);
   return 0;
 }
@@ -106,7 +105,9 @@ static int GetAttribute (lua_State *L)
   {
     if (iupAttribIsPointer(ih, name))
     {
-      if (iupObjectCheck((Ihandle*)value))
+      if (ih->handle == (InativeHandle*)value) /* work around for WID, sometimes WID in Windows is not a valid pointer. Why? */
+        iuplua_pushihandle(L, ih);
+      else if (iupObjectCheck((Ihandle*)value))
         iuplua_pushihandle(L, (Ihandle*)value);
       else
         lua_pushlightuserdata(L, (void*)value);
@@ -129,7 +130,9 @@ static int GetAttributeId(lua_State *L)
   {
     if (iupAttribIsPointer(ih, name))
     {
-      if (iupObjectCheck((Ihandle*)value))
+      if (ih->handle == (InativeHandle*)value) /* work around for WID, sometimes WID in Windows is not a valid pointer. Why? */
+        iuplua_pushihandle(L, ih);
+      else if (iupObjectCheck((Ihandle*)value))
         iuplua_pushihandle(L, (Ihandle*)value);
       else
         lua_pushlightuserdata(L, (void*)value);
@@ -339,6 +342,13 @@ static int GetClassType(lua_State *L)
   return 1;
 }
 
+static int ClassMatch(lua_State *L)
+{
+  Ihandle *ih = iuplua_checkihandle(L, 1);
+  lua_pushboolean(L, IupClassMatch(ih, luaL_checkstring(L, 2)));
+  return 1;
+}
+
 static int GetGlobal(lua_State *L)
 {
   const char *a = luaL_checkstring(L,1);
@@ -384,6 +394,18 @@ static int Hide(lua_State *L)
 {
   Ihandle *ih = iuplua_checkihandle(L,1);
   lua_pushinteger(L, IupHide(ih));
+  return 1;
+}
+
+static int PlayInput(lua_State *L)
+{
+  lua_pushinteger(L, IupPlayInput(luaL_optstring(L,1,NULL)));
+  return 1;
+}
+
+static int RecordInput(lua_State *L)
+{
+  lua_pushinteger(L, IupRecordInput(luaL_optstring(L,1,NULL), luaL_optinteger(L, 2, 0)));
   return 1;
 }
 
@@ -479,12 +501,10 @@ static int ListDialog(lua_State *L)
 {
   int type = luaL_checkint(L,1);
   int size = luaL_checkint(L,3);
-  char** list = iuplua_checkstring_array(L, 4);
-  int* marks = lua_isnoneornil(L, 8)? NULL: iuplua_checkint_array(L,8);
+  char** list = iuplua_checkstring_array(L, 4, size);
+  int* marks = lua_isnoneornil(L, 8)? NULL: iuplua_checkint_array(L,8,0);
   int i, ret;
 
-  if (size != iuplua_getn(L, 4))
-    luaL_error(L, "invalid number of elements in the list.");
   if (!marks && type==2)
     luaL_error(L, "invalid marks, must not be nil.");
   if (marks && type==2 && size != iuplua_getn(L, 8))
@@ -948,6 +968,7 @@ void iupluaapi_open(lua_State * L)
     {"GetFocus", GetFocus},
     {"GetClassName", GetClassName},
     {"GetClassType", GetClassType},
+    {"ClassMatch", ClassMatch},
     {"GetGlobal", GetGlobal},
     {"GetHandle", GetHandle},
     {"GetLanguage", GetLanguage},
@@ -956,6 +977,8 @@ void iupluaapi_open(lua_State * L)
     {"Hide", Hide},
     {"Load", Load},
     {"LoadBuffer", LoadBuffer},
+    {"PlayInput", PlayInput},
+    {"RecordInput", RecordInput},
     {"LoopStep", LoopStep},
     {"LoopStepWait", LoopStepWait},
     {"ExitLoop", ExitLoop},

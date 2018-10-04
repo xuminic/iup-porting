@@ -118,7 +118,7 @@ static void iGlobalSet(const char *name, const char *value, int store)
   {
     int x, y;
     if (iupStrToIntInt(value, &x, &y, 'x') == 2)
-      iupdrvSendMouse(x, y, 0, -1);
+      iupdrvWarpPointer(x, y);
     return;
   }
   if (iupStrEqual(name, "MOUSEBUTTON"))
@@ -210,6 +210,8 @@ char *IupGetGlobal(const char *name)
     sprintf(str, "%d", bpp);
     return str;
   }
+  if (iupStrEqual(name, "SYSTEMLOCALE"))
+    return iupdrvLocaleInfo();
 
   value = iupdrvGetGlobal(name);
 

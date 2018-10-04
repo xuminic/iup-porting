@@ -19,11 +19,11 @@ extern "C" {
 
 
 #define IUP_NAME "IUP - Portable User Interface"
-#define IUP_COPYRIGHT  "Copyright (C) 1994-2010 Tecgraf, PUC-Rio."
+#define IUP_COPYRIGHT  "Copyright (C) 1994-2011 Tecgraf, PUC-Rio."
 #define IUP_DESCRIPTION	"Portable toolkit for building graphical user interfaces."
-#define IUP_VERSION "3.3"         /* bug fixes are reported only by IupVersion functions */
-#define IUP_VERSION_NUMBER 303000
-#define IUP_VERSION_DATE "2010/11/09"  /* does not include bug fix releases */
+#define IUP_VERSION "3.4"         /* bug fixes are reported only by IupVersion functions */
+#define IUP_VERSION_NUMBER 304000
+#define IUP_VERSION_DATE "2011/02/15"  /* does not include bug fix releases */
 
 typedef struct Ihandle_ Ihandle;
 typedef int (*Icallback)(Ihandle*);
@@ -42,6 +42,9 @@ int       IupLoopStepWait  (void);
 int       IupMainLoopLevel (void);
 void      IupFlush         (void);
 void      IupExitLoop      (void);
+
+int       IupRecordInput(const char* filename, int mode);
+int       IupPlayInput(const char* filename);
 
 void      IupUpdate        (Ihandle* ih);
 void      IupUpdateChildren(Ihandle* ih);
@@ -144,6 +147,7 @@ int       IupGetClassCallbacks(const char* classname, char** names, int n);
 void      IupSaveClassAttributes(Ihandle* ih);
 void      IupCopyClassAttributes(Ihandle* src_ih, Ihandle* dst_ih);
 void      IupSetClassDefaultAttribute(const char* classname, const char *name, const char* value);
+int       IupClassMatch(Ihandle* ih, const char* classname);
 
 Ihandle*  IupCreate (const char *classname);
 Ihandle*  IupCreatev(const char *classname, void* *params);
@@ -349,6 +353,12 @@ enum{IUP_SBUP,   IUP_SBDN,    IUP_SBPGUP,   IUP_SBPGDN,    IUP_SBPOSV, IUP_SBDRA
 
 
 /************************************************************************/
+/*                   Record Input Modes                                 */
+/************************************************************************/
+enum {IUP_RECBINARY, IUP_RECTEXT};
+
+
+/************************************************************************/
 /*              Replacement for the WinMain in Windows,                 */
 /*        this allows the application to start from "main".             */
 /*        Used only for Watcom.                                         */
@@ -363,7 +373,7 @@ int IupMain (int argc, char** argv); /* In C++ we have to declare the prototype 
 #endif
 
 /******************************************************************************
-* Copyright (C) 1994-2010 Tecgraf, PUC-Rio.
+* Copyright (C) 1994-2011 Tecgraf, PUC-Rio.
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the

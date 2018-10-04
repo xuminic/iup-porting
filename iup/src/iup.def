@@ -138,6 +138,7 @@ IupNormalizer
 IupNormalizerv
 IupGetClassType
 IupGetClassName
+IupClassMatch
 IupInsert
 IupMainLoopLevel
 IupGetDialogChild
@@ -169,14 +170,18 @@ IupGetAttributeId2
 IupGetIntId2
 IupGetFloatId2
 IupSetfAttributeId2
+IupRecordInput
+IupPlayInput
 
 iupdrvSetVisible
 iupdrvSetStandardFontAttrib
 iupdrvSetCurrentDirectory
 iupdrvSetActive
 iupdrvScreenToClient
+iupdrvClientToScreen
 iupdrvReparent
 iupdrvMakeDirectory
+iupdrvLocaleInfo
 iupdrvIsVisible
 iupdrvIsFile
 iupdrvIsDirectory
@@ -206,12 +211,11 @@ iupdrvBaseSetTipVisibleAttrib
 iupdrvBaseSetTipAttrib
 iupdrvBaseSetCursorAttrib
 iupdrvBaseLayoutUpdateMethod
-iupdrvBaseGetYAttrib
-iupdrvBaseGetXAttrib
 iupdrvBaseGetClientSizeAttrib
 iupdrvActivate
 iupdrvSendMouse
 iupdrvSendKey
+iupdrvWarpPointer
 iupdrvImageCreateImageRaw
 iupdrvImageGetRawInfo
 iupdrvImageGetRawData
@@ -308,7 +312,6 @@ iupDlgListCount
 iupDlgListNext
 iupDlgListFirst
 iupDlgListAdd
-iupDialogGetClass
 iupDataEntry
 iupClassRelease
 iupClassRegisterCallback
@@ -339,7 +342,6 @@ iupClassCallbackGetFormat
 iupChildTreeGetNativeParentHandle
 iupChildTreeGetNativeParent
 iupChildTreeAppend
-iupCanvasGetClass
 iupCallKillFocusCb
 iupCallGetFocusCb
 iupBaseSetVisibleAttrib
@@ -398,5 +400,3 @@ iupDrawSetClipRect
 iupDrawText
 iupDrawUpdateSize
 iupDrawImage
-iupwinStrChar2Wide
-iupwinStrWide2Char

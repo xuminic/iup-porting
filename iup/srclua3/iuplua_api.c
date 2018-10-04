@@ -209,6 +209,26 @@ static void GetHandle(void)
   iuplua_pushihandle(IupGetHandle(luaL_check_string(1)));
 }
 
+static void PlayInput(void)
+{
+  lua_pushnumber(IupPlayInput(luaL_opt_string(1,NULL)));
+}
+
+static void RecordInput(void)
+{
+  lua_pushnumber(IupRecordInput(luaL_opt_string(1,NULL), luaL_opt_int(2,0)));
+}
+
+static void Load(void)
+{
+  lua_pushstring(IupLoad(luaL_check_string(1)));
+}
+
+static void LoadBuffer(void)
+{
+  lua_pushstring(IupLoadBuffer(luaL_check_string(1)));
+}
+
 static void SetAttribute(void)
 {
   if (lua_isnil(lua_getparam(3)))
@@ -361,6 +381,11 @@ static void GetBrother(void)
 static void ClassName(void)
 {
   lua_pushstring(IupGetClassName(iuplua_checkihandle(1)));
+}
+
+static void ClassMatch(void)
+{
+  lua_pushnumber(IupClassMatch(iuplua_checkihandle(1), luaL_check_string(2)));
 }
 
 static void ClassType(void)
@@ -713,6 +738,7 @@ int iupluaapi_open(void)
     { "IupGetBrother", GetBrother },
     { "IupGetDialogChild", GetDialogChild },
     { "IupGetClassName", ClassName },
+    { "IupClassMatch", ClassMatch },
     { "IupGetClassType", ClassType },
     { "IupGetFocus", GetFocus },
     { "IupSetFocus", SetFocus },
@@ -742,6 +768,10 @@ int iupluaapi_open(void)
     { "IupOpen", Open },
     { "IupClose", (lua_CFunction)IupClose },
     { "IupFlush", IupFlush },
+    { "IupPlayInput", PlayInput },
+    { "IupRecordInput", RecordInput },
+    { "IupLoad", Load },
+    { "IupLoadBuffer", LoadBuffer },
     { "IupVersion", Version },
     { "IupHelp", Help },
     { "IupScanf", iupluaScanf },

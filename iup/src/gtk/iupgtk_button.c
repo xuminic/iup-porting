@@ -54,7 +54,7 @@ void iupdrvButtonAddBorders(int *x, int *y)
   (*y) += border_size;
 }
 
-static void gtk_button_children_callback(GtkWidget *widget, gpointer client_data)
+static void gtkButtonChildrenCb(GtkWidget *widget, gpointer client_data)
 {
   if (GTK_IS_LABEL(widget))
   {
@@ -73,7 +73,7 @@ static GtkLabel* gtkButtonGetLabel(Ihandle* ih)
        that contains a GtkBox, that contains a label and an image */
     GtkContainer *container = (GtkContainer*)gtk_bin_get_child((GtkBin*)gtk_bin_get_child((GtkBin*)ih->handle));
     GtkLabel* label = NULL;
-    gtk_container_foreach(container, gtk_button_children_callback, &label);
+    gtk_container_foreach(container, gtkButtonChildrenCb, &label);
     return label;
   }
   return NULL;
@@ -150,8 +150,9 @@ static int gtkButtonSetPaddingAttrib(Ihandle* ih, const char* value)
     else
     {
       GtkAlignment* alignment = (GtkAlignment*)gtk_bin_get_child((GtkBin*)ih->handle);
-      gtk_alignment_set_padding(alignment, ih->data->vert_padding, ih->data->vert_padding, 
-                                           ih->data->horiz_padding, ih->data->horiz_padding);
+      if (GTK_IS_ALIGNMENT(alignment))
+        gtk_alignment_set_padding(alignment, ih->data->vert_padding, ih->data->vert_padding, 
+                                             ih->data->horiz_padding, ih->data->horiz_padding);
     }
     return 0;
   }
@@ -451,7 +452,7 @@ static int gtkButtonMapMethod(Ihandle* ih)
   iupgtkBaseAddToParent(ih);
 
   if (!iupAttribGetBoolean(ih, "CANFOCUS"))
-    GTK_WIDGET_FLAGS(ih->handle) &= ~GTK_CAN_FOCUS;
+    iupgtkSetCanFocus(ih->handle, 0);
 
   value = iupAttribGet(ih, "IMPRESS");
   impress = (ih->data->type & IUP_BUTTON_IMAGE && value)? 1: 0;

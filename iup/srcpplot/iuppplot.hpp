@@ -89,15 +89,18 @@ class PPainterIup: public Painter
   public:
     PPainterIup(Ihandle *ih);
     virtual ~PPainterIup();
+
+#ifndef USE_OPENGL
     cdCanvas *_cdcanvas;       /* iup drawing surface */
+#endif
     cdCanvas *_cddbuffer;      /* double buffer drawing surface */
     PPlot _plot;               /* plot data holder */
     int _redraw;               /* must update the double buffer before flush */
     int _currentDataSetIndex;  /* dataset index used for DS_ attributes in SetAttribute and GetAttribute */
 
     // Called from C functions
-    void Draw(int force);   // paint the stuff
-    void Resize(); // called when resizing
+    void Draw(int force, int flush);   // paint the stuff
+    void Resize(int w, int h); // called when resizing
     void MouseButton(int btn, int stat, int x, int y, char *r); // mouse event
     void MouseMove(int x, int y); // mouse event
     void KeyPress(int c, int press); // keyboard event

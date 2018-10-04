@@ -30,6 +30,7 @@ ifdef DBG
 endif  
 
 INCLUDES = ../include .
+WIN32VER = 0x0501
 
 SRC = iup_array.c iup_callback.c iup_dlglist.c iup_attrib.c iup_focus.c iup_font.c \
       iup_globalattrib.c iup_object.c iup_key.c iup_layout.c iup_ledlex.c iup_names.c iup_open.c \
@@ -40,11 +41,12 @@ SRC = iup_array.c iup_callback.c iup_dlglist.c iup_attrib.c iup_focus.c iup_font
       iup_user.c iup_button.c iup_radio.c iup_toggle.c iup_progressbar.c iup_text.c iup_val.c \
       iup_box.c iup_hbox.c iup_vbox.c iup_cbox.c iup_class.c iup_classbase.c iup_maskmatch.c \
       iup_mask.c iup_maskparse.c iup_tabs.c iup_spin.c iup_list.c iup_getparam.c \
-      iup_sbox.c iup_normalizer.c iup_tree.c iup_split.c iup_layoutdlg.c
+      iup_sbox.c iup_normalizer.c iup_tree.c iup_split.c iup_layoutdlg.c iup_recplay.c
 
 ifdef USE_GTK
   CHECK_GTK = Yes
   DEFINES += GTK_DISABLE_DEPRECATED
+  #DEFINES += GSEAL_ENABLE
   INCLUDES += gtk
     SRC += gtk/iupgtk_common.c gtk/iupgtk_focus.c gtk/iupgtk_font.c gtk/iupgtk_clipboard.c \
            gtk/iupgtk_globalattrib.c gtk/iupgtk_key.c gtk/iupgtk_tips.c \
@@ -56,12 +58,13 @@ ifdef USE_GTK
            gtk/iupgtk_tabs.c gtk/iupgtk_menu.c gtk/iupgtk_list.c gtk/iupgtk_tree.c
            
   ifneq ($(findstring Win, $(TEC_SYSNAME)), )
-    DEFINES += _WIN32_WINNT=0x0500 _WIN32_IE=0x0500 WINVER=0x0500 NOTREEVIEW
+    DEFINES += _WIN32_WINNT=$(WIN32VER) _WIN32_IE=$(WIN32VER) WINVER=$(WIN32VER) NOTREEVIEW
     SRC += win/iupwindows_main.c win/iupwindows_help.c win/iupwindows_info.c
   else
     ifdef GTK_MAC
       SRC += gtk/iupmac_help.c gtk/iupmac_info.c
     else
+      USE_X11 = Yes
       SRC += gtk/iupgtk_help.c mot/iupunix_info.c
     endif
   endif
@@ -83,6 +86,7 @@ ifdef USE_MOTIF
          mot/iupmot_list.c mot/iupmot_tree.c
          
   SRC += mot/iupunix_help.c mot/iupunix_info.c
+  USE_X11 = Yes
 
   INCLUDES += mot
 else
@@ -99,13 +103,8 @@ else
   SRC += win/iupwindows_main.c win/iupwindows_help.c win/iupwindows_info.c
 
   INCLUDES += win
-  DEFINES += _WIN32_WINNT=0x0500 _WIN32_IE=0x0500 WINVER=0x0500 NOTREEVIEW
+  DEFINES += _WIN32_WINNT=$(WIN32VER) _WIN32_IE=$(WIN32VER) WINVER=$(WIN32VER) NOTREEVIEW
 endif
-endif
-
-ifeq "$(TEC_SYSNAME)" "SunOS"
-  # Necessary or the fileopen will not work in SunOS (needs to be retested)
-  #DEFINES += NO_PATH_MODE_RELATIVE
 endif
 
 ifneq ($(findstring dll, $(TEC_UNAME)), )
@@ -117,21 +116,22 @@ endif
 
 ifeq "$(TEC_UNAME)" "vc6"
   # Necessary because VC6 has an old WinSDK
-  #WINSDK = d:/lng/vc7/PlatformSDK
-  #INCLUDES += $(WINSDK)/include
-  #LDIR = $(WINSDK)/lib
+  PLATSDK = $(VC7)/PlatformSDK
 endif
 
 ifeq "$(TEC_UNAME)" "dll"
   # Necessary because VC6 has an old WinSDK
-  #WINSDK = d:/lng/vc7/PlatformSDK
-  #INCLUDES += $(WINSDK)/include
-  #LDIR = $(WINSDK)/lib
+  PLATSDK = $(VC7)/PlatformSDK
 endif
 
 ifeq "$(TEC_UNAME)" "owc1"
-  # Necessary or IUP 3 will not work in Open Watcom
+  # Necessary or IUP 3 will not work in Open Watcom (needs to be retested)
   DBG=Yes
+endif
+
+ifeq "$(TEC_SYSNAME)" "SunOS"
+  # Necessary or the fileopen will not work in SunOS (needs to be retested)
+  #DEFINES += NO_PATH_MODE_RELATIVE
 endif
 
 ifneq ($(findstring MacOS, $(TEC_UNAME)), )

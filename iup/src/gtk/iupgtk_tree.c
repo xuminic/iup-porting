@@ -318,7 +318,10 @@ static void gtkTreeGetLastVisibleNode(Ihandle* ih, GtkTreeModel* model, GtkTreeI
     }
   }
 
-  gtkTreeIterInit(ih, iterItem, ih->data->node_cache[0].node_handle);  /* root is always visible */
+  if (ih->data->node_count)
+    gtkTreeIterInit(ih, iterItem, ih->data->node_cache[0].node_handle);  /* root is always visible */
+  else
+    iterItem->user_data = NULL; /* invalid iter */
 }
 
 static void gtkTreeGetNextVisibleNode(Ihandle* ih, GtkTreeModel* model, GtkTreeIter *iterItem, int count)
@@ -338,7 +341,10 @@ static void gtkTreeGetNextVisibleNode(Ihandle* ih, GtkTreeModel* model, GtkTreeI
     }
   }
 
-  gtkTreeIterInit(ih, iterItem, ih->data->node_cache[0].node_handle);  /* root is always visible */
+  if (ih->data->node_count)
+    gtkTreeIterInit(ih, iterItem, ih->data->node_cache[0].node_handle);  /* root is always visible */
+  else
+    iterItem->user_data = NULL; /* invalid iter */
 }
 
 static void gtkTreeGetPreviousVisibleNode(Ihandle* ih, GtkTreeModel* model, GtkTreeIter *iterItem, int count)
@@ -1314,6 +1320,9 @@ static int gtkTreeSetValueAttrib(Ihandle* ih, const char* value)
       return 0;
   }
 
+  if (!iterItem.user_data)
+    return 0;
+
   /* select */
   if (ih->data->mark_mode==ITREE_MARK_SINGLE)
   {
@@ -1881,8 +1890,11 @@ static gboolean gtkTreeDragMotion(GtkWidget *widget, GdkDragContext *context, gi
     gtk_tree_view_set_drag_dest_row(GTK_TREE_VIEW(widget), path, pos);
     gtk_tree_path_free(path);
 
+#if GTK_CHECK_VERSION(2, 22, 0)
+    gdk_drag_status(context, gdk_drag_context_get_suggested_action(context), time);
+#else
     gdk_drag_status(context, context->suggested_action, time);
-
+#endif
     return TRUE;
   }
 
@@ -2375,7 +2387,7 @@ static int gtkTreeMapMethod(Ihandle* ih)
   iupgtkBaseAddToParent(ih);
 
   if (!iupAttribGetBoolean(ih, "CANFOCUS"))
-    GTK_WIDGET_FLAGS(ih->handle) &= ~GTK_CAN_FOCUS;
+    iupgtkSetCanFocus(ih->handle, 0);
 
   gtk_widget_realize((GtkWidget*)scrolled_window);
   gtk_widget_realize(ih->handle);

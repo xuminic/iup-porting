@@ -35,10 +35,13 @@ gboolean iupgtkButtonEvent(GtkWidget *widget, GdkEventButton *evt, Ihandle *ih);
 void iupgtkBaseSetBgColor(InativeHandle* handle, unsigned char r, unsigned char g, unsigned char b);
 void iupgtkBaseSetFgColor(InativeHandle* handle, unsigned char r, unsigned char g, unsigned char b);
 void iupgtkBaseSetFgGdkColor(InativeHandle* handle, GdkColor *color);
+const char* iupgtkGetWidgetClassName(GtkWidget* widget);
+GdkWindow* iupgtkGetWindow(GtkWidget *widget);
 
 
 /* focus */
 gboolean iupgtkFocusInOutEvent(GtkWidget *widget, GdkEventFocus *evt, Ihandle* ih);
+void iupgtkSetCanFocus(GtkWidget *widget, int can);
 
 
 /* key */
@@ -46,6 +49,7 @@ gboolean iupgtkKeyPressEvent(GtkWidget *widget, GdkEventKey *evt, Ihandle* ih);
 gboolean iupgtkKeyReleaseEvent(GtkWidget *widget, GdkEventKey *evt, Ihandle* ih);
 void iupgtkButtonKeySetStatus(guint state, unsigned int but, char* status, int doubleclick);
 void iupgtkKeyEncode(int key, guint *keyval, guint *state);
+int iupgtkKeyDecode(GdkEventKey *evt);
 
 
 /* font */

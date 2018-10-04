@@ -255,11 +255,13 @@ Iclass* iupClassNew(Iclass* parent)
   memset(ic, 0, sizeof(Iclass));
 
   if (parent)
+  {
+    parent = parent->New();
     ic->attrib_func = parent->attrib_func;
+    ic->parent = parent;
+  }
   else
     ic->attrib_func = iupTableCreate(IUPTABLE_STRINGINDEXED);
-
-  ic->parent = parent;
 
   return ic;
 }
@@ -268,17 +270,18 @@ void iupClassRelease(Iclass* ic)
 {
   Iclass* parent;
 
-  /* must release only the actual class */
+  /* must call Release only for the actual class */
   if (ic->Release)
     ic->Release(ic);
 
-  /* must free all classes, since a new instance is created when we inherit */
+  /* must free the pointer for all classes, 
+     since a new instance is created when we inherit */
   parent = ic->parent;
   while (parent)
   {
-    Iclass* tmp = parent;
+    Iclass* ic_tmp = parent;
     parent = parent->parent;
-    free(tmp);
+    free(ic_tmp);
   }
 
   /* attributes functions table is released only once */
@@ -287,6 +290,16 @@ void iupClassRelease(Iclass* ic)
   free(ic);
 }
 
+int iupClassMatch(Iclass* ic, const char* classname)
+{
+  while (ic)
+  {
+    if (iupStrEqualNoCase(ic->name, classname))
+      return 1;
+    ic = ic->parent;
+  }
+  return 0;
+}
 
 /*****************************************************************
                         Main API
@@ -305,6 +318,7 @@ char* IupGetClassName(Ihandle *ih)
 char* IupGetClassType(Ihandle *ih)
 {
   static char* type2str[] = {"void", "control", "canvas", "dialog", "image", "menu"};
+
   iupASSERT(iupObjectCheck(ih));
   if (!iupObjectCheck(ih))
     return NULL;
@@ -312,3 +326,11 @@ char* IupGetClassType(Ihandle *ih)
   return type2str[ih->iclass->nativetype];
 }
 
+int IupClassMatch(Ihandle* ih, const char* classname)
+{
+  iupASSERT(iupObjectCheck(ih));
+  if (!iupObjectCheck(ih))
+    return 0;
+
+  return iupClassMatch(ih->iclass, classname);
+}

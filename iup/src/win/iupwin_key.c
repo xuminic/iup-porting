@@ -17,14 +17,6 @@
 #include "iupwin_drv.h"
                    
                    
-#ifndef VK_OEM_PLUS
-#define VK_OEM_PLUS       0xBB   /* '+' any country */
-#define VK_OEM_COMMA      0xBC   /* ',' any country */
-#define VK_OEM_MINUS      0xBD   /* '-' any country */
-#define VK_OEM_PERIOD     0xBE   /* '.' any country */
-#define VK_OEM_102        0xE2   /*  "<>" or "\|" on RT 102-key kbd. */
-#endif
-
 typedef struct _Iwin2iupkey
 {
   int wincode;
@@ -227,7 +219,7 @@ static int winKeyMap2Iup(Iwin2iupkey* table, int i)
   return code;
 }
 
-static int winKeyDecode(int wincode)
+int iupwinKeyDecode(int wincode)
 {
   HKL k;
   int i, count;
@@ -260,7 +252,7 @@ int iupwinKeyEvent(Ihandle* ih, int wincode, int press)
   if (!ih->iclass->is_interactive)
     return 1;
 
-  code = winKeyDecode(wincode);
+  code = iupwinKeyDecode(wincode);
   if (code == 0)
     return 1;
 

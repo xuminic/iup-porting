@@ -29,11 +29,7 @@
 #include "iupwin_info.h"
 
 
-#ifndef CDIS_SHOWKEYBOARDCUES
-#define CDIS_SHOWKEYBOARDCUES   0x0200    /* it is defined only when _WIN32_WINNT >= 0x0501 */
-#endif
-
-/* not defined in gcc (Cygwin or MingW) */
+/* Not defined in MingW and Cygwin */
 #ifndef ODS_NOACCEL
 #define ODS_NOACCEL   0x0100
 #endif
@@ -546,7 +542,7 @@ static int winButtonProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *r
       iupwinButtonDown(ih, msg, wp, lp);
 
       /* Feedback will NOT be done when not receiving the focus */
-      if (msg==WM_LBUTTONDOWN && !iupAttribGetBoolean(ih, "CANFOCUS"))
+      if ((msg==WM_LBUTTONDOWN || msg==WM_LBUTTONDBLCLK) && !iupAttribGetBoolean(ih, "CANFOCUS"))
       {
         iupAttribSetStr(ih, "_IUPWINBUT_SELECTED", "1");
         iupdrvRedrawNow(ih);

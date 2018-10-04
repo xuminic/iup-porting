@@ -37,7 +37,7 @@
 
 void iupdrvActivate(Ihandle* ih)
 {
-  if (iupStrEqual(ih->iclass->name, "text") || iupStrEqual(ih->iclass->name, "multiline"))
+  if (IupClassMatch(ih, "text"))
     XmProcessTraversal(ih->handle, XmTRAVERSE_CURRENT);
   else
     XtCallActionProc(ih->handle, "ArmAndActivate", 0, 0, 0 );
@@ -85,7 +85,7 @@ void iupmotSetMnemonicTitle(Ihandle *ih, Widget w, const char* value)
       attrib[17] = (char)toupper(c);
 
       /* used by motActivateMnemonic */
-      if (iupStrEqual(ih->iclass->name, "label"))
+      if (IupClassMatch(ih, "label"))
         iupAttribSetStr(dialog, attrib, (char*)iupFocusNextInteractive(ih));
       else
       {
@@ -279,6 +279,14 @@ void iupdrvScreenToClient(Ihandle* ih, int *x, int *y)
                                         *x, *y, x, y, &child);
 }
 
+void iupdrvClientToScreen(Ihandle* ih, int *x, int *y)
+{
+  Window child;
+  XTranslateCoordinates(iupmot_display, XtWindow(ih->handle),
+                                        RootWindow(iupmot_display, iupmot_screen),
+                                        *x, *y, x, y, &child);
+}
+
 void iupmotHelpCallback(Widget w, Ihandle *ih, XtPointer call_data)
 {
   Icallback cb = IupGetCallback(ih, "HELP_CB");
@@ -360,44 +368,6 @@ void iupdrvSetActive(Ihandle* ih, int enable)
 char* iupmotGetXWindowAttrib(Ihandle *ih)
 {
   return (char*)XtWindow(ih->handle);
-}
-
-char* iupdrvBaseGetXAttrib(Ihandle *ih)
-{
-  int x, y;
-  Window child;
-  char* str = iupStrGetMemory(20);
-  Widget widget = (Widget)iupAttribGet(ih, "_IUP_EXTRAPARENT");
-  if (!widget) widget = ih->handle;
-
-  /* Translating to absolute screen coordinates */
-                     /* source            destination */
-  XTranslateCoordinates(iupmot_display, 
-                        XtWindow(widget), RootWindow(iupmot_display, iupmot_screen), 
-                        0, 0,             &x, &y, 
-                        &child);
-
-  sprintf(str, "%d", x);
-  return str;
-}
-
-char* iupdrvBaseGetYAttrib(Ihandle *ih)
-{
-  int x, y;
-  Window child;
-  char* str = iupStrGetMemory(20);
-  Widget widget = (Widget)iupAttribGet(ih, "_IUP_EXTRAPARENT");
-  if (!widget) widget = ih->handle;
-
-  /* Translating to absolute screen coordinates */
-                     /* source            destination */
-  XTranslateCoordinates(iupmot_display, 
-                        XtWindow(widget), RootWindow(iupmot_display, iupmot_screen), 
-                        0, 0,             &x, &y, 
-                        &child);
-
-  sprintf(str, "%d", y);
-  return str;
 }
 
 void iupmotSetBgColor(Widget w, Pixel color)
@@ -657,6 +627,15 @@ void iupmotButtonPressReleaseEvent(Widget w, Ihandle* ih, XEvent* evt, Boolean* 
   (void)w;
 }
 
+void iupmotDummyPointerMotionEvent(Widget w, XtPointer *data, XEvent *evt, Boolean *cont)
+{
+  /* Used only when global callbacks are enabled */
+  (void)w;
+  (void)data;
+  (void)evt;
+  (void)cont;
+}
+
 void iupmotPointerMotionEvent(Widget w, Ihandle *ih, XEvent *evt, Boolean *cont)
 {
   IFniis cb = (IFniis)IupGetCallback(ih,"MOTION_CB");
@@ -702,9 +681,18 @@ void iupdrvSendKey(int key, int press)
   }
 }
 
+void iupdrvWarpPointer(int x, int y)
+{
+  /* VirtualBox does not reproduce the mouse move visually, but it is working. */
+  XWarpPointer(iupmot_display,None,RootWindow(iupmot_display, iupmot_screen),0,0,0,0,x,y);
+}
+
 void iupdrvSendMouse(int x, int y, int bt, int status)
 {
-  XWarpPointer(iupmot_display,None,RootWindow(iupmot_display, iupmot_screen),0,0,0,0,x,y);
+  /* always update cursor */
+  /* must be before sending the message because the cursor position will be used */
+  /* this will also send an extra motion event */
+  iupdrvWarpPointer(x, y);
 
   if (status != -1)
   {
@@ -723,7 +711,7 @@ void iupdrvSendMouse(int x, int y, int bt, int status)
 		  XQueryPointer(iupmot_display, evt.window, &evt.root, &evt.subwindow, &evt.x_root, &evt.y_root, &evt.x, &evt.y, &evt.state);
 	  }
 	
-    evt.type = (status==1)? ButtonPress: ButtonRelease;
+    evt.type = (status==0)? ButtonRelease: ButtonPress;
     evt.root = DefaultRootWindow(iupmot_display);
     evt.x = x;
     evt.y = y;
@@ -754,12 +742,70 @@ void iupdrvSendMouse(int x, int y, int bt, int status)
       return;
     }
 
-    XSendEvent(iupmot_display, (Window)PointerWindow, False, (status==1)? ButtonPressMask: ButtonReleaseMask, (XEvent*)&evt);
+    XSendEvent(iupmot_display, (Window)PointerWindow, False, (status==0)? ButtonReleaseMask: ButtonPressMask, (XEvent*)&evt);
+    if (status==2) /* double click */
+    {
+      evt.type = ButtonRelease;
+      XSendEvent(iupmot_display, (Window)PointerWindow, False, ButtonReleaseMask, (XEvent*)&evt);
+
+      evt.type = ButtonPress;
+      XSendEvent(iupmot_display, (Window)PointerWindow, False, ButtonPressMask, (XEvent*)&evt);
+
+      evt.type = ButtonRelease;
+      XSendEvent(iupmot_display, (Window)PointerWindow, False, ButtonReleaseMask, (XEvent*)&evt);
+    }
   }
+#if 0 /* kept until code stabilizes */
+  else
+  {
+    XMotionEvent evt;
+    memset(&evt, 0, sizeof(XMotionEvent));
+    evt.display = iupmot_display;
+    evt.send_event = True;
+
+	  XQueryPointer(iupmot_display, RootWindow(iupmot_display, DefaultScreen(iupmot_display)), 
+                  &evt.root, &evt.window, &evt.x_root, &evt.y_root, &evt.x, &evt.y, &evt.state);
+  	
+	  evt.subwindow = evt.window;
+	  while(evt.subwindow)
+	  {
+		  evt.window = evt.subwindow;
+		  XQueryPointer(iupmot_display, evt.window, &evt.root, &evt.subwindow, &evt.x_root, &evt.y_root, &evt.x, &evt.y, &evt.state);
+	  }
+	
+    evt.type = MotionNotify;
+    evt.root = DefaultRootWindow(iupmot_display);
+    evt.x = x;
+    evt.y = y;
+
+    switch(bt)
+    {
+    case IUP_BUTTON1:
+      evt.state = Button1Mask;
+      break;
+    case IUP_BUTTON2:
+      evt.state = Button2Mask;
+      break;
+    case IUP_BUTTON3:
+      evt.state = Button3Mask;
+      break;
+    case IUP_BUTTON4:
+      evt.state = Button4Mask;
+      break;
+    case IUP_BUTTON5:
+      evt.state = Button5Mask;
+      break;
+    default:
+      return;
+    }
+
+    XSendEvent(iupmot_display, (Window)PointerWindow, False, PointerMotionMask, (XEvent*)&evt);
+  }
+#endif
 }
 
 void iupdrvSleep(int time)
 {
-  clock_t goal = (clock_t)time + clock();
-  while(goal > clock());
+  clock_t goal = (clock_t)(time*CLOCKS_PER_SEC)/1000 + clock();
+  while(goal > clock());     
 }

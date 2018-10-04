@@ -34,7 +34,7 @@
 #include "iupwin_info.h"
 
 
-#define IWIN_TRAY_NOTIFICATION 102
+#define IUPWIN_TRAY_NOTIFICATION 102
 
 static int WM_HELPMSG;
 
@@ -65,9 +65,11 @@ void iupdrvDialogSetVisible(Ihandle* ih, int visible)
   ShowWindow(ih->handle, visible? ih->data->cmd_show: SW_HIDE);
 }
 
-void iupdrvDialogGetPosition(InativeHandle* handle, int *x, int *y)
+void iupdrvDialogGetPosition(Ihandle *ih, InativeHandle* handle, int *x, int *y)
 {
   RECT rect;
+  if (!handle)
+    handle = ih->handle;
   GetWindowRect(handle, &rect);
   if (x) *x = rect.left;
   if (y) *y = rect.top;
@@ -297,9 +299,10 @@ static int winDialogBaseProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESUL
   case WM_MOVE:
     {
       IFnii cb = (IFnii)IupGetCallback(ih, "MOVE_CB");
-      RECT rect;
-      GetWindowRect(ih->handle, &rect);  /* ignore LPARAM because they are the clientpos and not X/Y */
-      if (cb) cb(ih, rect.left, rect.top);
+      int x, y;
+      /* ignore LPARAM because they are the clientpos */
+      iupdrvDialogGetPosition(ih, NULL, &x, &y);
+      if (cb) cb(ih, x, y);
       break;
     }
   case WM_SIZE:
@@ -350,7 +353,7 @@ static int winDialogBaseProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESUL
 
       break;
     }
-  case WM_USER+IWIN_TRAY_NOTIFICATION:
+  case WM_USER+IUPWIN_TRAY_NOTIFICATION:
     {
       int dclick  = 0;
       int button  = 0;
@@ -729,6 +732,7 @@ static int winDialogMapMethod(Ihandle* ih)
   if (iupAttribGetBoolean(ih, "DIALOGFRAME")) 
   {
     iupAttribSetStr(ih, "RESIZE", "NO");
+    iupAttribSetStr(ih, "MAXBOX", "NO");
     iupAttribSetStr(ih, "MINBOX", "NO");
   }
 
@@ -738,7 +742,12 @@ static int winDialogMapMethod(Ihandle* ih)
     has_border = 1;
   }
   else
-    iupAttribSetStr(ih, "MAXBOX", "NO");  /* Must also remove this to RESIZE=NO work */
+    iupAttribSetStr(ih, "MAXBOX", "NO");
+  if (iupAttribGetBoolean(ih, "MENUBOX"))
+  {
+    dwStyle |= WS_SYSMENU;
+    has_titlebar = 1;
+  }
   if (iupAttribGetBoolean(ih, "MAXBOX"))
   {
     dwStyle |= WS_MAXIMIZEBOX;
@@ -747,11 +756,6 @@ static int winDialogMapMethod(Ihandle* ih)
   if (iupAttribGetBoolean(ih, "MINBOX"))
   {
     dwStyle |= WS_MINIMIZEBOX;
-    has_titlebar = 1;
-  }
-  if (iupAttribGetBoolean(ih, "MENUBOX"))
-  {
-    dwStyle |= WS_SYSMENU;
     has_titlebar = 1;
   }
   if (iupAttribGetBoolean(ih, "BORDER") || has_titlebar)
@@ -1056,15 +1060,6 @@ static char* winDialogGetMdiNextAttrib(Ihandle *ih)
   return NULL;
 }
 
-/* define this here, so we do not need to define _WIN32_WINNT=0x0500 */
-#ifndef WS_EX_LAYERED
-#define WS_EX_LAYERED           0x00080000
-#endif
-
-#ifndef LWA_ALPHA
-#define LWA_ALPHA               0x00000002
-#endif
-
 typedef BOOL (WINAPI*winSetLayeredWindowAttributes)(
   HWND hwnd,
   COLORREF crKey,
@@ -1181,7 +1176,7 @@ static void winDialogTrayMessage(HWND hWnd, DWORD dwMessage, HICON hIcon, PSTR p
   if (dwMessage == NIM_ADD)
   {
     tnd.uFlags = NIF_MESSAGE;
-    tnd.uCallbackMessage = WM_USER+IWIN_TRAY_NOTIFICATION;
+    tnd.uCallbackMessage = WM_USER+IUPWIN_TRAY_NOTIFICATION;
   }
   else if (dwMessage == NIM_MODIFY)
   {
@@ -1262,6 +1257,17 @@ static int winDialogSetBringFrontAttrib(Ihandle *ih, const char *value)
     SetForegroundWindow(ih->handle);
   return 0;
 }
+
+static char* winDialogGetActiveWindowAttrib(Ihandle* ih)
+{
+  WINDOWINFO wininfo;
+  wininfo.cbSize = sizeof(WINDOWINFO);
+  GetWindowInfo(ih->handle, &wininfo);
+  if (wininfo.dwWindowStatus & WS_ACTIVECAPTION)
+    return "Yes";
+  else
+    return "No";
+}    
 
 static int winDialogSetTopMostAttrib(Ihandle *ih, const char *value)
 {
@@ -1454,6 +1460,8 @@ void iupdrvDialogInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "MDICHILD", NULL, NULL, NULL, NULL, IUPAF_NO_INHERIT);
 
   /* IupDialog Windows and GTK Only */
+  iupClassRegisterAttribute(ic, "ACTIVEWINDOW", winDialogGetActiveWindowAttrib, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "TOPMOST", NULL, winDialogSetTopMostAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "TOPMOST", NULL, winDialogSetTopMostAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "DRAGDROP", NULL, iupwinSetDragDropAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "TRAY", NULL, winDialogSetTrayAttrib, NULL, NULL, IUPAF_NO_INHERIT);

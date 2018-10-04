@@ -25,9 +25,32 @@
 #include "iup_drv.h"
 #include "iup_drvfont.h"
 
-/* to avoid the inclusion of iupwin_drv.h */
-extern "C" WCHAR* iupwinStrChar2Wide(const char* str);
-extern "C" char* iupwinStrWide2Char(const WCHAR* wstr);
+/* Duplicated from "iupwin_drv.c" */
+static WCHAR* iupwinStrChar2Wide(const char* str)
+{
+  if (str)
+  {
+    int len = (int)strlen(str)+1;
+    WCHAR* wstr = (WCHAR*)malloc(len * sizeof(WCHAR));
+    MultiByteToWideChar(CP_ACP, 0, str, -1, wstr, len);
+    return wstr;
+  }
+
+  return NULL;
+}
+
+static char* iupwinStrWide2Char(const WCHAR* wstr)
+{
+  if (wstr)
+  {
+    int len = (int)wcslen(wstr)+1;
+    char* str = (char*)malloc(len * sizeof(char));
+    WideCharToMultiByte(CP_ACP, 0, wstr, -1, str, len, NULL, NULL);
+    return str;
+  }
+
+  return NULL;
+}
 
 
 #include <atlbase.h>
@@ -60,8 +83,10 @@ public:
     if (cb)
     {
       char* urlString = iupwinStrWide2Char(url->bstrVal);
-      cb(ih, urlString);
+      int ret = cb(ih, urlString);
       free(urlString);
+      if (ret == IUP_IGNORE)
+        *Cancel = VARIANT_TRUE;
     }
 
     (void)Cancel;
@@ -125,7 +150,7 @@ public:
 
 /********************************************************************************/
 
-
+#if 0
 static int winWebBrowserSetHTMLAttrib(Ihandle* ih, const char* value)
 {
   if (!value)
@@ -140,23 +165,23 @@ static int winWebBrowserSetHTMLAttrib(Ihandle* ih, const char* value)
 
   /* Create the stream  */
   IStream* pStream = NULL;
-  CreateStreamOnHGlobal(hHTMLText, TRUE, &pStream);
+  CreateStreamOnHGlobal(hHTMLText, FALSE, &pStream);
 
   /* Retrieve the document object. */
-  IDispatch* pHtmlDoc = NULL;
-  pweb->get_Document(&pHtmlDoc);
-  if (!pHtmlDoc)
+  IDispatch* lpDispatch = NULL;
+  pweb->get_Document(&lpDispatch);
+  if (!lpDispatch)
   {
     iupAttribSetStr(ih, "_IUPWEB_FAILED", NULL);
 
     pweb->Navigate(L"about:blank", NULL, NULL, NULL, NULL);
     IupFlush();
 
-    pweb->get_Document(&pHtmlDoc);
+    pweb->get_Document(&lpDispatch);
   }
 
   IPersistStreamInit* pPersistStreamInit = NULL;
-  pHtmlDoc->QueryInterface(IID_IPersistStreamInit, (void**)&pPersistStreamInit);
+  lpDispatch->QueryInterface(IID_IPersistStreamInit, (void**)&pPersistStreamInit);
 
   /* Initialize the document. */
   pPersistStreamInit->InitNew();
@@ -167,11 +192,59 @@ static int winWebBrowserSetHTMLAttrib(Ihandle* ih, const char* value)
   /* Releases */
   pPersistStreamInit->Release();
   pStream->Release();
-  pHtmlDoc->Release();
+  lpDispatch->Release();
   GlobalFree(hHTMLText);
   
   return 0; /* do not store value in hash table */
 }
+
+#else
+
+static int winWebBrowserSetHTMLAttrib(Ihandle* ih, const char* value)
+{
+  if (!value)
+    return 0;
+
+  IWebBrowser2 *pweb = (IWebBrowser2*)iupAttribGet(ih, "_IUPWEB_BROWSER");
+
+  /* Retrieve the document object. */
+  IDispatch* lpDispatch = NULL;
+  pweb->get_Document(&lpDispatch);
+  if (!lpDispatch)
+  {
+    iupAttribSetStr(ih, "_IUPWEB_FAILED", NULL);
+
+    pweb->Navigate(L"about:blank", NULL, NULL, NULL, NULL);
+    IupFlush();
+
+    pweb->get_Document(&lpDispatch);
+  }
+
+	IHTMLDocument2 *htmlDoc2;
+  lpDispatch->QueryInterface(IID_IHTMLDocument2, (void**)&htmlDoc2);
+
+  WCHAR* wvalue = iupwinStrChar2Wide(value);
+
+  VARIANT *param;
+  SAFEARRAY *sfArray;
+  sfArray = SafeArrayCreateVector(VT_VARIANT, 0, 1);
+  SafeArrayAccessData(sfArray,(LPVOID*) &param);
+  param->vt = VT_BSTR;
+	param->bstrVal = SysAllocString(wvalue);
+	SafeArrayUnaccessData(sfArray);
+
+	htmlDoc2->write(sfArray);
+	htmlDoc2->close();
+
+  /* Releases */
+  SafeArrayDestroy(sfArray);
+  htmlDoc2->Release();
+  lpDispatch->Release();
+  free(wvalue);
+  
+  return 0; /* do not store value in hash table */
+}
+#endif
 
 static int winWebBrowserSetBackForwardAttrib(Ihandle* ih, const char* value)
 {
@@ -320,11 +393,9 @@ static void winWebBrowserDestroyMethod(Ihandle* ih)
   punk->Release();
 }
 
-extern "C" Iclass* iupOleControlGetClass(void);
-
-Iclass* iupWebBrowserGetClass(void)
+Iclass* iupWebBrowserNewClass(void)
 {
-  Iclass* ic = iupClassNew(iupOleControlGetClass());
+  Iclass* ic = iupClassNew(iupRegisterFindClass("olecontrol"));
 
   ic->name = "webbrowser";
   ic->format = NULL; /* no parameters */
@@ -333,6 +404,7 @@ Iclass* iupWebBrowserGetClass(void)
   ic->is_interactive = 1;
 
   /* Class functions */
+  ic->New = iupWebBrowserNewClass;
   ic->Create = winWebBrowserCreateMethod;
   ic->Destroy = winWebBrowserDestroyMethod;
 

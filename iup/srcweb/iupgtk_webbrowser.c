@@ -31,6 +31,10 @@
 #include "iupgtk_drv.h"
 
 
+#ifndef WEBKIT_LOAD_FAILED
+#define WEBKIT_LOAD_FAILED 4
+#endif
+
 struct _IcontrolData 
 {
   int sb;    /* scrollbar configuration, valid only after map, use iupBaseGetScrollbar before map */
@@ -168,7 +172,10 @@ static int gtkWebBrowserNavigate(WebKitWebView *web_view, WebKitWebFrame *frame,
 
   IFns cb = (IFns)IupGetCallback(ih, "NAVIGATE_CB");
   if (cb)
-    cb(ih, (char*)webkit_network_request_get_uri(request));
+  {
+    if (cb(ih, (char*)webkit_network_request_get_uri(request)) == IUP_IGNORE)
+      return FALSE;
+  }
 
   return FALSE;
 }
@@ -304,7 +311,7 @@ static int gtkWebBrowserCreateMethod(Ihandle* ih, void **params)
   return IUP_NOERROR; 
 }
 
-Iclass* iupWebBrowserGetClass(void)
+Iclass* iupWebBrowserNewClass(void)
 {
   Iclass* ic = iupClassNew(NULL);
 
@@ -316,6 +323,7 @@ Iclass* iupWebBrowserGetClass(void)
   ic->has_attrib_id = 1;   /* has attributes with IDs that must be parsed */
 
   /* Class functions */
+  ic->New = iupWebBrowserNewClass;
   ic->Create = gtkWebBrowserCreateMethod;
   ic->ComputeNaturalSize = gtkWebBrowserComputeNaturalSizeMethod;
 

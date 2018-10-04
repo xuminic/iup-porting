@@ -239,7 +239,7 @@ int IupTuioListener::timer_action_cb(Ihandle *timer)
   if (!listener->locked)
     return IUP_DEFAULT;
 
-  int events_count = listener->cursor_events.size();
+  int events_count = (int)listener->cursor_events.size();
   int cursor_count = listener->client->CursorListCount();
   int total_count = events_count+cursor_count;
   if (!total_count)
@@ -354,9 +354,9 @@ static int iTuioSetConnectAttrib(Ihandle* ih, const char* value)
 static char* iTuioGetConnectAttrib(Ihandle *ih)
 {
   if (ih->data->client->isConnected())
-    return "Yes";
+    return (char*)"Yes";
   else
-    return "No";
+    return (char*)"No";
 }
 
 static int iTuioSetDebugAttrib(Ihandle* ih, const char* value)
@@ -368,17 +368,20 @@ static int iTuioSetDebugAttrib(Ihandle* ih, const char* value)
 static char* iTuioGetDebugAttrib(Ihandle *ih)
 {
   if (ih->data->listener->debug)
-    return "Yes";
+    return (char*)"Yes";
   else
-    return "No";
+    return (char*)"No";
 }
 
 static int iTuioCreateMethod(Ihandle* ih, void** params)
 {
   int port = 3333;
   if (params && params[0])
-    port = (int)(long)(params[0]); /* must cast to long first to avoid 64bit compiler error */
-  
+#if defined (WIN32) && defined (_M_X64)
+    port = (int)(long long)(params[0]);
+#else
+    port = (int)(long)(params[0]); /* must cast to long first to avoid 64bit C++ compiler error */
+#endif
   ih->data = iupALLOCCTRLDATA();
   
   ih->data->client = new TuioClient(port);
@@ -403,16 +406,17 @@ Ihandle* IupTuioClient(int port)
   return IupCreatev("tuioclient", params);
 }
 
-static Iclass* iTuioGetClass(void)
+static Iclass* iTuioNewClass(void)
 {
   Iclass* ic = iupClassNew(NULL);
 
-  ic->name = "tuioclient";
-  ic->format = "i";  /* (int) */
+  ic->name = (char*)"tuioclient";
+  ic->format = (char*)"i";  /* (int) */
   ic->nativetype = IUP_TYPEVOID;
   ic->childtype = IUP_CHILDNONE;
   ic->is_interactive = 0;
   
+  ic->New = iTuioNewClass;
   ic->Create = iTuioCreateMethod;
   ic->Destroy = iTuioDestroyMethod;
 
@@ -430,7 +434,7 @@ int IupTuioOpen(void)
   if (IupGetGlobal("_IUP_TUIO_OPEN"))
     return IUP_OPENED;
 
-  iupRegisterClass(iTuioGetClass());
+  iupRegisterClass(iTuioNewClass());
 
   IupSetGlobal("_IUP_TUIO_OPEN", "1");
   return IUP_NOERROR;

@@ -762,8 +762,8 @@ static Ihandle* iParamCreateBox(Ihandle* param)
 
       if (iupAttribGetInt(param, "ANGLE"))
       {
-        aux = IupCreatep("dial", "HORIZONTAL", NULL);
-        if (aux)
+        aux = IupCreate("dial");  /* Use IupCreate to avoid depending on the IupControls library */
+        if (aux)  /* If IupControls library is not available it will fail */
         {
           IupSetfAttribute(aux, "VALUE", "%g", (double)(iupAttribGetFloat(param, "VALUE")/RAD2DEG));
           IupSetAttribute(aux, "SIZE", "50x10");
@@ -1168,6 +1168,11 @@ static Ihandle *IupParamf(const char* format, int *line_size)
   
   type = *line_ptr;
   line_ptr++;
+
+/**********************************************************************************
+  REMEMBER: if a new parameter type is added
+            then IupLua must be also updated.
+ **********************************************************************************/
 
   switch(type)
   {

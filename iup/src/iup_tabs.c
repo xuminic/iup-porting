@@ -501,7 +501,7 @@ static int iTabsCreateMethod(Ihandle* ih, void **params)
   return IUP_NOERROR;
 }
 
-Iclass* iupTabsGetClass(void)
+Iclass* iupTabsNewClass(void)
 {
   Iclass* ic = iupClassNew(NULL);
 
@@ -513,6 +513,7 @@ Iclass* iupTabsGetClass(void)
   ic->has_attrib_id = 1;
 
   /* Class functions */
+  ic->New = iupTabsNewClass;
   ic->Create  = iTabsCreateMethod;
   ic->GetInnerNativeContainerHandle = iTabsGetInnerNativeContainerHandleMethod;
 
@@ -554,16 +555,16 @@ Iclass* iupTabsGetClass(void)
 
 Ihandle* IupTabs(Ihandle* first,...)
 {
-  Ihandle **params;
+  Ihandle **children;
   Ihandle *ih;
 
   va_list arglist;
   va_start(arglist, first);
-  params = (Ihandle**)iupObjectGetParamList(first, arglist);
+  children = (Ihandle**)iupObjectGetParamList(first, arglist);
   va_end(arglist);
 
-  ih = IupCreatev("tabs", (void**)params);
-  free(params);
+  ih = IupCreatev("tabs", (void**)children);
+  free(children);
 
   return ih;
 }

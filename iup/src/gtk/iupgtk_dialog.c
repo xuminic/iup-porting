@@ -73,9 +73,23 @@ void iupdrvDialogSetVisible(Ihandle* ih, int visible)
     gtk_widget_hide(ih->handle);
 }
 
-void iupdrvDialogGetPosition(InativeHandle* handle, int *x, int *y)
+void iupdrvDialogGetPosition(Ihandle *ih, InativeHandle* handle, int *x, int *y)
 {
-  gtk_window_get_position((GtkWindow*)handle, x, y);
+  if (!handle)
+    handle = ih->handle;
+
+#if GTK_CHECK_VERSION(2, 18, 0)
+  if (gtk_widget_get_visible(handle))
+#else
+  if (GTK_WIDGET_VISIBLE(handle))
+#endif
+    gtk_window_get_position((GtkWindow*)handle, x, y);
+  else if (ih)
+  {
+    /* gtk_window_get_position returns an outdated value if window is not visible */
+    *x = iupAttribGetInt(ih, "_IUPGTK_OLD_X");
+    *y = iupAttribGetInt(ih, "_IUPGTK_OLD_Y");
+  }
 }
 
 void iupdrvDialogSetPosition(Ihandle *ih, int x, int y)
@@ -98,8 +112,8 @@ static int gtkDialogGetMenuSize(Ihandle* ih)
 static void gtkDialogGetWindowDecor(Ihandle* ih, int *win_border, int *win_caption)
 {
   int x, y, frame_x, frame_y;
-  gdk_window_get_origin(ih->handle->window, &x, &y);
-  gdk_window_get_root_origin(ih->handle->window, &frame_x, &frame_y);
+  gdk_window_get_origin(iupgtkGetWindow(ih->handle), &x, &y);
+  gdk_window_get_root_origin(iupgtkGetWindow(ih->handle), &frame_x, &frame_y);
   *win_border = x-frame_x;
   *win_caption = y-frame_y-*win_border;
 }
@@ -320,7 +334,7 @@ static gboolean gtkDialogConfigureEvent(GtkWidget *widget, GdkEventConfigure *ev
 
   old_x = iupAttribGetInt(ih, "_IUPGTK_OLD_X");
   old_y = iupAttribGetInt(ih, "_IUPGTK_OLD_Y");
-  gtk_window_get_position((GtkWindow*)ih->handle, &x, &y);  /* ignore evt->x and evt->y because they are the clientpos and not X/Y */
+  iupdrvDialogGetPosition(ih, NULL, &x, &y);  /* ignore evt->x and evt->y because they are the clientpos and not X/Y */
 
   /* Check the position change, because configure is called also for size changes */
   if (x != old_x || y != old_y)
@@ -484,27 +498,28 @@ static int gtkDialogMapMethod(Ihandle* ih)
   /* initialize the widget */
   gtk_widget_realize(ih->handle);
 
-  if (iupAttribGetBoolean(ih, "DIALOGFRAME")) {
+  if (iupAttribGetBoolean(ih, "DIALOGFRAME"))
+  {
     iupAttribSetStr(ih, "RESIZE", "NO");
-  }
-
-  if (!iupAttribGetBoolean(ih, "RESIZE")) {
-    iupAttribSetStr(ih, "MAXBOX", "NO");  /* Must also remove these, so RESIZE=NO can work */
+    iupAttribSetStr(ih, "MAXBOX", "NO");
     iupAttribSetStr(ih, "MINBOX", "NO");
   }
 
   if (iupAttribGet(ih, "TITLE"))
     has_titlebar = 1;
+  if (iupAttribGetBoolean(ih, "RESIZE")) 
+  {
+    functions   |= GDK_FUNC_RESIZE;
+    decorations |= GDK_DECOR_RESIZEH;
+
+    decorations |= GDK_DECOR_BORDER;  /* has_border */
+  }
+  else
+    iupAttribSetStr(ih, "MAXBOX", "NO");
   if (iupAttribGetBoolean(ih, "MENUBOX")) 
   {
     functions   |= GDK_FUNC_CLOSE;
     decorations |= GDK_DECOR_MENU;
-    has_titlebar = 1;
-  }
-  if (iupAttribGetBoolean(ih, "MINBOX")) 
-  {
-    functions   |= GDK_FUNC_MINIMIZE;
-    decorations |= GDK_DECOR_MINIMIZE;
     has_titlebar = 1;
   }
   if (iupAttribGetBoolean(ih, "MAXBOX")) 
@@ -513,12 +528,11 @@ static int gtkDialogMapMethod(Ihandle* ih)
     decorations |= GDK_DECOR_MAXIMIZE;
     has_titlebar = 1;
   }
-  if (iupAttribGetBoolean(ih, "RESIZE")) 
+  if (iupAttribGetBoolean(ih, "MINBOX")) 
   {
-    functions   |= GDK_FUNC_RESIZE;
-    decorations |= GDK_DECOR_RESIZEH;
-
-    decorations |= GDK_DECOR_BORDER;  /* has_border */
+    functions   |= GDK_FUNC_MINIMIZE;
+    decorations |= GDK_DECOR_MINIMIZE;
+    has_titlebar = 1;
   }
   if (has_titlebar)
   {
@@ -533,7 +547,7 @@ static int gtkDialogMapMethod(Ihandle* ih)
     gtk_window_set_decorated((GtkWindow*)ih->handle, FALSE);
   else
   {
-    GdkWindow* window = ih->handle->window;
+    GdkWindow* window = iupgtkGetWindow(ih->handle);
     if (window)
     {
       gdk_window_set_decorations(window, (GdkWMDecoration)decorations);
@@ -562,6 +576,9 @@ static int gtkDialogMapMethod(Ihandle* ih)
 
   /* Ignore VISIBLE before mapping */
   iupAttribSetStr(ih, "VISIBLE", NULL);
+
+  if (iupStrBoolean(IupGetGlobal("INPUTCALLBACKS")))
+    gtk_widget_add_events(ih->handle, GDK_POINTER_MOTION_MASK|GDK_BUTTON_PRESS_MASK|GDK_BUTTON_RELEASE_MASK|GDK_BUTTON_MOTION_MASK);
 
   return IUP_NOERROR;
 }
@@ -684,28 +701,6 @@ static int gtkDialogSetMaxSizeAttrib(Ihandle* ih, const char* value)
   return 1;
 }
 
-static char* gtkDialogGetXAttrib(Ihandle *ih)
-{
-  char* str = iupStrGetMemory(20);
- 
-  gint x = 0;
-  gtk_window_get_position((GtkWindow*)ih->handle, &x, NULL);
-
-  sprintf(str, "%d", x);
-  return str;
-}
-
-static char* gtkDialogGetYAttrib(Ihandle *ih)
-{
-  char* str = iupStrGetMemory(20);
- 
-  gint y = 0;
-  gtk_window_get_position((GtkWindow*)ih->handle, NULL, &y);
-
-  sprintf(str, "%d", y);
-  return str;
-}
-
 static int gtkDialogSetTitleAttrib(Ihandle* ih, const char* value)
 {
   if (!value)
@@ -713,6 +708,14 @@ static int gtkDialogSetTitleAttrib(Ihandle* ih, const char* value)
   gtk_window_set_title((GtkWindow*)ih->handle, iupgtkStrConvertToUTF8(value));
   return 0;
 }
+
+static char* gtkDialogGetActiveWindowAttrib(Ihandle* ih)
+{
+  if (gtk_window_is_active((GtkWindow*)ih->handle))
+    return "Yes";
+  else
+    return "No";
+}    
 
 static char* gtkDialogGetTitleAttrib(Ihandle* ih)
 {
@@ -1008,10 +1011,6 @@ void iupdrvDialogInitClass(Iclass* ic)
   /* Visual */
   iupClassRegisterAttribute(ic, "BGCOLOR", NULL, iupdrvBaseSetBgColorAttrib, "DLGBGCOLOR", NULL, IUPAF_DEFAULT);  /* force new default value */
 
-  /* Overwrite Visual */
-  iupClassRegisterAttribute(ic, "X", gtkDialogGetXAttrib, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_READONLY|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "Y", gtkDialogGetYAttrib, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_READONLY|IUPAF_NO_INHERIT);
-
   /* Base Container */
   iupClassRegisterAttribute(ic, "CLIENTSIZE", gtkDialogGetClientSizeAttrib, iupDialogSetClientSizeAttrib, NULL, NULL, IUPAF_NO_SAVE|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);  /* dialog is the only not read-only */
   iupClassRegisterAttribute(ic, "CLIENTOFFSET", gtkDialogGetClientOffsetAttrib, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_READONLY|IUPAF_NO_INHERIT);
@@ -1028,6 +1027,7 @@ void iupdrvDialogInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "SAVEUNDER", NULL, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);  /* saveunder not supported in GTK */
 
   /* IupDialog Windows and GTK Only */
+  iupClassRegisterAttribute(ic, "ACTIVEWINDOW", gtkDialogGetActiveWindowAttrib, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "TOPMOST", NULL, gtkDialogSetTopMostAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "DRAGDROP", NULL, iupgtkSetDragDropAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "DIALOGHINT", NULL, NULL, NULL, NULL, IUPAF_NO_INHERIT);

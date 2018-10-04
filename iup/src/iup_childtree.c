@@ -97,6 +97,7 @@ void IupDetach(Ihandle *child)
   }
 }
 
+#ifdef IUP_ASSERT
 static int iChildFindRec(Ihandle* parent, Ihandle* child)
 {
   Ihandle *c;
@@ -122,6 +123,7 @@ static int iChildTreeCheckInside(Ihandle* parent, Ihandle* child)
 
   return iChildFindRec(parent, child);
 }
+#endif
 
 static int iChildFind(Ihandle* parent, Ihandle* child)
 {
@@ -141,6 +143,13 @@ static void iupChildTreeInsert(Ihandle* parent, Ihandle* ref_child, Ihandle* chi
 {
   Ihandle *c, 
           *c_prev = NULL;
+
+  if (parent->firstchild == NULL)
+  {
+    parent->firstchild = child;
+    child->parent = parent;
+    return;
+  }
 
   if (!ref_child)
     ref_child = parent->firstchild;

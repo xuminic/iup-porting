@@ -25,6 +25,7 @@
 #include "iup_stdcontrols.h"
 #include "iup_controls.h"
 #include "iup_cdutil.h"
+#include "iup_register.h"
 
 
 #define ICELLS_OUT -999
@@ -365,7 +366,7 @@ static void iCellsCallDrawCb(Ihandle* ih, int xmin, int xmax, int ymin, int ymax
   int oldxmin, oldxmax, oldymin, oldymax, oldclip;
   int w = ih->data->w;
   int h = ih->data->h;
-  IFniiiiii draw_cb;
+  IFniiiiiiC draw_cb;
   cdCanvas* old_cnv = cdActiveCanvas();
 
   /* Getting clipping area for post restore */
@@ -382,13 +383,13 @@ static void iCellsCallDrawCb(Ihandle* ih, int xmin, int xmax, int ymin, int ymax
      cdCanvasClipArea(ih->data->cddbuffer, xmin, xmax, ymin, ymax);
   }
 
-  draw_cb = (IFniiiiii)IupGetCallback(ih, "DRAW_CB");
+  draw_cb = (IFniiiiiiC)IupGetCallback(ih, "DRAW_CB");
   if (draw_cb)
   {
     if (old_cnv != ih->data->cddbuffer) /* backward compatibility code */
       cdActivate(ih->data->cddbuffer);
 
-    draw_cb(ih, i, j, xmin, xmax, ymin, ymax);
+    draw_cb(ih, i, j, xmin, xmax, ymin, ymax, ih->data->cddbuffer);
 
     if (old_cnv && old_cnv != ih->data->cddbuffer)
     {
@@ -894,7 +895,7 @@ static int iCellsCreateMethod(Ihandle* ih, void **params)
   (void)params;
 
   /* free the data allocated by IupCanvas */
-  if (ih->data) free(ih->data);
+  free(ih->data);
   ih->data = iupALLOCCTRLDATA();
 
   /* change the IupCanvas default values */
@@ -915,9 +916,9 @@ static int iCellsCreateMethod(Ihandle* ih, void **params)
   return IUP_NOERROR;
 }
 
-Iclass* iupCellsGetClass(void)
+Iclass* iupCellsNewClass(void)
 {
-  Iclass* ic = iupClassNew(iupCanvasGetClass());
+  Iclass* ic = iupClassNew(iupRegisterFindClass("canvas"));
 
   ic->name = "cells";
   ic->format = NULL; /* no parameters */
@@ -927,6 +928,7 @@ Iclass* iupCellsGetClass(void)
   ic->has_attrib_id = 2;  /* has attributes with two IDs that must be parsed */
 
   /* Class functions */
+  ic->New = iupCellsNewClass;
   ic->Create  = iCellsCreateMethod;
   ic->Map     = iCellsMapMethod;
   ic->UnMap   = iCellsUnMapMethod;

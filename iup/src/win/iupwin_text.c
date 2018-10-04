@@ -31,8 +31,8 @@
 #include "iupwin_drv.h"
 #include "iupwin_handle.h"
 
-/* Cygwin and MingW Win32api does not define these */
 
+/* Not defined for Cygwin and MingW */
 #ifndef PFN_ARABIC
 #define PFN_ARABIC		2
 #define PFN_LCLETTER	3
@@ -68,12 +68,13 @@
 #define SES_UPPERCASE			512
 #define	SES_LOWERCASE			1024
 #endif
-/*   End Cygwin/MingW */
 
-#ifndef EM_SETCUEBANNER      /* defined only if _WIN32_WINNT >= 0x501 */
+#ifndef EM_SETCUEBANNER 
 #define ECM_FIRST               0x1500      /* Edit control messages */
 #define	EM_SETCUEBANNER	    (ECM_FIRST + 1)
 #endif
+/*   End Cygwin/MingW */
+
 
 #define WM_IUPCARET WM_APP+1   /* Custom IUP message */
 
@@ -658,6 +659,23 @@ static int winTextConvertXYToPos(Ihandle* ih, int x, int y)
   return pos;
 }
 
+static char* winTextStrConvert(Ihandle* ih, const char* str)
+{
+  if (ih->data->is_multiline)
+  {
+    if (ih->data->has_formatting)
+    {
+      if (strchr(str, '\n')!=NULL)
+      {
+        str = iupStrDup(str);
+        iupStrToMac((char*)str);
+      }
+    }
+    else
+      str = iupStrToDos(str);
+  }
+  return (char*)str;
+}
 
 /***********************************************************************************************/
 
@@ -666,14 +684,7 @@ static int winTextSetValueAttrib(Ihandle* ih, const char* value)
 {
   char* str;
   if (!value) value = "";
-  str = (char*)value;
-  if (ih->data->is_multiline)
-  {
-    if (ih->data->has_formatting)
-      iupStrToMac(str);
-    else
-      str = iupStrToDos(str);
-  }
+  str = winTextStrConvert(ih, value);
   iupAttribSetStr(ih, "IUPWIN_IGNORECHANGE", "1");
   SetWindowText(ih->handle, str);
   iupAttribSetStr(ih, "IUPWIN_IGNORECHANGE", NULL);
@@ -720,14 +731,7 @@ static int winTextSetSelectedTextAttrib(Ihandle* ih, const char* value)
     if (start == end)
       return 0;
 
-    str = (char*)value;
-    if (ih->data->is_multiline)
-    {
-      if (ih->data->has_formatting)
-        iupStrToMac(str);
-      else
-        str = iupStrToDos(str);
-    }
+    str = winTextStrConvert(ih, value);
     SendMessage(ih->handle, EM_REPLACESEL, (WPARAM)TRUE, (LPARAM)str);
     if (str != value) free(str);
   }
@@ -918,17 +922,8 @@ static int winTextSetInsertAttrib(Ihandle* ih, const char* value)
     return 0;
   if (value)
   {
-    char* str = (char*)value;
-    if (ih->data->is_multiline)
-    {
-      if (ih->data->has_formatting)
-        iupStrToMac(str);
-      else
-        str = iupStrToDos(str);
-    }
-
+    char* str = winTextStrConvert(ih, value);
     SendMessage(ih->handle, EM_REPLACESEL, (WPARAM)TRUE, (LPARAM)str);
-
     if (str != value) free(str);
   }
   return 0;
@@ -941,14 +936,7 @@ static int winTextSetAppendAttrib(Ihandle* ih, const char* value)
   if (!ih->handle)  /* do not do the action before map */
     return 0;
   if (!value) value = "";
-  str = (char*)value;
-  if (ih->data->is_multiline)
-  {
-    if (ih->data->has_formatting)
-      iupStrToMac(str);
-    else
-      str = iupStrToDos(str);
-  }
+  str = winTextStrConvert(ih, value);
   
   pos = GetWindowTextLength(ih->handle)+1;
   SendMessage(ih->handle, EM_SETSEL, (WPARAM)pos, (LPARAM)pos);
@@ -2074,7 +2062,7 @@ void iupdrvTextInitClass(Iclass* ic)
 
   /* Special */
   iupClassRegisterAttribute(ic, "FGCOLOR", NULL, NULL, IUPAF_SAMEASSYSTEM, "TXTFGCOLOR", IUPAF_NOT_MAPPED);  /* usually black */    
-  iupClassRegisterAttribute(ic, "AUTOREDRAW", NULL, iupwinSetAutoRedrawAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AUTOREDRAW", NULL, iupwinSetAutoRedrawAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
 
   /* IupText only */
   iupClassRegisterAttribute(ic, "PADDING", iupTextGetPaddingAttrib, winTextSetPaddingAttrib, IUPAF_SAMEASSYSTEM, "0x0", IUPAF_NOT_MAPPED);

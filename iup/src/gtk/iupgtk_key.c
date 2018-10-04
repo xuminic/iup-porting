@@ -285,7 +285,7 @@ static int gtkKeyMap2Iup(int state, int i)
   return code;
 }
 
-static int gtkKeyDecode(GdkEventKey *evt)
+int iupgtkKeyDecode(GdkEventKey *evt)
 {
   int i;
   int count = sizeof(gtkkey_map)/sizeof(gtkkey_map[0]);
@@ -309,18 +309,34 @@ static int gtkKeyDecode(GdkEventKey *evt)
   return 0;
 }
 
+static int iupObjectIsNativeContainer(Ihandle* ih)
+{
+  if (ih->iclass->childtype != IUP_CHILDNONE && 
+      ih->iclass->nativetype != IUP_TYPEVOID)
+    return 1;
+  else
+    return 0;
+}
+
 gboolean iupgtkKeyPressEvent(GtkWidget *widget, GdkEventKey *evt, Ihandle *ih)
 {
   int result;
-  int code = gtkKeyDecode(evt);
+  int code = iupgtkKeyDecode(evt);
   if (code == 0) 
     return FALSE;
 
   /* Avoid duplicate calls if a child of a native container contains the focus.
      GTK will call the callback for the child and for the container.
-     Ignore the one send to the parent. */
-  if (ih->firstchild && ih != IupGetFocus())
-    return FALSE;
+     Ignore the one sent to the parent. For now only IupDialog and IupTabs
+     have keyboard signals intercepted.
+     */
+  if (iupObjectIsNativeContainer(ih))
+  {
+    GtkWindow* win = (GtkWindow*)IupGetDialog(ih)->handle;
+    GtkWidget *widget_focus = gtk_window_get_focus(win);
+    if (widget_focus && widget_focus != widget)
+      return FALSE;
+  }
 
   result = iupKeyCallKeyCb(ih, code);
   if (result == IUP_CLOSE)
@@ -371,7 +387,7 @@ gboolean iupgtkKeyReleaseEvent(GtkWidget *widget, GdkEventKey *evt, Ihandle *ih)
 {
   /* this is called only for canvas */
   int result;
-  int code = gtkKeyDecode(evt);
+  int code = iupgtkKeyDecode(evt);
   if (code == 0) 
     return FALSE;
 

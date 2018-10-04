@@ -30,7 +30,7 @@
 
 
 /* WARNING: in GTK there are many controls that are not native windows, 
-   so "->window" will NOT return a native window exclusive of that control,
+   so it GdkWindow will NOT return a native window exclusive of that control,
    in fact it can return a base native window shared by many controls.
    IupCanvas is a special case that uses an exclusive native window. */
 
@@ -43,6 +43,12 @@ static GtkFixed* gtkGetFixedParent(Ihandle* ih)
   while (widget && !GTK_IS_FIXED(widget))
     widget = gtk_widget_get_parent(widget);
   return (GtkFixed*)widget;
+}
+
+const char* iupgtkGetWidgetClassName(GtkWidget* widget)
+{
+  /* Used for debugging */
+  return g_type_name(G_TYPE_FROM_CLASS(GTK_WIDGET_GET_CLASS(widget)));
 }
 
 void iupgtkUpdateMnemonic(Ihandle* ih)
@@ -102,7 +108,7 @@ void iupdrvPostRedraw(Ihandle *ih)
 
 void iupdrvRedrawNow(Ihandle *ih)
 {
-  GdkWindow* window = ih->handle->window;
+  GdkWindow* window = iupgtkGetWindow(ih->handle);
   /* Post a REDRAW */
   gtk_widget_queue_draw(ih->handle);
   /* Force a REDRAW */
@@ -110,14 +116,39 @@ void iupdrvRedrawNow(Ihandle *ih)
     gdk_window_process_updates(window, FALSE);
 }
 
+static GtkWidget* gtkGetWindowedParent(GtkWidget* widget)
+{
+#if GTK_CHECK_VERSION(2, 18, 0)
+  while (widget && !gtk_widget_get_has_window(widget))
+#else
+	while (widget && GTK_WIDGET_NO_WINDOW(widget))
+#endif
+    widget = gtk_widget_get_parent(widget);
+  return widget;
+}
+
 void iupdrvScreenToClient(Ihandle* ih, int *x, int *y)
 {
   gint win_x = 0, win_y = 0;
-  GdkWindow* window = ih->handle->window;
-  if (window)
-    gdk_window_get_origin(window, &win_x, &win_y);
-  *x = *x - win_x;
-  *y = *y - win_y;
+  gint dx = 0, dy = 0;
+  GtkWidget* wparent = gtkGetWindowedParent(ih->handle);
+  if (ih->handle != wparent)
+    gtk_widget_translate_coordinates(ih->handle, wparent, 0, 0, &dx, &dy); /* widget origin relative to GDK window */
+  gdk_window_get_origin(iupgtkGetWindow(wparent), &win_x, &win_y);  /* GDK window origin relative to screen */
+  *x -= win_x + dx;
+  *y -= win_y + dy;
+}
+
+void iupdrvClientToScreen(Ihandle* ih, int *x, int *y)
+{
+  gint win_x = 0, win_y = 0;
+  gint dx = 0, dy = 0;
+  GtkWidget* wparent = gtkGetWindowedParent(ih->handle);
+  if (ih->handle != wparent)
+    gtk_widget_translate_coordinates(ih->handle, wparent, 0, 0, &dx, &dy); /* widget relative to GDK window */
+  gdk_window_get_origin(iupgtkGetWindow(wparent), &win_x, &win_y);  /* GDK window relative to screen */
+  *x += win_x + dx;
+  *y += win_y + dy;
 }
 
 gboolean iupgtkShowHelp(GtkWidget *widget, GtkWidgetHelpType *arg1, Ihandle *ih)
@@ -178,7 +209,7 @@ int iupdrvBaseSetZorderAttrib(Ihandle* ih, const char* value)
 {
   if (iupdrvIsVisible(ih))
   {
-    GdkWindow* window = ih->handle->window;
+    GdkWindow* window = iupgtkGetWindow(ih->handle);
     if (iupStrEqualNoCase(value, "TOP"))
       gdk_window_raise(window);
     else
@@ -250,49 +281,11 @@ void iupdrvSetActive(Ihandle* ih, int enable)
   gtk_widget_set_sensitive(ih->handle, enable);
 }
 
-char* iupdrvBaseGetXAttrib(Ihandle *ih)
-{
-  GdkWindow* window = ih->handle->window;
-  GtkWidget* container = (GtkWidget*)iupAttribGet(ih, "_IUP_EXTRAPARENT");
-  if (container) window = container->window;
-
-  if (window)
-  {
-    char* str = iupStrGetMemory(20);
-    int x, y;
-    gdk_window_get_origin(window, &x, &y);
-    x += ih->handle->allocation.x;
-    sprintf(str, "%d", x);
-    return str;
-  }
-  else
-    return NULL;
-}
-
-char* iupdrvBaseGetYAttrib(Ihandle *ih)
-{
-  GdkWindow* window = ih->handle->window;
-  GtkWidget* container = (GtkWidget*)iupAttribGet(ih, "_IUP_EXTRAPARENT");
-  if (container) window = container->window;
-
-  if (window)
-  {
-    char* str = iupStrGetMemory(20);
-    int x, y;
-    gdk_window_get_origin(window, &x, &y);
-    y += ih->handle->allocation.y;
-    sprintf(str, "%d", y);
-    return str;
-  }
-  else
-    return NULL;
-}
-
 char* iupdrvBaseGetClientSizeAttrib(Ihandle *ih)
 {
   char* str = iupStrGetMemory(20);
   int w, h;
-  GdkWindow* window = ih->handle->window;
+  GdkWindow* window = iupgtkGetWindow(ih->handle);
 
   if (window)
     gdk_drawable_get_size(window, &w, &h);
@@ -403,7 +396,7 @@ static GdkCursor* gtkEmptyCursor(Ihandle* ih)
   GdkColor cursor_color = {0L,0,0,0};
   char bitsnull[1] = {0x00};
 
-  GdkWindow* window = ih->handle->window;
+  GdkWindow* window = iupgtkGetWindow(ih->handle);
   GdkPixmap* pixmapnull = gdk_bitmap_create_from_data(
     (GdkDrawable*)window,
     bitsnull,
@@ -493,7 +486,7 @@ int iupdrvBaseSetCursorAttrib(Ihandle* ih, const char* value)
   GdkCursor* cur = gtkGetCursor(ih, value);
   if (cur)
   {
-    GdkWindow* window = ih->handle->window;
+    GdkWindow* window = iupgtkGetWindow(ih->handle);
     if (window)
       gdk_window_set_cursor(window, cur);
     return 1;
@@ -519,7 +512,11 @@ static void gtkDragDataReceived(GtkWidget* w, GdkDragContext* context, int x, in
   if (!cb) return; 
 
 #if GTK_CHECK_VERSION(2, 6, 0)
+#if GTK_CHECK_VERSION(2, 14, 0)
+  uris = g_uri_list_extract_uris((char*)gtk_selection_data_get_data(seldata));
+#else
   uris = g_uri_list_extract_uris((char*)seldata->data);
+#endif
 #endif
 
   if (!uris)
@@ -586,7 +583,7 @@ int iupdrvGetScrollbarSize(void)
 
 void iupdrvDrawFocusRect(Ihandle* ih, void* _gc, int x, int y, int w, int h)
 {
-  GdkWindow* window = ih->handle->window;
+  GdkWindow* window = iupgtkGetWindow(ih->handle);
   GtkStyle *style = gtk_widget_get_style(ih->handle);
 #if GTK_CHECK_VERSION(2, 18, 0)
   GtkStateType state = gtk_widget_get_state(ih->handle);
@@ -818,7 +815,7 @@ gboolean iupgtkMotionNotifyEvent(GtkWidget *widget, GdkEventMotion *evt, Ihandle
   if (evt->is_hint)
   {
     int x, y;
-    gdk_window_get_pointer(widget->window, &x, &y, NULL);
+    gdk_window_get_pointer(iupgtkGetWindow(widget), &x, &y, NULL);
     evt->x = x;
     evt->y = y;
   }
@@ -831,7 +828,6 @@ gboolean iupgtkMotionNotifyEvent(GtkWidget *widget, GdkEventMotion *evt, Ihandle
     cb(ih, (int)evt->x, (int)evt->y, status);
   }
 
-  (void)widget;
   return FALSE;
 }
 
@@ -892,7 +888,7 @@ void iupdrvSendKey(int key, int press)
   focus = IupGetFocus();
   if (!focus)
     return;
-  evt.window = focus->handle->window;
+  evt.window = iupgtkGetWindow(focus->handle);
 
   iupgtkKeyEncode(key, &evt.keyval, &evt.state);
   if (!evt.keyval)
@@ -906,25 +902,33 @@ void iupdrvSendKey(int key, int press)
   if (press & 0x01)
   {
     evt.type = GDK_KEY_PRESS;
-    gdk_display_put_event(gdk_display_get_default(), (GdkEvent*)&evt);
+    gdk_event_put((GdkEvent*)&evt);
   }
 
   if (press & 0x02)
   {
     evt.type = GDK_KEY_RELEASE;
-    gdk_display_put_event(gdk_display_get_default(), (GdkEvent*)&evt);
+    gdk_event_put((GdkEvent*)&evt);
   }
+}
+
+void iupdrvWarpPointer(int x, int y)
+{
+  /* VirtualBox does not reproduce the mouse move visually, but it is working. */
+#if GTK_CHECK_VERSION(2, 8, 0)
+  gdk_display_warp_pointer(gdk_display_get_default(), gdk_screen_get_default(), x, y);
+#endif
 }
 
 void iupdrvSendMouse(int x, int y, int bt, int status)
 {
-#if GTK_CHECK_VERSION(2, 8, 0)
-  gdk_display_warp_pointer(gdk_display_get_default(), gdk_screen_get_default(), x, y);
-#endif
+  /* always update cursor */
+  /* must be before sending the message because the cursor position will be used */
+  /* this will also send an extra motion event */
+  iupdrvWarpPointer(x, y);
 
   if (status != -1)
   {
-    /* Should we use gdk_event_new and gdk_event_free ???? */
     GtkWidget* grab_widget;
     gint origin_x, origin_y;
 
@@ -932,19 +936,16 @@ void iupdrvSendMouse(int x, int y, int bt, int status)
     memset(&evt, 0, sizeof(GdkEventButton));
     evt.send_event = TRUE;
 
-    evt.x = x;
-    evt.y = y;
-    evt.type = (status==1)? GDK_BUTTON_PRESS: GDK_BUTTON_RELEASE;
+    evt.x_root = x;
+    evt.y_root = y;
+    evt.type = (status==0)? GDK_BUTTON_RELEASE: ((status==2)? GDK_2BUTTON_PRESS: GDK_BUTTON_PRESS);
     evt.device = gdk_device_get_core_pointer();
 
     grab_widget = gtk_grab_get_current();
     if (grab_widget) 
-      evt.window = grab_widget->window;
+      evt.window = iupgtkGetWindow(grab_widget);
     else
-    {
-      gint tx, ty;
-      evt.window = gdk_window_at_pointer(&tx, &ty);
-    }
+      evt.window = gdk_window_at_pointer(NULL, NULL);
 
     switch(bt)
     {
@@ -973,14 +974,72 @@ void iupdrvSendMouse(int x, int y, int bt, int status)
     }
 
     gdk_window_get_origin(evt.window, &origin_x, &origin_y);
-    evt.x_root = x + origin_x;
-    evt.y_root = y + origin_y;
+    evt.x = x - origin_x;
+    evt.y = y - origin_y;
 
-    gdk_display_put_event(gdk_display_get_default(), (GdkEvent*)&evt);
+    gdk_event_put((GdkEvent*)&evt);
   }
+#if 0 /* kept until code stabilizes */
+  else
+  {
+    GtkWidget* grab_widget;
+    gint origin_x, origin_y;
+
+    GdkEventMotion evt;
+    memset(&evt, 0, sizeof(GdkEventMotion));
+    evt.send_event = TRUE;
+
+    evt.x_root = x;
+    evt.y_root = y;
+    evt.type = GDK_MOTION_NOTIFY;
+    evt.device = gdk_device_get_core_pointer();
+
+    grab_widget = gtk_grab_get_current();
+    if (grab_widget) 
+      evt.window = iupgtkGetWindow(grab_widget);
+    else
+      evt.window = gdk_window_at_pointer(NULL, NULL);
+
+    switch(bt)
+    {
+    case IUP_BUTTON1:
+      evt.state = GDK_BUTTON1_MASK;
+      break;
+    case IUP_BUTTON2:
+      evt.state = GDK_BUTTON2_MASK;
+      break;
+    case IUP_BUTTON3:
+      evt.state = GDK_BUTTON3_MASK;
+      break;
+    case IUP_BUTTON4:
+      evt.state = GDK_BUTTON4_MASK;
+      break;
+    case IUP_BUTTON5:
+      evt.state = GDK_BUTTON5_MASK;
+      break;
+    default:
+      return;
+    }
+
+    gdk_window_get_origin(evt.window, &origin_x, &origin_y);
+    evt.x = x - origin_x;
+    evt.y = y - origin_y;
+
+    gdk_event_put((GdkEvent*)&evt);
+  }
+#endif
 }
 
 void iupdrvSleep(int time)
 {
   g_usleep(time*1000);  /* mili to micro */
+}
+
+GdkWindow* iupgtkGetWindow(GtkWidget *widget)
+{
+#if GTK_CHECK_VERSION(2, 14, 0)
+  return gtk_widget_get_window(widget);
+#else
+  return widget->window;
+#endif
 }
