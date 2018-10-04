@@ -17,6 +17,15 @@ Ihandle *timer = NULL;
 
 static	int 	evt_update;
 
+/* old IUP doesn't have IupSetInt() */
+void Iup_set_int(Ihandle* ih, const char* name, int num)
+{
+  char value[20];  /* +4,294,967,296 */
+  sprintf(value, "%d", num);
+  IupStoreAttribute(ih, name, value);
+}
+
+
 /* gcc -Wall -g -I./external/iup/include `pkg-config gtk+-2.0 --cflags` -L./external/iup/lib/Linux311_64  -o iup_thread_sync_timer iup_thread_sync_timer.c -lpthread -liup `pkg-config gtk+-2.0 --libs` -lX11
  */
 
@@ -28,7 +37,7 @@ static int tuner_idle(void)
 	if (evt_update != last_update) {
 		last_update = evt_update;
 
-		IupSetInt(tune_progress, "VALUE", evt_update);
+		Iup_set_int(tune_progress, "VALUE", evt_update);
 
 		sprintf(buf, "Frequency Tuned: %d", evt_update);
 		IupSetAttribute(tune_label_total, "VALUE", buf);
@@ -98,8 +107,8 @@ int main(int argc, char **argv)
 
 	IupShow(dlg_main);
 
-	IupSetInt(tune_progress, "MIN", 0);
-	IupSetInt(tune_progress, "MAX", 99);
+	Iup_set_int(tune_progress, "MIN", 0);
+	Iup_set_int(tune_progress, "MAX", 99);
 
 	timer = IupTimer();
 	IupSetCallback(timer, "ACTION_CB", (Icallback)time_cb);

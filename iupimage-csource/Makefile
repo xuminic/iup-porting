@@ -4,8 +4,10 @@ AR	= ar
 CP	= cp
 RM	= rm -f
 
-INCS	= -I. -Iinclude `pkg-config gtk+-2.0 --cflags`
-LIBS	= -Llib -liup `pkg-config gtk+-2.0 --libs`
+IUPDIR	= ../iup
+
+INCS	= -I. -I$(IUPDIR)/include `pkg-config gtk+-2.0 --cflags`
+LIBS	= -L$(IUPDIR)/lib -liup `pkg-config gtk+-2.0 --libs`
 CFLAGS	= -Wall -O3
 
 CHAN	= 0

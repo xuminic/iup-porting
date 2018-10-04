@@ -5595,10 +5595,9 @@ static stbi_uc *stbi__pic_load_core(stbi__context *s,int width,int height,int *c
             case 1://Pure RLE
                {
                   int left=width, i;
+                  stbi_uc count,value[4]={0,0,0,0};
 
                   while (left>0) {
-                     stbi_uc count,value[4];
-
                      count=stbi__get8(s);
                      if (stbi__at_eof(s))   return stbi__errpuc("bad file","file too short (pure read count)");
 
@@ -5616,13 +5615,12 @@ static stbi_uc *stbi__pic_load_core(stbi__context *s,int width,int height,int *c
 
             case 2: {//Mixed RLE
                int left=width;
+               stbi_uc value[4]={0,0,0,0};
                while (left>0) {
                   int count = stbi__get8(s), i;
                   if (stbi__at_eof(s))  return stbi__errpuc("bad file","file too short (mixed read count)");
 
                   if (count >= 128) { // Repeated
-                     stbi_uc value[4];
-
                      if (count==128)
                         count = stbi__get16be(s);
                      else

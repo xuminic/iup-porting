@@ -42,9 +42,17 @@ int tuner_gui_status(TuneGUI *gui, int which, int val);
 
 #define TGOBJ_MAIN	"TUNERGUIOBJ"
 
-	TuneGUI	*gui;
+TuneGUI	*gui;
 static int	evt_update;
 static void *task_command(void *arg);
+
+/* old IUP doesn't have IupSetInt() */
+void Iup_set_int(Ihandle* ih, const char* name, int num)
+{
+  char value[20];  /* +4,294,967,296 */
+  sprintf(value, "%d", num);
+  IupStoreAttribute(ih, name, value);
+}
 
 int tuner_idle(void)
 {
@@ -110,8 +118,8 @@ void *tuner_gui_run(void *arg)
 	IupSetAttribute(gui->tune_progress, "EXPAND", "HORIZONTAL");
 	IupSetAttribute(gui->tune_progress, "SIZE", "x10");
 	IupSetAttribute(gui->tune_progress, "DASHED", "YES");
-	IupSetInt(gui->tune_progress, "MIN", 1);
-	IupSetInt(gui->tune_progress, "MAX", 728);
+	Iup_set_int(gui->tune_progress, "MIN", 1);
+	Iup_set_int(gui->tune_progress, "MAX", 728);
 	vbox_tune = IupVbox(gui->tune_label_total, gui->tune_label_fail, 
 			gui->tune_progress, NULL);
 	IupSetAttribute(vbox_tune, "NGAP", "8");
@@ -128,8 +136,8 @@ void *tuner_gui_run(void *arg)
 	IupSetAttribute(gui->scan_progress, "EXPAND", "HORIZONTAL");
 	IupSetAttribute(gui->scan_progress, "SIZE", "x10");
 	IupSetAttribute(gui->scan_progress, "DASHED", "YES");
-	IupSetInt(gui->scan_progress, "MIN", 0);
-	IupSetInt(gui->scan_progress, "MAX", 227);
+	Iup_set_int(gui->scan_progress, "MIN", 0);
+	Iup_set_int(gui->scan_progress, "MAX", 227);
 
 	gui->scan_label_current = IupLabel("Current Frequency: 123456789");
 	tuner_gui_status(gui, TGUI_LBL_SCAN_NOW, 0);
@@ -185,26 +193,26 @@ int tuner_gui_progress(TuneGUI *gui, int which, int val, int max)
 	switch (which) {
 	case TGUI_PRGRS_TUNING:
 		if (max == 0) {
-			IupSetInt(gui->tune_progress, "VALUE", val);
+			Iup_set_int(gui->tune_progress, "VALUE", val);
 		} else {
-			IupSetInt(gui->tune_progress, "MIN", val);
-			IupSetInt(gui->tune_progress, "MAX", max);
+			Iup_set_int(gui->tune_progress, "MIN", val);
+			Iup_set_int(gui->tune_progress, "MAX", max);
 		}
 		break;
 	case TGUI_PRGRS_SCANNING:
 		if (max == 0) {
-			IupSetInt(gui->scan_progress, "VALUE", val);
+			Iup_set_int(gui->scan_progress, "VALUE", val);
 		} else {
-			IupSetInt(gui->scan_progress, "MIN", val);
-			IupSetInt(gui->scan_progress, "MAX", max);
+			Iup_set_int(gui->scan_progress, "MIN", val);
+			Iup_set_int(gui->scan_progress, "MAX", max);
 		}
 		break;
 	case TGUI_PRGRS_INGROUP:
 		if (max == 0) {
-			IupSetInt(gui->cur_progress, "VALUE", val);
+			Iup_set_int(gui->cur_progress, "VALUE", val);
 		} else {
-			IupSetInt(gui->cur_progress, "MIN", val);
-			IupSetInt(gui->cur_progress, "MAX", max);
+			Iup_set_int(gui->cur_progress, "MIN", val);
+			Iup_set_int(gui->cur_progress, "MAX", max);
 		}
 		break;
 	}
