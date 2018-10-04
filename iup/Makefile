@@ -37,4 +37,4 @@ iupview: iupcontrols iup
 	@$(MAKE) --no-print-directory -C ./srcview/
 
 clean:
-	rm -rf ./lib/* ./obj/*
+	rm -rf ./lib/* ./obj/* ./src/iup.dep ./srcimglib/iupimglib.dep
