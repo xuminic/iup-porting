@@ -238,6 +238,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\iup_draw.h"
+				>
+			</File>
+			<File
 				RelativePath="..\src\iup_drv.h"
 				>
 			</File>
@@ -435,6 +439,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\iup_layoutdlg.c"
+				>
+			</File>
+			<File
 				RelativePath="..\src\iup_list.c"
 				>
 			</File>
@@ -451,7 +459,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\src\iup_predial.c"
+				RelativePath="..\src\iup_predialogs.c"
 				>
 			</File>
 			<File
@@ -552,6 +560,10 @@
 			</File>
 			<File
 				RelativePath="..\src\iup_menu.h"
+				>
+			</File>
+			<File
+				RelativePath="..\src\iup_predialogs.h"
 				>
 			</File>
 			<File

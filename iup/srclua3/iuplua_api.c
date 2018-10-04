@@ -32,8 +32,14 @@ static void SaveImageAsText(void)
 
 static void Reparent(void)
 {
-  lua_pushnumber(IupReparent(iuplua_checkihandle(1),
-                             iuplua_checkihandle(2)));
+  if (lua_isnil(lua_getparam(3)))
+    lua_pushnumber(IupReparent(iuplua_checkihandle(1),
+                               iuplua_checkihandle(2),
+                               NULL));
+  else
+    lua_pushnumber(IupReparent(iuplua_checkihandle(1),
+                               iuplua_checkihandle(2),
+                               iuplua_checkihandle(3)));
 }
 
 static void PreviousField(void)
@@ -252,6 +258,11 @@ static void GetChildCount(void)
 static void Refresh(void)
 {
   IupRefresh(iuplua_checkihandle(1));
+}
+
+static void RefreshChildren(void)
+{
+  IupRefreshChildren(iuplua_checkihandle(1));
 }
 
 static void Update(void)
@@ -489,6 +500,12 @@ static void Message(void)
   IupMessage(luaL_check_string(1), luaL_check_string(2));
 }
 
+
+static void LayoutDlg(void)
+{
+  iuplua_pushihandle(IupLayoutDialog(iuplua_checkihandle(1)));
+}
+
 static void GetText(void)
 {
   char buffer[10240];
@@ -679,6 +696,7 @@ int iupluaapi_open(void)
     { "IupShow", Show },
     { "IupGetChildCount", GetChildCount },
     { "IupRefresh", Refresh },
+    { "IupRefreshChildren", RefreshChildren },
     { "IupUpdate", Update },
     { "IupUpdateChildren", UpdateChildren },
     { "IupRedraw", Redraw },
@@ -727,6 +745,7 @@ int iupluaapi_open(void)
     { "IupVersion", Version },
     { "IupHelp", Help },
     { "IupScanf", iupluaScanf },
+    { "IupLayoutDialog", LayoutDlg },
     { "IupTextConvertLinColToPos", TextConvertLinColToPos},
     { "IupTextConvertPosToLinCol", TextConvertPosToLinCol},
     { "IupConvertXYToPos", ConvertXYToPos},

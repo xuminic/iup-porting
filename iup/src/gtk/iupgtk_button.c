@@ -81,7 +81,7 @@ static GtkLabel* gtkButtonGetLabel(Ihandle* ih)
 
 static int gtkButtonSetTitleAttrib(Ihandle* ih, const char* value)
 {
-  if (ih->data->type != IUP_BUTTON_IMAGE)  /* text or both */
+  if (ih->data->type & IUP_BUTTON_TEXT)  /* text or both */
   {
     GtkLabel* label = gtkButtonGetLabel(ih);
     iupgtkSetMnemonicTitle(ih, label, value);
@@ -97,6 +97,9 @@ static int gtkButtonSetAlignmentAttrib(Ihandle* ih, const char* value)
   PangoAlignment alignment;
   float xalign, yalign;
   char value1[30]="", value2[30]="";
+
+  if (iupAttribGet(ih, "_IUPGTK_EVENTBOX"))
+    return 0;
 
   iupStrToStrStr(value, value1, value2, ':');
 
@@ -207,8 +210,11 @@ static int gtkButtonSetStandardFontAttrib(Ihandle* ih, const char* value)
 
 static void gtkButtonSetPixbuf(Ihandle* ih, const char* name, int make_inactive)
 {
-  GtkButton* button = (GtkButton*)ih->handle;
-  GtkImage* image = (GtkImage*)gtk_button_get_image(button);
+  GtkImage* image;
+  if (!iupAttribGet(ih, "_IUPGTK_EVENTBOX"))
+    image = (GtkImage*)gtk_button_get_image((GtkButton*)ih->handle);
+  else
+    image = (GtkImage*)gtk_bin_get_child((GtkBin*)ih->handle);
 
   if (name && image)
   {
@@ -228,7 +234,7 @@ static void gtkButtonSetPixbuf(Ihandle* ih, const char* name, int make_inactive)
 
 static int gtkButtonSetImageAttrib(Ihandle* ih, const char* value)
 {
-  if (ih->data->type != IUP_BUTTON_TEXT)   /* image or both */
+  if (ih->data->type & IUP_BUTTON_IMAGE)
   {
     if (iupdrvIsActive(ih))
       gtkButtonSetPixbuf(ih, value, 0);
@@ -249,7 +255,7 @@ static int gtkButtonSetImageAttrib(Ihandle* ih, const char* value)
 
 static int gtkButtonSetImInactiveAttrib(Ihandle* ih, const char* value)
 {
-  if (ih->data->type != IUP_BUTTON_TEXT)   /* image or both */
+  if (ih->data->type & IUP_BUTTON_IMAGE)
   {
     if (!iupdrvIsActive(ih))
     {
@@ -271,7 +277,7 @@ static int gtkButtonSetImInactiveAttrib(Ihandle* ih, const char* value)
 static int gtkButtonSetActiveAttrib(Ihandle* ih, const char* value)
 {
   /* update the inactive image if necessary */
-  if (ih->data->type != IUP_BUTTON_TEXT)     /* image or both */
+  if (ih->data->type & IUP_BUTTON_IMAGE)
   {
     if (!iupStrBoolean(value))
     {
@@ -296,17 +302,10 @@ static int gtkButtonSetActiveAttrib(Ihandle* ih, const char* value)
   return iupBaseSetActiveAttrib(ih, value);
 }
 
-static int gtkButtonSetFocusOnClickAttrib(Ihandle* ih, const char* value)
-{
-  if (iupStrBoolean(value))
-    gtk_button_set_focus_on_click((GtkButton*)ih->handle, TRUE);
-  else
-    gtk_button_set_focus_on_click((GtkButton*)ih->handle, FALSE);
-  return 1;
-}
-
 static gboolean gtkButtonEnterLeaveEvent(GtkWidget *widget, GdkEventCrossing *evt, Ihandle *ih)
 {
+  /* Used only when FLAT=Yes */
+
   iupgtkEnterLeaveEvent(widget, evt, ih);
   (void)widget;
 
@@ -315,29 +314,6 @@ static gboolean gtkButtonEnterLeaveEvent(GtkWidget *widget, GdkEventCrossing *ev
   else  if (evt->type == GDK_LEAVE_NOTIFY)               
     gtk_button_set_relief((GtkButton*)ih->handle, GTK_RELIEF_NONE);
 
-  return FALSE;
-}
-
-static gboolean gtkButtonEvent(GtkWidget *widget, GdkEventButton *evt, Ihandle *ih)
-{
-  if (iupgtkButtonEvent(widget, evt, ih)==TRUE)
-    return TRUE;
-
-  if (ih->data->type != IUP_BUTTON_TEXT)   /* image or both */
-  {
-    char* name = iupAttribGet(ih, "IMPRESS");
-    if (name)
-    {
-      if (evt->type == GDK_BUTTON_PRESS)
-        gtkButtonSetPixbuf(ih, name, 0);
-      else
-      {
-        name = iupAttribGet(ih, "IMAGE");
-        gtkButtonSetPixbuf(ih, name, 0);
-      }
-    }
-  }
-   
   return FALSE;
 }
 
@@ -352,33 +328,102 @@ static void gtkButtonClicked(GtkButton *widget, Ihandle* ih)
   (void)widget;
 }
 
+static gboolean gtkButtonEvent(GtkWidget *widget, GdkEventButton *evt, Ihandle *ih)
+{
+  if (iupgtkButtonEvent(widget, evt, ih)==TRUE)
+    return TRUE;
+
+  if (ih->data->type & IUP_BUTTON_IMAGE)
+  {
+    char* name = iupAttribGet(ih, "IMPRESS");
+    if (name)
+    {
+      if (evt->type == GDK_BUTTON_PRESS)
+        gtkButtonSetPixbuf(ih, name, 0);
+      else
+      {
+        name = iupAttribGet(ih, "IMAGE");
+        gtkButtonSetPixbuf(ih, name, 0);
+      }
+    }
+
+    if (evt->type == GDK_BUTTON_RELEASE &&
+        iupAttribGet(ih, "_IUPGTK_EVENTBOX"))
+    {
+      Icallback cb = IupGetCallback(ih, "ACTION");
+      if (cb)
+      {
+        if (cb(ih) == IUP_CLOSE) 
+          IupExitLoop();
+      }
+    }
+  }
+
+#ifdef WIN32
+  if (evt->type == GDK_BUTTON_RELEASE)
+  {
+    if (ih->data->type == IUP_BUTTON_TEXT && GTK_IS_COLOR_BUTTON(ih->handle))
+    {
+      /* Ugly solution, but there is no way how to NOT show the GTK dialog on click action */
+      gtkButtonClicked(NULL, ih);
+      return TRUE;
+    }
+  }
+#endif
+   
+  return FALSE;
+}
+
 static int gtkButtonMapMethod(Ihandle* ih)
 {
   int impress;
   char* value;
 
-  ih->handle = gtk_button_new();
-  if (!ih->handle)
-    return IUP_ERROR;
-
   value = iupAttribGet(ih, "IMAGE");
   if (value)
   {
-    gtk_button_set_image((GtkButton*)ih->handle, gtk_image_new());
     ih->data->type = IUP_BUTTON_IMAGE;
 
     value = iupAttribGet(ih, "TITLE");
     if (value && *value!=0)
-    {
-      GtkSettings* settings = gtk_widget_get_settings(ih->handle);
-      g_object_set(settings, "gtk-button-images", (int)TRUE, NULL);
-
-      gtk_button_set_label((GtkButton*)ih->handle, iupgtkStrConvertToUTF8(value));
       ih->data->type |= IUP_BUTTON_TEXT;
+  }
+  else
+    ih->data->type = IUP_BUTTON_TEXT;
+
+  if (ih->data->type == IUP_BUTTON_IMAGE &&
+      iupAttribGet(ih, "IMPRESS") &&
+      !iupAttribGetBoolean(ih, "IMPRESSBORDER"))
+  {
+    GtkWidget *img = gtk_image_new();
+    ih->handle = gtk_event_box_new();
+    gtk_container_add((GtkContainer*)ih->handle, img);
+    gtk_widget_show(img);
+    iupAttribSetStr(ih, "_IUPGTK_EVENTBOX", "1");
+  }
+  else
+    ih->handle = gtk_button_new();
+
+  if (!ih->handle)
+    return IUP_ERROR;
+
+  if (ih->data->type & IUP_BUTTON_IMAGE)
+  {
+    if (!iupAttribGet(ih, "_IUPGTK_EVENTBOX"))
+    {
+      gtk_button_set_image((GtkButton*)ih->handle, gtk_image_new());
+
+      if (ih->data->type & IUP_BUTTON_TEXT)
+      {
+        GtkSettings* settings = gtk_widget_get_settings(ih->handle);
+        g_object_set(settings, "gtk-button-images", (int)TRUE, NULL);
+
+        gtk_button_set_label((GtkButton*)ih->handle, iupgtkStrConvertToUTF8(iupAttribGet(ih, "TITLE")));
       
 #if GTK_CHECK_VERSION(2, 10, 0)
-      gtk_button_set_image_position((GtkButton*)ih->handle, ih->data->img_position);  /* IUP and GTK have the same Ids */
+        gtk_button_set_image_position((GtkButton*)ih->handle, ih->data->img_position);  /* IUP and GTK have the same Ids */
 #endif
+      }
     }
   }
   else
@@ -400,7 +445,6 @@ static int gtkButtonMapMethod(Ihandle* ih)
     }
     else
       gtk_button_set_label((GtkButton*)ih->handle, iupgtkStrConvertToUTF8(title));
-    ih->data->type = IUP_BUTTON_TEXT;
   }
 
   /* add to the parent, all GTK controls must call this. */
@@ -420,10 +464,13 @@ static int gtkButtonMapMethod(Ihandle* ih)
   }
   else
   {
-    if (impress && !iupAttribGetStr(ih, "IMPRESSBORDER"))
-      gtk_button_set_relief((GtkButton*)ih->handle, GTK_RELIEF_NONE);
-    else
-      gtk_button_set_relief((GtkButton*)ih->handle, GTK_RELIEF_NORMAL);
+    if (!iupAttribGet(ih, "_IUPGTK_EVENTBOX"))
+    {
+      if (impress && !iupAttribGetStr(ih, "IMPRESSBORDER"))
+        gtk_button_set_relief((GtkButton*)ih->handle, GTK_RELIEF_NONE);
+      else
+        gtk_button_set_relief((GtkButton*)ih->handle, GTK_RELIEF_NORMAL);
+    }
 
     g_signal_connect(G_OBJECT(ih->handle), "enter-notify-event", G_CALLBACK(iupgtkEnterLeaveEvent), ih);
     g_signal_connect(G_OBJECT(ih->handle), "leave-notify-event", G_CALLBACK(iupgtkEnterLeaveEvent), ih);
@@ -434,7 +481,9 @@ static int gtkButtonMapMethod(Ihandle* ih)
   g_signal_connect(G_OBJECT(ih->handle), "key-press-event",    G_CALLBACK(iupgtkKeyPressEvent), ih);
   g_signal_connect(G_OBJECT(ih->handle), "show-help",          G_CALLBACK(iupgtkShowHelp), ih);
 
-  g_signal_connect(G_OBJECT(ih->handle), "clicked", G_CALLBACK(gtkButtonClicked), ih);
+  if (!iupAttribGet(ih, "_IUPGTK_EVENTBOX"))
+    g_signal_connect(G_OBJECT(ih->handle), "clicked", G_CALLBACK(gtkButtonClicked), ih);
+
   g_signal_connect(G_OBJECT(ih->handle), "button-press-event", G_CALLBACK(gtkButtonEvent), ih);
   g_signal_connect(G_OBJECT(ih->handle), "button-release-event",G_CALLBACK(gtkButtonEvent), ih);
 
@@ -451,7 +500,7 @@ void iupdrvButtonInitClass(Iclass* ic)
   /* Driver Dependent Attribute functions */
 
   /* Overwrite Common */
-  iupClassRegisterAttribute(ic, "STANDARDFONT", NULL, gtkButtonSetStandardFontAttrib, IUPAF_SAMEASSYSTEM, "DEFAULTFONT", IUPAF_NOT_MAPPED);
+  iupClassRegisterAttribute(ic, "STANDARDFONT", NULL, gtkButtonSetStandardFontAttrib, IUPAF_SAMEASSYSTEM, "DEFAULTFONT", IUPAF_NO_SAVE|IUPAF_NOT_MAPPED);
 
   /* Overwrite Visual */
   iupClassRegisterAttribute(ic, "ACTIVE", iupBaseGetActiveAttrib, gtkButtonSetActiveAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_DEFAULT);
@@ -469,10 +518,9 @@ void iupdrvButtonInitClass(Iclass* ic)
 
   /* IupButton only */
   iupClassRegisterAttribute(ic, "ALIGNMENT", NULL, gtkButtonSetAlignmentAttrib, "ACENTER:ACENTER", NULL, IUPAF_NO_INHERIT);  /* force new default value */
-  iupClassRegisterAttribute(ic, "IMAGE", NULL, gtkButtonSetImageAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "IMINACTIVE", NULL, gtkButtonSetImInactiveAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "IMPRESS", NULL, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "FOCUSONCLICK", NULL, gtkButtonSetFocusOnClickAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "IMAGE", NULL, gtkButtonSetImageAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "IMINACTIVE", NULL, gtkButtonSetImInactiveAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "IMPRESS", NULL, NULL, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
 
   iupClassRegisterAttribute(ic, "PADDING", iupButtonGetPaddingAttrib, gtkButtonSetPaddingAttrib, IUPAF_SAMEASSYSTEM, "0x0", IUPAF_NOT_MAPPED);
   iupClassRegisterAttribute(ic, "MARKUP", NULL, NULL, NULL, NULL, IUPAF_DEFAULT);

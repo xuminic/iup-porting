@@ -121,7 +121,6 @@ static void drawTestGL(Ihandle* ih)
 
 static int close_cb(Ihandle *ih)
 {
-  printf("CLOSE_CB\n");
   IupDestroy(ih);
   return IUP_IGNORE;
 }
@@ -206,7 +205,8 @@ static void new_font(void)
 
   IupSetAttribute(dlg, "PARENTDIALOG", "_MAIN_DIALOG_TEST_");
   IupSetAttribute(dlg, "COLOR", "128 0 255");
-  IupSetAttribute(dlg, "VALUE", "Times New Roman, Bold 20");
+//  IupSetAttribute(dlg, "BGCOLOR", "173 177 194");  // Motif BGCOLOR for documentation
+  IupSetAttribute(dlg, "VALUE", "Times, Bold 20");
   IupSetAttribute(dlg, "TITLE", "IupFontDlg Test");
   IupSetCallback(dlg, "HELP_CB", (Icallback)help_cb);
 
@@ -234,10 +234,11 @@ static void new_file(char* dialogtype, int preview)
   IupSetAttribute(dlg, "DIRECTORY", "/tecgraf/iup");
   if (strcmp(dialogtype, "DIR")!=0)
   {
-    IupSetAttributes(dlg, "FILTER = \"*.bmp\", FILTERINFO = \"Bitmap Files\"");
+//    IupSetAttributes(dlg, "FILTER = \"*.bmp\", FILTERINFO = \"Bitmap Files\"");
+//    IupSetAttribute(dlg, "FILTER", "*.jpg;*.jpeg;*.bmp;*.gif;*.tif;*.tiff;*.png");
     IupSetAttribute(dlg, "EXTFILTER", "Text files|*.txt;*.doc|Image files|*.jpg;*.bmp;*.gif|");
 //    IupSetAttribute(dlg, "FILE", "/tecgraf/im/test.bmp");
-    IupSetAttribute(dlg, "FILE", "test.bmp");
+//    IupSetAttribute(dlg, "FILE", "test.bmp");
   }
   IupSetCallback(dlg, "HELP_CB", (Icallback)help_cb);
 //  IupSetAttributes(dlg, "FILE = \"\\tecgraf\\iup\\test.bmp\""); // OK
@@ -416,6 +417,9 @@ static int k_any(Ihandle *ih, int c)
   case K_a:
     new_alarm();
     break;
+  case K_y:
+    IupShow(IupLayoutDialog(NULL));
+    break;
   case K_g:
     new_getfile();
     break;
@@ -454,6 +458,7 @@ void PreDialogsTest(void)
               "t = IupGetText\n"
               "g = IupGetFile\n"
               "l = IupListDialog\n"
+              "y = IupLayoutDialog\n"
               "--------------------\n"
               "Esc = quit";
   Ihandle *dlg = IupDialog(IupVbox(IupLabel(msg), NULL));

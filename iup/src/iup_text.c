@@ -83,7 +83,23 @@ void iupTextUpdateFormatTags(Ihandle* ih)
 
   for (i = 0; i < count; i++)
   {
-    iupdrvTextAddFormatTag(ih, tag_array[i]);
+    char* bulk = iupAttribGet(tag_array[i], "BULK");
+    if (bulk && iupStrBoolean(bulk))
+    {
+      Ihandle* child;
+      void* state = iupdrvTextAddFormatTagStartBulk(ih);
+
+      char* cleanout = iupAttribGet(tag_array[i], "CLEANOUT");
+      if (cleanout && iupStrBoolean(cleanout))
+        IupSetAttribute(ih, "REMOVEFORMATTING", "ALL");
+
+      for (child = tag_array[i]->firstchild; child; child = child->brother)
+        iupdrvTextAddFormatTag(ih, child, 1);
+
+      iupdrvTextAddFormatTagStopBulk(ih, state);
+    }
+    else
+      iupdrvTextAddFormatTag(ih, tag_array[i], 0);
     IupDestroy(tag_array[i]);
   }
   iupArrayDestroy(ih->data->formattags);
@@ -98,10 +114,29 @@ int iupTextSetAddFormatTagHandleAttrib(Ihandle* ih, const char* value)
 
   if (ih->handle)
   {
+    char* bulk;
+
     /* must update VALUE before updating the format */
     iTextUpdateValueAttrib(ih);
 
-    iupdrvTextAddFormatTag(ih, formattag);
+    bulk = iupAttribGet(formattag, "BULK");
+    if (bulk && iupStrBoolean(bulk))
+    {
+      Ihandle* child;
+      void* state = iupdrvTextAddFormatTagStartBulk(ih);
+
+      char* cleanout = iupAttribGet(formattag, "CLEANOUT");
+      if (cleanout && iupStrBoolean(cleanout))
+        IupSetAttribute(ih, "REMOVEFORMATTING", "ALL");
+
+      for (child = formattag->firstchild; child; child = child->brother)
+        iupdrvTextAddFormatTag(ih, child, 1);
+
+      iupdrvTextAddFormatTagStopBulk(ih, state);
+    }
+    else
+      iupdrvTextAddFormatTag(ih, formattag, 0);
+
     IupDestroy(formattag);
   }
   else
@@ -288,11 +323,13 @@ static int iTextSetScrollbarAttrib(Ihandle* ih, const char* value)
 
 static char* iTextGetScrollbarAttrib(Ihandle* ih)
 {
+  if (!ih->data->is_multiline)
+    return NULL;
   if (ih->data->sb == (IUP_SB_HORIZ | IUP_SB_VERT))
     return "YES";
-  if (ih->data->sb &= IUP_SB_HORIZ)
+  if (ih->data->sb & IUP_SB_HORIZ)
     return "HORIZONTAL";
-  if (ih->data->sb == IUP_SB_VERT)
+  if (ih->data->sb & IUP_SB_VERT)
     return "VERTICAL";
   return "NO";   /* IUP_SB_NONE */
 }
@@ -323,7 +360,7 @@ static int iMultilineCreateMethod(Ihandle* ih, void** params)
 {
   iTextCreateMethod(ih, params);
   ih->data->is_multiline = 1;
-  ih->data->sb = IUP_SB_HORIZ | IUP_SB_VERT;
+  ih->data->sb = IUP_SB_HORIZ | IUP_SB_VERT;  /* default is YES */
   return IUP_NOERROR;
 }
 
@@ -448,7 +485,7 @@ Iclass* iupTextGetClass(void)
   Iclass* ic = iupClassNew(NULL);
 
   ic->name = "text";
-  ic->format = "A"; /* one optional callback name */
+  ic->format = "a"; /* one ACTION callback name */
   ic->nativetype = IUP_TYPECONTROL;
   ic->childtype = IUP_CHILDNONE;
   ic->is_interactive = 1;

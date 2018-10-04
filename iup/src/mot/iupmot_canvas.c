@@ -626,12 +626,12 @@ void iupdrvCanvasInitClass(Iclass* ic)
   
   /* IupCanvas only */
   iupClassRegisterAttribute(ic, "DRAWSIZE", motCanvasGetClientSizeAttrib, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "CURSOR", NULL, iupdrvBaseSetCursorAttrib, IUPAF_SAMEASSYSTEM, "ARROW", IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "CURSOR", NULL, iupdrvBaseSetCursorAttrib, IUPAF_SAMEASSYSTEM, "ARROW", IUPAF_IHANDLENAME|IUPAF_NO_INHERIT);
 
   iupClassRegisterAttribute(ic, "DX", NULL, motCanvasSetDXAttrib, "0.1", NULL, IUPAF_NO_INHERIT);  /* force new default value */
   iupClassRegisterAttribute(ic, "DY", NULL, motCanvasSetDYAttrib, "0.1", NULL, IUPAF_NO_INHERIT);  /* force new default value */
-  iupClassRegisterAttribute(ic, "POSX", iupCanvasGetPosXAttrib, motCanvasSetPosXAttrib, "0.0", NULL, IUPAF_NO_INHERIT);  /* force new default value */
-  iupClassRegisterAttribute(ic, "POSY", iupCanvasGetPosYAttrib, motCanvasSetPosYAttrib, "0.0", NULL, IUPAF_NO_INHERIT);  /* force new default value */
+  iupClassRegisterAttribute(ic, "POSX", iupCanvasGetPosXAttrib, motCanvasSetPosXAttrib, "0", NULL, IUPAF_NO_INHERIT);  /* force new default value */
+  iupClassRegisterAttribute(ic, "POSY", iupCanvasGetPosYAttrib, motCanvasSetPosYAttrib, "0", NULL, IUPAF_NO_INHERIT);  /* force new default value */
   iupClassRegisterAttribute(ic, "YAUTOHIDE", NULL, NULL, "YES", NULL, IUPAF_NOT_MAPPED);
   iupClassRegisterAttribute(ic, "XAUTOHIDE", NULL, NULL, "YES", NULL, IUPAF_NOT_MAPPED);
 
@@ -640,4 +640,8 @@ void iupdrvCanvasInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "XDISPLAY", motCanvasGetXDisplayAttrib, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
   iupClassRegisterAttribute(ic, "XSCREEN", motCanvasGetXScreenAttrib, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
   iupClassRegisterAttribute(ic, "BACKINGSTORE", NULL, NULL, "YES", NULL, IUPAF_NOT_MAPPED);
+
+  /* Not Supported */
+  iupClassRegisterAttribute(ic, "DRAGDROP", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "TOUCH", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
 }

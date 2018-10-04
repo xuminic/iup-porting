@@ -1,6 +1,9 @@
+ifeq ($(OS), Windows_NT)
+  WINLIBS = iupole
+endif
 
-.PHONY: do_all iup iupgtk iupmot iupcd iupcontrols iupgl iup_pplot iupim iupimglib ledc iupview iuplua3 iuplua5 iupconsole
-do_all: iup iupcd iupcontrols iupgl iup_pplot iupim iupimglib ledc iupview iuplua5 iupconsole
+.PHONY: do_all iup iupgtk iupmot iupcd iupcontrols iupgl iup_pplot iupim iupimglib ledc iupview iuplua3 iuplua5 iupconsole iupole iupweb iuptuio
+do_all: iup iupcd iupcontrols iupgl iup_pplot iupim iupimglib iupweb iuptuio $(WINLIBS) ledc iupview iuplua5 iupconsole
 
 iup iupgtk iupmot:
 	@$(MAKE) --no-print-directory -C ./src/ $@
@@ -14,6 +17,12 @@ iupgl:
 	@$(MAKE) --no-print-directory -C ./srcgl/
 iupim:
 	@$(MAKE) --no-print-directory -C ./srcim/
+iupole:
+	@$(MAKE) --no-print-directory -C ./srcole/
+iupweb:
+	@$(MAKE) --no-print-directory -C ./srcweb/
+iuptuio:
+	@$(MAKE) --no-print-directory -C ./srctuio/
 iupimglib:
 	@$(MAKE) --no-print-directory -C ./srcimglib/
 iuplua3:

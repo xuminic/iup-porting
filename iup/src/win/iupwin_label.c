@@ -262,6 +262,26 @@ static int winLabelProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *re
 {
   switch (msg)
   {
+  case WM_XBUTTONDBLCLK:
+  case WM_LBUTTONDBLCLK:
+  case WM_MBUTTONDBLCLK:
+  case WM_RBUTTONDBLCLK:
+  case WM_XBUTTONDOWN:
+  case WM_LBUTTONDOWN:
+  case WM_MBUTTONDOWN:
+  case WM_RBUTTONDOWN:
+    {
+      iupwinButtonDown(ih, msg, wp, lp);
+      break;
+    }
+  case WM_XBUTTONUP:
+  case WM_LBUTTONUP:
+  case WM_MBUTTONUP:
+  case WM_RBUTTONUP:
+    {
+      iupwinButtonUp(ih, msg, wp, lp);
+      break;
+    }
   case WM_NCCALCSIZE:
     {
       if (wp == TRUE)
@@ -323,6 +343,10 @@ static int winLabelMapMethod(Ihandle* ih)
     IupSetCallback(ih, "_IUPWIN_DRAWITEM_CB", (Icallback)winLabelDrawItem);
   }
 
+  /* configure for DRAG&DROP of files */
+  if (IupGetCallback(ih, "DROPFILES_CB"))
+    iupAttribSetStr(ih, "DRAGDROP", "YES");
+
   return IUP_NOERROR;
 }
 
@@ -335,7 +359,7 @@ void iupdrvLabelInitClass(Iclass* ic)
 
   /* Visual */
   /* the most important use of this is to provide the correct background for images */
-  iupClassRegisterAttribute(ic, "BGCOLOR", iupBaseNativeParentGetBgColorAttrib, NULL, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_DEFAULT);  
+  iupClassRegisterAttribute(ic, "BGCOLOR", iupBaseNativeParentGetBgColorAttrib, NULL, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_NO_SAVE|IUPAF_DEFAULT);  
 
   /* Special */
   iupClassRegisterAttribute(ic, "FGCOLOR", NULL, winLabelSetFgColorAttrib, "DLGFGCOLOR", NULL, IUPAF_NOT_MAPPED);    /* force new default value */
@@ -343,10 +367,14 @@ void iupdrvLabelInitClass(Iclass* ic)
 
   /* IupLabel only */
   iupClassRegisterAttribute(ic, "ALIGNMENT", winLabelGetAlignmentAttrib, winLabelSetAlignmentAttrib, IUPAF_SAMEASSYSTEM, "ALEFT:ACENTER", IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "IMAGE", NULL, winLabelSetUpdateAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "IMAGE", NULL, winLabelSetUpdateAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "PADDING", iupLabelGetPaddingAttrib, winLabelSetPaddingAttrib, IUPAF_SAMEASSYSTEM, "0x0", IUPAF_NOT_MAPPED);
 
   /* IupLabel Windows and GTK only */
   iupClassRegisterAttribute(ic, "WORDWRAP", NULL, winLabelSetWordWrapAttrib, NULL, NULL, IUPAF_DEFAULT);
   iupClassRegisterAttribute(ic, "ELLIPSIS", NULL, winLabelSetEllipsisAttrib, NULL, NULL, IUPAF_DEFAULT);
+  iupClassRegisterAttribute(ic, "DRAGDROP", NULL, iupwinSetDragDropAttrib, NULL, NULL, IUPAF_NO_INHERIT);
+
+  /* Not Supported */
+  iupClassRegisterAttribute(ic, "MARKUP", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
 }

@@ -18,6 +18,57 @@
 #include "iup_assert.h" 
 
  
+void IupRefreshChildren(Ihandle* ih)
+{
+  int shrink;
+  Ihandle *dialog, *child;
+
+  iupASSERT(iupObjectCheck(ih));
+  if (!iupObjectCheck(ih))
+    return;
+
+  /* must be mapped */
+  if (!ih->handle)
+    return;
+
+  /* must have children */
+  if (!ih->firstchild)
+    return;
+
+  /* NOT a dialog, but inside one */
+  dialog = IupGetDialog(ih);
+  if (!dialog || dialog==ih)
+    return;
+
+  /****** local iupLayoutCompute,
+     but ih will not be changed, only its children. */
+
+  shrink = iupAttribGetBoolean(dialog, "SHRINK");
+
+  /* children only iupBaseComputeNaturalSize */
+  {
+    int w=0, h=0, children_expand=ih->expand;
+    iupClassObjectComputeNaturalSize(ih, &w, &h, &children_expand);
+
+    /* If the container natural size changed from inside, simply ignore the change */
+  }
+
+  /* children only iupBaseSetCurrentSize */
+  iupClassObjectSetChildrenCurrentSize(ih, shrink);
+
+  /* children only iupBaseSetPosition */
+  iupClassObjectSetChildrenPosition(ih, ih->x, ih->y);
+
+
+  /****** local iupLayoutUpdate,
+     but ih will not be changed, only its children. */
+  for (child = ih->firstchild; child; child = child->brother)
+  {
+    if (child->handle)
+      iupLayoutUpdate(child);
+  }
+}
+
 void IupRefresh(Ihandle* ih)
 {
   Ihandle* dialog;
@@ -95,6 +146,9 @@ void iupLayoutUpdate(Ihandle* ih)
 {
   Ihandle* child;
 
+  if (ih->flags & IUP_FLOATING_IGNORE)
+    return;
+
   /* update size and position of the native control */
   iupClassObjectLayoutUpdate(ih);
 
@@ -108,6 +162,8 @@ void iupLayoutUpdate(Ihandle* ih)
 
 void iupLayoutCompute(Ihandle* ih)
 {
+  /* called only for the dialog */
+
   int shrink = iupAttribGetBoolean(ih, "SHRINK");
 
   /* Compute the natural size for all elements in the dialog,   
@@ -138,7 +194,7 @@ void iupLayoutCompute(Ihandle* ih)
 
 void iupLayoutSetMinMaxSize(Ihandle* ih, int *w, int *h)
 {
-  if (ih->has_minsize)
+  if (ih->flags & IUP_MINSIZE)
   {
     char* value = iupAttribGet(ih, "MINSIZE");
     int min_w = 0, min_h = 0;          /* MINSIZE default value */
@@ -147,7 +203,7 @@ void iupLayoutSetMinMaxSize(Ihandle* ih, int *w, int *h)
     if (h && *h < min_h) *h = min_h;
   }
 
-  if (ih->has_maxsize)
+  if (ih->flags & IUP_MAXSIZE)
   {
     char* value = iupAttribGet(ih, "MAXSIZE");
     int max_w = 65535, max_h = 65535;  /* MAXSIZE default value */
@@ -221,9 +277,6 @@ void iupBaseSetCurrentSize(Ihandle* ih, int w, int h, int shrink)
     /* after that the current size must follow the actual size of the dialog */
     if (!ih->currentwidth)  ih->currentwidth  = ih->naturalwidth;
     if (!ih->currentheight) ih->currentheight = ih->naturalheight;
-
-    if (ih->firstchild)
-      iupClassObjectSetChildrenCurrentSize(ih, shrink);
   }
   else
   {
@@ -243,9 +296,6 @@ void iupBaseSetCurrentSize(Ihandle* ih, int w, int h, int shrink)
         ih->currentwidth  = (ih->expand & IUP_EXPAND_WIDTH)?  iupMAX(ih->naturalwidth, w):  ih->naturalwidth;
         ih->currentheight = (ih->expand & IUP_EXPAND_HEIGHT)? iupMAX(ih->naturalheight, h): ih->naturalheight;
       }
-
-      if (ih->firstchild)
-        iupClassObjectSetChildrenCurrentSize(ih, shrink);
     }
     else
     {
@@ -262,6 +312,9 @@ void iupBaseSetCurrentSize(Ihandle* ih, int w, int h, int shrink)
     if (ih->expand & IUP_EXPAND_WIDTH || ih->expand & IUP_EXPAND_HEIGHT)
       iupLayoutSetMinMaxSize(ih, &(ih->currentwidth), &(ih->currentheight));
   }
+
+  if (ih->firstchild)
+    iupClassObjectSetChildrenCurrentSize(ih, shrink);
 }
 
 void iupBaseSetPosition(Ihandle* ih, int x, int y)

@@ -40,7 +40,7 @@ static int motButtonSetTitleAttrib(Ihandle* ih, const char* value)
 {
   if (ih->data->type == IUP_BUTTON_TEXT)
   {
-    iupmotSetMnemonicTitle(ih, value);
+    iupmotSetMnemonicTitle(ih, NULL, value);
     return 1;
   }
 
@@ -173,6 +173,8 @@ static void motButtonActivateCallback(Widget w, Ihandle* ih, XtPointer call_data
 
 static void motButtonEnterLeaveWindowEvent(Widget w, Ihandle* ih, XEvent *evt, Boolean *cont)
 {
+  /* Used only when FLAT=Yes */
+
   iupmotEnterLeaveWindowEvent(w, ih, evt, cont);
 
   if (evt->type == EnterNotify)
@@ -217,13 +219,8 @@ static int motButtonMapMethod(Ihandle* ih)
   iupMOT_SETARG(args, num_args, XmNfillOnArm, False);
 
   /* Primitive */
-  if (iupAttribGetBoolean(ih, "FOCUSONCLICK"))
-  {
-    if (iupAttribGetBoolean(ih, "CANFOCUS"))
-      iupMOT_SETARG(args, num_args, XmNtraversalOn, True);
-    else
-      iupMOT_SETARG(args, num_args, XmNtraversalOn, False);
-  }
+  if (iupAttribGetBoolean(ih, "CANFOCUS"))
+    iupMOT_SETARG(args, num_args, XmNtraversalOn, True);
   else
     iupMOT_SETARG(args, num_args, XmNtraversalOn, False);
   iupMOT_SETARG(args, num_args, XmNhighlightThickness, 2);
@@ -251,8 +248,12 @@ static int motButtonMapMethod(Ihandle* ih)
   }
   else
   {
-    if (value && !iupAttribGetStr(ih, "IMPRESSBORDER"))
+    if (value && !iupAttribGetBoolean(ih, "IMPRESSBORDER"))
+    {
+      /* In Motif the button will lose its focus feedback also */
+      XtVaSetValues(ih->handle, XmNhighlightThickness, 0, NULL);
       XtVaSetValues(ih->handle, XmNshadowThickness, 0, NULL);
+    }
     else
       XtVaSetValues(ih->handle, XmNshadowThickness, 2, NULL);
     XtAddEventHandler(ih->handle, EnterWindowMask, False, (XtEventHandler)iupmotEnterLeaveWindowEvent, (XtPointer)ih);
@@ -285,7 +286,7 @@ void iupdrvButtonInitClass(Iclass* ic)
   /* Driver Dependent Attribute functions */
 
   /* Visual */
-  iupClassRegisterAttribute(ic, "BGCOLOR", iupmotGetBgColorAttrib, motButtonSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_DEFAULT);
+  iupClassRegisterAttribute(ic, "BGCOLOR", iupmotGetBgColorAttrib, motButtonSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_NO_SAVE|IUPAF_DEFAULT);
   iupClassRegisterAttribute(ic, "BACKGROUND", NULL, motButtonSetBackgroundAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_DEFAULT);
 
   /* Special */
@@ -294,10 +295,12 @@ void iupdrvButtonInitClass(Iclass* ic)
 
   /* IupButton only */
   iupClassRegisterAttribute(ic, "ALIGNMENT", NULL, motButtonSetAlignmentAttrib, "ACENTER:ACENTER", NULL, IUPAF_NO_INHERIT);  /* force new default value */
-  iupClassRegisterAttribute(ic, "IMAGE", NULL, motButtonSetImageAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "IMINACTIVE", NULL, motButtonSetImInactiveAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "IMPRESS", NULL, motButtonSetImPressAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "FOCUSONCLICK", NULL, NULL, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "IMAGE", NULL, motButtonSetImageAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "IMINACTIVE", NULL, motButtonSetImInactiveAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "IMPRESS", NULL, motButtonSetImPressAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
 
   iupClassRegisterAttribute(ic, "PADDING", iupButtonGetPaddingAttrib, motButtonSetPaddingAttrib, IUPAF_SAMEASSYSTEM, "0x0", IUPAF_NOT_MAPPED);
+
+  /* NOT supported */
+  iupClassRegisterAttribute(ic, "MARKUP", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NOT_MAPPED);
 }

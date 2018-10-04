@@ -186,20 +186,6 @@ static int iSboxFocus_CB(Ihandle* bar, int focus)
 \*****************************************************************************/
 
 
-static char* iSboxGetClientSizeAttrib(Ihandle* ih)
-{
-  int width, height;
-  char* str = iupStrGetMemory(20);
-  width = ih->currentwidth;
-  height = ih->currentheight;
-  width -= iSboxGetXborder(ih);
-  height -= iSboxGetYborder(ih);
-  if (width < 0) width = 0;
-  if (height < 0) height = 0;
-  sprintf(str, "%dx%d", width, height);
-  return str;
-}
-
 static int iSboxSetColorAttrib(Ihandle* ih, const char* value)
 {
   IupSetAttribute(ih->firstchild, "BGCOLOR", value);
@@ -352,6 +338,7 @@ static int iSboxCreateMethod(Ihandle* ih, void** params)
   ih->data->w = -1;
 
   bar = IupCanvas(NULL);
+  bar->flags |= IUP_INTERNAL;
   iupChildTreeAppend(ih, bar);  /* bar will always be the firstchild */
 
   IupSetAttribute(bar, "BORDER", "YES");
@@ -378,9 +365,9 @@ Iclass* iupSboxGetClass(void)
   Iclass* ic = iupClassNew(NULL);
 
   ic->name   = "sbox";
-  ic->format = "H";   /* one optional ihandle */
+  ic->format = "h";   /* one ihandle */
   ic->nativetype = IUP_TYPEVOID;
-  ic->childtype  = IUP_CHILDMANY;  /* should be IUP_CHILDONE but has the bar (a IupCanvas) as firstchild */
+  ic->childtype  = IUP_CHILDMANY+2; /* canvas+child */
   ic->is_interactive = 0;
 
   /* Class functions */
@@ -395,7 +382,8 @@ Iclass* iupSboxGetClass(void)
   iupBaseRegisterCommonAttrib(ic);
 
   /* Base Container */
-  iupClassRegisterAttribute(ic, "CLIENTSIZE", iSboxGetClientSizeAttrib, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "CLIENTSIZE", iupBaseGetRasterSizeAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_READONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "CLIENTOFFSET", iupBaseGetClientOffsetAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_READONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "EXPAND", iupBaseContainerGetExpandAttrib, NULL, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 
   /* IupSbox only */

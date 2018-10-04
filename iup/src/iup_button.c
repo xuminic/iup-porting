@@ -52,6 +52,12 @@ static char* iButtonGetImagePositionAttrib(Ihandle *ih)
   return str;
 }
 
+static int iButtonSetFocusOnClickAttrib(Ihandle* ih, const char* value)
+{
+  iupAttribSetStr(ih, "CANFOCUS", value);
+  return 1;
+}
+
 static int iButtonSetSpacingAttrib(Ihandle* ih, const char* value)
 {
   if (!ih->handle)  /* set only before map */
@@ -142,8 +148,11 @@ static void iButtonComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *ex
     if (str && str!=title) free(str);
   }
 
-  /* even when IMPRESS is set, must compute the borders space */
-  iupdrvButtonAddBorders(&natural_w, &natural_h);
+  /* if IMPRESS is set, do NOT compute the borders space */
+  if (!((type == IUP_BUTTON_IMAGE) &&
+        iupAttribGet(ih, "IMPRESS") && 
+        !iupAttribGetBoolean(ih, "IMPRESSBORDER")))
+    iupdrvButtonAddBorders(&natural_w, &natural_h);
 
   natural_w += 2*ih->data->horiz_padding;
   natural_h += 2*ih->data->vert_padding;
@@ -170,7 +179,7 @@ Iclass* iupButtonGetClass(void)
   Iclass* ic = iupClassNew(NULL);
 
   ic->name = "button";
-  ic->format = "SA"; /* one optional string, and one optional callback name */
+  ic->format = "sa"; /* one string, and one ACTION callback name */
   ic->nativetype = IUP_TYPECONTROL;
   ic->childtype = IUP_CHILDNONE;
   ic->is_interactive = 1;
@@ -200,6 +209,7 @@ Iclass* iupButtonGetClass(void)
   iupClassRegisterAttribute(ic, "IMAGEPOSITION", iButtonGetImagePositionAttrib, iButtonSetImagePositionAttrib, IUPAF_SAMEASSYSTEM, "LEFT", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "IMPRESSBORDER", NULL, NULL, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "FLAT", NULL, NULL, NULL, NULL, IUPAF_DEFAULT);
+  iupClassRegisterAttribute(ic, "FOCUSONCLICK", NULL, iButtonSetFocusOnClickAttrib, "YES", NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 
   iupdrvButtonInitClass(ic);
 

@@ -39,7 +39,7 @@ void iupdrvValGetMinSize(Ihandle* ih, int *w, int *h)
   if (iupAttribGetInt(ih, "SHOWTICKS"))
     ticks_size = 8;
 
-  if (ih->data->type == IVAL_HORIZONTAL)
+  if (ih->data->orientation == IVAL_HORIZONTAL)
   {
     *w = 30;
     *h = 20+ticks_size;
@@ -403,7 +403,7 @@ static int motValMapMethod(Ihandle* ih)
   iupMOT_SETARG(args, num_args, XmNsliderSize, 16);
   iupMOT_SETARG(args, num_args, XmNshowValue, XmNONE);
 
-  if (ih->data->type == IVAL_HORIZONTAL)
+  if (ih->data->orientation == IVAL_HORIZONTAL)
   {
     iupMOT_SETARG(args, num_args, XmNorientation, XmHORIZONTAL);
     if (ih->data->inverted)
@@ -478,11 +478,12 @@ void iupdrvValInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "BGCOLOR", NULL, motValSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_DEFAULT);
   iupClassRegisterAttribute(ic, "BACKGROUND", NULL, motValSetBackgroundAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_DEFAULT);
 
-  /* Special */
-
   /* IupVal only */
-  iupClassRegisterAttribute(ic, "VALUE", iupValGetValueAttrib, motValSetValueAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);  
+  iupClassRegisterAttribute(ic, "VALUE", iupValGetValueAttrib, motValSetValueAttrib, IUPAF_SAMEASSYSTEM, "0", IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);  
   iupClassRegisterAttribute(ic, "PAGESTEP", iupValGetPageStepAttrib, motValSetPageStepAttrib, IUPAF_SAMEASSYSTEM, "0.1", IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SHOWTICKS", iupValGetShowTicksAttrib, motValSetShowTicksAttrib, IUPAF_SAMEASSYSTEM, "0", IUPAF_DEFAULT);
   iupClassRegisterAttribute(ic, "STEP", iupValGetStepAttrib, motValSetStepAttrib, IUPAF_SAMEASSYSTEM, "0.01", IUPAF_NO_INHERIT);
+
+  /* NOT supported */
+  iupClassRegisterAttribute(ic, "TICKSPOS", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NOT_MAPPED);
 }

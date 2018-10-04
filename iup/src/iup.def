@@ -19,6 +19,7 @@ IupGetAllDialogs
 IupGetAllNames
 IupGetAttribute
 IupGetAttributes
+IupGetClassCallbacks
 IupGetDialog
 IupGetFile
 IupGetFloat
@@ -88,6 +89,7 @@ IupGetBrother
 IupGetParent
 IupVersionNumber
 IupRefresh
+IupRefreshChildren
 IupGetText
 IupVboxv
 IupZboxv
@@ -95,6 +97,7 @@ IupHboxv
 IupMenuv
 IupSetCallback
 IupGetCallback
+IupSetCallbacks
 IupGetChild
 IupGetChildPos
 IupGetChildCount
@@ -111,6 +114,7 @@ IupReparent
 IupMessageDlg 
 IupColorDlg   
 IupFontDlg    
+IupLayoutDialog
 IupSbox
 IupSpin
 IupSpinbox
@@ -123,6 +127,8 @@ IupTabsv
 IupGetClassAttributes
 IupSetClassDefaultAttribute
 IupSaveClassAttributes
+IupCopyClassAttributes
+IupGetAllClasses
 IupGetColor
 IupGetParam
 IupGetParamv
@@ -151,6 +157,18 @@ IupTreeGetId
 IupTreeGetUserId
 IupTreeSetUserId
 IupSaveImageAsText
+IupSetAttributeId
+IupStoreAttributeId
+IupGetAttributeId
+IupGetFloatId
+IupGetIntId
+IupSetfAttributeId
+IupSetAttributeId2
+IupStoreAttributeId2
+IupGetAttributeId2
+IupGetIntId2
+IupGetFloatId2
+IupSetfAttributeId2
 
 iupdrvSetVisible
 iupdrvSetStandardFontAttrib
@@ -163,7 +181,6 @@ iupdrvIsVisible
 iupdrvIsFile
 iupdrvIsDirectory
 iupdrvIsActive
-iupdrvGetWindowDecor
 iupdrvGetUserName
 iupdrvGetSystemVersion
 iupdrvGetSystemName
@@ -193,6 +210,8 @@ iupdrvBaseGetYAttrib
 iupdrvBaseGetXAttrib
 iupdrvBaseGetClientSizeAttrib
 iupdrvActivate
+iupdrvSendMouse
+iupdrvSendKey
 iupdrvImageCreateImageRaw
 iupdrvImageGetRawInfo
 iupdrvImageGetRawData
@@ -230,6 +249,8 @@ iupStrNextLine
 iupStrMessageShowError
 iupStrMessageGet
 iupStrLower
+iupStrUpper
+iupStrHasSpace
 iupStrLineCount
 iupStrInsert
 iupStrGetMemoryCopy
@@ -246,6 +267,7 @@ iupStrCountChar
 iupStrCopyUntil
 iupStrCopyN
 iupStrBoolean
+iupStrFalse
 iupSetFontStyleAttrib
 iupSetFontSizeAttrib
 iupSetFontAttrib
@@ -282,6 +304,7 @@ iupDlgListVisibleInc
 iupDlgListVisibleDec
 iupDlgListVisibleCount
 iupDlgListRemove
+iupDlgListCount
 iupDlgListNext
 iupDlgListFirst
 iupDlgListAdd
@@ -290,8 +313,11 @@ iupDataEntry
 iupClassRelease
 iupClassRegisterCallback
 iupClassRegisterAttributeId
+iupClassRegisterAttributeId2
 iupClassRegisterAttribute
 iupClassRegisterGetAttribute
+iupClassRegisterReplaceAttribDef
+iupClassRegisterReplaceAttribFlags
 iupClassObjectUnMap
 iupClassObjectSetChildrenPosition
 iupClassObjectSetChildrenCurrentSize
@@ -346,6 +372,7 @@ iupAttribGet
 iupAttribGetInherit
 iupAttribGetInheritNativeParent
 iupAttribGetStr
+iupAttribGetLocal
 iupAttribGetInt
 iupAttribGetBoolean
 iupAttribGetFloat
@@ -371,3 +398,5 @@ iupDrawSetClipRect
 iupDrawText
 iupDrawUpdateSize
 iupDrawImage
+iupwinStrChar2Wide
+iupwinStrWide2Char

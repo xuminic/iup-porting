@@ -3,7 +3,6 @@
  *
  * See Copyright Notice in "iup.h"
  */
-
 #include <windows.h>
 #include <commctrl.h>
 
@@ -32,6 +31,17 @@
 
 #ifndef CDIS_SHOWKEYBOARDCUES
 #define CDIS_SHOWKEYBOARDCUES   0x0200    /* it is defined only when _WIN32_WINNT >= 0x0501 */
+#endif
+
+/* not defined in gcc (Cygwin or MingW) */
+#ifndef ODS_NOACCEL
+#define ODS_NOACCEL   0x0100
+#endif
+#ifndef DT_HIDEPREFIX
+#define DT_HIDEPREFIX   0x00100000
+#endif
+#ifndef ODS_NOFOCUSRECT
+#define ODS_NOFOCUSRECT   0x0200
 #endif
 
 
@@ -108,7 +118,7 @@ static HBITMAP winButtonGetBitmap(Ihandle* ih, UINT itemState, int *shift, int *
     name = iupAttribGet(ih, "IMPRESS");
     if (itemState & ODS_SELECTED && name)
     {
-      if (shift && !iupAttribGetStr(ih, "IMPRESSBORDER")) 
+      if (shift && !iupAttribGetBoolean(ih, "IMPRESSBORDER")) 
         *shift = 0;
     }
     else
@@ -133,7 +143,7 @@ static void winButtonDrawImageText(Ihandle* ih, HDC hDC, int rect_width, int rec
   int x, y, width, height, 
       txt_x, txt_y, txt_width, txt_height, 
       img_x, img_y, img_width, img_height, 
-      bpp, shift = 0;
+      bpp, shift = 0, style = 0;
   HFONT hFont = (HFONT)iupwinGetHFontAttrib(ih);
   HBITMAP hBitmap, hMask;
   COLORREF fgcolor;
@@ -166,6 +176,9 @@ static void winButtonDrawImageText(Ihandle* ih, HDC hDC, int rect_width, int rec
 
   if (itemState & ODS_SELECTED && !iupwin_comctl32ver6)
     shift = 1;
+
+  if (itemState & ODS_NOACCEL)
+    style = DT_HIDEPREFIX;
 
   x = winButtonCalcAlignPosX(ih->data->horiz_alignment, rect_width, width, xpad, shift);
   y = winButtonCalcAlignPosY(ih->data->vert_alignment, rect_height, height, ypad, shift);
@@ -231,7 +244,7 @@ static void winButtonDrawImageText(Ihandle* ih, HDC hDC, int rect_width, int rec
   }
 
   iupwinDrawBitmap(hDC, hBitmap, hMask, img_x, img_y, img_width, img_height, bpp);
-  iupwinDrawText(hDC, title, txt_x, txt_y, txt_width, txt_height, hFont, fgcolor, 0);
+  iupwinDrawText(hDC, title, txt_x, txt_y, txt_width, txt_height, hFont, fgcolor, style);
 
   if (hMask)
     DeleteObject(hMask);
@@ -270,6 +283,7 @@ static void winButtonDrawText(Ihandle* ih, HDC hDC, int rect_width, int rect_hei
   char* title = iupdrvBaseGetTitleAttrib(ih);
   if (title)
   {
+    int style = 0;
     HFONT hFont = (HFONT)iupwinGetHFontAttrib(ih);
     char* str = iupStrProcessMnemonic(title, NULL, 0);   /* remove & */
     iupdrvFontGetMultiLineStringSize(ih, str, &width, &height);
@@ -283,10 +297,13 @@ static void winButtonDrawText(Ihandle* ih, HDC hDC, int rect_width, int rect_hei
     if (itemState & ODS_SELECTED && !iupwin_comctl32ver6)
       shift = 1;
 
+    if (itemState & ODS_NOACCEL)
+      style = DT_HIDEPREFIX;
+
     x = winButtonCalcAlignPosX(ih->data->horiz_alignment, rect_width, width, xpad, shift);
     y = winButtonCalcAlignPosY(ih->data->vert_alignment, rect_height, height, ypad, shift);
 
-    iupwinDrawText(hDC, title, x, y, width, height, hFont, fgcolor, 0);
+    iupwinDrawText(hDC, title, x, y, width, height, hFont, fgcolor, style);
   }
   else
   {
@@ -327,7 +344,9 @@ static void winButtonDrawItem(Ihandle* ih, DRAWITEMSTRUCT *drawitem)
 
   border = winButtonGetBorder();
 
-  if (ih->data->type & IUP_BUTTON_IMAGE && iupAttribGet(ih, "IMPRESS") && !iupAttribGetStr(ih, "IMPRESSBORDER"))
+  if ((ih->data->type & IUP_BUTTON_IMAGE) && 
+      iupAttribGet(ih, "IMPRESS") && 
+      !iupAttribGetBoolean(ih, "IMPRESSBORDER"))
     draw_border = 0;
   else
   {
@@ -352,7 +371,9 @@ static void winButtonDrawItem(Ihandle* ih, DRAWITEMSTRUCT *drawitem)
   else  /* both */
     winButtonDrawImageText(ih, hDC, width, height, border, drawitem->itemState);
 
-  if (drawitem->itemState & ODS_FOCUS)
+  if (drawitem->itemState & ODS_FOCUS &&
+      !(drawitem->itemState & ODS_NOFOCUSRECT) &&
+      iupAttribGetBoolean(ih, "CANFOCUS"))
   {
     border--;
     iupdrvDrawFocusRect(ih, hDC, border, border, width-2*border, height-2*border);
@@ -461,6 +482,8 @@ static int winButtonSetBgColorAttrib(Ihandle* ih, const char* value)
     iupImageUpdateParent(ih);
     iupdrvRedrawNow(ih);
   }
+  else
+    iupdrvPostRedraw(ih);
   return 1;
 }
 
@@ -523,7 +546,7 @@ static int winButtonProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *r
       iupwinButtonDown(ih, msg, wp, lp);
 
       /* Feedback will NOT be done when not receiving the focus */
-      if (msg==WM_LBUTTONDOWN && !iupAttribGetBoolean(ih, "FOCUSONCLICK"))
+      if (msg==WM_LBUTTONDOWN && !iupAttribGetBoolean(ih, "CANFOCUS"))
       {
         iupAttribSetStr(ih, "_IUPWINBUT_SELECTED", "1");
         iupdrvRedrawNow(ih);
@@ -538,7 +561,7 @@ static int winButtonProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *r
       iupwinButtonUp(ih, msg, wp, lp);
 
       /* BN_CLICKED will NOT be notified when not receiving the focus */
-      if (msg==WM_LBUTTONUP && !iupAttribGetBoolean(ih, "FOCUSONCLICK"))
+      if (msg==WM_LBUTTONUP && !iupAttribGetBoolean(ih, "CANFOCUS"))
       {
         Icallback cb;
 
@@ -550,7 +573,7 @@ static int winButtonProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *r
           IupExitLoop();
       }
 
-      if (!iupwinIsVistaOrNew())
+      if (!iupwinIsVistaOrNew() && iupObjectCheck(ih))
       {
         /* TIPs desapear forever after a button click in XP,
            so we force an update. */
@@ -573,19 +596,19 @@ static int winButtonProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *r
     }
     break;
   case WM_MOUSELEAVE:
-    if (!iupwin_comctl32ver6)
+    if (!iupwin_comctl32ver6 && iupAttribGetBoolean(ih, "FLAT"))
     {
       iupAttribSetStr(ih, "_IUPWINBUT_ENTERWIN", NULL);
       iupdrvRedrawNow(ih);
     }
-    if (!iupAttribGetBoolean(ih, "FOCUSONCLICK"))
+    if (!iupAttribGetBoolean(ih, "CANFOCUS"))
     {
       iupAttribSetStr(ih, "_IUPWINBUT_SELECTED", NULL);
       iupdrvRedrawNow(ih);
     }
     break;
   case WM_MOUSEMOVE:
-    if (!iupwin_comctl32ver6)
+    if (!iupwin_comctl32ver6 && iupAttribGetBoolean(ih, "FLAT"))
     {
       if (!iupAttribGet(ih, "_IUPWINBUT_ENTERWIN"))
       {
@@ -597,7 +620,8 @@ static int winButtonProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *r
   case WM_SETFOCUS:
     {
       HWND previous = (HWND)wp;
-      if (!iupAttribGetBoolean(ih, "FOCUSONCLICK") && wp && iupAttribGet(ih, "_IUPWIN_ENTERWIN"))
+      if (previous && previous!=ih->handle &&
+          !iupAttribGetBoolean(ih, "CANFOCUS"))
       {
         SetFocus(previous);
         *result = 0;
@@ -630,8 +654,11 @@ static int winButtonWmNotify(Ihandle* ih, NMHDR* msg_info, int *result)
       else if (customdraw->uItemState & CDIS_DEFAULT)
         drawitem.itemState |= ODS_DEFAULT;
 
-      if (customdraw->uItemState & CDIS_FOCUS && (customdraw->uItemState & CDIS_SHOWKEYBOARDCUES))
+      if (customdraw->uItemState & CDIS_FOCUS)
         drawitem.itemState |= ODS_FOCUS;
+
+      if (!(customdraw->uItemState & CDIS_SHOWKEYBOARDCUES))
+        drawitem.itemState |= ODS_NOFOCUSRECT | ODS_NOACCEL;
 
       drawitem.hDC = customdraw->hdc;
       drawitem.rcItem = customdraw->rc;
@@ -655,8 +682,19 @@ static int winButtonWmCommand(Ihandle* ih, WPARAM wp, LPARAM lp)
   case BN_CLICKED:
     {
       Icallback cb = IupGetCallback(ih, "ACTION");
-      if (cb && cb(ih) == IUP_CLOSE)
-        IupExitLoop();
+      if (cb)
+      {
+        if (!iupAttribGet(ih, "_IUPBUT_INSIDE_ACTION"))  /* to avoid double calls when pressing enter and a dialog is displayed */
+        {
+          iupAttribSetStr(ih, "_IUPBUT_INSIDE_ACTION", "1");
+
+          if (cb(ih) == IUP_CLOSE)
+            IupExitLoop();
+
+          if (iupObjectCheck(ih))
+            iupAttribSetStr(ih, "_IUPBUT_INSIDE_ACTION", NULL);
+        }
+      }
     }
   }
 
@@ -676,7 +714,8 @@ static int winButtonMapMethod(Ihandle* ih)
  /* Buttons with the BS_PUSHBUTTON style do NOT use the returned brush in WM_CTLCOLORBTN. 
     Buttons with these styles are always drawn with the default system colors.
     So FGCOLOR and BGCOLOR do NOT work.
-    The BS_FLAT style does NOT completely remove the borders. With XP styles is ignored. So FLAT do NOT work.
+    The BS_FLAT style does NOT completely remove the borders. With XP styles is ignored. 
+    So FLAT do NOT work.
     BCM_SETTEXTMARGIN is not working. 
     Buttons with images and with XP styles do NOT draw the focus feedback.
     Can NOT remove the borders when using IMPRESS.
@@ -730,7 +769,7 @@ void iupdrvButtonInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "ACTIVE", iupBaseGetActiveAttrib, winButtonSetActiveAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_DEFAULT);
 
   /* Visual */
-  iupClassRegisterAttribute(ic, "BGCOLOR", winButtonGetBgColorAttrib, winButtonSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_DEFAULT);
+  iupClassRegisterAttribute(ic, "BGCOLOR", winButtonGetBgColorAttrib, winButtonSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_NO_SAVE|IUPAF_DEFAULT);
 
   /* Special */
   iupClassRegisterAttribute(ic, "FGCOLOR", NULL, winButtonSetFgColorAttrib, "DLGFGCOLOR", NULL, IUPAF_NOT_MAPPED);  /* force the new default value */  
@@ -738,10 +777,12 @@ void iupdrvButtonInitClass(Iclass* ic)
 
   /* IupButton only */
   iupClassRegisterAttribute(ic, "ALIGNMENT", winButtonGetAlignmentAttrib, winButtonSetAlignmentAttrib, "ACENTER:ACENTER", NULL, IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "IMAGE", NULL, winButtonSetImageAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "IMINACTIVE", NULL, winButtonSetImInactiveAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "IMPRESS", NULL, winButtonSetImPressAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "FOCUSONCLICK", NULL, NULL, "YES", NULL, IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "IMAGE", NULL, winButtonSetImageAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "IMINACTIVE", NULL, winButtonSetImInactiveAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "IMPRESS", NULL, winButtonSetImPressAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
 
   iupClassRegisterAttribute(ic, "PADDING", iupButtonGetPaddingAttrib, winButtonSetPaddingAttrib, IUPAF_SAMEASSYSTEM, "0x0", IUPAF_NOT_MAPPED);
+
+  /* NOT supported */
+  iupClassRegisterAttribute(ic, "MARKUP", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NOT_MAPPED);
 }

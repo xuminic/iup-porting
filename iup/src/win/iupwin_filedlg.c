@@ -296,6 +296,7 @@ static UINT_PTR CALLBACK winFileDlgPreviewHook(HWND hWnd, UINT uiMsg, WPARAM wPa
       {
         LPDRAWITEMSTRUCT lpDrawItem = (LPDRAWITEMSTRUCT)lParam;
         Ihandle* ih = (Ihandle*)GetWindowLongPtr(hWnd, DWLP_USER);
+        /* callback here always exists */
         IFnss cb = (IFnss)IupGetCallback(ih, "FILE_CB");
         char filename[MAX_FILENAME_SIZE];
         iupAttribSetStr(ih, "PREVIEWDC", (char*)lpDrawItem->hDC);
@@ -332,6 +333,7 @@ static UINT_PTR CALLBACK winFileDlgPreviewHook(HWND hWnd, UINT uiMsg, WPARAM wPa
   case WM_DESTROY:
     {
       Ihandle* ih = (Ihandle*)GetWindowLongPtr(hWnd, DWLP_USER);
+      /* callback here always exists */
       IFnss cb = (IFnss)IupGetCallback(ih, "FILE_CB");
       cb(ih, NULL, "FINISH");
       break;
@@ -340,6 +342,7 @@ static UINT_PTR CALLBACK winFileDlgPreviewHook(HWND hWnd, UINT uiMsg, WPARAM wPa
     {
       LPOFNOTIFY pofn = (LPOFNOTIFY)lParam;
       Ihandle* ih = (Ihandle*)pofn->lpOFN->lCustData;
+      /* callback here always exists */
       IFnss cb = (IFnss)IupGetCallback(ih, "FILE_CB");
       switch (pofn->hdr.code)
       {
@@ -440,7 +443,8 @@ static int winFileDlgPopup(Ihandle *ih, int x, int y)
   }
 
   if (!parent)
-    parent = GetActiveWindow();
+    parent = GetActiveWindow();  /* if NOT set will NOT be Modal */
+                                 /* anyway it will be modal only relative to its parent */
 
   ZeroMemory(&openfilename, sizeof(OPENFILENAME));
   openfilename.lStructSize = sizeof(OPENFILENAME);
@@ -472,10 +476,10 @@ static int winFileDlgPopup(Ihandle *ih, int x, int y)
       sz1 = strlen(info)+1;
       sz2 = strlen(value)+1;
       openfilename.lpstrFilter = (char*)malloc(sz1+sz2+1);
-
       memcpy((char*)openfilename.lpstrFilter, info, sz1);
       memcpy((char*)openfilename.lpstrFilter+sz1, value, sz2);
       ((char*)openfilename.lpstrFilter)[sz1+sz2] = 0; /* additional 0 at the end */
+
       openfilename.nFilterIndex = 1;
     }
   }

@@ -17,6 +17,7 @@
 #include "iup_drvfont.h"
 #include "iup_str.h"
 #include "iup_attrib.h"
+#include "iup_layout.h"
 #include "iup_assert.h"
 
 
@@ -115,6 +116,12 @@ int iupBaseSetRasterSizeAttrib(Ihandle* ih, const char* value)
   }
   iupAttribSetStr(ih, "SIZE", NULL); /* clear SIZE in hash table */
   return 0;
+}
+
+char* iupBaseGetClientOffsetAttrib(Ihandle* ih)
+{
+  (void)ih;
+  return "0x0";
 }
 
 char* iupBaseGetRasterSizeAttrib(Ihandle* ih)
@@ -320,13 +327,20 @@ int iupBaseSetNameAttrib(Ihandle* ih, const char* value)
 
 static int iBaseSetFloatingAttrib(Ihandle* ih, const char* value)
 {
-  ih->is_floating = iupStrBoolean(value);
+  if (iupStrEqualNoCase(value, "IGNORE"))
+    ih->flags |= IUP_FLOATING_IGNORE|IUP_FLOATING;
+  else if (iupStrBoolean(value))
+    ih->flags |= IUP_FLOATING;
+  else
+    ih->flags &= ~(IUP_FLOATING_IGNORE|IUP_FLOATING);  /* clear both flags */
   return 0;
 }
 
 static char* iBaseGetFloatingAttrib(Ihandle* ih)
 {
-  if (ih->is_floating)
+  if (ih->flags & IUP_FLOATING_IGNORE)
+    return "IGNORE";
+  else if (ih->flags & IUP_FLOATING)
     return "YES";
   else
     return "NO";
@@ -335,18 +349,18 @@ static char* iBaseGetFloatingAttrib(Ihandle* ih)
 static int iBaseSetMaxSizeAttrib(Ihandle* ih, const char* value)
 {
   if (value)
-    ih->has_maxsize = 1;
+    ih->flags |= IUP_MAXSIZE;
   else
-    ih->has_maxsize = 0;
+    ih->flags &= ~IUP_MAXSIZE;
   return 1;
 }
 
 static int iBaseSetMinSizeAttrib(Ihandle* ih, const char* value)
 {
   if (value)
-    ih->has_minsize = 1;
+    ih->flags |= IUP_MINSIZE;
   else
-    ih->has_minsize = 0;
+    ih->flags &= ~IUP_MINSIZE;
   return 1;
 }
 
@@ -365,7 +379,7 @@ static int iBaseSetExpandAttrib(Ihandle* ih, const char* value)
 
 static char* iBaseGetExpandAttrib(Ihandle* ih)
 {
-  if (ih->expand & IUP_EXPAND_BOTH)
+  if ((ih->expand & IUP_EXPAND_WIDTH) && (ih->expand & IUP_EXPAND_HEIGHT))
     return "YES";
   else if (ih->expand & IUP_EXPAND_WIDTH)
     return "HORIZONTAL";
@@ -408,7 +422,7 @@ void iupBaseRegisterCommonAttrib(Iclass* ic)
   iupClassRegisterAttribute(ic, "NAME", NULL, iupBaseSetNameAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "FLOATING", iBaseGetFloatingAttrib, iBaseSetFloatingAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "EXPAND", iBaseGetExpandAttrib, iBaseSetExpandAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "NORMALIZERGROUP", NULL, iBaseSetNormalizerGroupAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "NORMALIZERGROUP", NULL, iBaseSetNormalizerGroupAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "EXPANDWEIGHT", NULL, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 
   /* make sure everyone has the correct default value */
@@ -420,21 +434,21 @@ void iupBaseRegisterCommonAttrib(Iclass* ic)
 
   /* if not native container, must set at children,
      native container will automatically hide its children. */
-  iupClassRegisterAttribute(ic, "VISIBLE", NULL, NULL, IUPAF_SAMEASSYSTEM, "YES", IUPAF_DEFAULT);  /* let the attribute to be propagated to children */
+  iupClassRegisterAttribute(ic, "VISIBLE", NULL, NULL, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NO_SAVE|IUPAF_DEFAULT);  /* let the attribute to be propagated to children */
 
-  iupClassRegisterAttribute(ic, "SIZE", iupBaseGetSizeAttrib, iupBaseSetSizeAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "RASTERSIZE", iupBaseGetRasterSizeAttrib, iupBaseSetRasterSizeAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "SIZE", iupBaseGetSizeAttrib, iupBaseSetSizeAttrib, NULL, NULL, IUPAF_NO_SAVE|IUPAF_NO_DEFAULTVALUE|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "RASTERSIZE", iupBaseGetRasterSizeAttrib, iupBaseSetRasterSizeAttrib, NULL, NULL, IUPAF_NO_SAVE|IUPAF_NO_DEFAULTVALUE|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "CHARSIZE", iupBaseGetCharSizeAttrib, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_READONLY|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 
-  iupClassRegisterAttribute(ic, "POSITION", iBaseGetPositionAttrib, iBaseSetPositionAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "POSITION", iBaseGetPositionAttrib, iBaseSetPositionAttrib, NULL, NULL, IUPAF_NO_SAVE|IUPAF_NO_DEFAULTVALUE|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "MAXSIZE", NULL, iBaseSetMaxSizeAttrib, IUPAF_SAMEASSYSTEM, "65535x65535", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "MINSIZE", NULL, iBaseSetMinSizeAttrib, IUPAF_SAMEASSYSTEM, "0x0", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 
-  iupClassRegisterAttribute(ic, "STANDARDFONT", NULL, iupdrvSetStandardFontAttrib, IUPAF_SAMEASSYSTEM, "DEFAULTFONT", IUPAF_NOT_MAPPED);  /* use inheritance to retrieve standard fonts */
+  iupClassRegisterAttribute(ic, "STANDARDFONT", NULL, iupdrvSetStandardFontAttrib, IUPAF_SAMEASSYSTEM, "DEFAULTFONT", IUPAF_NO_SAVE|IUPAF_NOT_MAPPED);  /* use inheritance to retrieve standard fonts */
   iupClassRegisterAttribute(ic, "FONT", iupGetFontAttrib, iupSetFontAttrib, IUPAF_SAMEASSYSTEM, "DEFAULTFONT", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 
-  iupClassRegisterAttribute(ic, "FONTSTYLE", iupGetFontStyleAttrib, iupSetFontStyleAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "FONTSIZE", iupGetFontSizeAttrib, iupSetFontSizeAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "FONTSTYLE", iupGetFontStyleAttrib, iupSetFontStyleAttrib, NULL, NULL, IUPAF_NO_SAVE|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "FONTSIZE", iupGetFontSizeAttrib, iupSetFontSizeAttrib, NULL, NULL, IUPAF_NO_SAVE|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "FONTFACE", iupGetFontFaceAttrib, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 
   iupdrvBaseRegisterCommonAttrib(ic);
@@ -442,7 +456,7 @@ void iupBaseRegisterCommonAttrib(Iclass* ic)
 
 void iupBaseRegisterVisualAttrib(Iclass* ic)
 {
-  iupClassRegisterAttribute(ic, "VISIBLE", iupBaseGetVisibleAttrib, iupBaseSetVisibleAttrib, "YES", "NO", IUPAF_DEFAULT);
+  iupClassRegisterAttribute(ic, "VISIBLE", iupBaseGetVisibleAttrib, iupBaseSetVisibleAttrib, "YES", "NO", IUPAF_NO_SAVE|IUPAF_DEFAULT);
   iupClassRegisterAttribute(ic, "ACTIVE", iupBaseGetActiveAttrib, iupBaseSetActiveAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_DEFAULT);
 
   iupClassRegisterAttribute(ic, "ZORDER", NULL, iupdrvBaseSetZorderAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
@@ -458,12 +472,43 @@ void iupBaseRegisterVisualAttrib(Iclass* ic)
 
 void iupBaseRegisterCommonCallbacks(Iclass* ic)
 {
-  iupClassRegisterAttribute(ic, "MAP_CB", NULL, NULL, "", NULL, IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "UNMAP_CB", NULL, NULL, "", NULL, IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "GETFOCUS_CB", NULL, NULL, "", NULL, IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "KILLFOCUS_CB", NULL, NULL, "", NULL, IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "ENTERWINDOW_CB", NULL, NULL, "", NULL, IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "LEAVEWINDOW_CB", NULL, NULL, "", NULL, IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "HELP_CB", NULL, NULL, "", NULL, IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "K_ANY", NULL, NULL, "i", NULL, IUPAF_NO_INHERIT);
+  iupClassRegisterCallback(ic, "MAP_CB", "");
+  iupClassRegisterCallback(ic, "UNMAP_CB", "");
+  iupClassRegisterCallback(ic, "GETFOCUS_CB", "");
+  iupClassRegisterCallback(ic, "KILLFOCUS_CB", "");
+  iupClassRegisterCallback(ic, "ENTERWINDOW_CB", "");
+  iupClassRegisterCallback(ic, "LEAVEWINDOW_CB", "");
+  iupClassRegisterCallback(ic, "HELP_CB", "");
+  iupClassRegisterCallback(ic, "K_ANY", "i");
+}
+
+int iupBaseNoSaveCheck(Ihandle* ih, const char* name)
+{
+  if (iupStrEqual(name, "BGCOLOR") ||
+      iupStrEqual(name, "VISIBLE") ||
+      iupStrEqual(name, "SIZE"))
+  {
+    if (iupAttribGet(ih, name))  /* save if stored at the hash table */
+      return 0;  /* save the attribute */
+    else
+      return 1;
+  }
+  if (iupStrEqual(name, "RASTERSIZE"))
+  {
+    if (!iupAttribGet(ih, "SIZE") &&   /* save if SIZE is not set, and user size is set */
+        (ih->userwidth!=0 || ih->userheight!=0))
+      return 0;
+    else
+      return 1;
+  }
+  if (iupStrEqual(name, "POSITION"))
+  {
+    if (ih->flags&IUP_FLOATING &&   /* save only if floating is set */
+        (ih->x != 0 || ih->y != 0))
+      return 0;
+    else
+      return 1;
+  }
+
+  return 1; /* default is NOT to save */
 }

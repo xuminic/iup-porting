@@ -44,7 +44,7 @@ void iupdrvValGetMinSize(Ihandle* ih, int *w, int *h)
       ticks_size = 8;
   }
 
-  if (ih->data->type == IVAL_HORIZONTAL)
+  if (ih->data->orientation == IVAL_HORIZONTAL)
   {
     *w = 35;
     *h = 30+ticks_size;
@@ -255,7 +255,7 @@ static int winValMapMethod(Ihandle* ih)
     return IUP_ERROR;
 
   /* Track bar Orientation */
-  if (ih->data->type == IVAL_HORIZONTAL)
+  if (ih->data->orientation == IVAL_HORIZONTAL)
     dwStyle |= TBS_HORZ;
   else
     dwStyle |= TBS_VERT;
@@ -314,7 +314,7 @@ void iupdrvValInitClass(Iclass* ic)
   ic->Map = winValMapMethod;
 
   /* IupVal only */
-  iupClassRegisterAttribute(ic, "VALUE", iupValGetValueAttrib, winValSetValueAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);  
+  iupClassRegisterAttribute(ic, "VALUE", iupValGetValueAttrib, winValSetValueAttrib, IUPAF_SAMEASSYSTEM, "0", IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);  
   iupClassRegisterAttribute(ic, "SHOWTICKS", iupValGetShowTicksAttrib, winValSetShowTicksAttrib, IUPAF_SAMEASSYSTEM, "0", IUPAF_DEFAULT);
   iupClassRegisterAttribute(ic, "PAGESTEP", iupValGetPageStepAttrib, winValSetPageStepAttrib, "0.1", NULL, IUPAF_NO_INHERIT);  /* force new default value */
   iupClassRegisterAttribute(ic, "STEP", iupValGetStepAttrib, winValSetStepAttrib, "0.01", NULL, IUPAF_NO_INHERIT);   /* force new default value */

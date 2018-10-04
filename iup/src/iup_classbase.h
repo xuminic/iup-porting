@@ -112,6 +112,7 @@ int iupBaseSetRasterSizeAttrib(Ihandle* ih, const char* value);
 int iupBaseSetSizeAttrib(Ihandle* ih, const char* value);
 char* iupBaseGetSizeAttrib(Ihandle* ih);
 char* iupBaseGetRasterSizeAttrib(Ihandle* ih);
+char* iupBaseGetClientOffsetAttrib(Ihandle* ih);
 
 /* visual */
 char* iupBaseGetVisibleAttrib(Ihandle* ih);
@@ -131,6 +132,7 @@ char* iupBaseNativeParentGetBgColorAttrib(Ihandle* ih);
 char* iupBaseContainerGetExpandAttrib(Ihandle* ih);
 int iupdrvBaseSetCursorAttrib(Ihandle* ih, const char* value);
 char* iupdrvBaseGetClientSizeAttrib(Ihandle* ih);
+int iupBaseNoSaveCheck(Ihandle* ih, const char* name);
 
 /* Windows Only */
 char* iupdrvBaseGetTitleAttrib(Ihandle* ih);

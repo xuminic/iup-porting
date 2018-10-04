@@ -47,6 +47,15 @@ int iupStrEqualPartial(const char* str1, const char* str2)
   return (strncmp(str1, str2, strlen(str2))==0)? 1: 0;
 }
 
+int iupStrFalse(const char* str)
+{
+  if (!str || str[0]==0) return 0;
+  if (iupStrEqualNoCase(str, "NO")) return 1;
+  if (iupStrEqualNoCase(str, "OFF")) return 1;
+  if (iupStrEqualNoCase(str, "FALSE")) return 1;
+  return 0;
+}
+
 int iupStrBoolean(const char* str)
 {
   if (!str || str[0]==0) return 0;
@@ -57,11 +66,29 @@ int iupStrBoolean(const char* str)
   return 0;
 }
 
+void iupStrUpper(char* dstr, const char* sstr)
+{
+  for (; *sstr; sstr++, dstr++)
+    *dstr = (char)toupper(*sstr);
+  *dstr = 0;
+}
+
 void iupStrLower(char* dstr, const char* sstr)
 {
   for (; *sstr; sstr++, dstr++)
     *dstr = (char)tolower(*sstr);
   *dstr = 0;
+}
+
+int iupStrHasSpace(const char* str)
+{
+  while(*str)
+  {
+    if (*str == ' ')
+      return 1;
+    str++;
+  }
+  return 0;
 }
 
 char *iupStrDup(const char *str)
@@ -137,7 +164,8 @@ void iupStrCopyN(char* dst_str, int dst_max_size, const char* src_str)
 {
   int size = strlen(src_str)+1;
   if (size > dst_max_size) size = dst_max_size;
-  memcpy(dst_str, src_str, size);
+  memcpy(dst_str, src_str, size-1);
+  dst_str[size-1] = 0;
 }
 
 char *iupStrCopyUntil(char **str, int c)
@@ -522,6 +550,32 @@ char* iupStrFileMakeFileName(const char* path, const char* title)
   return filename;
 }
 
+void iupStrFileNameSplit(const char* filename, char *path, char *title)
+{
+  int i, n = strlen(filename);
+
+  /* Look for last folder separator and split title from path */
+  for (i=n-1;i>=0; i--)
+  {
+    if (filename[i] == '\\' || filename[i] == '/') 
+    {
+      if (path)
+      {
+        strncpy(path, filename, i+1);
+        path[i+1] = 0;
+      }
+
+      if (title)
+      {
+        strcpy(title, filename+i+1);
+        title[n-i] = 0;
+      }
+
+      return;
+    }
+  }
+}
+
 int iupStrReplace(char* str, char src, char dst)
 {
   int i = 0;
@@ -558,36 +612,30 @@ void iupStrToUnix(char* str)
   *pstr = *str;
 }
 
-char* iupStrToMac(const char* str)
+void iupStrToMac(char* str)
 {
-  int at_start = 1;
-  char* pstr, *new_str;
+  char* pstr = str;
 
-  if (!str) return NULL;
-
-  if (iupStrLineCount(str) == 1)
-    return (char*)str;
-
-  new_str = iupStrDup(str);
-  str = new_str;
-  pstr = new_str;
+  if (!str) return;
   
   while (*str)
   {
-    if (*str == '\n')
+    if (*str == '\r')
     {
-      if (!at_start && *(str-1) != '\r')  /* UNIX line end */
-        *pstr++ = '\r';
+      if (*(++str) == '\n')  /* DOS line end */
+        str++;
+      *pstr++ = '\r';
+    }
+    else if (*str == '\n')  /* UNIX line end */
+    {
       str++;
+      *pstr++ = '\r';
     }
     else
       *pstr++ = *str++;
-    at_start = 0;
   }
   
   *pstr = *str;
-
-  return new_str;
 }
 
 char* iupStrToDos(const char* str)
@@ -626,6 +674,56 @@ char* iupStrToDos(const char* str)
 	*auxstr = 0;
 
 	return newstr;	
+}
+
+#define IUP_ISRESERVED(_c) (_c=='\n' || _c=='\r' || _c=='\t')
+
+char* iupStrConvertToC(const char* str)
+{
+  char* new_str, *pnstr;
+  const char* pstr = str;
+  int len, count=0;
+  while(*pstr)
+  {
+    if (IUP_ISRESERVED(*pstr))
+      count++;
+    pstr++;
+  }
+  if (!count)
+    return (char*)str;
+
+  len = pstr-str;
+  new_str = malloc(len+count+1);
+  pstr = str;
+  pnstr = new_str;
+  while(*pstr)
+  {
+    if (IUP_ISRESERVED(*pstr))
+    {
+      *pnstr = '\\';
+      pnstr++;
+
+      switch(*pstr)
+      {
+      case '\n':
+        *pnstr = 'n';
+        break;
+      case '\r':
+        *pnstr = 'r';
+        break;
+      case '\t':
+        *pnstr = 't';
+        break;
+      }
+    }
+    else
+      *pnstr = *pstr;
+
+    pnstr++;
+    pstr++;
+  }
+  *pnstr = 0;
+  return new_str;
 }
 
 void iupStrRemove(char* value, int start, int end, int dir)

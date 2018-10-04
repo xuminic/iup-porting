@@ -33,6 +33,11 @@ void iupdrvGetFullSize(int *width, int *height);
  * \ingroup drvinfo */
 void iupdrvGetScreenSize(int *width, int *height);
 
+/** Retrieve the main desktop size when there are multiple monitors.
+ * Useful only when in GTK.
+ * \ingroup drvinfo */
+int iupdrvCheckMainScreen(int *width, int *height);
+
 /** Retrieve the default desktop bits per pixel.
  * \ingroup drvinfo */
 int iupdrvGetScreenDepth(void);
@@ -68,12 +73,6 @@ void iupdrvGetCursorPos(int *x, int *y);
  * Must be implemented somewhere else.
  * \ingroup drvinfo */
 void* iupdrvGetDisplay(void);
-
-/** Returns the decoration size of the native window.
- * In Windows will also includes the menu if any.
- * Used in DialogGetDecoration.
- * \ingroup drvinfo */
-int iupdrvGetWindowDecor(void* wnd, int *border, int *caption);
 
 /** Returns the current directory.
  * \ingroup drvinfo */

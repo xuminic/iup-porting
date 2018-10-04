@@ -42,7 +42,7 @@ static void iMatrixUpdateLineAttributes(Ihandle* ih, int base, int count, int ad
     "BGCOLOR%d:%d",
     "FGCOLOR%d:%d",
     "FONT%d:%d"};
-  char* attrib = iupStrGetMemory(100);
+  char attrib[100];
   int a, lin, col;
   char* value;
 
@@ -145,7 +145,7 @@ static void iMatrixUpdateColumnAttributes(Ihandle* ih, int base, int count, int 
     "BGCOLOR%d:%d",
     "FGCOLOR%d:%d",
     "FONT%d:%d"};
-  char* attrib = iupStrGetMemory(100);
+  char attrib[100];
   int a, col, lin;
   char* value;
 
@@ -255,7 +255,7 @@ static int iMatrixGetStartEnd(const char* value, int *base, int *count, int max,
   if (*count <= 0)
     return 0;
 
-  if (del)
+  if (del && max>0)
   {
     if (*base <= 0)  /* the first valid element is always 1 */
       *base = 1;
@@ -308,6 +308,9 @@ int iupMatrixSetAddLinAttrib(Ihandle* ih, const char* value)
 
     /* move it to the same cell */
     ih->data->lines.focus_cell += count;
+
+    if (ih->data->lines.focus_cell >= lines_num+count)
+      ih->data->lines.focus_cell = lines_num+count-1;
   }
 
   iupMatrixMemReAllocLines(ih, lines_num, lines_num+count, base);
@@ -380,6 +383,9 @@ int iupMatrixSetAddColAttrib(Ihandle* ih, const char* value)
 
     /* move it to the same cell */
     ih->data->columns.focus_cell += count;
+
+    if (ih->data->columns.focus_cell >= columns_num+count)
+      ih->data->columns.focus_cell = columns_num+count-1;
   }
 
   iupMatrixMemReAllocColumns(ih, columns_num, columns_num+count, base);
@@ -457,6 +463,11 @@ int iupMatrixSetNumLinAttrib(Ihandle* ih, const char* value)
     ih->data->lines.num = num;  
     ih->data->need_calcsize = 1;
 
+    if (ih->data->lines.focus_cell >= ih->data->lines.num)
+      ih->data->lines.focus_cell = ih->data->lines.num-1;
+    if (ih->data->lines.focus_cell <= 0)
+      ih->data->lines.focus_cell = 1;
+
     if (ih->handle)
       iupMatrixDraw(ih, 1);
   }
@@ -486,6 +497,11 @@ int iupMatrixSetNumColAttrib(Ihandle* ih, const char* value)
 
     ih->data->columns.num = num;
     ih->data->need_calcsize = 1;
+
+    if (ih->data->columns.focus_cell >= ih->data->columns.num)
+      ih->data->columns.focus_cell = ih->data->columns.num-1;
+    if (ih->data->columns.focus_cell <= 0)
+      ih->data->columns.focus_cell = 1;
 
     if (ih->handle)
       iupMatrixDraw(ih, 1);

@@ -71,6 +71,10 @@ int IupMap(Ihandle* ih)
 
     return IUP_NOERROR;
   }
+
+  /* parent must be mapped to map child */
+  if (ih->parent && !(ih->parent->handle))
+    return IUP_ERROR;
     
   /* map to the native system */
   if (iupClassObjectMap(ih) == IUP_ERROR)
@@ -79,7 +83,7 @@ int IupMap(Ihandle* ih)
     return IUP_ERROR;
   }
 
-  /* update FONT, must be the before several others, so we do it here */
+  /* update FONT, must be before several others, so we do it here */
   if (ih->iclass->nativetype != IUP_TYPEVOID &&
       ih->iclass->nativetype != IUP_TYPEIMAGE &&
       ih->iclass->nativetype != IUP_TYPEMENU)
@@ -88,13 +92,14 @@ int IupMap(Ihandle* ih)
   /* ensure attributes default values, at this time only the ones that need to be set after map */
   iupClassObjectEnsureDefaultAttributes(ih);
 
-  /* updates the defined attributes from the hash table to the native system. */
+  /* updates the defined attributes from the hash table (this) to the native system (this). */
   iupAttribUpdate(ih); 
 
   /* updates inheritable attributes defined in the parent tree */
   iupAttribUpdateFromParent(ih);
 
   /* map children independent from childtype */
+  if (ih->firstchild)
   {
     Ihandle* child = ih->firstchild;
     while (child)
@@ -104,11 +109,10 @@ int IupMap(Ihandle* ih)
 
       child = child->brother;
     }
-  }
 
-  /* updates the defined attributes from the hash table to the native system. */
-  if (ih->iclass->childtype!=IUP_CHILDNONE)
+    /* updates the defined attributes from the hash table (this) to the native system (children). */
     iupAttribUpdateChildren(ih);
+  }
 
   /* moves and resizes the elements to reflect the layout computation */
   /* if the dialog is visible will be reflected in the user interface */

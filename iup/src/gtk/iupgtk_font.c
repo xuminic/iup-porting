@@ -95,9 +95,13 @@ static IgtkFont* gtkFindFont(const char *standardfont)
       }
     }
 
+    /* Map standard names to native names */
     mapped_name = iupFontGetPangoName(typeface);
     if (mapped_name)
+    {
       strcpy(typeface, mapped_name);
+      is_pango = 0;
+    }
 
     if (is_pango && !is_underline && !is_strikeout && size>0)
       fontdesc = pango_font_description_from_string(standardfont);
@@ -147,7 +151,7 @@ static PangoLayout* gtkFontGetWidgetPangoLayout(Ihandle *ih)
   int inherit;
   char *def_value;
   /* only check the  native implementation */
-  return (PangoLayout*)iupClassObjectGetAttribute(ih, "PANGOLAYOUT", &def_value, &inherit);
+  return (PangoLayout*)iupClassObjectGetAttribute(ih, "WIDGETPANGOLAYOUT", &def_value, &inherit);
 }
 
 static IgtkFont* gtkFontCreateNativeFont(Ihandle* ih, const char* value)
@@ -267,6 +271,17 @@ PangoFontDescription* iupgtkGetPangoFontDesc(const char* value)
   return gtkfont->fontdesc;
 }
 
+PangoLayout* iupgtkGetPangoLayout(const char* value)
+{
+  IgtkFont *gtkfont = gtkFindFont(value);
+  if (!gtkfont)
+  {
+    iupERROR1("Failed to create Font: %s", value); 
+    return NULL;
+  }
+  return gtkfont->layout;
+}
+
 char* iupgtkGetPangoFontDescAttrib(Ihandle *ih)
 {
   IgtkFont* gtkfont = gtkFontGet(ih);
@@ -274,6 +289,15 @@ char* iupgtkGetPangoFontDescAttrib(Ihandle *ih)
     return NULL;
   else
     return (char*)gtkfont->fontdesc;
+}
+
+char* iupgtkGetPangoLayoutAttrib(Ihandle *ih)
+{
+  IgtkFont* gtkfont = gtkFontGet(ih);
+  if (!gtkfont)
+    return NULL;
+  else
+    return (char*)gtkfont->layout;
 }
 
 char* iupgtkGetFontIdAttrib(Ihandle *ih)

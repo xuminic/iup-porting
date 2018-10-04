@@ -8,7 +8,6 @@ IUP := ..
 
 LINKER = $(CPPC)
 
-USE_CD = Yes
 USE_IUPCONTROLS = Yes
 USE_IUP3 = Yes
 
@@ -24,8 +23,10 @@ else
   endif
 endif
 
+USE_STATIC = Yes
+
 ifeq "$(TEC_UNAME)" "SunOS510x86"
-  DEFINES = USE_NO_OPENGL
+  DEFINES += USE_NO_OPENGL
 else  
   USE_OPENGL = Yes
 endif
@@ -36,27 +37,21 @@ ifdef USE_IM
   ifneq ($(findstring Win, $(TEC_SYSNAME)), )
     LIBS = iupim iupimglib
   else
-    ifdef DBG_DIR
-      IUPLIB = $(IUP)/lib/$(TEC_UNAME)d
+    ifdef USE_STATIC
+      ifdef DBG_DIR
+        IUPLIB = $(IUP)/lib/$(TEC_UNAME)d
+      else
+        IUPLIB = $(IUP)/lib/$(TEC_UNAME)
+      endif  
+      SLIB = $(IUPLIB)/libiupim.a $(IUPLIB)/libiupimglib.a
     else
-      IUPLIB = $(IUP)/lib/$(TEC_UNAME)
-    endif  
-    SLIB = $(IUPLIB)/libiupim.a $(IUPLIB)/libiupimglib.a
+      LIBS = iupim iupimglib
+    endif             
   endif             
 endif 
-
-USE_STATIC = Yes
 
 ifneq ($(findstring Win, $(TEC_SYSNAME)), )
   SRC += ../etc/iup.rc
 endif
 
 INCLUDES = ../src
-
-ifeq ($(TEC_UNAME), vc8)
-  ifdef DBG
-    #debug info not working for vc8 linker
-    define DBG
-    endef
-  endif
-endif         

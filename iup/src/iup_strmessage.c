@@ -92,7 +92,8 @@ static IstdMessage iStdMessages[] =
   {"IUP_SAVEAS", {"Save As", "Salvar Como", NULL}},
   {"IUP_OPEN", {"Open", "Abrir", NULL}},
   {"IUP_SELECTDIR", {"Select Directory", "Selecionar Diretório", NULL}},
-  {"IUP_CANCEL", {"Cancel", "Cancela", NULL}},
+  {"IUP_OK", {"OK", "OK", NULL}},
+  {"IUP_CANCEL", {"Cancel", "Cancelar", NULL}},
   {"IUP_GETCOLOR", {"Color Selection", "Seleção de Cor", NULL}},
   {"IUP_HELP", {"Help", "Ajuda", NULL}},
   {"IUP_RED", {"&Red:", "&Vermelho:", NULL}},
@@ -105,6 +106,10 @@ static IstdMessage iStdMessages[] =
   {"IUP_PALETTE", {"&Palette:", "&Paleta:", NULL}},
   {"IUP_TRUE", {"True", "Verdadeiro", NULL}},
   {"IUP_FALSE", {"False", "Falso", NULL}},
+  {"IUP_FAMILY", {"Family:", "Família:", NULL}},
+  {"IUP_STYLE", {"Style:", "Estilo:", NULL}},
+  {"IUP_SIZE", {"Size:", "Tamanho:", NULL}},
+  {"IUP_SAMPLE", {"Sample:", "Exemplo:", NULL}},
   {NULL, {NULL, NULL, NULL}}
 };
 

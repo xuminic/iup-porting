@@ -24,13 +24,13 @@ extern "C" {
 
 void iupdrvTreeInitClass(Iclass* ic);
 void iupTreeUpdateImages(Ihandle *ih);
-void iupdrvTreeAddNode(Ihandle* ih, const char* id_string, int kind, const char* title, int add);
+void iupdrvTreeAddNode(Ihandle* ih, int id, int kind, const char* title, int add);
 void iupdrvTreeUpdateMarkMode(Ihandle *ih);
 
 char* iupTreeGetSpacingAttrib(Ihandle* ih);
 
 #if defined(GTK_MAJOR_VERSION)
-typedef void InodeHandle;
+typedef char InodeHandle;   /* should be void, but we use char to force compiler checks */
 #elif defined(XmVERSION)
 typedef struct _WidgetRec InodeHandle;
 #elif defined(WINVER)

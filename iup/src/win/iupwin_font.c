@@ -55,13 +55,10 @@ static IwinFont* winFindFont(const char *standardfont)
       return &fonts[i];
   }
 
-  /* parse the old format first */
-  if (!iupFontParseWin(standardfont, typeface, &height, &is_bold, &is_italic, &is_underline, &is_strikeout))
-  {
-    if (!iupFontParsePango(standardfont, typeface, &height, &is_bold, &is_italic, &is_underline, &is_strikeout))
-      return NULL;
-  }
+  if (!iupGetFontInfo(standardfont, typeface, &height, &is_bold, &is_italic, &is_underline, &is_strikeout))
+    return NULL;
 
+  /* Map standard names to native names */
   mapped_name = iupFontGetWinName(typeface);
   if (mapped_name)
     strcpy(typeface, mapped_name);

@@ -4,6 +4,11 @@
 #include <vld.h>
 #endif
 
+/* When using valgrind in UNIX to check the GTK driver:
+export G_DEBUG=gc-friendly
+export G_SLICE=always-malloc
+*/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include "iup.h"
@@ -58,7 +63,7 @@ void PreDialogsTest(void);
 void PPlotTest(void);
 #endif
 void GetParamTest(void);
-void ConfTest(void);
+void ClassInfo(void);
 void ZboxTest(void);
 void ScanfTest(void);
 void SboxTest(void);
@@ -85,7 +90,7 @@ static TestItems test_list[] = {
   {"CellsCheckboard", CellsCheckboardTest},
   {"CellsDegrade", CellsDegradeTest},
   {"CellsNumbering", CellsNumberingTest},
-  {"Class Conference", ConfTest},
+  {"Classes Info", ClassInfo},
   {"Clipboard", ClipboardTest},
   {"ColorBrowser", ColorBrowserTest},
   {"Colorbar", ColorbarTest},
@@ -140,15 +145,10 @@ static int k_enter_cb(Ihandle*ih)
   return IUP_DEFAULT;
 }
 
-static int button_cb(Ihandle *ih,int but,int pressed,int x,int y,char* status)
+static int dblclick_cb(Ihandle *ih, int item, char *text)
 {
-  (void)pressed;
-  if (but==IUP_BUTTON1 && iup_isdouble(status))
-  {
-    int pos = IupConvertXYToPos(ih, x, y);
-    test_list[pos-1].func();
-    return IUP_IGNORE;
-  }
+  (void)text;
+  test_list[item-1].func();
   return IUP_DEFAULT;
 }
 
@@ -174,7 +174,7 @@ int main(int argc, char* argv[])
 
   IupSetAttribute(list, "VISIBLELINES", "15");
   IupSetAttribute(list, "EXPAND", "YES");
-  IupSetCallback(list, "BUTTON_CB", (Icallback)button_cb);
+  IupSetCallback(list, "DBLCLICK_CB", (Icallback)dblclick_cb);
   IupSetCallback(list, "K_CR", k_enter_cb);
 
   for (i=0; i<count; i++)

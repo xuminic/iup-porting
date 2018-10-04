@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <time.h>
 
 #include <Xm/Xm.h>
 #include <Xm/ScrollBar.h>
@@ -50,13 +51,17 @@ static int motActivateMnemonic(Ihandle *dialog, int c)
   ih = (Ihandle*)iupAttribGet(dialog, attrib);
   if (iupObjectCheck(ih))
   {
-    iupdrvActivate(ih);
+    Widget w = (Widget)iupAttribGet(ih, attrib);
+    if (w)
+      XtCallActionProc(w, "ArmAndActivate", 0, 0, 0 );
+    else
+      iupdrvActivate(ih);
     return IUP_IGNORE;
   }
   return IUP_CONTINUE;
 }
 
-void iupmotSetMnemonicTitle(Ihandle *ih, const char* value)
+void iupmotSetMnemonicTitle(Ihandle *ih, Widget w, const char* value)
 {
   char c;
   char* str;
@@ -64,11 +69,14 @@ void iupmotSetMnemonicTitle(Ihandle *ih, const char* value)
   if (!value) 
     value = "";
 
+  if (!w)
+    w = ih->handle;
+
   str = iupStrProcessMnemonic(value, &c, -1);  /* remove & and return in c */
   if (str != value)
   {
     KeySym keysym = iupmotKeyCharToKeySym(c);
-    XtVaSetValues(ih->handle, XmNmnemonic, keysym, NULL);   /* works only for menus, but underlines the letter */
+    XtVaSetValues(w, XmNmnemonic, keysym, NULL);   /* works only for menus, but underlines the letter */
 
     if (ih->iclass->nativetype != IUP_TYPEMENU)
     {
@@ -80,20 +88,25 @@ void iupmotSetMnemonicTitle(Ihandle *ih, const char* value)
       if (iupStrEqual(ih->iclass->name, "label"))
         iupAttribSetStr(dialog, attrib, (char*)iupFocusNextInteractive(ih));
       else
+      {
         iupAttribSetStr(dialog, attrib, (char*)ih);
+
+        if (ih->handle != w)
+          iupAttribSetStr(ih, attrib, (char*)w);
+      }
 
       /* used by iupmotKeyPressEvent */
       attrib[18] = '_';
       IupSetCallback(dialog, attrib, (Icallback)motActivateMnemonic);
     }
 
-    iupmotSetString(ih->handle, XmNlabelString, str);
+    iupmotSetString(w, XmNlabelString, str);
     free(str);
   }
   else
   {
-    XtVaSetValues (ih->handle, XmNmnemonic, NULL, NULL);
-    iupmotSetString(ih->handle, XmNlabelString, str);
+    XtVaSetValues (w, XmNmnemonic, NULL, NULL);
+    iupmotSetString(w, XmNlabelString, str);
   }
 }
 
@@ -154,12 +167,35 @@ char* iupmotConvertString(XmString str)
 }
 #endif
 
+static void motSaveAttributesRec(Ihandle* ih)
+{
+  Ihandle *child;
+
+  IupSaveClassAttributes(ih);
+
+  for (child = ih->firstchild; child; child = child->brother)
+    motSaveAttributesRec(child);
+}
+
 void iupdrvReparent(Ihandle* ih)
 {
-  Widget native_parent = iupChildTreeGetNativeParentHandle(ih);
-  Widget widget = (Widget)iupAttribGet(ih, "_IUP_EXTRAPARENT");
+  /* Intrinsics and Motif do NOT support reparent. 
+     XReparentWindow can NOT be used because will reparent only the X-Windows windows.
+     So must unmap and map again to obtain the same effect. */
+  Widget new_parent = iupChildTreeGetNativeParentHandle(ih);
+  Widget widget = (Widget)iupAttribGet(ih, "_IUP_EXTRAPARENT");  /* here is used as the native child because is the outmost component of the elemement */
   if (!widget) widget = ih->handle;
-  XReparentWindow(iupmot_display, XtWindow(widget), XtWindow(native_parent), 0, 0);
+  if (XtParent(widget) != new_parent)
+  {
+    int old_visible = IupGetInt(ih, "VISIBLE");
+    if (old_visible)
+      IupSetAttribute(ih, "VISIBLE", "NO");
+    motSaveAttributesRec(ih); /* this does not save everything... */
+    IupUnmap(ih);
+    IupMap(ih);
+    if (old_visible)
+      IupSetAttribute(ih, "VISIBLE", "Yes");
+  }
 }
 
 void iupdrvBaseLayoutUpdateMethod(Ihandle *ih)
@@ -634,4 +670,96 @@ void iupmotPointerMotionEvent(Widget w, Ihandle *ih, XEvent *evt, Boolean *cont)
 
   (void)w;
   (void)cont;
+}
+
+void iupdrvSendKey(int key, int press)
+{
+  Window focus;
+	int revert_to;
+  XKeyEvent evt;
+  memset(&evt, 0, sizeof(XKeyEvent));
+  evt.display = iupmot_display;
+  evt.send_event = True;
+  evt.root = DefaultRootWindow(iupmot_display);
+
+	XGetInputFocus(iupmot_display, &focus, &revert_to);
+  evt.window = focus;
+
+  iupmotKeyEncode(key, &evt.keycode, &evt.state);
+  if (!evt.keycode)
+    return;
+
+  if (press & 0x01)
+  {
+    evt.type = KeyPress;
+    XSendEvent(iupmot_display, (Window)InputFocus, False, KeyPressMask, (XEvent*)&evt);
+  }
+
+  if (press & 0x02)
+  {
+    evt.type = KeyRelease;
+    XSendEvent(iupmot_display, (Window)InputFocus, False, KeyReleaseMask, (XEvent*)&evt);
+  }
+}
+
+void iupdrvSendMouse(int x, int y, int bt, int status)
+{
+  XWarpPointer(iupmot_display,None,RootWindow(iupmot_display, iupmot_screen),0,0,0,0,x,y);
+
+  if (status != -1)
+  {
+    XButtonEvent evt;
+    memset(&evt, 0, sizeof(XButtonEvent));
+    evt.display = iupmot_display;
+    evt.send_event = True;
+
+	  XQueryPointer(iupmot_display, RootWindow(iupmot_display, DefaultScreen(iupmot_display)), 
+                  &evt.root, &evt.window, &evt.x_root, &evt.y_root, &evt.x, &evt.y, &evt.state);
+  	
+	  evt.subwindow = evt.window;
+	  while(evt.subwindow)
+	  {
+		  evt.window = evt.subwindow;
+		  XQueryPointer(iupmot_display, evt.window, &evt.root, &evt.subwindow, &evt.x_root, &evt.y_root, &evt.x, &evt.y, &evt.state);
+	  }
+	
+    evt.type = (status==1)? ButtonPress: ButtonRelease;
+    evt.root = DefaultRootWindow(iupmot_display);
+    evt.x = x;
+    evt.y = y;
+
+    switch(bt)
+    {
+    case IUP_BUTTON1:
+      evt.state = Button1Mask;
+      evt.button = Button1;
+      break;
+    case IUP_BUTTON2:
+      evt.state = Button2Mask;
+      evt.button = Button2;
+      break;
+    case IUP_BUTTON3:
+      evt.state = Button3Mask;
+      evt.button = Button3;
+      break;
+    case IUP_BUTTON4:
+      evt.state = Button4Mask;
+      evt.button = Button4;
+      break;
+    case IUP_BUTTON5:
+      evt.state = Button5Mask;
+      evt.button = Button5;
+      break;
+    default:
+      return;
+    }
+
+    XSendEvent(iupmot_display, (Window)PointerWindow, False, (status==1)? ButtonPressMask: ButtonReleaseMask, (XEvent*)&evt);
+  }
+}
+
+void iupdrvSleep(int time)
+{
+  clock_t goal = (clock_t)time + clock();
+  while(goal > clock());
 }

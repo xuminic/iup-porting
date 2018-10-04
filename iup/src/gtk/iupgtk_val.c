@@ -30,7 +30,7 @@
 
 void iupdrvValGetMinSize(Ihandle* ih, int *w, int *h)
 {
-  if (ih->data->type == IVAL_HORIZONTAL)
+  if (ih->data->orientation == IVAL_HORIZONTAL)
   {
     *w = 20;
     *h = 35;
@@ -150,7 +150,7 @@ static int gtkValMapMethod(Ihandle* ih)
   if (!adjustment)
     return IUP_ERROR;
 
-  if (ih->data->type == IVAL_HORIZONTAL)
+  if (ih->data->orientation == IVAL_HORIZONTAL)
     ih->handle = gtk_hscale_new(GTK_ADJUSTMENT(adjustment));
   else
     ih->handle = gtk_vscale_new(GTK_ADJUSTMENT(adjustment));
@@ -198,11 +198,12 @@ void iupdrvValInitClass(Iclass* ic)
   /* Visual */
   iupClassRegisterAttribute(ic, "BGCOLOR", NULL, iupdrvBaseSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_DEFAULT); 
 
-  /* Special */
-
   /* IupVal only */
-  iupClassRegisterAttribute(ic, "VALUE", iupValGetValueAttrib, gtkValSetValueAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "VALUE", iupValGetValueAttrib, gtkValSetValueAttrib, IUPAF_SAMEASSYSTEM, "0", IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "PAGESTEP", iupValGetPageStepAttrib, gtkValSetPageStepAttrib, IUPAF_SAMEASSYSTEM, "0.1", IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "STEP", iupValGetStepAttrib, gtkValSetStepAttrib, IUPAF_SAMEASSYSTEM, "0.01", IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "SHOWTICKS", NULL, NULL, NULL, NULL, IUPAF_WRITEONLY|IUPAF_READONLY);  /* showticks is not supported in GTK */
+
+  /* NOT supported */
+  iupClassRegisterAttribute(ic, "TICKSPOS", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NOT_MAPPED);
+  iupClassRegisterAttribute(ic, "SHOWTICKS", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED);
 }

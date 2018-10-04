@@ -165,27 +165,25 @@ static int gtkTabsSetTabOrientationAttrib(Ihandle* ih, const char* value)
   return 0;
 }
 
-static int gtkTabsSetTabTitleAttrib(Ihandle* ih, const char* name_id, const char* value)
+static int gtkTabsSetTabTitleAttrib(Ihandle* ih, int pos, const char* value)
 {
-  int pos;
-  if (value && iupStrToInt(name_id, &pos)==1)
+  if (value)
   {
     Ihandle* child = IupGetChild(ih, pos);
     GtkWidget* tab_label = (GtkWidget*)iupAttribGet(child, "_IUPGTK_TABLABEL");
     if (tab_label)
     {
       GtkWidget* tab_page = (GtkWidget*)iupAttribGet(child, "_IUPTAB_PAGE");
-      gtk_label_set_text((GtkLabel*)tab_label, iupgtkStrConvertToUTF8(value));
+      iupgtkSetMnemonicTitle(ih, (GtkLabel*)tab_label, value);
       gtk_notebook_set_menu_label_text((GtkNotebook*)ih->handle, tab_page, gtk_label_get_text((GtkLabel*)tab_label));
     }
   }
   return 1;
 }
 
-static int gtkTabsSetTabImageAttrib(Ihandle* ih, const char* name_id, const char* value)
+static int gtkTabsSetTabImageAttrib(Ihandle* ih, int pos, const char* value)
 {
-  int pos;
-  if (value && iupStrToInt(name_id, &pos)==1)
+  if (value)
   {
     Ihandle* child = IupGetChild(ih, pos);
     GtkWidget* tab_image = (GtkWidget*)iupAttribGet(child, "_IUPGTK_TABIMAGE");
@@ -240,7 +238,8 @@ void gtkTabSwitchPage(GtkNotebook* notebook, GtkNotebookPage *page, int pos, Iha
 {
   IFnnn cb;
   Ihandle* child = IupGetChild(ih, pos);
-  Ihandle* prev_child = IupGetChild(ih, iupdrvTabsGetCurrentTab(ih));
+  int prev_pos = iupdrvTabsGetCurrentTab(ih);
+  Ihandle* prev_child = IupGetChild(ih, prev_pos);
   GtkWidget* tab_container = (GtkWidget*)iupAttribGet(child, "_IUPTAB_CONTAINER");
   GtkWidget* prev_tab_container = (GtkWidget*)iupAttribGet(prev_child, "_IUPTAB_CONTAINER");
   if (tab_container) gtk_widget_show(tab_container);
@@ -252,6 +251,12 @@ void gtkTabSwitchPage(GtkNotebook* notebook, GtkNotebookPage *page, int pos, Iha
   cb = (IFnnn)IupGetCallback(ih, "TABCHANGE_CB");
   if (cb)
     cb(ih, child, prev_child);
+  else
+  {
+    IFnii cb2 = (IFnii)IupGetCallback(ih, "TABCHANGEPOS_CB");
+    if (cb2)
+      cb2(ih, pos, prev_pos);
+  }
 
   (void)notebook;
   (void)page;
@@ -283,16 +288,27 @@ static void gtkTabsChildAddedMethod(Ihandle* ih, Ihandle* child)
     gtk_widget_show(tab_container);
     gtk_container_add((GtkContainer*)tab_page, tab_container);
 
-    tabtitle = iupAttribGet(child, "TABTITLE");
-    if (!tabtitle) tabtitle = iupTabsAttribGetStrId(ih, "TABTITLE", pos);
-    tabimage = iupAttribGet(child, "TABIMAGE");
-    if (!tabimage) tabimage = iupTabsAttribGetStrId(ih, "TABIMAGE", pos);
+    tabtitle = iupTabsAttribGetStrId(ih, "TABTITLE", pos);
+    if (!tabtitle) 
+    {
+      tabtitle = iupAttribGet(child, "TABTITLE");
+      if (tabtitle)
+        iupTabsAttribSetStrId(ih, "TABTITLE", pos, tabtitle);
+    }
+    tabimage = iupTabsAttribGetStrId(ih, "TABIMAGE", pos);
+    if (!tabimage) 
+    {
+      tabimage = iupAttribGet(child, "TABIMAGE");
+      if (tabimage)
+        iupTabsAttribSetStrId(ih, "TABIMAGE", pos, tabimage);
+    }
     if (!tabtitle && !tabimage)
       tabtitle = "     ";
 
     if (tabtitle)
     {
-      tab_label = gtk_label_new(iupgtkStrConvertToUTF8(tabtitle));
+      tab_label = gtk_label_new(NULL);
+      iupgtkSetMnemonicTitle(ih, (GtkLabel*)tab_label, tabtitle);
 
 #if GTK_CHECK_VERSION(2, 6, 0)
       if (ih->data->orientation == ITABS_VERTICAL)
@@ -439,7 +455,7 @@ void iupdrvTabsInitClass(Iclass* ic)
   /* Driver Dependent Attribute functions */
 
   /* Common */
-  iupClassRegisterAttribute(ic, "STANDARDFONT", NULL, gtkTabsSetStandardFontAttrib, IUPAF_SAMEASSYSTEM, "DEFAULTFONT", IUPAF_NOT_MAPPED);
+  iupClassRegisterAttribute(ic, "STANDARDFONT", NULL, gtkTabsSetStandardFontAttrib, IUPAF_SAMEASSYSTEM, "DEFAULTFONT", IUPAF_NO_SAVE|IUPAF_NOT_MAPPED);
 
   /* Visual */
   iupClassRegisterAttribute(ic, "BGCOLOR", NULL, gtkTabsSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_DEFAULT);
@@ -449,6 +465,9 @@ void iupdrvTabsInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "TABTYPE", iupTabsGetTabTypeAttrib, gtkTabsSetTabTypeAttrib, IUPAF_SAMEASSYSTEM, "TOP", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "TABORIENTATION", iupTabsGetTabOrientationAttrib, gtkTabsSetTabOrientationAttrib, IUPAF_SAMEASSYSTEM, "HORIZONTAL", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "TABTITLE", NULL, gtkTabsSetTabTitleAttrib, IUPAF_NO_INHERIT);
-  iupClassRegisterAttributeId(ic, "TABIMAGE", NULL, gtkTabsSetTabImageAttrib, IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "TABIMAGE", NULL, gtkTabsSetTabImageAttrib, IUPAF_IHANDLENAME|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "PADDING", iupTabsGetPaddingAttrib, gtkTabsSetPaddingAttrib, IUPAF_SAMEASSYSTEM, "0x0", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+
+  /* NOT supported */
+  iupClassRegisterAttribute(ic, "MULTILINE", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_DEFAULT);
 }

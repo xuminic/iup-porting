@@ -29,8 +29,9 @@ static int iVboxSetRasterSizeAttrib(Ihandle* ih, const char* value)
   }
   else
   {
-    int s = 0;
-    iupStrToInt(value, &s);
+    int s = 0, d = 0;
+    iupStrToIntInt(value, &s, &d, 'x');  /* first value will be ignored if second defined, can NOT set width */
+    if (d != 0) s = d;
     if (s > 0) 
     {
       ih->userheight = s;
@@ -50,8 +51,9 @@ static int iVboxSetSizeAttrib(Ihandle* ih, const char* value)
   }
   else
   {
-    int s = 0;
-    iupStrToInt(value, &s);
+    int s = 0, d = 0;
+    iupStrToIntInt(value, &s, &d, 'x');  /* first value will be ignored if second defined, can NOT set width */
+    if (d != 0) s = d;
     if (s > 0) 
     {
       int charwidth, charheight;
@@ -97,9 +99,10 @@ static void iVboxComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *expa
   for (child = ih->firstchild; child; child = child->brother)
   {
     /* update child natural size first */
-    iupBaseComputeNaturalSize(child);
+    if (!(child->flags & IUP_FLOATING_IGNORE))
+      iupBaseComputeNaturalSize(child);
 
-    if (!child->is_floating)
+    if (!(child->flags & IUP_FLOATING))
     {
       children_expand |= child->expand;
       children_natural_maxwidth = iupMAX(children_natural_maxwidth, child->naturalwidth);
@@ -114,7 +117,7 @@ static void iVboxComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *expa
 
   for (child = ih->firstchild; child; child = child->brother)
   {
-    if (!child->is_floating)
+    if (!(child->flags & IUP_FLOATING))
       children_natural_totalheight += child->naturalheight;
   }
 
@@ -143,7 +146,7 @@ static int iHboxCalcHomogeneousHeight(Ihandle *ih)
   int children_count=0;
   for (child = ih->firstchild; child; child = child->brother)
   {
-    if (!child->is_floating)
+    if (!(child->flags & IUP_FLOATING))
       children_count++;
   }
   if (children_count == 0)
@@ -164,7 +167,7 @@ static int iVboxCalcEmptyHeight(Ihandle *ih, int expand)
   int expand_count=0;
   for (child = ih->firstchild; child; child = child->brother)
   {
-    if (!child->is_floating && child->expand & expand)
+    if (!(child->flags & IUP_FLOATING) && child->expand & expand)
       expand_count++;
   }
   if (expand_count == 0)
@@ -204,7 +207,7 @@ static void iVboxSetChildrenCurrentSizeMethod(Ihandle* ih, int shrink)
 
   for (child = ih->firstchild; child; child = child->brother)
   {
-    if (!child->is_floating)
+    if (!(child->flags & IUP_FLOATING))
     {
       int old_expand = child->expand;
       if (ih->data->expand_children)
@@ -228,7 +231,7 @@ static void iVboxSetChildrenCurrentSizeMethod(Ihandle* ih, int shrink)
       if (ih->data->expand_children)
         child->expand = old_expand;
     }
-    else
+    else if (!(child->flags & IUP_FLOATING_IGNORE))
     {
       /* update children to their own natural size */
       iupBaseSetCurrentSize(child, child->naturalwidth, child->naturalheight, shrink);
@@ -249,7 +252,7 @@ static void iVboxSetChildrenPositionMethod(Ihandle* ih, int x, int y)
 
   for (child = ih->firstchild; child; child = child->brother)
   {
-    if (!child->is_floating)
+    if (!(child->flags & IUP_FLOATING))
     {
       if (ih->data->alignment == IUP_ALIGN_ACENTER)
         dx = (client_width - child->currentwidth)/2;
@@ -308,8 +311,8 @@ Iclass* iupVboxGetClass(void)
   ic->SetChildrenPosition = iVboxSetChildrenPositionMethod;
 
   /* Overwrite Common */
-  iupClassRegisterAttribute(ic, "SIZE", iupBaseGetSizeAttrib, iVboxSetSizeAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "RASTERSIZE", iupBaseGetRasterSizeAttrib, iVboxSetRasterSizeAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "SIZE", iupBaseGetSizeAttrib, iVboxSetSizeAttrib, NULL, NULL, IUPAF_NO_SAVE|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "RASTERSIZE", iupBaseGetRasterSizeAttrib, iVboxSetRasterSizeAttrib, NULL, NULL, IUPAF_NO_SAVE|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 
   /* Vbox only */
   iupClassRegisterAttribute(ic, "ALIGNMENT", iVboxGetAlignmentAttrib, iVboxSetAlignmentAttrib, IUPAF_SAMEASSYSTEM, "ALEFT", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);

@@ -11,7 +11,6 @@
 extern "C" {
 #endif
 
-
 /* called from IupMap and IupRefresh */
 void iupLayoutCompute(Ihandle* ih);  /* can be called before map */
 void iupLayoutUpdate(Ihandle* ih);   /* called only after map */

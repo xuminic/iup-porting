@@ -276,10 +276,10 @@ void iupMatrixAuxUpdateLast(ImatLinColData *p)
   }
 }
 
-int iupMatrixAuxGetColumnWidth(Ihandle* ih, int col)
+int iupMatrixAuxGetColumnWidth(Ihandle* ih, int col, int use_value)
 {
   int width = 0, pixels = 0;
-  char* str = iupStrGetMemory(100);
+  char str[100];
   char* value;
 
   /* can be called for invalid columns (col>numcol) */
@@ -294,7 +294,7 @@ int iupMatrixAuxGetColumnWidth(Ihandle* ih, int col)
       pixels = 1;
   }
 
-  if (!value)
+  if (use_value && !value)
   {
     /* Use the titles to define the size */
     if (col == 0)
@@ -316,7 +316,7 @@ int iupMatrixAuxGetColumnWidth(Ihandle* ih, int col)
         width = max_width;
       }
     }
-    else if (ih->data->use_title_size && (col>=0 && col<ih->data->columns.num))
+    else if (ih->data->use_title_size && (col>0 && col<ih->data->columns.num))
     {
       char* title_value = iupMatrixCellGetValue(ih, 0, col);
       if (title_value)
@@ -348,10 +348,10 @@ int iupMatrixAuxGetColumnWidth(Ihandle* ih, int col)
   return 0;
 }
 
-int iupMatrixAuxGetLineHeight(Ihandle* ih, int lin)
+int iupMatrixAuxGetLineHeight(Ihandle* ih, int lin, int use_value)
 {
   int height = 0, pixels = 0;
-  char* str = iupStrGetMemory(100);
+  char str[100];
   char* value;
 
   /* can be called for invalid lines (lin>numlin) */
@@ -366,7 +366,7 @@ int iupMatrixAuxGetLineHeight(Ihandle* ih, int lin)
       pixels = 1;
   }
 
-  if (!value)
+  if (use_value && !value)
   {
     /* Use the titles to define the size */
     if (lin == 0)
@@ -388,7 +388,7 @@ int iupMatrixAuxGetLineHeight(Ihandle* ih, int lin)
         height = max_height;
       }
     }
-    else if (ih->data->use_title_size && (lin>=0 && lin<ih->data->lines.num))
+    else if (ih->data->use_title_size && (lin>0 && lin<ih->data->lines.num))
     {
       char* title_value = iupMatrixCellGetValue(ih, lin, 0);
       if (title_value && title_value[0])
@@ -437,9 +437,9 @@ static void iMatrixAuxFillSizeVec(Ihandle* ih, int m)
   for(i = 0; i < p->num; i++)
   {
     if (m == IMAT_PROCESS_LIN)
-      p->sizes[i] = iupMatrixAuxGetLineHeight(ih, i);
+      p->sizes[i] = iupMatrixAuxGetLineHeight(ih, i, 1);
     else
-      p->sizes[i] = iupMatrixAuxGetColumnWidth(ih, i);
+      p->sizes[i] = iupMatrixAuxGetColumnWidth(ih, i, 1);
 
     if (i > 0)
       p->total_size += p->sizes[i];
@@ -473,7 +473,7 @@ static void iMatrixAuxUpdateVisibleSize(Ihandle* ih, int m)
   if (p->total_size)
     IupSetfAttribute(ih, D, "%g", (double)p->visible_size/(double)p->total_size);
   else
-    IupSetAttribute(ih, D, "1.0");
+    IupSetAttribute(ih, D, "1");
 }
 
 void iupMatrixAuxCalcSizes(Ihandle* ih)
@@ -555,17 +555,23 @@ int iupMatrixAuxGetLinColFromXY(Ihandle* ih, int x, int y, int* l, int* c)
 
 int iupMatrixAuxCallLeaveCellCb(Ihandle* ih)
 {
-  IFnii cb = (IFnii)IupGetCallback(ih, "LEAVEITEM_CB");
-  if(cb)
-    return cb(ih, ih->data->lines.focus_cell, ih->data->columns.focus_cell);
+  if (ih->data->columns.num > 1 && ih->data->lines.num > 1)
+  {
+    IFnii cb = (IFnii)IupGetCallback(ih, "LEAVEITEM_CB");
+    if(cb)
+      return cb(ih, ih->data->lines.focus_cell, ih->data->columns.focus_cell);
+  }
   return IUP_DEFAULT;
 }
 
 void iupMatrixAuxCallEnterCellCb(Ihandle* ih)
 {
-  IFnii cb = (IFnii)IupGetCallback(ih, "ENTERITEM_CB");
-  if (cb)
-    cb(ih, ih->data->lines.focus_cell, ih->data->columns.focus_cell);
+  if (ih->data->columns.num > 1 && ih->data->lines.num > 1)
+  {
+    IFnii cb = (IFnii)IupGetCallback(ih, "ENTERITEM_CB");
+    if (cb)
+      cb(ih, ih->data->lines.focus_cell, ih->data->columns.focus_cell);
+  }
 }
 
 int iupMatrixAuxCallEditionCbLinCol(Ihandle* ih, int lin, int col, int mode, int update)

@@ -139,7 +139,7 @@ static int gtkLabelSetPaddingAttrib(Ihandle* ih, const char* value)
     return 1; /* store until not mapped, when mapped will be set again */
 }
 
-static char* gtkLabelGetPangoLayoutAttrib(Ihandle* ih)
+static char* gtkLabelGetWidgetPangoLayoutAttrib(Ihandle* ih)
 {
   if (ih->data->type == IUP_LABEL_TEXT)
     return (char*)gtk_label_get_layout((GtkLabel*)ih->handle);
@@ -278,7 +278,16 @@ static int gtkLabelMapMethod(Ihandle* ih)
   /* add to the parent, all GTK controls must call this. */
   iupgtkBaseAddToParent(ih);
 
+  g_signal_connect(G_OBJECT(ih->handle), "button-press-event", G_CALLBACK(iupgtkButtonEvent), ih);
+  g_signal_connect(G_OBJECT(ih->handle), "button-release-event",G_CALLBACK(iupgtkButtonEvent), ih);
+  g_signal_connect(G_OBJECT(ih->handle), "enter-notify-event", G_CALLBACK(iupgtkEnterLeaveEvent), ih);
+  g_signal_connect(G_OBJECT(ih->handle), "leave-notify-event", G_CALLBACK(iupgtkEnterLeaveEvent), ih);
+
   gtk_widget_realize(label);
+
+  /* configure for DRAG&DROP of files */
+  if (IupGetCallback(ih, "DROPFILES_CB"))
+    iupAttribSetStr(ih, "DRAGDROP", "YES");
 
   return IUP_NOERROR;
 }
@@ -291,7 +300,7 @@ void iupdrvLabelInitClass(Iclass* ic)
   /* Driver Dependent Attribute functions */
 
   /* Common GTK only (when text is in a secondary element) */
-  iupClassRegisterAttribute(ic, "PANGOLAYOUT", gtkLabelGetPangoLayoutAttrib, NULL, NULL, NULL, IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "WIDGETPANGOLAYOUT", gtkLabelGetWidgetPangoLayoutAttrib, NULL, NULL, NULL, IUPAF_NO_INHERIT);
 
   /* Overwrite Visual */
   iupClassRegisterAttribute(ic, "ACTIVE", iupBaseGetActiveAttrib, gtkLabelSetActiveAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_DEFAULT);
@@ -305,11 +314,12 @@ void iupdrvLabelInitClass(Iclass* ic)
 
   /* IupLabel only */
   iupClassRegisterAttribute(ic, "ALIGNMENT", NULL, gtkLabelSetAlignmentAttrib, "ALEFT:ACENTER", NULL, IUPAF_NO_INHERIT);  /* force new default value */
-  iupClassRegisterAttribute(ic, "IMAGE", NULL, gtkLabelSetImageAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "IMAGE", NULL, gtkLabelSetImageAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "PADDING", iupLabelGetPaddingAttrib, gtkLabelSetPaddingAttrib, IUPAF_SAMEASSYSTEM, "0x0", IUPAF_NOT_MAPPED);
 
   /* IupLabel GTK and Motif only */
-  iupClassRegisterAttribute(ic, "IMINACTIVE", NULL, gtkLabelSetImInactiveAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "IMINACTIVE", NULL, gtkLabelSetImInactiveAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "DRAGDROP", NULL, iupgtkSetDragDropAttrib, NULL, NULL, IUPAF_NO_INHERIT);
 
   /* IupLabel Windows and GTK only */
   iupClassRegisterAttribute(ic, "WORDWRAP", NULL, gtkLabelSetWordWrapAttrib, NULL, NULL, IUPAF_DEFAULT);

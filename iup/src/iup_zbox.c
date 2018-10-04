@@ -52,7 +52,7 @@ static void iZboxChildAddedMethod(Ihandle* ih, Ihandle* child)
 {
   if (!ih->data->value_handle)
   {
-    IupSetAttribute(child, "VISIBLE", "YES");
+    IupSetAttribute(child, "VISIBLE", IupGetAttribute(ih, "VISIBLE"));
     ih->data->value_handle = child;
   }
   else
@@ -65,7 +65,7 @@ static void iZboxChildRemovedMethod(Ihandle* ih, Ihandle* child)
   {
     /* reset to the first child, even if it is NULL */
     if (ih->firstchild)
-      IupSetAttribute(ih->firstchild, "VISIBLE", "YES");
+      IupSetAttribute(ih->firstchild, "VISIBLE", IupGetAttribute(ih, "VISIBLE"));
     ih->data->value_handle = ih->firstchild;
   }
 }
@@ -103,6 +103,7 @@ static char* iZboxGetAlignmentAttrib(Ihandle* ih)
 
 static int iZboxSetValueHandleAttrib(Ihandle* ih, const char* value)
 {
+  int visible;
   Ihandle* old_handle, *new_handle, *child;
 
   new_handle = (Ihandle*)value;
@@ -116,6 +117,8 @@ static int iZboxSetValueHandleAttrib(Ihandle* ih, const char* value)
   if (old_handle == new_handle)
     return 0;
 
+  visible = IupGetInt(ih, "VISIBLE");
+
   for (child = ih->firstchild; child; child = child->brother)
   {
     if (child == new_handle) /* found child */
@@ -123,7 +126,7 @@ static int iZboxSetValueHandleAttrib(Ihandle* ih, const char* value)
       if (old_handle && old_handle != new_handle)
         IupSetAttribute(old_handle, "VISIBLE", "NO");
 
-      IupSetAttribute(new_handle, "VISIBLE", "YES");
+      IupSetAttribute(new_handle, "VISIBLE", visible? "YES": "NO");
       ih->data->value_handle = new_handle;
       return 0;
     }
@@ -227,9 +230,10 @@ static void iZboxComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *expa
   for (child = ih->firstchild; child; child = child->brother)
   {
     /* update child natural size first */
-    iupBaseComputeNaturalSize(child);
+    if (!(child->flags & IUP_FLOATING_IGNORE))
+      iupBaseComputeNaturalSize(child);
 
-    if (!child->is_floating)
+    if (!(child->flags & IUP_FLOATING))
     {
       children_expand |= child->expand;
       children_naturalwidth = iupMAX(children_naturalwidth, child->naturalwidth);
@@ -247,7 +251,7 @@ static void iZboxSetChildrenCurrentSizeMethod(Ihandle* ih, int shrink)
   Ihandle* child;
   for (child = ih->firstchild; child; child = child->brother)
   {
-    if (!child->is_floating)
+    if (!(child->flags & IUP_FLOATING))
       iupBaseSetCurrentSize(child, ih->currentwidth, ih->currentheight, shrink);
   }
 }
@@ -259,7 +263,7 @@ static void iZboxSetChildrenPositionMethod(Ihandle* ih, int x, int y)
 
   for (child = ih->firstchild; child; child = child->brother)
   {
-    if (!child->is_floating)
+    if (!(child->flags & IUP_FLOATING))
     {
       switch (ih->data->alignment)
       {
@@ -361,6 +365,7 @@ Iclass* iupZboxGetClass(void)
   /* Base Container */
   iupClassRegisterAttribute(ic, "EXPAND", iupBaseContainerGetExpandAttrib, NULL, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "CLIENTSIZE", iupBaseGetRasterSizeAttrib, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "CLIENTOFFSET", iupBaseGetClientOffsetAttrib, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 
   /* Zbox only */
   iupClassRegisterAttribute(ic, "ALIGNMENT", iZboxGetAlignmentAttrib, iZboxSetAlignmentAttrib, IUPAF_SAMEASSYSTEM, "NW", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
@@ -369,7 +374,7 @@ Iclass* iupZboxGetClass(void)
   iupClassRegisterAttribute(ic, "VALUE_HANDLE", NULL, iZboxSetValueHandleAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
 
   /* Intercept VISIBLE since ZBOX works by showing and hidding its children */
-  iupClassRegisterAttribute(ic, "VISIBLE", NULL, iZboxSetVisibleAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED);
+  iupClassRegisterAttribute(ic, "VISIBLE", NULL, iZboxSetVisibleAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NO_SAVE|IUPAF_NOT_MAPPED);
 
   return ic;
 }

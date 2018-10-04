@@ -35,7 +35,6 @@
 #include "iup_pplot.h"
 #include "iuplua_pplot.h"
 #include <cd.h>
-#include <cdgdiplus.h>
 #include <cdlua.h>
 #include <cdluaiup.h>
 #endif
@@ -52,6 +51,11 @@
 #include <cdluaim.h>
 #endif
 #endif
+
+#ifdef IUPLUA_TUIO
+#include "iupluatuio.h"
+#endif
+
 #endif
 /******************* IUP *********************/
 
@@ -386,8 +390,12 @@ static void iuplua_openlibs (lua_State *L) {
 #ifdef USE_STATIC
   /* iuplua initialization */
   iuplua_open(L);
+
 #ifdef IUPLUA_IMGLIB
   luaopen_iupluaimglib(L);
+#endif
+#ifdef IUPLUA_TUIO
+  iuptuiolua_open(L);
 #endif
 
 /* luaopen_lfs(L); */
@@ -401,6 +409,7 @@ static void iuplua_openlibs (lua_State *L) {
   iup_pplotlua_open(L);
   cdlua_open(L);
   cdluaiup_open(L);
+  cdInitContextPlus();
 #endif
 #ifndef IUPLUA_NO_IM
   iupimlua_open(L);
@@ -418,11 +427,14 @@ static void iuplua_openlibs (lua_State *L) {
 static void iuplua_input (lua_State *L) 
 {
 #ifdef IUPLUA_USELOH
+#include "indent.loh"
 #include "console5.loh"
 #else
 #ifdef IUPLUA_USELZH
+#include "indent.lzh"
 #include "console5.lzh"
 #else
+  luaL_dofile(L, "indent.lua");
   luaL_dofile(L, "console5.lua");
 #endif
 #endif

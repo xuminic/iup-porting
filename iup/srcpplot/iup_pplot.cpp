@@ -2847,7 +2847,6 @@ static Iclass* iupPPlotGetClass(void)
   ic->nativetype = IUP_TYPECANVAS;
   ic->childtype = IUP_CHILDNONE;
   ic->is_interactive = 1;
-  ic->has_attrib_id = 1;  /* has attributes with IDs that must be parsed */
 
   /* Class functions */
   ic->Create  = iPPlotCreateMethod;
@@ -2869,7 +2868,7 @@ static Iclass* iupPPlotGetClass(void)
   iupClassRegisterCallback(ic, "EDITEND_CB", "");
 
   /* Visual */
-  iupClassRegisterAttribute(ic, "BGCOLOR", iPPlotGetBGColorAttrib, iPPlotSetBGColorAttrib, IUPAF_SAMEASSYSTEM, "255 255 255", IUPAF_NOT_MAPPED);
+  iupClassRegisterAttribute(ic, "BGCOLOR", iPPlotGetBGColorAttrib, iPPlotSetBGColorAttrib, IUPAF_SAMEASSYSTEM, "255 255 255", IUPAF_NOT_MAPPED);   /* overwrite canvas implementation, set a system default to force a new default */
   iupClassRegisterAttribute(ic, "FGCOLOR", iPPlotGetFGColorAttrib, iPPlotSetFGColorAttrib, IUPAF_SAMEASSYSTEM, "0 0 0", IUPAF_NOT_MAPPED);
 
   /* IupPPlot only */

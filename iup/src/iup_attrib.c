@@ -36,10 +36,13 @@ int IupGetAllAttributes(Ihandle* ih, char** names, int n)
   name = iupTableFirst(ih->attrib);
   while (name)
   {
-    names[i] = name;
-    i++;
-    if (i == n)
-      break;
+    if (!iupATTRIB_ISINTERNAL(name))
+    {
+      names[i] = name;
+      i++;
+      if (i == n)
+        break;
+    }
 
     name = iupTableNext(ih->attrib);
   }
@@ -203,6 +206,192 @@ void iupAttribUpdate(Ihandle* ih)
   }
 
   free(name_array);
+}
+
+void IupSetAttributeId(Ihandle *ih, const char* name, int id, const char *value)
+{
+  iupASSERT(name!=NULL);
+  if (!name)
+    return;
+
+  iupASSERT(iupObjectCheck(ih));
+  if (!iupObjectCheck(ih))
+    return;
+
+  if (iupClassObjectSetAttributeId(ih, name, id, value)!=0) /* store strings and pointers */
+  {
+    char attr[100];
+    sprintf(attr, "%s%d", name, id);
+    iupAttribSetStr(ih, attr, value);
+  }
+}
+
+void IupStoreAttributeId(Ihandle *ih, const char* name, int id, const char *value)
+{
+  iupASSERT(name!=NULL);
+  if (!name)
+    return;
+
+  iupASSERT(iupObjectCheck(ih));
+  if (!iupObjectCheck(ih))
+    return;
+
+  if (iupClassObjectSetAttributeId(ih, name, id, value)==1) /* store only strings */
+  {
+    char attr[100];
+    sprintf(attr, "%s%d", name, id);
+    iupAttribStoreStr(ih, attr, value);
+  }
+}
+
+char* IupGetAttributeId(Ihandle *ih, const char* name, int id)
+{
+  char *value;
+
+  iupASSERT(name!=NULL);
+  if (!name)
+    return NULL;
+
+  iupASSERT(iupObjectCheck(ih));
+  if (!iupObjectCheck(ih))
+    return NULL;
+
+  value = iupClassObjectGetAttributeId(ih, name, id);
+  if (!value)
+  {
+    char attr[100];
+    sprintf(attr, "%s%d", name, id);
+    value = iupAttribGet(ih, attr);
+  }
+
+  return value;
+}
+
+void IupSetAttributeId2(Ihandle* ih, const char* name, int lin, int col, const char* value)
+{
+  iupASSERT(name!=NULL);
+  if (!name)
+    return;
+
+  iupASSERT(iupObjectCheck(ih));
+  if (!iupObjectCheck(ih))
+    return;
+
+  if (iupClassObjectSetAttributeId2(ih, name, lin, col, value)!=0) /* store strings and pointers */
+  {
+    char attr[100];
+    sprintf(attr, "%s%d:%d", name, lin, col);
+    iupAttribSetStr(ih, attr, value);
+  }
+}
+
+void IupStoreAttributeId2(Ihandle* ih, const char* name, int lin, int col, const char* value)
+{
+  iupASSERT(name!=NULL);
+  if (!name)
+    return;
+
+  iupASSERT(iupObjectCheck(ih));
+  if (!iupObjectCheck(ih))
+    return;
+
+  if (iupClassObjectSetAttributeId2(ih, name, lin, col, value)==1) /* store only strings */
+  {
+    char attr[100];
+    sprintf(attr, "%s%d:%d", name, lin, col);
+    iupAttribStoreStr(ih, attr, value);
+  }
+}
+
+char* IupGetAttributeId2(Ihandle* ih, const char* name, int lin, int col)
+{
+  char *value;
+
+  iupASSERT(name!=NULL);
+  if (!name)
+    return NULL;
+
+  iupASSERT(iupObjectCheck(ih));
+  if (!iupObjectCheck(ih))
+    return NULL;
+
+  value = iupClassObjectGetAttributeId2(ih, name, lin, col);
+  if (!value)
+  {
+    char attr[100];
+    sprintf(attr, "%s%d:%d", name, lin, col);
+    value = iupAttribGet(ih, attr);
+  }
+
+  return value;
+}
+
+float IupGetFloatId(Ihandle *ih, const char* name, int id)
+{
+  float f = 0;
+  char *value = IupGetAttributeId(ih, name, id);
+  if (value)
+    iupStrToFloat(value, &f);
+  return f;
+}
+
+int IupGetIntId(Ihandle *ih, const char* name, int id)
+{
+  int i = 0;
+  char *value = IupGetAttributeId(ih, name, id);
+  if (value)
+  {
+    if (!iupStrToInt(value, &i))
+    {
+      if (iupStrBoolean(value))
+        i = 1;
+    }
+  }
+  return i;
+}
+
+void IupSetfAttributeId(Ihandle *ih, const char* name, int id, const char* f, ...)
+{
+  static char value[SHRT_MAX];
+  va_list arglist;
+  va_start(arglist, f);
+  vsprintf(value, f, arglist);
+  va_end(arglist);
+  IupStoreAttributeId(ih, name, id, value);
+}
+
+int IupGetIntId2(Ihandle* ih, const char* name, int lin, int col)
+{
+  int i = 0;
+  char *value = IupGetAttributeId2(ih, name, lin, col);
+  if (value)
+  {
+    if (!iupStrToInt(value, &i))
+    {
+      if (iupStrBoolean(value))
+        i = 1;
+    }
+  }
+  return i;
+}
+
+float IupGetFloatId2(Ihandle* ih, const char* name, int lin, int col)
+{
+  float f = 0;
+  char *value = IupGetAttributeId2(ih, name, lin, col);
+  if (value)
+    iupStrToFloat(value, &f);
+  return f;
+}
+
+void IupSetfAttributeId2(Ihandle* ih, const char* name, int lin, int col, const char* f, ...)
+{
+  static char value[SHRT_MAX];
+  va_list arglist;
+  va_start(arglist, f);
+  vsprintf(value, f, arglist);
+  va_end(arglist);
+  IupStoreAttributeId2(ih, name, lin, col, value);
 }
 
 void IupSetAttribute(Ihandle *ih, const char* name, const char *value)
@@ -420,9 +609,7 @@ void IupSetAttributeHandle(Ihandle *ih, const char* name, Ihandle *ih_named)
 {
   int inherit;
   char* handle_name;
-  iupASSERT(iupObjectCheck(ih));
-  if (!iupObjectCheck(ih))
-    return;
+
   iupASSERT(name!=NULL);
   if (!name)
     return;
@@ -434,8 +621,17 @@ void IupSetAttributeHandle(Ihandle *ih, const char* name, Ihandle *ih_named)
     handle_name = IupGetName(ih_named);
   }
 
-  iupClassObjectSetAttribute(ih, name, handle_name, &inherit);
-  iupAttribStoreStr(ih, name, handle_name);
+  if (ih)
+  {
+    iupASSERT(iupObjectCheck(ih));
+    if (!iupObjectCheck(ih))
+      return;
+
+    iupClassObjectSetAttribute(ih, name, handle_name, &inherit);
+    iupAttribStoreStr(ih, name, handle_name);
+  }
+  else
+    IupStoreGlobal(name, handle_name);
 }
 
 Ihandle* IupGetAttributeHandle(Ihandle *ih, const char* name)
@@ -566,6 +762,27 @@ char* iupAttribGetStr(Ihandle* ih, const char* name)
         value = iupAttribGet(ih, name);
       }
     }
+
+    if (!value)
+      value = def_value;
+  }
+
+  return value;
+}
+
+char* iupAttribGetLocal(Ihandle* ih, const char* name)
+{
+  char* value;
+  if (!ih || !name)
+    return NULL;
+
+  value = iupTableGet(ih->attrib, name);
+
+  if (!value && !iupATTRIB_ISINTERNAL(name))
+  {
+    int inherit;
+    char *def_value;
+    value = iupClassObjectGetAttribute(ih, name, &def_value, &inherit);
 
     if (!value)
       value = def_value;

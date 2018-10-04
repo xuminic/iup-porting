@@ -55,7 +55,10 @@ typedef void (*IFdrawItem)(Ihandle* ih, void* drawitem);
 
 /* Definition of a callback used to notify custom controls called "_IUPWIN_NOTIFY_CB". 
   msg_info is a pointer to a NMHDR struct. */
-typedef int (*IFnotify)(Ihandle* ih, void* msg_info, HRESULT *result);
+typedef int (*IFnotify)(Ihandle* ih, void* msg_info, int *result);
+
+/* Definition of a callback used to process WM_COMMAND messages called "_IUPWIN_COMMAND_CB". */
+typedef int (*IFwmCommand)(Ihandle* ih, WPARAM wp, LPARAM lp);
 
 /* Definition of callback used for custom WinProc. Can return 0 or 1.
    0 = do default processing. 
@@ -90,10 +93,12 @@ void iupwinChangeProc(Ihandle *ih, WNDPROC new_proc);
 void iupwinMergeStyle(Ihandle* ih, DWORD old_mask, DWORD value);
 void iupwinSetStyle(Ihandle* ih, DWORD value, int set);
 WCHAR* iupwinStrChar2Wide(const char* str);
+char* iupwinStrWide2Char(const WCHAR* wstr);
 int iupwinButtonUp(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp);
 int iupwinButtonDown(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp);
 int iupwinMouseMove(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp);
 char* iupwinGetClipboardText(Ihandle* ih);
+int iupwinSetAutoRedrawAttrib(Ihandle* ih, const char* value);
 
 int iupwinGetScreenRes(void);
 /* 1 point = 1/72 inch */

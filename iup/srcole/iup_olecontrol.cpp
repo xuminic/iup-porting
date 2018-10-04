@@ -22,6 +22,8 @@
 #include "iup_layout.h"
 
 
+extern "C" Iclass* iupOleControlGetClass(void);
+
 struct _IcontrolData
 {
   iupCanvas canvas;  /* from IupCanvas (must reserve it) */
@@ -52,6 +54,27 @@ static int iOleControlSetDesignModeDontNotifyAttrib(Ihandle* ih, const char* val
     ih->data->olehandler->m_ambientProp.setDesignMode(true, false);
   else
     ih->data->olehandler->m_ambientProp.setDesignMode(false, false);
+  return 1;
+}
+
+static int iOleControlSetProgIdAttrib(Ihandle* ih, const char* value)
+{
+  CLSID clsid;
+
+  if (!value || iupAttribGet(ih, "PROGID"))  /* can only be set once */
+    return 1;
+
+  size_t len = strlen(value)+1;
+  wchar_t* wcProgId = (wchar_t*) malloc(len * sizeof(wchar_t));
+  mbstowcs(wcProgId, value, len);
+  HRESULT hr = CLSIDFromProgID(wcProgId, &clsid);
+  free(wcProgId);
+  if(FAILED(hr))
+    return 0;
+
+  if (ih->data->olehandler->Create(&clsid) == CREATE_FAILED)
+    return 0;
+
   return 1;
 }
 
@@ -104,16 +127,10 @@ static int iOleControlMapMethod(Ihandle* ih)
 
 static int iOleControlCreateMethod(Ihandle* ih, void **params)
 {
-  CLSID clsid;
-
-  if (!params || !(params[0]))
-    return IUP_ERROR;
-
-  char *progID = (char*)params[0];
-
   /* free the data alocated by IupCanvas */
   if (ih->data) free(ih->data);
   ih->data = iupALLOCCTRLDATA();
+  ih->data->olehandler = new tOleHandler();
 
   /* change the IupCanvas default values */
   iupAttribSetStr(ih, "BORDER", "NO");
@@ -121,16 +138,11 @@ static int iOleControlCreateMethod(Ihandle* ih, void **params)
   /* IupCanvas callbacks */
   IupSetCallback(ih,"RESIZE_CB",(Icallback)iOleControlResize_CB);
 
-  size_t len = strlen(progID)+1;
-  wchar_t* wcProgId = (wchar_t*) malloc(len * sizeof(wchar_t));
-  mbstowcs(wcProgId, progID, len);
-  HRESULT hr = CLSIDFromProgID(wcProgId, &clsid);
-  free(wcProgId);
-  if(FAILED(hr))
-    return IUP_ERROR;
+  if (!params || !(params[0]))
+    return IUP_NOERROR;
 
-  ih->data->olehandler = new tOleHandler();
-  if (ih->data->olehandler->Create(&clsid) == CREATE_FAILED)
+  char *progID = (char*)params[0];
+  if (!iOleControlSetProgIdAttrib(ih, progID))
     return IUP_ERROR;
 
   return IUP_NOERROR;
@@ -148,7 +160,7 @@ static void iOleControlRelease(Iclass* ic)
   OleUninitialize();
 }
 
-static Iclass* iOleControlGetClass(void)
+Iclass* iupOleControlGetClass(void)
 {
   Iclass* ic = iupClassNew(iupCanvasGetClass());
 
@@ -166,6 +178,7 @@ static Iclass* iOleControlGetClass(void)
   ic->LayoutUpdate = iOleControlLayoutUpdateMethod;
   ic->ComputeNaturalSize = iOleControlComputeNaturalSizeMethod;
 
+  iupClassRegisterAttribute(ic, "PROGID", NULL, iOleControlSetProgIdAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "DESIGNMODE", iOleControlGetDesignModeAttrib, iOleControlSetDesignModeAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "DESIGNMODE_DONT_NOTIFY", iOleControlGetDesignModeAttrib, iOleControlSetDesignModeDontNotifyAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "IUNKNOWN", iOleControlGetIUnknownAttrib, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
@@ -193,7 +206,7 @@ int IupOleControlOpen(void)
   if (retval != S_OK && retval != S_FALSE)
     return IUP_ERROR;
 
-  iupRegisterClass(iOleControlGetClass());
+  iupRegisterClass(iupOleControlGetClass());
 
   IupSetGlobal("_IUP_OLECONTROL_OPEN", "1");
   return IUP_NOERROR;

@@ -27,7 +27,7 @@ endif
 
 DEFINES = IUPLUA_USELOH
 USE_LOH_SUBDIR = Yes
-SRCLUA = console5.lua
+SRCLUA = console5.lua indent.lua
 
 # Disable strip
 STRIP = 
@@ -85,9 +85,13 @@ ifdef DBG
       endif
     endif
     ifneq ($(findstring Win, $(TEC_SYSNAME)), )
-      USE_GDIPLUS=Yes
+      ifndef USE_GTK
+        USE_GDIPLUS=Yes
+      endif
     else
-  #    USE_XRENDER=Yes
+      ifdef USE_MOTIF
+        USE_XRENDER=Yes
+      endif
     endif
   else
     DEFINES += IUPLUA_NO_CD
@@ -114,6 +118,16 @@ ifdef DBG
       LIBS += iupluaimglib$(LIBLUASUFX) iupimglib
     else
       SLIB += $(IUPLIB)/libiupluaimglib$(LIBLUASUFX).a $(IUPLIB)/libiupimglib.a
+    endif
+  endif
+  
+  IUPLUA_TUIO = Yes
+  ifdef IUPLUA_TUIO
+    DEFINES += IUPLUA_TUIO
+    ifneq ($(findstring Win, $(TEC_SYSNAME)), )
+      LIBS += iupluatuio$(LIBLUASUFX) iuptuio
+    else
+      SLIB += $(IUPLIB)/libiupluatuio$(LIBLUASUFX).a $(IUPLIB)/libiuptuio.a
     endif
   endif
 else

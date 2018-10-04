@@ -43,11 +43,24 @@
 #define XmNwrap "Nwrap"
 #endif
 
-void iupdrvTextAddFormatTag(Ihandle* ih, Ihandle* formattag)
+void* iupdrvTextAddFormatTagStartBulk(Ihandle* ih)
 {
   (void)ih;
-  (void)formattag;
+  return NULL;
 }
+
+void iupdrvTextAddFormatTagStopBulk(Ihandle* ih, void* state)
+{
+  (void)ih;
+  (void)state;
+}
+
+void iupdrvTextAddFormatTag(Ihandle* ih, Ihandle* formattag, int bulk)
+ {
+   (void)ih;
+   (void)formattag;
+   (void)bulk;
+ }
 
 void iupdrvTextAddSpin(int *w, int h)
 {
@@ -911,6 +924,12 @@ static void motTextKeyPressEvent(Widget w, Ihandle *ih, XKeyEvent *evt, Boolean 
 
 /******************************************************************************/
 
+static void motDummyXtErrorHandler(String msg)
+{
+  /* does nothing */
+  (void)msg;
+}
+
 
 static void motTextLayoutUpdateMethod(Ihandle* ih)
 {
@@ -935,7 +954,12 @@ static void motTextLayoutUpdateMethod(Ihandle* ih)
       NULL);
   }
   else
+  {
+    /* to avoid the Scrollbar warning */
+    XtAppSetWarningHandler(iupmot_appcontext, motDummyXtErrorHandler);
     iupdrvBaseLayoutUpdateMethod(ih);
+    XtAppSetWarningHandler(iupmot_appcontext, NULL);
+  }
 }
 
 static int motTextMapMethod(Ihandle* ih)
@@ -1158,12 +1182,12 @@ void iupdrvTextInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "SELECTEDTEXT", motTextGetSelectedTextAttrib, motTextSetSelectedTextAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SELECTION", motTextGetSelectionAttrib, motTextSetSelectionAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SELECTIONPOS", motTextGetSelectionPosAttrib, motTextSetSelectionPosAttrib, NULL, NULL, IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "CARET", motTextGetCaretAttrib, motTextSetCaretAttrib, NULL, NULL, IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "CARETPOS", motTextGetCaretPosAttrib, motTextSetCaretPosAttrib, NULL, NULL, IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "CARET", motTextGetCaretAttrib, motTextSetCaretAttrib, NULL, NULL, IUPAF_NO_SAVE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "CARETPOS", motTextGetCaretPosAttrib, motTextSetCaretPosAttrib, IUPAF_SAMEASSYSTEM, "0", IUPAF_NO_SAVE|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "INSERT", NULL, motTextSetInsertAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "APPEND", NULL, motTextSetAppendAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "READONLY", motTextGetReadOnlyAttrib, motTextSetReadOnlyAttrib, NULL, NULL, IUPAF_DEFAULT);
-  iupClassRegisterAttribute(ic, "NC", iupTextGetNCAttrib, motTextSetNCAttrib, NULL, NULL, IUPAF_NOT_MAPPED);
+  iupClassRegisterAttribute(ic, "NC", iupTextGetNCAttrib, motTextSetNCAttrib, IUPAF_SAMEASSYSTEM, "0", IUPAF_NOT_MAPPED);
   iupClassRegisterAttribute(ic, "CLIPBOARD", NULL, motTextSetClipboardAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "FORMATTING", NULL, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);  /* formatting not supported in Motif */
   iupClassRegisterAttribute(ic, "SCROLLTO", NULL, motTextSetScrollToAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
@@ -1172,4 +1196,13 @@ void iupdrvTextInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "SPINMAX", NULL, motTextSetSpinMaxAttrib, IUPAF_SAMEASSYSTEM, "100", IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SPININC", NULL, motTextSetSpinIncAttrib, IUPAF_SAMEASSYSTEM, "1", IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SPINVALUE", motTextGetSpinValueAttrib, motTextSetSpinValueAttrib, IUPAF_SAMEASSYSTEM, "0", IUPAF_NO_INHERIT);
+
+  /* Not Supported */
+  iupClassRegisterAttribute(ic, "DRAGDROP", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "ALIGNMENT", NULL, NULL, IUPAF_SAMEASSYSTEM, "ALEFT", IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "CUEBANNER", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "FILTER", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "FORMATTING", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "OVERWRITE", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "TABSIZE", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
 }

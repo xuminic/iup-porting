@@ -273,23 +273,21 @@ static int motTabsSetStandardFontAttrib(Ihandle* ih, const char* value)
   return 1;
 }
 
-static int motTabsSetTabTitleAttrib(Ihandle* ih, const char* name_id, const char* value)
+static int motTabsSetTabTitleAttrib(Ihandle* ih, int pos, const char* value)
 {
-  int pos;
-  if (value && iupStrToInt(name_id, &pos)==1)
+  if (value)
   {
     Ihandle* child = IupGetChild(ih, pos);
     Widget tab_button = (Widget)iupAttribGet(child, "_IUPMOT_TABBUTTON");
     if (tab_button)
-      iupmotSetString(tab_button, XmNlabelString, value);
+      iupmotSetMnemonicTitle(ih, tab_button, value);
   }
   return 1;
 }
 
-static int motTabsSetTabImageAttrib(Ihandle* ih, const char* name_id, const char* value)
+static int motTabsSetTabImageAttrib(Ihandle* ih, int pos, const char* value)
 {
-  int pos;
-  if (value && iupStrToInt(name_id, &pos)==1)
+  if (value)
   {
     Ihandle* child = IupGetChild(ih, pos);
     Widget tab_button = (Widget)iupAttribGet(child, "_IUPMOT_TABBUTTON");
@@ -323,6 +321,12 @@ void motTabsPageChangedCallback(Widget w, Ihandle* ih, XmNotebookCallbackStruct 
     cb = (IFnnn)IupGetCallback(ih, "TABCHANGE_CB");
     if (cb)
       cb(ih, child, prev_child);
+    else
+    {
+      IFnii cb2 = (IFnii)IupGetCallback(ih, "TABCHANGEPOS_CB");
+      if (cb2)
+        cb2(ih, nptr->page_number, nptr->prev_page_number);
+    }
   }
   (void)w; 
 }
@@ -392,10 +396,20 @@ static void motTabsChildAddedMethod(Ihandle* ih, Ihandle* child)
 
     XtOverrideTranslations(child_manager, XtParseTranslationTable("<Configure>: iupTabsConfigure()"));
 
-    tabtitle = iupAttribGet(child, "TABTITLE");
-    if (!tabtitle) tabtitle = iupTabsAttribGetStrId(ih, "TABTITLE", pos);
-    tabimage = iupAttribGet(child, "TABIMAGE");
-    if (!tabimage) tabimage = iupTabsAttribGetStrId(ih, "TABIMAGE", pos);
+    tabtitle = iupTabsAttribGetStrId(ih, "TABTITLE", pos);
+    if (!tabtitle) 
+    {
+      tabtitle = iupAttribGet(child, "TABTITLE");
+      if (tabtitle)
+        iupTabsAttribSetStrId(ih, "TABTITLE", pos, tabtitle);
+    }
+    tabimage = iupTabsAttribGetStrId(ih, "TABIMAGE", pos);
+    if (!tabimage) 
+    {
+      tabimage = iupAttribGet(child, "TABIMAGE");
+      if (tabimage)
+        iupTabsAttribSetStrId(ih, "TABIMAGE", pos, tabimage);
+    }
     if (!tabtitle && !tabimage)
       tabtitle = "     ";
 
@@ -418,7 +432,7 @@ static void motTabsChildAddedMethod(Ihandle* ih, Ihandle* child)
     XtAddEventHandler(tab_button, KeyPressMask,    False, (XtEventHandler)iupmotKeyPressEvent, (XtPointer)ih);
 
     if (tabtitle)
-      iupmotSetString(tab_button, XmNlabelString, tabtitle);
+      iupmotSetMnemonicTitle(ih, tab_button, tabtitle);
     else
     {
       Pixmap pixmap = (Pixmap)iupImageGetImage(tabimage, ih, 0);
@@ -570,7 +584,7 @@ void iupdrvTabsInitClass(Iclass* ic)
   /* Driver Dependent Attribute functions */
 
   /* Common */
-  iupClassRegisterAttribute(ic, "STANDARDFONT", NULL, motTabsSetStandardFontAttrib, IUPAF_SAMEASSYSTEM, "DEFAULTFONT", IUPAF_NOT_MAPPED);
+  iupClassRegisterAttribute(ic, "STANDARDFONT", NULL, motTabsSetStandardFontAttrib, IUPAF_SAMEASSYSTEM, "DEFAULTFONT", IUPAF_NO_SAVE|IUPAF_NOT_MAPPED);
 
   /* Visual */
   iupClassRegisterAttribute(ic, "BGCOLOR", NULL, motTabsSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_DEFAULT);
@@ -581,6 +595,9 @@ void iupdrvTabsInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "TABTYPE", iupTabsGetTabTypeAttrib, motTabsSetTabTypeAttrib, IUPAF_SAMEASSYSTEM, "TOP", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);  
   iupClassRegisterAttribute(ic, "TABORIENTATION", iupTabsGetTabOrientationAttrib, NULL, IUPAF_SAMEASSYSTEM, "HORIZONTAL", IUPAF_READONLY|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);  /* can not be set, always HORIZONTAL in Motif */
   iupClassRegisterAttributeId(ic, "TABTITLE", NULL, motTabsSetTabTitleAttrib, IUPAF_NO_INHERIT);
-  iupClassRegisterAttributeId(ic, "TABIMAGE", NULL, motTabsSetTabImageAttrib, IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "TABIMAGE", NULL, motTabsSetTabImageAttrib, IUPAF_IHANDLENAME|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "PADDING", iupTabsGetPaddingAttrib, motTabsSetPaddingAttrib, IUPAF_SAMEASSYSTEM, "0x0", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+
+  /* NOT supported */
+  iupClassRegisterAttribute(ic, "MULTILINE", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_DEFAULT);
 }

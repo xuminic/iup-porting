@@ -132,10 +132,18 @@ static int gtkToggleSetValueAttrib(Ihandle* ih, const char* value)
     gtk_toggle_button_set_inconsistent((GtkToggleButton*)ih->handle, TRUE);
   else 
   {
+    Ihandle* last_ih = NULL;
+    Ihandle* radio = iupRadioFindToggleParent(ih);
     gtk_toggle_button_set_inconsistent((GtkToggleButton*)ih->handle, FALSE);
 
     /* This action causes the toggled signal to be emitted. */
     iupAttribSetStr(ih, "_IUPGTK_IGNORE_TOGGLE", "1");
+    if (radio)
+    {
+      last_ih = (Ihandle*)IupGetAttribute(radio, "VALUE_HANDLE");
+      if (last_ih)
+        iupAttribSetStr(last_ih, "_IUPGTK_IGNORE_TOGGLE", "1");
+    }
 
     if (iupStrBoolean(value))
       gtk_toggle_button_set_active((GtkToggleButton*)ih->handle, TRUE);
@@ -146,6 +154,8 @@ static int gtkToggleSetValueAttrib(Ihandle* ih, const char* value)
       gtkToggleUpdateImage(ih, iupdrvIsActive(ih), gtkToggleGetCheck(ih));
 
     iupAttribSetStr(ih, "_IUPGTK_IGNORE_TOGGLE", NULL);
+    if (last_ih)
+      iupAttribSetStr(last_ih, "_IUPGTK_IGNORE_TOGGLE", NULL);
   }
 
   return 0;
@@ -317,7 +327,8 @@ static void gtkToggleToggled(GtkToggleButton *widget, Ihandle* ih)
   if (cb && cb(ih, check) == IUP_CLOSE)
     IupExitLoop();
 
-  iupBaseCallValueChangedCb(ih);
+  if (iupObjectCheck(ih))
+    iupBaseCallValueChangedCb(ih);
 
   (void)widget;
 }
@@ -402,6 +413,26 @@ static gboolean gtkToggleKeyEvent(GtkWidget *widget, GdkEventKey *evt, Ihandle *
   return FALSE;
 }
 
+static gboolean gtkToggleEnterLeaveEvent(GtkWidget *widget, GdkEventCrossing *evt, Ihandle *ih)
+{
+  /* Used only when FLAT=Yes */
+
+  iupgtkEnterLeaveEvent(widget, evt, ih);
+  (void)widget;
+
+  if (gtkToggleGetCheck(ih) == 1)
+    gtk_button_set_relief((GtkButton*)ih->handle, GTK_RELIEF_NORMAL);
+  else
+  {
+    if (evt->type == GDK_ENTER_NOTIFY)
+      gtk_button_set_relief((GtkButton*)ih->handle, GTK_RELIEF_NORMAL);
+    else  if (evt->type == GDK_LEAVE_NOTIFY)               
+      gtk_button_set_relief((GtkButton*)ih->handle, GTK_RELIEF_NONE);
+  }
+
+  return FALSE;
+}
+
 static int gtkToggleMapMethod(Ihandle* ih)
 {
   Ihandle* radio = iupRadioFindToggleParent(ih);
@@ -462,8 +493,18 @@ static int gtkToggleMapMethod(Ihandle* ih)
   if (!iupAttribGetBoolean(ih, "CANFOCUS"))
     GTK_WIDGET_FLAGS(ih->handle) &= ~GTK_CAN_FOCUS;
 
-  g_signal_connect(G_OBJECT(ih->handle), "enter-notify-event", G_CALLBACK(iupgtkEnterLeaveEvent), ih);
-  g_signal_connect(G_OBJECT(ih->handle), "leave-notify-event", G_CALLBACK(iupgtkEnterLeaveEvent), ih);
+  if (ih->data->type == IUP_TOGGLE_IMAGE && ih->data->flat)
+  {
+    gtk_button_set_relief((GtkButton*)ih->handle, GTK_RELIEF_NONE);
+
+    g_signal_connect(G_OBJECT(ih->handle), "enter-notify-event", G_CALLBACK(gtkToggleEnterLeaveEvent), ih);
+    g_signal_connect(G_OBJECT(ih->handle), "leave-notify-event", G_CALLBACK(gtkToggleEnterLeaveEvent), ih);
+  }
+  else
+  {
+    g_signal_connect(G_OBJECT(ih->handle), "enter-notify-event", G_CALLBACK(iupgtkEnterLeaveEvent), ih);
+    g_signal_connect(G_OBJECT(ih->handle), "leave-notify-event", G_CALLBACK(iupgtkEnterLeaveEvent), ih);
+  }
 
   g_signal_connect(G_OBJECT(ih->handle), "focus-in-event",     G_CALLBACK(iupgtkFocusInOutEvent), ih);
   g_signal_connect(G_OBJECT(ih->handle), "focus-out-event",    G_CALLBACK(iupgtkFocusInOutEvent), ih);
@@ -497,7 +538,7 @@ void iupdrvToggleInitClass(Iclass* ic)
   /* Driver Dependent Attribute functions */
 
   /* Overwrite Common */
-  iupClassRegisterAttribute(ic, "STANDARDFONT", NULL, gtkToggleSetStandardFontAttrib, IUPAF_SAMEASSYSTEM, "DEFAULTFONT", IUPAF_NOT_MAPPED);
+  iupClassRegisterAttribute(ic, "STANDARDFONT", NULL, gtkToggleSetStandardFontAttrib, IUPAF_SAMEASSYSTEM, "DEFAULTFONT", IUPAF_NO_SAVE|IUPAF_NOT_MAPPED);
 
   /* Overwrite Visual */
   iupClassRegisterAttribute(ic, "ACTIVE", iupBaseGetActiveAttrib, gtkToggleSetActiveAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_DEFAULT);
@@ -511,11 +552,14 @@ void iupdrvToggleInitClass(Iclass* ic)
 
   /* IupToggle only */
   iupClassRegisterAttribute(ic, "ALIGNMENT", NULL, gtkToggleSetAlignmentAttrib, "ACENTER:ACENTER", NULL, IUPAF_NO_INHERIT); /* force new default value */
-  iupClassRegisterAttribute(ic, "IMAGE", NULL, gtkToggleSetImageAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "IMINACTIVE", NULL, gtkToggleSetImInactiveAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "IMPRESS", NULL, gtkToggleSetImPressAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "IMAGE", NULL, gtkToggleSetImageAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "IMINACTIVE", NULL, gtkToggleSetImInactiveAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "IMPRESS", NULL, gtkToggleSetImPressAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "VALUE", gtkToggleGetValueAttrib, gtkToggleSetValueAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
 
   iupClassRegisterAttribute(ic, "PADDING", iupToggleGetPaddingAttrib, gtkToggleSetPaddingAttrib, IUPAF_SAMEASSYSTEM, "0x0", IUPAF_NOT_MAPPED);
   iupClassRegisterAttribute(ic, "MARKUP", NULL, NULL, NULL, NULL, IUPAF_DEFAULT);
+
+  /* NOT supported */
+  iupClassRegisterAttribute(ic, "RIGHTBUTTON", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_DEFAULT);
 }

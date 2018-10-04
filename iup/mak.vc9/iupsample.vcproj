@@ -68,10 +68,10 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="comctl32.lib ole32.lib opengl32.lib glu32.lib iup.lib iupgl.lib iupcontrols.lib iupimglib.lib cd.lib freetype6.lib iupcd.lib iup_pplot.lib"
+				AdditionalDependencies="comctl32.lib ws2_32.lib winmm.lib ole32.lib opengl32.lib glu32.lib iup.lib iupgl.lib iupcontrols.lib iupimglib.lib cd.lib freetype6.lib iupcd.lib iup_pplot.lib iuptuio.lib iupim.lib im.lib iupole.lib iupweb.lib"
 				LinkIncremental="1"
 				SuppressStartupBanner="true"
-				AdditionalLibraryDirectories="..\lib;..\..\cd\lib;d:\lng\SpeechSDK\Lib\i386"
+				AdditionalLibraryDirectories="..\lib;..\..\cd\lib;..\..\im\lib;"
 				GenerateManifest="false"
 				GenerateDebugInformation="true"
 				ProgramDatabaseFile="$(TargetDir)$(TargetName).pdb"
@@ -618,6 +618,7 @@
 				>
 				<FileConfiguration
 					Name="Debug|Win32"
+					ExcludedFromBuild="true"
 					>
 					<Tool
 						Name="VCCLCompilerTool"
@@ -774,6 +775,17 @@
 				<FileConfiguration
 					Name="Debug|Win32"
 					ExcludedFromBuild="true"
+					>
+					<Tool
+						Name="VCCLCompilerTool"
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath="..\html\examples\C\webbrowser.c"
+				>
+				<FileConfiguration
+					Name="Debug|Win32"
 					>
 					<Tool
 						Name="VCCLCompilerTool"

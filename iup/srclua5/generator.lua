@@ -14,14 +14,15 @@ iupDoNothing = function() end
 iupSetMethod = iupDoNothing
 iup.RegisterWidget = iupDoNothing
 
+-- TODO: This is different from iupClassRegisterCallback, must use the same standard
 c_types = {
-  n = "int",
+  n = "int",               -- should be i
   s = "char *",
-  i = "Ihandle *",
-  c = "unsigned char ",
+  i = "Ihandle *",         -- should be h
+  c = "unsigned char ",    -- should be b
   d = "double",
   f = "float",
-  v = "Ihandle **",
+  v = "Ihandle **",        -- should be g
 }
 
 -- Adjust the callbacks table
@@ -79,9 +80,10 @@ function write_creation(o, t)
    local max = string.len(v)
    string.gsub(v, "(.)", function(p)
       if p == "n" then io.write("luaL_checkint(L, ",aux.n,")")
+      elseif p == "N" then io.write("luaL_optinteger(L, ",aux.n,", 0)")
       elseif p == "d" then io.write("luaL_number(L, ",aux.n,")")
-      elseif p == "s" then io.write("(char *) luaL_checkstring(L, ",aux.n,")")
-      elseif p == "S" then io.write("(char *) luaL_optstring(L, ",aux.n,', NULL)')
+      elseif p == "s" then io.write("(char *)luaL_checkstring(L, ",aux.n,")")
+      elseif p == "S" then io.write("(char *)luaL_optstring(L, ",aux.n,", NULL)")
       elseif p == "i" then io.write("iuplua_checkihandle(L, ",aux.n,")")
       elseif p == "I" then io.write("iuplua_checkihandleornil(L, ",aux.n,")")
       elseif p == "-" then io.write("NULL")
@@ -169,6 +171,7 @@ function write_initialization(o,t)
    
    for i,v in pairs(c) do
       local type = "NULL"
+      -- Handle callbacks that have same names but different parameters
       if i == "action" or 
          i == "action_cb" or 
          i == "edit_cb" or 

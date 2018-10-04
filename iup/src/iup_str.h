@@ -18,11 +18,6 @@ extern "C" {
  * See \ref iup_str.h
  * \ingroup util */
 
-/** Returns a copy of the given string.
- * If str is NULL it will return NULL.
- * \ingroup str */
-char* iupStrDup(const char* str); 
-
 /** Returns a non zero value if the two strings are equal.
  * str1 or str2 can be NULL.
  * \ingroup str */
@@ -40,9 +35,14 @@ int iupStrEqualNoCase(const char* str1, const char* str2);
 int iupStrEqualPartial(const char* str1, const char* str2);
 
 /** Returns 1 if the string is "1", "YES", "ON" or "TRUE". \n
- * Returns 0 if the string is "0", "NO", "OFF" or "FALSE", or the string is NULL or empty.
+ * Returns 0 otherwise.
  * \ingroup str */
 int iupStrBoolean(const char* str);
+
+/** Returns 1 if the string is "NO", "OFF" or "FALSE". \n
+ * Returns 0 otherwise.
+ * \ingroup str */
+int iupStrFalse(const char* str);
 
 /** Returns the number of lines in a string.
  * It works for UNIX, DOS and MAC line ends.
@@ -58,6 +58,11 @@ const char* iupStrNextLine(const char* str, int *len);
 /** Returns the number of repetitions of the character occours in the string.
  * \ingroup str */
 int iupStrCountChar(const char *str, int c);
+
+/** Returns a copy of the given string.
+ * If str is NULL it will return NULL.
+ * \ingroup str */
+char* iupStrDup(const char* str); 
 
 /** Returns a new string containing a copy of the string up to the character.
  * The string is then incremented to after the position of the character.
@@ -79,9 +84,17 @@ char *iupStrGetMemory(int size);
  * \ingroup str */
 char *iupStrGetMemoryCopy(const char* str);
 
-/** Converts a string into lower case.
+/** Converts a string into lower case. Can be used in-place.
  * \ingroup str */
 void iupStrLower(char* dstr, const char* sstr);
+
+/** Converts a string into upper case. Can be used in-place.
+ * \ingroup str */
+void iupStrUpper(char* dstr, const char* sstr);
+
+/** Checks if the string has at least 1 space character.
+ * \ingroup str */
+int iupStrHasSpace(const char* str);
 
 /** Extract a RGB triple from the string. Returns 0 or 1.
  * \ingroup str */
@@ -141,6 +154,10 @@ char* iupStrFileGetPath(const char *file_name);
  * \ingroup str */
 char* iupStrFileMakeFileName(const char* path, const char* title);
 
+/** Split the filename in path and title using pre-alocated strings.
+ * \ingroup str */
+void iupStrFileNameSplit(const char* filename, char* path, char* title);
+
 /** Replace a character in a string.
  * Returns the number of occurrences.
  * \ingroup str */
@@ -150,15 +167,19 @@ int iupStrReplace(char* str, char src, char dst);
  * \ingroup str */
 void iupStrToUnix(char* str);
 
-/** Convert line ends to MAC format (one \r per line).
- * If returned pointer different than input it must be freed.
+/** Convert line ends to MAC format in place (one \r per line).
  * \ingroup str */
-char* iupStrToMac(const char* str);
+void iupStrToMac(char* str);
 
 /** Convert line ends to DOS/Windows format (the sequence \r\n per line).
- * If returned pointer different than input it must be freed.
+ * If returned pointer different the input, it must be freed.
  * \ingroup str */
 char* iupStrToDos(const char* str);
+
+/** Convert string to C format. Process \n, \r and \t.
+ * If returned pointer different the input, it must be freed.
+ * \ingroup str */
+char* iupStrConvertToC(const char* str);
 
 /** Remove the interval from the string. Done in place.
  * \ingroup str */

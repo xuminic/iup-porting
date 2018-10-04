@@ -30,6 +30,10 @@
 #include "iupwin_handle.h"
 #include "iupwin_brush.h"
 
+/* Not defined in compilers older than VC9 or WinSDK older than 6.0 */
+#ifndef MAPVK_VK_TO_VSC
+#define MAPVK_VK_TO_VSC     (0)
+#endif
 
 #ifndef  XBUTTON1
 #define XBUTTON1      0x0001     /* not defined in MingW3 */
@@ -67,10 +71,23 @@ WCHAR* iupwinStrChar2Wide(const char* str)
 {
   if (str)
   {
-    int len = strlen(str)+1;
+    int len = (int)strlen(str)+1;
     WCHAR* wstr = malloc(len * sizeof(WCHAR));
     MultiByteToWideChar(CP_ACP, 0, str, -1, wstr, len);
     return wstr;
+  }
+
+  return NULL;
+}
+
+char* iupwinStrWide2Char(const WCHAR* wstr)
+{
+  if (wstr)
+  {
+    int len = (int)wcslen(wstr)+1;
+    char* str = malloc(len * sizeof(char));
+    WideCharToMultiByte(CP_ACP, 0, wstr, -1, str, len, NULL, NULL);
+    return str;
   }
 
   return NULL;
@@ -85,7 +102,13 @@ int iupdrvGetScrollbarSize(void)
 
 void iupdrvReparent(Ihandle* ih)
 {
-  SetParent(ih->handle, iupChildTreeGetNativeParentHandle(ih));
+  HWND newParent = iupChildTreeGetNativeParentHandle(ih);
+  if (GetParent(ih->handle) != newParent)
+  {
+    HWND oldParent = SetParent(ih->handle, newParent);
+    if (!iupAttribGet(ih, "_IUPWIN_REPARENT"))
+      iupAttribSetStr(ih, "_IUPWIN_REPARENT", (char*)oldParent);
+  }
 }
 
 void iupdrvBaseLayoutUpdateMethod(Ihandle *ih)
@@ -259,6 +282,17 @@ int iupwinBaseProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result)
       break;
     }
   case WM_SETFOCUS:
+    /* TODO: Not using WS_TABSTOP still allows the control 
+       to receive the focus when clicked. 
+       But this code does make several controls 
+       with CANFOCUS=NO to stop working. */
+/*    if (!iupAttribGetBoolean(ih, "CANFOCUS"))
+    {
+      HWND previous = (HWND)wp;
+      if (previous && previous != ih->handle)
+        SetFocus(previous);
+      break;
+    }  */
     iupwinWmSetFocus(ih);
     break;
   case WM_KILLFOCUS:
@@ -346,6 +380,22 @@ static Ihandle* winContainerWmCommandGetIhandle(Ihandle *ih, WPARAM wp, LPARAM l
   return child;
 }
 
+static int winCheckParent(Ihandle* child, Ihandle* ih)
+{
+  Ihandle* parent = iupChildTreeGetNativeParent(child);
+  if (parent==ih)
+    return 1;
+  else
+  {
+    /* TODO: this is wierd... */
+    HWND oldParent = (HWND)iupAttribGet(child, "_IUPWIN_REPARENT");
+    if (oldParent && oldParent==ih->handle)
+      return 1;
+
+    return 0;
+  }
+}
+
 int iupwinBaseContainerProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result)
 {
   /* All messages here are sent to the parent Window, 
@@ -358,7 +408,7 @@ int iupwinBaseContainerProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT
       Ihandle* child = winContainerWmCommandGetIhandle(ih, wp, lp);
       if (child)
       {
-        IFnii cb = (IFnii)IupGetCallback(child, "_IUPWIN_COMMAND_CB");
+        IFwmCommand cb = (IFwmCommand)IupGetCallback(child, "_IUPWIN_COMMAND_CB");
         if (cb)
           cb(child, wp, lp);
       }
@@ -372,7 +422,7 @@ int iupwinBaseContainerProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT
   case WM_CTLCOLORSTATIC:
     {
       Ihandle* child = iupwinHandleGet((void*)lp);
-      if (child && iupChildTreeGetNativeParent(child)==ih)
+      if (child && winCheckParent(child, ih))
       {
         IFctlColor cb = (IFctlColor)IupGetCallback(child, "_IUPWIN_CTLCOLOR_CB");
         if (cb)
@@ -392,7 +442,7 @@ int iupwinBaseContainerProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT
       else
       {
         child = iupwinHandleGet(drawitem->hwndItem); 
-        if (child && iupChildTreeGetNativeParent(child)!=ih)
+        if (child && !winCheckParent(child, ih))
           child = NULL;
       }
 
@@ -412,7 +462,7 @@ int iupwinBaseContainerProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT
   case WM_VSCROLL:
     {
       Ihandle *child = iupwinHandleGet((void*)lp);
-      if (child && iupChildTreeGetNativeParent(child)==ih)
+      if (child && winCheckParent(child, ih))
       {
         IFni cb = (IFni)IupGetCallback(child, "_IUPWIN_CUSTOMSCROLL_CB");
         if (cb)
@@ -429,14 +479,18 @@ int iupwinBaseContainerProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT
       if (!msg_info)
         break;
 
-      child = iupwinHandleGet(msg_info->hwndFrom); 
-      if (child && iupChildTreeGetNativeParent(child)==ih)
+      child = iupwinHandleGet(msg_info->hwndFrom);
+      if (child && winCheckParent(child, ih))
       {
         IFnotify cb = (IFnotify)IupGetCallback(child, "_IUPWIN_NOTIFY_CB");
         if (cb)
         {
-          if (cb(child, (void*)msg_info, result))
+          int ret;
+          if (cb(child, (void*)msg_info, &ret))
+          {
+            *result = (LRESULT)ret;
             return 1;
+          }
         }
       }
       break;
@@ -897,4 +951,135 @@ char* iupwinGetClipboardText(Ihandle* ih)
   CloseClipboard();
 
   return str;
+}
+
+void iupdrvSendKey(int key, int press)
+{
+  unsigned int keyval, state;
+  INPUT input[2];
+  LPARAM extra_info;
+  WORD state_scan = 0, key_scan;
+  ZeroMemory(input, 2*sizeof(INPUT));
+
+  iupwinKeyEncode(key, &keyval, &state);
+  if (!keyval)
+    return;
+
+  extra_info = GetMessageExtraInfo();
+  if (state)
+    state_scan = (WORD)MapVirtualKey(state, MAPVK_VK_TO_VSC);
+  key_scan = (WORD)MapVirtualKey(keyval, MAPVK_VK_TO_VSC);
+
+  if (press & 0x01)
+  {
+    if (state)
+    {
+      /* modifier first */
+      input[0].type = INPUT_KEYBOARD;
+      input[0].ki.wVk = (WORD)state;
+      input[0].ki.wScan = state_scan;
+      input[0].ki.dwExtraInfo = extra_info;
+
+      /* key second */
+      input[1].type = INPUT_KEYBOARD;
+      input[1].ki.wVk = (WORD)keyval;
+      input[1].ki.wScan = key_scan;
+      input[1].ki.dwExtraInfo = extra_info;
+
+      SendInput(2, input, sizeof(INPUT));
+    }
+    else
+    {
+      input[0].type = INPUT_KEYBOARD;
+      input[0].ki.wVk = (WORD)keyval;
+      input[0].ki.wScan = key_scan;
+      input[0].ki.dwExtraInfo = extra_info;
+
+      SendInput(1, input, sizeof(INPUT));
+    }
+  }
+
+  if (press & 0x02)
+  {
+    if (state)
+    {
+      /* key first */
+      input[0].type = INPUT_KEYBOARD;
+      input[0].ki.dwFlags = KEYEVENTF_KEYUP;
+      input[0].ki.wVk = (WORD)keyval;
+      input[0].ki.wScan = key_scan;
+      input[0].ki.dwExtraInfo = extra_info;
+
+      /* modifier second */
+      input[1].type = INPUT_KEYBOARD;
+      input[1].ki.dwFlags = KEYEVENTF_KEYUP;
+      input[1].ki.wVk = (WORD)state;
+      input[1].ki.wScan = state_scan;
+      input[1].ki.dwExtraInfo = extra_info;
+
+      SendInput(2, input, sizeof(INPUT));
+    }
+    else
+    {
+      input[0].type = INPUT_KEYBOARD;
+      input[0].ki.dwFlags = KEYEVENTF_KEYUP;
+      input[0].ki.wVk = (WORD)keyval;
+      input[0].ki.wScan = key_scan;
+      input[0].ki.dwExtraInfo = extra_info;
+
+      SendInput(1, input, sizeof(INPUT));
+    }
+  }
+}
+
+void iupdrvSendMouse(int x, int y, int bt, int status)
+{
+  SetCursorPos(x, y);
+
+  if (status != -1)
+  {
+    INPUT input[1];
+    ZeroMemory(input, sizeof(INPUT));
+
+    input[0].type = INPUT_MOUSE;
+    input[0].mi.dx = x;
+    input[0].mi.dy = y;
+    input[0].mi.dwFlags = MOUSEEVENTF_ABSOLUTE;
+
+    switch(bt)
+    {
+    case IUP_BUTTON1:
+      input[0].mi.dwFlags |= (status==1)? MOUSEEVENTF_LEFTDOWN: MOUSEEVENTF_LEFTUP;
+      break;
+    case IUP_BUTTON2:
+      input[0].mi.dwFlags |= (status==1)? MOUSEEVENTF_MIDDLEDOWN: MOUSEEVENTF_MIDDLEUP;
+      break;
+    case IUP_BUTTON3:
+      input[0].mi.dwFlags |= (status==1)? MOUSEEVENTF_RIGHTDOWN: MOUSEEVENTF_RIGHTUP;
+      break;
+    case IUP_BUTTON4:
+      input[0].mi.mouseData = XBUTTON1;
+      input[0].mi.dwFlags |= (status==1)? MOUSEEVENTF_XDOWN: MOUSEEVENTF_XUP;
+      break;
+    case IUP_BUTTON5:
+      input[0].mi.mouseData = XBUTTON2;
+      input[0].mi.dwFlags |= (status==1)? MOUSEEVENTF_XDOWN: MOUSEEVENTF_XUP;
+      break;
+    default:
+      return;
+    }
+
+    SendInput(1, input, sizeof(INPUT));
+  }
+}
+
+int iupwinSetAutoRedrawAttrib(Ihandle* ih, const char* value)
+{
+  SendMessage(ih->handle, WM_SETREDRAW, (WPARAM)iupStrBoolean(value), 0);
+  return 1;
+}
+
+void iupdrvSleep(int time)
+{
+  Sleep(time);
 }

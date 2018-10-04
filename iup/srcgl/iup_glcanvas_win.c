@@ -254,7 +254,7 @@ static Iclass* wGlCanvasGetClass(void)
   Iclass* ic = iupClassNew(iupCanvasGetClass());
 
   ic->name = "glcanvas";
-  ic->format = "A"; /* one optional callback name */
+  ic->format = "a"; /* one ACTION callback name */
   ic->nativetype = IUP_TYPECANVAS;
   ic->childtype = IUP_CHILDNONE;
   ic->is_interactive = 1;
@@ -379,7 +379,7 @@ void IupGLPalette(Ihandle* ih, int index, float r, float g, float b)
 
 void IupGLUseFont(Ihandle* ih, int first, int count, int list_base)
 {
-  HFONT old_font, font;
+  HFONT font;
 
   iupASSERT(iupObjectCheck(ih));
   if (!iupObjectCheck(ih))
@@ -396,7 +396,7 @@ void IupGLUseFont(Ihandle* ih, int first, int count, int list_base)
   font = (HFONT)IupGetAttribute(ih, "HFONT");
   if (font)
   {
-    old_font = SelectObject(ih->data->device, font);
+    HFONT old_font = SelectObject(ih->data->device, font);
     wglUseFontBitmaps(ih->data->device, first, count, list_base);
     SelectObject(ih->data->device, old_font);
   }

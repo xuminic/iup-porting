@@ -26,11 +26,15 @@
 #include "iupgtk_drv.h"
 
 
-void iupdrvFrameGetDecorOffset(Ihandle* ih, int *x, int *y)
+void iupdrvFrameGetDecorOffset(int *x, int *y)
 {
-  (void)ih;
-  *x = 0;
-  *y = 0;
+  *x = 2;
+  *y = 2;
+}
+
+int iupdrvFrameHasClientOffset(void)
+{
+  return 0;
 }
 
 static char* gtkFrameGetTitleAttrib(Ihandle* ih)
@@ -160,7 +164,7 @@ void iupdrvFrameInitClass(Iclass* ic)
   /* Driver Dependent Attribute functions */
 
   /* Overwrite Common */
-  iupClassRegisterAttribute(ic, "STANDARDFONT", NULL, gtkFrameSetStandardFontAttrib, IUPAF_SAMEASSYSTEM, "DEFAULTFONT", IUPAF_NOT_MAPPED);
+  iupClassRegisterAttribute(ic, "STANDARDFONT", NULL, gtkFrameSetStandardFontAttrib, IUPAF_SAMEASSYSTEM, "DEFAULTFONT", IUPAF_NO_SAVE|IUPAF_NOT_MAPPED);
 
   /* Visual */
   iupClassRegisterAttribute(ic, "BGCOLOR", NULL, gtkFrameSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_DEFAULT);

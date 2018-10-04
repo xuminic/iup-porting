@@ -29,6 +29,21 @@ static char* iToggleGetRadioAttrib(Ihandle* ih)
     return "NO";
 }
 
+static int iToggleSetFlatAttrib(Ihandle* ih, const char* value)
+{
+  if (!ih->handle)  /* set only before map */
+    ih->data->flat = iupStrBoolean(value);
+  return 0;
+}
+
+static char* iToggleGetFlatAttrib(Ihandle *ih)
+{
+  if (ih->data->flat)
+    return "Yes";
+  else
+    return "No";
+}
+
 char* iupToggleGetPaddingAttrib(Ihandle* ih)
 {
   char *str = iupStrGetMemory(50);
@@ -107,7 +122,7 @@ Iclass* iupToggleGetClass(void)
   Iclass* ic = iupClassNew(NULL);
 
   ic->name = "toggle";
-  ic->format = "SA"; /* one optional string and one optional callback name */
+  ic->format = "sa"; /* one string and one ACTION callback name */
   ic->nativetype = IUP_TYPECONTROL;
   ic->childtype = IUP_CHILDNONE;
   ic->is_interactive = 1;
@@ -133,6 +148,7 @@ Iclass* iupToggleGetClass(void)
 
   iupClassRegisterAttribute(ic, "RADIO", iToggleGetRadioAttrib, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "3STATE", NULL, NULL, NULL, NULL, IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "FLAT", iToggleGetFlatAttrib, iToggleSetFlatAttrib, IUPAF_SAMEASSYSTEM, "No", IUPAF_NOT_MAPPED|IUPAF_DEFAULT);
 
   iupdrvToggleInitClass(ic);
 

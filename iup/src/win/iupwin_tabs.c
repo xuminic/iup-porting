@@ -319,10 +319,9 @@ static int winTabsSetTabTypeAttrib(Ihandle* ih, const char* value)
   return 0;
 }
 
-static int winTabsSetTabTitleAttrib(Ihandle* ih, const char* name_id, const char* value)
+static int winTabsSetTabTitleAttrib(Ihandle* ih, int pos, const char* value)
 {
-  int pos;
-  if (value && iupStrToInt(name_id, &pos)==1)
+  if (value)
   {
     TCITEM tie;
 
@@ -335,10 +334,9 @@ static int winTabsSetTabTitleAttrib(Ihandle* ih, const char* name_id, const char
   return 1;
 }
 
-static int winTabsSetTabImageAttrib(Ihandle* ih, const char* name_id, const char* value)
+static int winTabsSetTabImageAttrib(Ihandle* ih, int pos, const char* value)
 {
-  int pos;
-  if (value && iupStrToInt(name_id, &pos)==1)
+  if (value)
   {
     TCITEM tie;
 
@@ -432,6 +430,12 @@ static int winTabsWmNotify(Ihandle* ih, NMHDR* msg_info, int *result)
       if (prev_child)
         cb(ih, child, prev_child);
     }
+    else
+    {
+      IFnii cb2 = (IFnii)IupGetCallback(ih, "TABCHANGEPOS_CB");
+      if (cb2)
+        cb2(ih, pos, prev_pos);
+    }
   }
 
   return 0; /* result not used */
@@ -480,10 +484,20 @@ static void winTabsChildAddedMethod(Ihandle* ih, Ihandle* child)
     if (pos == 0)
       ShowWindow(tab_page, SW_SHOW);
 
-    tabtitle = iupAttribGet(child, "TABTITLE");
-    if (!tabtitle) tabtitle = iupTabsAttribGetStrId(ih, "TABTITLE", pos);
-    tabimage = iupAttribGet(child, "TABIMAGE");
-    if (!tabimage) tabimage = iupTabsAttribGetStrId(ih, "TABIMAGE", pos);
+    tabtitle = iupTabsAttribGetStrId(ih, "TABTITLE", pos);
+    if (!tabtitle) 
+    {
+      tabtitle = iupAttribGet(child, "TABTITLE");
+      if (tabtitle)
+        iupTabsAttribSetStrId(ih, "TABTITLE", pos, tabtitle);
+    }
+    tabimage = iupTabsAttribGetStrId(ih, "TABIMAGE", pos);
+    if (!tabimage) 
+    {
+      tabimage = iupAttribGet(child, "TABIMAGE");
+      if (tabimage)
+        iupTabsAttribSetStrId(ih, "TABIMAGE", pos, tabimage);
+    }
     if (!tabtitle && !tabimage)
       tabtitle = "     ";
 
@@ -669,7 +683,7 @@ void iupdrvTabsInitClass(Iclass* ic)
   /* Driver Dependent Attribute functions */
 
   /* Visual */
-  iupClassRegisterAttribute(ic, "BGCOLOR", winTabsGetBgColorAttrib, winTabsSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_DEFAULT);
+  iupClassRegisterAttribute(ic, "BGCOLOR", winTabsGetBgColorAttrib, winTabsSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_NO_SAVE|IUPAF_DEFAULT);
 
   /* Special */
   iupClassRegisterAttribute(ic, "FGCOLOR", NULL, NULL, IUPAF_SAMEASSYSTEM, "DLGFGCOLOR", IUPAF_NOT_MAPPED);
@@ -679,7 +693,7 @@ void iupdrvTabsInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "TABORIENTATION", iupTabsGetTabOrientationAttrib, NULL, IUPAF_SAMEASSYSTEM, "HORIZONTAL", IUPAF_READONLY|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);  /* can not be set, depends on TABTYPE in Windows */
   iupClassRegisterAttribute(ic, "MULTILINE", winTabsGetMultilineAttrib, winTabsSetMultilineAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "TABTITLE", NULL, winTabsSetTabTitleAttrib, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
-  iupClassRegisterAttributeId(ic, "TABIMAGE", NULL, winTabsSetTabImageAttrib, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "TABIMAGE", NULL, winTabsSetTabImageAttrib, IUPAF_IHANDLENAME|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "PADDING", iupTabsGetPaddingAttrib, winTabsSetPaddingAttrib, IUPAF_SAMEASSYSTEM, "0x0", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 
   /* necessary because transparent background does not work when not using visual styles */

@@ -74,9 +74,9 @@ static int iMatrixEditDropDownAction_CB(Ihandle* ih, char* t, int i, int v)
   return IUP_DEFAULT;
 }
 
-static void iMatrixEditChooseElement(Ihandle* ih, int lin, int col)
+static void iMatrixEditChooseElement(Ihandle* ih)
 {
-  int drop = iMatrixEditCallDropdownCb(ih, lin, col);
+  int drop = iMatrixEditCallDropdownCb(ih, ih->data->lines.focus_cell, ih->data->columns.focus_cell);
   if(drop)
     ih->data->datah = ih->data->droph;
   else
@@ -201,6 +201,10 @@ int iupMatrixEditShow(Ihandle* ih)
     return 0;
   }
 
+  /* there are no cells that can be edited */
+  if (ih->data->columns.num <= 1 || ih->data->lines.num <= 1)
+    return 0;
+
   /* not active */
   if(!IupGetInt(ih, "ACTIVE"))
     return 0;
@@ -214,7 +218,7 @@ int iupMatrixEditShow(Ihandle* ih)
     return 0;
 
   /* select edit control */
-  iMatrixEditChooseElement(ih, ih->data->lines.focus_cell, ih->data->columns.focus_cell);
+  iMatrixEditChooseElement(ih);
 
   /* position the cell to make it visible */
   /* If the focus is not visible, a scroll is done for that the focus to be visible */
@@ -372,7 +376,7 @@ static int iMatrixEditTextKeyAny_CB(Ihandle* ih, int c)
       break;
     case K_ESC:
       iMatrixEditCancel(ih_matrix, 1, 0, 0); /* set focus + NO update + NO ignore */
-      return IUP_IGNORE;
+      return IUP_IGNORE;  /* always ignore to avoid the defaultesc behavior from here */
     case K_CR:
       if (iupMatrixEditHide(ih_matrix) == IUP_DEFAULT)
       {
@@ -388,9 +392,8 @@ static int iMatrixEditTextKeyAny_CB(Ihandle* ih, int c)
           iupMatrixAuxCallEnterCellCb(ih_matrix);
         }
         iupMatrixDrawUpdate(ih_matrix);
-        return IUP_IGNORE;
       }
-      break;
+      return IUP_IGNORE;  /* always ignore to avoid the defaultenter behavior from here */
   }
 
   return IUP_CONTINUE;

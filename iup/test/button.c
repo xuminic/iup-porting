@@ -263,15 +263,13 @@ void ButtonTest(void)
 //  IupSetAttribute(box1, "BGCOLOR", "75 150 170");
 //  IupSetAttribute(box1, "PADDING", "15x15");
 
-  button = IupButton("ACTIVE", NULL);
+  button = IupButton(NULL, NULL);
   IupSetAttribute(button, "TITLE", "Button Text");
   IupSetCallback(button, "ACTION", active_cb);
   IupAppend(box1, button);
 
   button = IupButton(NULL, NULL);
-  IupSetAttribute(button, "TITLE", "Text (згн)");
-//  IupSetAttribute(button, "TITLE", "Text");
-  //IupSetAttribute(button, "TITLE", "Text &Button\nSecond Line");
+  IupSetAttribute(button, "TITLE", "&Text (згн)");
   IupSetAttribute(button, "TIP", "Button Tip");
   //IupSetAttribute(button, "PADDING", "15x15");
   //IupSetAttribute(button, "BGCOLOR", "128 128 255");
@@ -281,6 +279,7 @@ void ButtonTest(void)
   IupSetAttribute(button, "ALIGNMENT", "ACENTER:ACENTER");
 //  IupSetAttribute(button, "ALIGNMENT", "ALEFT:ATOP");
   IupSetAttribute(button, "NAME", "button1");
+  IupSetAttribute(button, "CANFOCUS", "NO");
   set_callbacks(button);
   IupAppend(box1, button);
 
@@ -301,6 +300,13 @@ void ButtonTest(void)
   IupSetAttribute(button, "MARKUP", "YES");
   IupSetAttribute(button, "NAME", "button3");
   IupSetAttribute(button, "CANFOCUS", "NO");
+  set_callbacks(button);
+  IupAppend(box1, button);
+
+  button = IupButton(NULL, NULL);
+  IupSetAttribute(button, "RASTERSIZE", "30x30");
+  IupSetAttribute(button, "BGCOLOR", "255 128 92");
+  IupSetAttribute(button, "NAME", "color");
   set_callbacks(button);
   IupAppend(box1, button);
 
@@ -325,6 +331,7 @@ void ButtonTest(void)
   IupSetAttribute(image1i, "3", "0 0 255"); 
   IupSetAttribute(image1i, "4", "255 255 255"); 
   IupSetAttribute(image1i, "5", "0 0 0"); 
+  IupSetHandle("image1i", image1i); /* so it will be destroyed even when not used */
 
   image1p = IupImage(TEST_IMAGE_SIZE, TEST_IMAGE_SIZE, image_data_8_pressed);
   IupSetAttribute(image1p, "0", "BGCOLOR");
@@ -366,10 +373,9 @@ void ButtonTest(void)
 //  IupSetAttribute(button, "SPACING", "30");
 //  IupSetAttribute(button, "ALIGNMENT", "ALEFT");
 //  IupSetAttribute(button, "RASTERSIZE", "200x100");
-  IupSetAttribute(button, "FLAT", "YES");
-//  IupSetAttribute(button, "CANFOCUS", "NO");
+//  IupSetAttribute(button, "FLAT", "YES");
 //  IupSetAttributeHandle(button, "IMPRESS", image2);
-//  IupSetAttribute(button, "FOCUSONCLICK", "NO");
+  IupSetAttribute(button, "CANFOCUS", "NO");
 //  IupSetAttribute(button, "RASTERSIZE", "15x15");
   IupSetAttribute(button, "NAME", "button5");
   set_callbacks(button);
@@ -386,19 +392,15 @@ void ButtonTest(void)
 
   label = IupLabel(NULL);
   IupSetAttribute(label, "SEPARATOR", "VERTICAL");
-  IupSetHandle("teste1", label);
-  IupSetHandle("xxxx", label);
-  IupSetHandle("teste2", label);
-  IupSetHandle("yyy", label);
-  IupSetHandle("dasdasdas", label);
-  IupSetHandle("label", label);
+  IupSetHandle("seplabel", label);
 
   dlg = IupDialog(IupHbox(box1, label, box2, NULL));
   IupSetAttribute(dlg, "TITLE", "IupButton Test");
 //  IupSetAttribute(box1, "BGCOLOR", "128 0 0");
 //  IupSetAttribute(dlg, "BGCOLOR", "0 128 0");
-  IupSetAttribute(dlg, "BACKGROUND", "255 128 128");
+//  IupSetAttribute(dlg, "BACKGROUND", "255 128 128");
 //  IupSetAttributeHandle(dlg, "BACKGROUND", image2);
+//  IupSetAttribute(dlg, "BGCOLOR", "173 177 194");  // Motif BGCOLOR for documentation
 
   IupSetAttributeHandle(dlg, "STARTFOCUS", button);
 

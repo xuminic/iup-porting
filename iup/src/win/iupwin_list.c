@@ -35,7 +35,7 @@
 #define	EM_SETCUEBANNER	    (ECM_FIRST + 1)
 #endif
 
-#define WM_CARET WM_APP+1   /* Custom IUP message */
+#define WM_IUPCARET WM_APP+1   /* Custom IUP message */
 
 #define WIN_GETCOUNT(_ih) ((_ih->data->is_dropdown || _ih->data->has_editbox)? CB_GETCOUNT: LB_GETCOUNT)
 #define WIN_GETTEXTLEN(_ih) ((_ih->data->is_dropdown || _ih->data->has_editbox)? CB_GETLBTEXTLEN: LB_GETTEXTLEN)
@@ -69,13 +69,9 @@ void iupdrvListAddBorders(Ihandle* ih, int *x, int *y)
   {
     (*x) += 3; /* extra space for the dropdown button */
 
-    if (ih->data->has_editbox)
-    {
-      /* extra border for the editbox */
-      int internal_border_size = 2*6;
-      (*x) += internal_border_size; 
-      (*y) += internal_border_size;
-    }
+    /* IMPORTANT: In Windows the DROPDOWN box is always sized by the system
+       to have the height just right to include the borders and the text.
+       So the user height from RASTERSIZE or SIZE will be always ignored. */
   }
   else
   {
@@ -249,9 +245,9 @@ static int winListSetStandardFontAttrib(Ihandle* ih, const char* value)
   return 1;
 }
 
-static char* winListGetIdValueAttrib(Ihandle* ih, const char* name_id)
+static char* winListGetIdValueAttrib(Ihandle* ih, int id)
 {
-  int pos = iupListGetPos(ih, name_id);
+  int pos = iupListGetPos(ih, id);
   if (pos >= 0)
   {
     int len = SendMessage(ih->handle, WIN_GETTEXTLEN(ih), (WPARAM)pos, 0);
@@ -1061,7 +1057,7 @@ static int winListEditProc(Ihandle* ih, HWND cbedit, UINT msg, WPARAM wp, LPARAM
           ret = 1;
       }
 
-      PostMessage(cbedit, WM_CARET, 0, 0L);
+      PostMessage(cbedit, WM_IUPCARET, 0, 0L);
 
       if (wp==VK_TAB)  /* the keys have the same definitions as the chars */
         ret = 1;  /* abort default processing to avoid beep */
@@ -1080,7 +1076,7 @@ static int winListEditProc(Ihandle* ih, HWND cbedit, UINT msg, WPARAM wp, LPARAM
         SendMessage(cbedit, EM_SETSEL, (WPARAM)0, (LPARAM)-1);
       }
 
-      PostMessage(cbedit, WM_CARET, 0, 0L);
+      PostMessage(cbedit, WM_IUPCARET, 0, 0L);
       break;
     }
   case WM_CLEAR:
@@ -1088,7 +1084,7 @@ static int winListEditProc(Ihandle* ih, HWND cbedit, UINT msg, WPARAM wp, LPARAM
       if (!winListCallEditCb(ih, cbedit, NULL, 0, 1))
         ret = 1;
 
-      PostMessage(cbedit, WM_CARET, 0, 0L);
+      PostMessage(cbedit, WM_IUPCARET, 0, 0L);
       break;
     }
   case WM_CUT:
@@ -1096,7 +1092,7 @@ static int winListEditProc(Ihandle* ih, HWND cbedit, UINT msg, WPARAM wp, LPARAM
       if (!winListCallEditCb(ih, cbedit, NULL, 0, 1))
         ret = 1;
 
-      PostMessage(cbedit, WM_CARET, 0, 0L);
+      PostMessage(cbedit, WM_IUPCARET, 0, 0L);
       break;
     }
   case WM_PASTE:
@@ -1112,7 +1108,7 @@ static int winListEditProc(Ihandle* ih, HWND cbedit, UINT msg, WPARAM wp, LPARAM
         }
       }
 
-      PostMessage(cbedit, WM_CARET, 0, 0L);
+      PostMessage(cbedit, WM_IUPCARET, 0, 0L);
       break;
     }
   case WM_UNDO:
@@ -1130,7 +1126,7 @@ static int winListEditProc(Ihandle* ih, HWND cbedit, UINT msg, WPARAM wp, LPARAM
         ret = 1;
       }
 
-      PostMessage(cbedit, WM_CARET, 0, 0L);
+      PostMessage(cbedit, WM_IUPCARET, 0, 0L);
       break;
     }
   case WM_KEYUP:
@@ -1143,9 +1139,9 @@ static int winListEditProc(Ihandle* ih, HWND cbedit, UINT msg, WPARAM wp, LPARAM
   case WM_MBUTTONUP:
   case WM_RBUTTONUP:
   case WM_LBUTTONUP:
-    PostMessage(cbedit, WM_CARET, 0, 0L);
+    PostMessage(cbedit, WM_IUPCARET, 0, 0L);
     break;
-  case WM_CARET:
+  case WM_IUPCARET:
     winListCallCaretCb(ih, cbedit);
     break;
   }
@@ -1460,13 +1456,14 @@ void iupdrvListInitClass(Iclass* ic)
 
   /* Driver Dependent Attribute functions */
 
-  iupClassRegisterAttribute(ic, "STANDARDFONT", NULL, winListSetStandardFontAttrib, IUPAF_SAMEASSYSTEM, "DEFAULTFONT", IUPAF_NOT_MAPPED);
+  iupClassRegisterAttribute(ic, "STANDARDFONT", NULL, winListSetStandardFontAttrib, IUPAF_SAMEASSYSTEM, "DEFAULTFONT", IUPAF_NO_SAVE|IUPAF_NOT_MAPPED);
 
   /* Visual */
   iupClassRegisterAttribute(ic, "BGCOLOR", NULL, winListSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "TXTBGCOLOR", IUPAF_NOT_MAPPED);
 
   /* Special */
   iupClassRegisterAttribute(ic, "FGCOLOR", NULL, NULL, IUPAF_SAMEASSYSTEM, "TXTFGCOLOR", IUPAF_NOT_MAPPED);
+  iupClassRegisterAttribute(ic, "AUTOREDRAW", NULL, iupwinSetAutoRedrawAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NO_INHERIT);
 
   /* IupList only */
   iupClassRegisterAttributeId(ic, "IDVALUE", winListGetIdValueAttrib, iupListSetIdValueAttrib, IUPAF_NO_INHERIT);
@@ -1476,14 +1473,14 @@ void iupdrvListInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "VISIBLE_ITEMS", NULL, NULL, IUPAF_SAMEASSYSTEM, "5", IUPAF_DEFAULT);
   iupClassRegisterAttribute(ic, "DROPEXPAND", NULL, NULL, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "DRAGDROP", NULL, iupwinSetDragDropAttrib, NULL, NULL, IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "SPACING", iupListGetSpacingAttrib, winListSetSpacingAttrib, NULL, NULL, IUPAF_NOT_MAPPED);
+  iupClassRegisterAttribute(ic, "SPACING", iupListGetSpacingAttrib, winListSetSpacingAttrib, IUPAF_SAMEASSYSTEM, "0", IUPAF_NOT_MAPPED);
 
   iupClassRegisterAttribute(ic, "PADDING", iupListGetPaddingAttrib, winListSetPaddingAttrib, IUPAF_SAMEASSYSTEM, "0x0", IUPAF_NOT_MAPPED);
   iupClassRegisterAttribute(ic, "SELECTEDTEXT", winListGetSelectedTextAttrib, winListSetSelectedTextAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SELECTION", winListGetSelectionAttrib, winListSetSelectionAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SELECTIONPOS", winListGetSelectionPosAttrib, winListSetSelectionPosAttrib, NULL, NULL, IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "CARET", winListGetCaretAttrib, winListSetCaretAttrib, NULL, NULL, IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "CARETPOS", winListGetCaretPosAttrib, winListSetCaretPosAttrib, NULL, NULL, IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "CARET", winListGetCaretAttrib, winListSetCaretAttrib, NULL, NULL, IUPAF_NO_SAVE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "CARETPOS", winListGetCaretPosAttrib, winListSetCaretPosAttrib, IUPAF_SAMEASSYSTEM, "0", IUPAF_NO_SAVE|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "INSERT", NULL, winListSetInsertAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "APPEND", NULL, winListSetAppendAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "READONLY", winListGetReadOnlyAttrib, winListSetReadOnlyAttrib, NULL, NULL, IUPAF_DEFAULT);

@@ -50,17 +50,11 @@ int iupdrvDialogIsVisible(Ihandle* ih)
   return iupdrvIsVisible(ih);
 }
 
-void iupdrvDialogUpdateSize(Ihandle* ih)
+void iupdrvDialogGetSize(Ihandle* ih, InativeHandle* handle, int *w, int *h)
 {
   RECT rect;
-  GetWindowRect(ih->handle, &rect);
-  ih->currentwidth = rect.right-rect.left;
-  ih->currentheight = rect.bottom-rect.top;
-}
-
-void iupdrvDialogGetSize(InativeHandle* handle, int *w, int *h)
-{
-  RECT rect;
+  if (!handle)
+    handle = ih->handle;
   GetWindowRect(handle, &rect);
   if (w) *w = rect.right-rect.left;
   if (h) *h = rect.bottom-rect.top;
@@ -85,6 +79,23 @@ void iupdrvDialogSetPosition(Ihandle *ih, int x, int y)
   SetWindowPos(ih->handle, HWND_TOP, x, y, 0, 0, SWP_NOSIZE);
 }
 
+static void winDialogGetWindowDecor(Ihandle* ih, int *border, int *caption)
+{
+  WINDOWINFO wi;
+  wi.cbSize = sizeof(WINDOWINFO);
+  GetWindowInfo(ih->handle, &wi);
+
+  *border = wi.cxWindowBorders;
+
+  if (wi.rcClient.bottom == wi.rcClient.top)
+    *caption = wi.rcClient.bottom - wi.cyWindowBorders; 
+  else
+  {
+    /* caption = window height - top border - client height */
+    *caption = (wi.rcWindow.bottom-wi.rcWindow.top) - 2*wi.cyWindowBorders - (wi.rcClient.bottom-wi.rcClient.top); 
+  }
+}
+
 void iupdrvDialogGetDecoration(Ihandle* ih, int *border, int *caption, int *menu)
 {
   if (ih->data->menu)
@@ -94,7 +105,7 @@ void iupdrvDialogGetDecoration(Ihandle* ih, int *border, int *caption, int *menu
 
   if (ih->handle)
   {
-    iupdrvGetWindowDecor(ih->handle, border, caption);
+    winDialogGetWindowDecor(ih, border, caption);
 
     if (*menu)
       *caption -= *menu;
@@ -254,7 +265,7 @@ static void winDialogResize(Ihandle* ih, int width, int height)
 {
   IFnii cb;
 
-  iupdrvDialogUpdateSize(ih);
+  iupdrvDialogGetSize(ih, NULL, &(ih->currentwidth), &(ih->currentheight));
 
   cb = (IFnii)IupGetCallback(ih, "RESIZE_CB");
   if (!cb || cb(ih, width, height)!=IUP_IGNORE)  /* width and height here are for the client area */
@@ -303,9 +314,9 @@ static int winDialogBaseProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESUL
           if (ih->data->show_state != IUP_MINIMIZE)
           {
             IFni show_cb = (IFni)IupGetCallback(ih, "SHOW_CB");
+            ih->data->show_state = IUP_MINIMIZE;
             if (show_cb && show_cb(ih, IUP_MINIMIZE) == IUP_CLOSE)
               IupExitLoop();
-            ih->data->show_state = IUP_MINIMIZE;
           }
           break;
         }
@@ -314,9 +325,9 @@ static int winDialogBaseProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESUL
           if (ih->data->show_state != IUP_MAXIMIZE)
           {
             IFni show_cb = (IFni)IupGetCallback(ih, "SHOW_CB");
+            ih->data->show_state = IUP_MAXIMIZE;
             if (show_cb && show_cb(ih, IUP_MAXIMIZE) == IUP_CLOSE)
               IupExitLoop();
-            ih->data->show_state = IUP_MAXIMIZE;
           }
 
           winDialogResize(ih, LOWORD(lp), HIWORD(lp));
@@ -327,9 +338,9 @@ static int winDialogBaseProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESUL
           if (ih->data->show_state == IUP_MAXIMIZE || ih->data->show_state == IUP_MINIMIZE)
           {
             IFni show_cb = (IFni)IupGetCallback(ih, "SHOW_CB");
+            ih->data->show_state = IUP_RESTORE;
             if (show_cb && show_cb(ih, IUP_RESTORE) == IUP_CLOSE)
               IupExitLoop();
-            ih->data->show_state = IUP_RESTORE;
           }
 
           winDialogResize(ih, LOWORD(lp), HIWORD(lp));
@@ -954,6 +965,12 @@ static void winDialogReleaseMethod(Iclass* ic)
 ****************************************************************************/
 
 
+static char* winDialogGetClientOffsetAttrib(Ihandle *ih)
+{
+  (void)ih;
+  return "0x0";
+}
+
 static int winDialogSetBgColorAttrib(Ihandle* ih, const char* value)
 {
   unsigned char r, g, b;
@@ -1405,11 +1422,12 @@ void iupdrvDialogInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "TITLE", iupdrvBaseGetTitleAttrib, iupdrvBaseSetTitleAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
 
   /* Base Container */
-  iupClassRegisterAttribute(ic, "CLIENTSIZE", iupdrvBaseGetClientSizeAttrib, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_READONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "CLIENTSIZE", iupdrvBaseGetClientSizeAttrib, iupDialogSetClientSizeAttrib, NULL, NULL, IUPAF_NO_SAVE|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);  /* dialog is the only not read-only */
+  iupClassRegisterAttribute(ic, "CLIENTOFFSET", winDialogGetClientOffsetAttrib, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_READONLY|IUPAF_NO_INHERIT);
 
   /* IupDialog only */
   iupClassRegisterAttribute(ic, "BACKGROUND", NULL, winDialogSetBackgroundAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "ICON", NULL, winDialogSetIconAttrib, NULL, NULL, IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "ICON", NULL, winDialogSetIconAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "FULLSCREEN", NULL, winDialogSetFullScreenAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SAVEUNDER", NULL, NULL, IUPAF_SAMEASSYSTEM, "YES", IUPAF_READONLY|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "MINSIZE", NULL, NULL, IUPAF_SAMEASSYSTEM, "1x1", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
@@ -1441,4 +1459,7 @@ void iupdrvDialogInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "TRAY", NULL, winDialogSetTrayAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "TRAYIMAGE", NULL, winDialogSetTrayImageAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "TRAYTIP", NULL, winDialogSetTrayTipAttrib, NULL, NULL, IUPAF_NO_INHERIT);
+
+  /* Not Supported */
+  iupClassRegisterAttribute(ic, "DIALOGHINT", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
 }

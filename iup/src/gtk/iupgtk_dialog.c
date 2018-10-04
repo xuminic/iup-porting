@@ -49,20 +49,20 @@ int iupdrvDialogIsVisible(Ihandle* ih)
   return iupdrvIsVisible(ih);
 }
 
-void iupdrvDialogUpdateSize(Ihandle* ih)
+void iupdrvDialogGetSize(Ihandle* ih, InativeHandle* handle, int *w, int *h)
 {
   int width, height;
-  gtk_window_get_size((GtkWindow*)ih->handle, &width, &height);
-  ih->currentwidth = width;
-  ih->currentheight = height;
-}
+  int border = 0, caption = 0, menu;
+  if (!handle)
+    handle = ih->handle;
 
-void iupdrvDialogGetSize(InativeHandle* handle, int *w, int *h)
-{
-  int width, height;
-  gtk_window_get_size((GtkWindow*)handle, &width, &height);
-  if (w) *w = width;
-  if (h) *h = height;
+  gtk_window_get_size((GtkWindow*)handle, &width, &height);  /* client size */
+
+  if (ih)
+    iupdrvDialogGetDecoration(ih, &border, &caption, &menu);
+
+  if (w) *w = width + 2*border;
+  if (h) *h = height + 2*border + caption;  /* menu is inside the dialog_manager */
 }
 
 void iupdrvDialogSetVisible(Ihandle* ih, int visible)
@@ -95,14 +95,13 @@ static int gtkDialogGetMenuSize(Ihandle* ih)
 #endif
 }
 
-static int gtkDialogGetWindowDecor(Ihandle* ih, int *win_border, int *win_caption)
+static void gtkDialogGetWindowDecor(Ihandle* ih, int *win_border, int *win_caption)
 {
   int x, y, frame_x, frame_y;
   gdk_window_get_origin(ih->handle->window, &x, &y);
   gdk_window_get_root_origin(ih->handle->window, &frame_x, &frame_y);
   *win_border = x-frame_x;
   *win_caption = y-frame_y-*win_border;
-  return 1;  /* just for compatibility with iupdrvGetWindowDecor */
 }
 
 void iupdrvDialogGetDecoration(Ihandle* ih, int *border, int *caption, int *menu)
@@ -135,28 +134,26 @@ void iupdrvDialogGetDecoration(Ihandle* ih, int *border, int *caption, int *menu
   if (ih->handle && iupdrvIsVisible(ih))
   {
     int win_border, win_caption;
+    gtkDialogGetWindowDecor(ih, &win_border, &win_caption);
 
-    if (gtkDialogGetWindowDecor(ih, &win_border, &win_caption))
-    {
 #ifdef WIN32
-      if (*menu)
-        win_caption -= *menu;
+    if (*menu)
+      win_caption -= *menu;
 #endif
 
-      *border = 0;
-      if (has_border)
-        *border = win_border;
+    *border = 0;
+    if (has_border)
+      *border = win_border;
 
-      *caption = 0;
-      if (has_titlebar)
-        *caption = win_caption;
+    *caption = 0;
+    if (has_titlebar)
+      *caption = win_caption;
 
-      if (!native_border && *border)
-        native_border = win_border;
+    if (!native_border && *border)
+      native_border = win_border;
 
-      if (!native_caption && *caption)
-        native_caption = win_caption;
-    }
+    if (!native_caption && *caption)
+      native_caption = win_caption;
   }
 
   /* I could not set the size of the window including the decorations when the dialog is hidden */
@@ -733,9 +730,19 @@ static char* gtkDialogGetClientSizeAttrib(Ihandle *ih)
  
   int width, height;
   gtk_window_get_size((GtkWindow*)ih->handle, &width, &height);
+
+  /* remove the menu because it is placed inside the client area */
   height -= gtkDialogGetMenuSize(ih);
 
   sprintf(str, "%dx%d", width, height);
+  return str;
+}
+
+static char* gtkDialogGetClientOffsetAttrib(Ihandle *ih)
+{
+  char* str = iupStrGetMemory(20);
+  /* remove the menu because it is placed inside the client area */
+  sprintf(str, "0x%d", -gtkDialogGetMenuSize(ih));
   return str;
 }
 
@@ -1006,14 +1013,15 @@ void iupdrvDialogInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "Y", gtkDialogGetYAttrib, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_READONLY|IUPAF_NO_INHERIT);
 
   /* Base Container */
-  iupClassRegisterAttribute(ic, "CLIENTSIZE", gtkDialogGetClientSizeAttrib, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_READONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "CLIENTSIZE", gtkDialogGetClientSizeAttrib, iupDialogSetClientSizeAttrib, NULL, NULL, IUPAF_NO_SAVE|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);  /* dialog is the only not read-only */
+  iupClassRegisterAttribute(ic, "CLIENTOFFSET", gtkDialogGetClientOffsetAttrib, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_READONLY|IUPAF_NO_INHERIT);
 
   /* Special */
   iupClassRegisterAttribute(ic, "TITLE", gtkDialogGetTitleAttrib, gtkDialogSetTitleAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
 
   /* IupDialog only */
   iupClassRegisterAttribute(ic, "BACKGROUND", NULL, gtkDialogSetBackgroundAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "ICON", NULL, gtkDialogSetIconAttrib, NULL, NULL, IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "ICON", NULL, gtkDialogSetIconAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "FULLSCREEN", NULL, gtkDialogSetFullScreenAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "MINSIZE", NULL, gtkDialogSetMinSizeAttrib, IUPAF_SAMEASSYSTEM, "1x1", IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "MAXSIZE", NULL, gtkDialogSetMaxSizeAttrib, IUPAF_SAMEASSYSTEM, "65535x65535", IUPAF_NO_INHERIT);
@@ -1031,4 +1039,15 @@ void iupdrvDialogInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "TRAYIMAGE", NULL, gtkDialogSetTrayImageAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "TRAYTIP", NULL, gtkDialogSetTrayTipAttrib, NULL, NULL, IUPAF_NO_INHERIT);
 #endif
+
+  /* Not Supported */
+  iupClassRegisterAttribute(ic, "BRINGFRONT", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "COMPOSITED", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NOT_MAPPED);
+  iupClassRegisterAttribute(ic, "CONTROL", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "HELPBUTTON", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "TOOLBOX", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "MDIFRAME", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "MDICLIENT", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "MDIMENU", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "MDICHILD", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
 }

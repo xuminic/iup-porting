@@ -137,7 +137,7 @@ static int iChildFind(Ihandle* parent, Ihandle* child)
   return 0;
 }
 
-static void iChildInsert(Ihandle* parent, Ihandle* ref_child, Ihandle* child)
+static void iupChildTreeInsert(Ihandle* parent, Ihandle* ref_child, Ihandle* child)
 {
   Ihandle *c, 
           *c_prev = NULL;
@@ -157,11 +157,26 @@ static void iChildInsert(Ihandle* parent, Ihandle* ref_child, Ihandle* child)
         parent->firstchild = child;
       else
         c_prev->brother = child;
+
       return;
     }
 
     c_prev = c;
   }
+}
+
+static int iChildCount(Ihandle* ih)
+{
+  int num = 0;
+
+  ih = ih->firstchild;
+  while(ih)
+  {
+    num++;
+    ih = ih->brother;
+  }
+
+  return num;
 }
 
 Ihandle* IupInsert(Ihandle* parent, Ihandle* ref_child, Ihandle* child)
@@ -194,7 +209,8 @@ Ihandle* IupInsert(Ihandle* parent, Ihandle* ref_child, Ihandle* child)
 
   if (parent->iclass->childtype == IUP_CHILDNONE)
     return NULL;
-  if (parent->iclass->childtype == IUP_CHILD_ONE && parent->firstchild)
+  if (parent->iclass->childtype > IUP_CHILDMANY && 
+      iChildCount(parent) == parent->iclass->childtype-IUP_CHILDMANY)
     return NULL;
 
 
@@ -203,7 +219,7 @@ Ihandle* IupInsert(Ihandle* parent, Ihandle* ref_child, Ihandle* child)
       iChildFind(parent, child))
   {
     iChildDetach(parent, child);
-    iChildInsert(parent, ref_child, child);
+    iupChildTreeInsert(parent, ref_child, child);
   }
   else
   {
@@ -211,7 +227,7 @@ Ihandle* IupInsert(Ihandle* parent, Ihandle* ref_child, Ihandle* child)
     if (child->handle)
       return NULL;
 
-    iChildInsert(parent, ref_child, child);
+    iupChildTreeInsert(parent, ref_child, child);
     iupClassObjectChildAdded(parent, child);
     if (top_parent != parent)
       iupClassObjectChildAdded(top_parent, child);
@@ -263,7 +279,8 @@ Ihandle* IupAppend(Ihandle* parent, Ihandle* child)
 
   if (parent->iclass->childtype == IUP_CHILDNONE)
     return NULL;
-  if (parent->iclass->childtype == IUP_CHILD_ONE && parent->firstchild)
+  if (parent->iclass->childtype > IUP_CHILDMANY && 
+      iChildCount(parent) == parent->iclass->childtype-IUP_CHILDMANY)
     return NULL;
 
 
@@ -304,7 +321,7 @@ static void iChildReparent(Ihandle* child, Ihandle* new_parent)
   }
 }
 
-int IupReparent(Ihandle* child, Ihandle* parent)
+int IupReparent(Ihandle* child, Ihandle* parent, Ihandle* ref_child)
 {
   Ihandle* top_parent = parent;
   Ihandle* old_parent;
@@ -317,6 +334,13 @@ int IupReparent(Ihandle* child, Ihandle* parent)
   if (!iupObjectCheck(child))
     return IUP_ERROR;
 
+  if (ref_child)
+  {
+    /* can be NULL, but if not NULL must be a valid object */
+    iupASSERT(iupObjectCheck(ref_child));
+    if (!iupObjectCheck(ref_child))
+      return IUP_ERROR;
+  }
 
   /* this will return the actual parent */
   parent = iupClassObjectGetInnerContainer(top_parent);
@@ -325,7 +349,8 @@ int IupReparent(Ihandle* child, Ihandle* parent)
 
   if (parent->iclass->childtype == IUP_CHILDNONE)
     return IUP_ERROR;
-  if (parent->iclass->childtype == IUP_CHILD_ONE && parent->firstchild)
+  if (parent->iclass->childtype > IUP_CHILDMANY && 
+      iChildCount(parent) == parent->iclass->childtype-IUP_CHILDMANY)
     return IUP_ERROR;
 
 
@@ -342,7 +367,10 @@ int IupReparent(Ihandle* child, Ihandle* parent)
 
  
   /* attach to new parent */
-  iupChildTreeAppend(parent, child);
+  if (ref_child)
+    iupChildTreeInsert(parent, ref_child, child);
+  else
+    iupChildTreeAppend(parent, child);
   iupClassObjectChildAdded(parent, child);
   if (top_parent != parent)
     iupClassObjectChildAdded(top_parent, child);
@@ -395,6 +423,21 @@ int IupGetChildPos(Ihandle* ih, Ihandle* child)
   return -1;
 }
 
+Ihandle* iupChildTreeGetPrevBrother(Ihandle* ih)
+{
+  Ihandle *c, *prev = NULL;
+
+  for (c = ih->parent->firstchild; c; c = c->brother)
+  {
+    if (c == ih)
+      return prev;
+
+    prev = c;
+  }
+
+  return NULL;
+}
+
 int IupGetChildCount(Ihandle* ih)
 {
   int count = 0;
@@ -438,6 +481,24 @@ Ihandle* IupGetParent(Ihandle *ih)
     return NULL;
     
   return ih->parent;
+}
+
+int iupChildTreeIsChild(Ihandle* ih, Ihandle* child)
+{
+  Ihandle* parent;
+
+  if (ih == child)
+    return 1;
+
+  parent = child->parent;
+  while (parent)
+  {
+    if (parent == ih)
+      return 1;
+    parent = parent->parent;
+  }
+
+  return 0;
 }
 
 Ihandle* iupChildTreeGetNativeParent(Ihandle* ih)

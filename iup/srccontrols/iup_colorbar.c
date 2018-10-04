@@ -573,30 +573,26 @@ static char* iColorbarGetPreviewSizeAttrib(Ihandle* ih)
   }
 }
 
-static int iColorbarSetCellAttrib(Ihandle* ih, const char* name_id, const char* value)
+static int iColorbarSetCellAttrib(Ihandle* ih, int id, const char* value)
 {
-  int idx = -1;
-  iupStrToInt(name_id, &idx);
-  if (idx >= 0 || idx < ih->data->num_cells)
+  if (id >= 0 || id < ih->data->num_cells)
   { 
-    ih->data->colors[idx] = cdIupConvertColor(value);
+    ih->data->colors[id] = cdIupConvertColor(value);
     iColorbarRepaint(ih);
   }
 
   return 0;
 }
 
-static char* iColorbarGetCellAttrib(Ihandle* ih, const char* name_id)
+static char* iColorbarGetCellAttrib(Ihandle* ih, int id)
 {
   char* buffer = iupStrGetMemory(100);
-  int idx = -1;
   long color;
   
-  iupStrToInt(name_id, &idx);
-  if (idx < 0 || idx >= ih->data->num_cells)
+  if (id < 0 || id >= ih->data->num_cells)
     return NULL;
 
-  color = ih->data->colors[idx];
+  color = ih->data->colors[id];
   sprintf(buffer, "%d %d %d", cdRed(color), cdGreen(color), cdBlue(color));
   return buffer;
 }
@@ -1061,6 +1057,7 @@ Iclass* iupColorbarGetClass(void)
 
   /* IupColorbar only */
   iupClassRegisterAttributeId(ic, "CELL", iColorbarGetCellAttrib, iColorbarSetCellAttrib, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "COUNT", iColorbarGetNumCellsAttrib, NULL, IUPAF_SAMEASSYSTEM, "16", IUPAF_READONLY|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "NUM_CELLS", iColorbarGetNumCellsAttrib, iColorbarSetNumCellsAttrib, IUPAF_SAMEASSYSTEM, "16", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "NUM_PARTS", iColorbarGetNumPartsAttrib, iColorbarSetNumPartsAttrib, IUPAF_SAMEASSYSTEM, "1", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "PREVIEW_SIZE", iColorbarGetPreviewSizeAttrib, iColorbarSetPreviewSizeAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);

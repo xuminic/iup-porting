@@ -39,7 +39,7 @@ end
 -- Console Dialog
 
 iup_console.lastfilename = nil -- Last file open
-iup_console.mlCode = iup.multiline{expand="YES", size="200x120", font="Courier, 10"}
+iup_console.mlCode = iup.multiline{expand="YES", size="200x120", font="Courier, 11"}
 iup_console.lblPosition = iup.label{title="0:0", size="50x"}
 iup_console.lblFileName = iup.label{title="", size="50x", expand="HORIZONTAL"}
 
@@ -64,7 +64,7 @@ function iup_console.butSaveFile:action()
   if (iup_console.lastfilename == nil) then
     iup_console.butSaveasFile:action()
   else
-    newfile = io.open(iup_console.lastfilename, "w+")
+    newfile = io.open(iup_console.lastfilename, "w+b")
     if (newfile) then
       newfile:write(iup_console.mlCode.value)
       newfile:close()
@@ -106,8 +106,13 @@ function iup_console.LoadFile(filename)
   if (newfile == nil) then
     error ("Cannot load file "..filename)
   else
-    iup_console.mlCode.value=newfile:read("*a")
+    iup_console.mlCode.value = newfile:read("*a")
     newfile:close (newfile)
+    
+    if IndentationLib then
+      IndentationLib.textboxRecolor(iup_console.mlCode)
+    end
+    
     iup_console.lastfilename = filename
     iup_console.lblFileName.title = iup_console.lastfilename
   end
@@ -138,14 +143,14 @@ iup_console.vbxConsole = iup.vbox
                               iup_console.butSaveFile,
                               iup_console.butSaveasFile,
                               iup_console.butClearCommands,
-                              iup_console.butExecute;
+                              iup_console.butExecute,
                               margin="0x0", gap="10"},
                      iup.vbox{iup_console.lblFileName,
                               iup_console.mlCode,
-                              iup_console.lblPosition;
-                              alignment = "ARIGHT"};
-                     alignment="ATOP"}; title="Commands"}
-   ;alignment="ACENTER", margin="5x5", gap="5"
+                              iup_console.lblPosition,
+                              alignment = "ARIGHT"},
+                     alignment="ATOP"}, title="Commands"},
+   alignment="ACENTER", margin="5x5", gap="5"
 }
 
 -- Main Menu Definition.
@@ -168,14 +173,21 @@ iup_console.mnuMain = iup.menu
 
 -- Main Dialog Definition.
 
-iup_console.dlgMain = iup.dialog{iup_console.vbxConsole;
+iup_console.dlgMain = iup.dialog{iup_console.vbxConsole,
                                  title="IupLua Console",
                                  menu=iup_console.mnuMain,
                                  dragdrop = "YES",
                                  defaultenter=iup_console.butExecute,
+                                 startfocus=iup_console.mlCode,
                                  close_cb = "return iup.CLOSE"}
 
 function iup_console.dlgMain:dropfiles_cb(filename, num, x, y)
+  if (num == 0) then
+    iup_console.LoadFile(filename)
+  end
+end
+
+function iup_console.mlCode:dropfiles_cb(filename, num, x, y)
   if (num == 0) then
     iup_console.LoadFile(filename)
   end
@@ -205,10 +217,13 @@ iup_console.dlgAbout = iup.dialog
    ;maxbox="NO", minbox="NO", resize="NO", title="About"
 }
 
+if IndentationLib then
+  IndentationLib.enable(iup_console.mlCode)
+end
+
 -- Displays the Main Dialog
 
 iup_console.dlgMain:show()
-iup.SetFocus(iup_console.mlCode)
 
 if (iup.MainLoopLevel()==0) then
   iup.MainLoop()

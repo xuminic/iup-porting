@@ -346,7 +346,7 @@ static int nodeinfo(Ihandle* ih)
   printf("  MARKED=%s\n", IupGetAttribute(tree, "MARKED"));
   printf("  COLOR=%s\n", IupGetAttribute(tree, "COLOR"));
   printf("  PARENT=%s\n", IupGetAttribute(tree, "PARENT"));
-  printf("  COUNT=%s\n", IupGetAttribute(tree, "CHILDCOUNT"));
+  printf("  CHILDCOUNT=%s\n", IupGetAttribute(tree, "CHILDCOUNT"));
   printf("  USERDATA=%p\n", IupGetAttribute(tree, "USERDATA"));
   return IUP_DEFAULT;
 }
@@ -426,16 +426,60 @@ static int next(Ihandle *ih)
 {
   Ihandle* tree = IupGetHandle("tree");
   IupSetAttribute(tree, "VALUE",  "NEXT");
-  //IupSetAttribute(tree, "TOPITEM",  "8");
   return IUP_DEFAULT;
 }
 
 static int prev(Ihandle *ih)
 {
   Ihandle* tree = IupGetHandle("tree");
-//  IupSetAttribute(tree, "VALUE",  "PREVIOUS");
-  IupSetAttribute(tree, "STATE2", "COLLAPSED");
+  IupSetAttribute(tree, "VALUE",  "PREVIOUS");
   return IUP_DEFAULT;
+}
+
+static void init_tree_nodes(void)  
+{
+  Ihandle* tree = IupGetHandle("tree");
+
+//  IupSetAttribute(tree, "AUTOREDRAW", "No");
+#if 0
+  /* create from bottom to top */
+  /* the current node is the ROOT */
+  //IupSetAttribute(tree, "VALUE", "0");
+  IupSetAttribute(tree, "TITLE",         "Figures");  /* title of the root, id=0 */
+  IupSetAttribute(tree, "ADDBRANCH",    "3D");    /* 3D=1 */
+  IupSetAttribute(tree, "ADDLEAF",    "2D");    /* add to the root, so it will be before "3D", now 2D=1, 3D=2 */
+  IupSetAttribute(tree, "ADDBRANCH",   "parallelogram"); /* id=1 */ 
+  IupSetAttribute(tree, "ADDLEAF1",     "diamond");
+  IupSetAttribute(tree, "ADDLEAF1",     "square");
+  IupSetAttribute(tree, "ADDBRANCH",   "triangle");       
+  IupSetAttribute(tree, "ADDLEAF1",     "scalenus");
+  IupSetAttribute(tree, "ADDLEAF1",     "isoceles");
+  IupSetAttribute(tree, "ADDLEAF1",     "equilateral");
+  IupSetAttribute(tree, "ADDLEAF",      "Other (чущ)");
+#else
+  /* create from top to bottom */
+  IupSetAttribute(tree, "TITLE0",         "Figures");  
+  IupSetAttribute(tree, "ADDLEAF0",      "Other");     /* new id=1 */
+  IupSetAttribute(tree, "ADDBRANCH1",   "triangle");  /* new id=2 */     
+  IupSetAttribute(tree, "ADDLEAF2",     "equilateral");  /* ... */
+  IupSetAttribute(tree, "ADDLEAF3",     "isoceles");
+  IupSetAttribute(tree, "ADDLEAF4",     "scalenus");
+  IupSetAttribute(tree, "STATE2",     "collapsed");
+  IupSetAttribute(tree, "INSERTBRANCH2","parallelogram");  /* same depth as id=2, new id=6 */
+  IupSetAttribute(tree, "ADDLEAF6",     "square");
+  IupSetAttribute(tree, "ADDLEAF7",     "diamond");
+  IupSetAttribute(tree, "INSERTLEAF6","2D");  /* new id=9 */
+  IupSetAttribute(tree, "INSERTBRANCH9","3D");
+#endif
+//  IupSetAttribute(tree, "AUTOREDRAW", "Yes");
+
+  //IupSetAttribute(tree, "VALUE",        "6");
+  IupSetAttribute(tree, "RASTERSIZE", NULL);   /* remove the minimum size limitation */
+  IupSetAttribute(tree, "COLOR8", "92 92 255");
+  IupSetAttribute(tree, "TITLEFONT8", "Courier, 14");
+  IupSetAttributeHandle(tree, "IMAGE8", load_image_LogoTecgraf());
+  IupSetAttributeHandle(tree, "IMAGE7", load_image_TestImage());
+  IupSetAttribute(tree, "IMAGE6", IupGetAttribute(tree, "IMAGE8"));
 }
 
 /* Initializes IupTree and registers callbacks */
@@ -469,14 +513,16 @@ static void init_tree(void)
 //  IupSetAttribute(tree, "SPACING",   "10");
 //  IupSetAttribute(tree, "BGCOLOR", "255 255 255");
 
-  IupSetAttribute(tree, "MARKMODE",     "MULTIPLE");
-  IupSetAttribute(tree, "SHOWRENAME",   "YES");
-//  IupSetAttribute(tree, "SHOWDRAGDROP", "YES");
+//  IupSetAttribute(tree, "MARKMODE",     "MULTIPLE");
+//  IupSetAttribute(tree, "SHOWRENAME",   "YES");
+  IupSetAttribute(tree, "SHOWDRAGDROP", "YES");
+//  IupSetAttribute(tree, "DROPEQUALDRAG", "YES");
 
   IupSetAttribute(tree, "ADDEXPANDED",  "YES");
 //  IupSetAttribute(tree, "HIDELINES",    "YES");
 //  IupSetAttribute(tree, "HIDEBUTTONS",    "YES");
 //  IupSetAttribute(tree, "INDENTATION",   "40");
+//  IupSetAttribute(tree, "CANFOCUS", "NO");
 
   IupSetHandle("tree", tree);
 }
@@ -505,50 +551,6 @@ static void init_dlg(void)
   IupSetCallback(butmenu, "ACTION", (Icallback)rightclick_cb);
 
   IupSetHandle("dlg", dlg);
-}
-
-static void init_tree_nodes(void)  
-{
-  Ihandle* tree = IupGetHandle("tree");
-
-#if 0
-  /* create from bottom to top */
-  /* the current node is the ROOT */
-  //IupSetAttribute(tree, "VALUE", "0");
-  IupSetAttribute(tree, "TITLE",         "Figures");  /* title of the root, id=0 */
-  IupSetAttribute(tree, "ADDBRANCH",    "3D");    /* 3D=1 */
-  IupSetAttribute(tree, "ADDLEAF",    "2D");    /* add to the root, so it will be before "3D", now 2D=1, 3D=2 */
-  IupSetAttribute(tree, "ADDBRANCH",   "parallelogram"); /* id=1 */ 
-  IupSetAttribute(tree, "ADDLEAF1",     "diamond");
-  IupSetAttribute(tree, "ADDLEAF1",     "square");
-  IupSetAttribute(tree, "ADDBRANCH",   "triangle");       
-  IupSetAttribute(tree, "ADDLEAF1",     "scalenus");
-  IupSetAttribute(tree, "ADDLEAF1",     "isoceles");
-  IupSetAttribute(tree, "ADDLEAF1",     "equilateral");
-  IupSetAttribute(tree, "ADDLEAF",      "Other (чущ)");
-#else
-  /* create from top to bottom */
-  IupSetAttribute(tree, "TITLE0",         "Figures");  
-  IupSetAttribute(tree, "ADDLEAF0",      "Other");     /* new id=1 */
-  IupSetAttribute(tree, "ADDBRANCH1",   "triangle");  /* new id=2 */     
-  IupSetAttribute(tree, "ADDLEAF2",     "equilateral");  /* ... */
-  IupSetAttribute(tree, "ADDLEAF3",     "isoceles");
-  IupSetAttribute(tree, "ADDLEAF4",     "scalenus");
-  IupSetAttribute(tree, "STATE2",     "collapsed");
-  IupSetAttribute(tree, "INSERTBRANCH2","parallelogram");  /* same depth as id=2, new id=6 */
-  IupSetAttribute(tree, "ADDLEAF6",     "square");
-  IupSetAttribute(tree, "ADDLEAF7",     "diamond");
-  IupSetAttribute(tree, "INSERTLEAF6","2D");  /* new id=9 */
-  IupSetAttribute(tree, "INSERTBRANCH9","3D");
-#endif
-
-  //IupSetAttribute(tree, "VALUE",        "6");
-  IupSetAttribute(tree, "RASTERSIZE", NULL);   /* remove the minimum size limitation */
-  IupSetAttribute(tree, "COLOR8", "92 92 255");
-  IupSetAttribute(tree, "TITLEFONT8", "Courier, 14");
-  IupSetAttributeHandle(tree, "IMAGE8", load_image_LogoTecgraf());
-  IupSetAttributeHandle(tree, "IMAGE7", load_image_TestImage());
-  IupSetAttribute(tree, "IMAGE6", IupGetAttribute(tree, "IMAGE8"));
 }
 
 void TreeTest(void)

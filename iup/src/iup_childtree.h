@@ -14,11 +14,14 @@ extern "C" {
 /** \defgroup childtree Child Tree Utilities
  * \par
  * Some native containers have an internal native child that 
- * will be the actual container of the children. This native container is 
- * returned by \ref iupClassObjectGetInnerNativeContainerHandle.
+ * will be the actual container for the children. This native container is 
+ * returned by \ref iupClassObjectGetInnerNativeContainerHandle and
+ * it is used in iupChildTreeGetNativeParentHandle.
  * \par
  * Some native elements need an extra parent, the ih->handle points to the main element itself, 
- * NOT to the extra parent. This extra parent is stored as "_IUP_EXTRAPARENT".
+ * NOT to the extra parent. This extra parent is stored as "_IUP_EXTRAPARENT". 
+ * In this case the native parent of ih->handle is the extra parent, 
+ * and the extra parent is added as child to the element native parent.
  * \par
  * See \ref iup_childtree.h
  * \ingroup object */
@@ -34,6 +37,14 @@ InativeHandle* iupChildTreeGetNativeParentHandle(Ihandle* ih);
 /** Adds the child directly to the parent tree.
  * \ingroup childtree */
 void iupChildTreeAppend(Ihandle* parent, Ihandle* child);
+
+/** Checks if the child belongs to the parent tree.
+ * \ingroup childtree */
+int iupChildTreeIsChild(Ihandle* ih, Ihandle* child);
+
+/** Returns the previous brother if any.
+ * \ingroup childtree */
+Ihandle* iupChildTreeGetPrevBrother(Ihandle* ih);
 
 
 /* Other functions declared in <iup.h> and implemented here. 

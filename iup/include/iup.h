@@ -21,9 +21,9 @@ extern "C" {
 #define IUP_NAME "IUP - Portable User Interface"
 #define IUP_COPYRIGHT  "Copyright (C) 1994-2010 Tecgraf, PUC-Rio."
 #define IUP_DESCRIPTION	"Portable toolkit for building graphical user interfaces."
-#define IUP_VERSION "3.2"         /* bug fixes are reported only by IupVersion functions */
-#define IUP_VERSION_NUMBER 302000
-#define IUP_VERSION_DATE "2010/06/26"  /* does not include bug fix releases */
+#define IUP_VERSION "3.3"         /* bug fixes are reported only by IupVersion functions */
+#define IUP_VERSION_NUMBER 303000
+#define IUP_VERSION_DATE "2010/11/09"  /* does not include bug fix releases */
 
 typedef struct Ihandle_ Ihandle;
 typedef int (*Icallback)(Ihandle*);
@@ -47,6 +47,7 @@ void      IupUpdate        (Ihandle* ih);
 void      IupUpdateChildren(Ihandle* ih);
 void      IupRedraw        (Ihandle* ih, int children);
 void      IupRefresh       (Ihandle* ih);
+void      IupRefreshChildren(Ihandle* ih);
 
 char*     IupMapFont       (const char *iupfont);
 char*     IupUnMapFont     (const char *driverfont);
@@ -72,7 +73,7 @@ Ihandle*  IupGetBrother   (Ihandle* ih);
 Ihandle*  IupGetParent    (Ihandle* ih);
 Ihandle*  IupGetDialog    (Ihandle* ih);
 Ihandle*  IupGetDialogChild(Ihandle* ih, const char* name);
-int       IupReparent     (Ihandle* ih, Ihandle* new_parent);
+int       IupReparent     (Ihandle* ih, Ihandle* new_parent, Ihandle* ref_child);
 
 int       IupPopup         (Ihandle* ih, int x, int y);
 int       IupShow          (Ihandle* ih);
@@ -94,6 +95,20 @@ void      IupSetfAttribute (Ihandle* ih, const char* name, const char* format, .
 void      IupResetAttribute(Ihandle *ih, const char* name);
 int       IupGetAllAttributes(Ihandle* ih, char** names, int n);
 Ihandle*  IupSetAtt(const char* handle_name, Ihandle* ih, const char* name, ...);
+
+void  IupSetAttributeId(Ihandle *ih, const char* name, int id, const char *value);
+void  IupStoreAttributeId(Ihandle *ih, const char* name, int id, const char *value);
+char* IupGetAttributeId(Ihandle *ih, const char* name, int id);
+float IupGetFloatId(Ihandle *ih, const char* name, int id);
+int   IupGetIntId(Ihandle *ih, const char* name, int id);
+void  IupSetfAttributeId(Ihandle *ih, const char* name, int id, const char* format, ...);
+
+void  IupSetAttributeId2(Ihandle* ih, const char* name, int lin, int col, const char* value);
+void  IupStoreAttributeId2(Ihandle* ih, const char* name, int lin, int col, const char* value);
+char* IupGetAttributeId2(Ihandle* ih, const char* name, int lin, int col);
+int   IupGetIntId2(Ihandle* ih, const char* name, int lin, int col);
+float IupGetFloatId2(Ihandle* ih, const char* name, int lin, int col);
+void  IupSetfAttributeId2(Ihandle* ih, const char* name, int lin, int col, const char* format, ...);
 
 void      IupSetGlobal     (const char* name, const char* value);
 void      IupStoreGlobal   (const char* name, const char* value);
@@ -123,8 +138,11 @@ Ihandle*  IupGetAttributeHandle(Ihandle* ih, const char* name);
 
 char*     IupGetClassName(Ihandle* ih);
 char*     IupGetClassType(Ihandle* ih);
+int       IupGetAllClasses(char** names, int n);
 int       IupGetClassAttributes(const char* classname, char** names, int n);
+int       IupGetClassCallbacks(const char* classname, char** names, int n);
 void      IupSaveClassAttributes(Ihandle* ih);
+void      IupCopyClassAttributes(Ihandle* src_ih, Ihandle* dst_ih);
 void      IupSetClassDefaultAttribute(const char* classname, const char *name, const char* value);
 
 Ihandle*  IupCreate (const char *classname);
@@ -181,6 +199,7 @@ Ihandle*  IupTabs       (Ihandle* child, ...);
 Ihandle*  IupTabsv      (Ihandle* *children);
 Ihandle*  IupTree       (void);
 
+/* Deprecated controls use SPIN attribute of IupText */
 Ihandle*  IupSpin       (void);
 Ihandle*  IupSpinbox    (Ihandle* child);
 
@@ -200,6 +219,7 @@ int   IupTreeSetUserId(Ihandle* ih, int id, void* userid);
 void* IupTreeGetUserId(Ihandle* ih, int id);
 int   IupTreeGetId(Ihandle* ih, void *userid);
 
+/* Deprecated IupTree utilities, use Iup*AttributeId functions */
 void  IupTreeSetAttribute  (Ihandle* ih, const char* name, int id, const char* value);
 void  IupTreeStoreAttribute(Ihandle* ih, const char* name, int id, const char* value);
 char* IupTreeGetAttribute  (Ihandle* ih, const char* name, int id);
@@ -232,6 +252,7 @@ typedef int (*Iparamcb)(Ihandle* dialog, int param_index, void* user_data);
 int IupGetParam(const char* title, Iparamcb action, void* user_data, const char* format,...);
 int IupGetParamv(const char* title, Iparamcb action, void* user_data, const char* format, int param_count, int param_extra, void** param_data);
 
+Ihandle* IupLayoutDialog(Ihandle* dialog);
 
 
 #ifdef __cplusplus

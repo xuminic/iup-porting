@@ -29,8 +29,8 @@ static int iHboxSetRasterSizeAttrib(Ihandle* ih, const char* value)
   }
   else
   {
-    int s = 0;
-    iupStrToInt(value, &s);
+    int s = 0, d = 0;
+    iupStrToIntInt(value, &s, &d, 'x');  /* second value will be ignored, can NOT set height */
     if (s > 0) 
     {
       ih->userheight = 0;
@@ -50,8 +50,8 @@ static int iHboxSetSizeAttrib(Ihandle* ih, const char* value)
   }
   else
   {
-    int s = 0;
-    iupStrToInt(value, &s);
+    int s = 0, d = 0;
+    iupStrToIntInt(value, &s, &d, 'x');  /* second value will be ignored, can NOT set height */
     if (s > 0) 
     {
       int charwidth, charheight;
@@ -95,9 +95,10 @@ static void iHboxComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *expa
   for (child = ih->firstchild; child; child = child->brother)
   {
     /* update child natural size first */
-    iupBaseComputeNaturalSize(child);
+    if (!(child->flags & IUP_FLOATING_IGNORE))
+      iupBaseComputeNaturalSize(child);
 
-    if (!child->is_floating)
+    if (!(child->flags & IUP_FLOATING))
     {
       children_expand |= child->expand;
       children_natural_maxwidth = iupMAX(children_natural_maxwidth, child->naturalwidth);
@@ -112,7 +113,7 @@ static void iHboxComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *expa
 
   for (child = ih->firstchild; child; child = child->brother)
   {
-    if (!child->is_floating)
+    if (!(child->flags & IUP_FLOATING))
       children_natural_totalwidth += child->naturalwidth;
   }
 
@@ -140,7 +141,7 @@ static int iHboxCalcHomogeneousWidth(Ihandle *ih)
   int children_count=0;
   for (child = ih->firstchild; child; child = child->brother)
   {
-    if (!child->is_floating)
+    if (!(child->flags & IUP_FLOATING))
       children_count++;
   }
   if (children_count == 0)
@@ -161,7 +162,7 @@ static int iHboxCalcEmptyWidth(Ihandle *ih, int expand)
   int expand_count=0;
   for (child = ih->firstchild; child; child = child->brother)
   {
-    if (!child->is_floating && child->expand & expand)
+    if (!(child->flags & IUP_FLOATING) && child->expand & expand)
       expand_count++;
   }
   if (expand_count == 0)
@@ -202,7 +203,7 @@ static void iHboxSetChildrenCurrentSizeMethod(Ihandle* ih, int shrink)
 
   for (child = ih->firstchild; child; child = child->brother)
   {
-    if (!child->is_floating)
+    if (!(child->flags & IUP_FLOATING))
     {
       int old_expand = child->expand;
       if (ih->data->expand_children)
@@ -226,7 +227,7 @@ static void iHboxSetChildrenCurrentSizeMethod(Ihandle* ih, int shrink)
       if (ih->data->expand_children)
         child->expand = old_expand;
     }
-    else
+    else if (!(child->flags & IUP_FLOATING_IGNORE))
     {
       /* update children to their own natural size */
       iupBaseSetCurrentSize(child, child->naturalwidth, child->naturalheight, shrink);
@@ -247,7 +248,7 @@ static void iHboxSetChildrenPositionMethod(Ihandle* ih, int x, int y)
 
   for (child = ih->firstchild; child; child = child->brother)
   {
-    if (!child->is_floating)
+    if (!(child->flags & IUP_FLOATING))
     {
       if (ih->data->alignment == IUP_ALIGN_ACENTER)
         dy = (client_height - child->currentheight)/2;
@@ -306,8 +307,8 @@ Iclass* iupHboxGetClass(void)
   ic->SetChildrenPosition = iHboxSetChildrenPositionMethod;
 
   /* Overwrite Common */
-  iupClassRegisterAttribute(ic, "SIZE", iupBaseGetSizeAttrib, iHboxSetSizeAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "RASTERSIZE", iupBaseGetRasterSizeAttrib, iHboxSetRasterSizeAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "SIZE", iupBaseGetSizeAttrib, iHboxSetSizeAttrib, NULL, NULL, IUPAF_NO_SAVE|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "RASTERSIZE", iupBaseGetRasterSizeAttrib, iHboxSetRasterSizeAttrib, NULL, NULL, IUPAF_NO_SAVE|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 
   /* Hbox only */
   iupClassRegisterAttribute(ic, "ALIGNMENT", iHboxGetAlignmentAttrib, iHboxSetAlignmentAttrib, IUPAF_SAMEASSYSTEM, "ATOP", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);

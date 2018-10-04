@@ -75,7 +75,18 @@ static int motToggleSetBgColorAttrib(Ihandle* ih, const char* value)
     return 0; 
   }
   else
+  {
+    if (ih->data->flat)
+    {
+      /* ignore given value, must use only from parent */
+      value = iupBaseNativeParentGetBgColor(ih);
+
+      if (iupdrvBaseSetBgColorAttrib(ih, value))
+        return 1;
+    }
+
     return iupdrvBaseSetBgColorAttrib(ih, value); 
+  }
 }
 
 static int motToggleSetBackgroundAttrib(Ihandle* ih, const char* value)
@@ -103,6 +114,26 @@ static int motToggleSetBackgroundAttrib(Ihandle* ih, const char* value)
       }
     }
   }
+  else
+  {
+    if (ih->data->flat)
+    {
+      /* ignore given value, must use only from parent */
+      value = iupAttribGetInheritNativeParent(ih, "BACKGROUND");
+
+      if (iupdrvBaseSetBgColorAttrib(ih, value))
+        return 1;
+      else
+      {
+        Pixmap pixmap = (Pixmap)iupImageGetImage(value, ih, 0);
+        if (pixmap)
+        {
+          XtVaSetValues(ih->handle, XmNbackgroundPixmap, pixmap, NULL);
+          return 1;
+        }
+      }
+    }
+  }
   return 0;
 }
 
@@ -110,7 +141,7 @@ static int motToggleSetTitleAttrib(Ihandle* ih, const char* value)
 {
   if (ih->data->type == IUP_TOGGLE_TEXT)
   {
-    iupmotSetMnemonicTitle(ih, value);
+    iupmotSetMnemonicTitle(ih, NULL, value);
     return 1;
   }
 
@@ -287,7 +318,8 @@ static void motToggleValueChangedCallback(Widget w, Ihandle* ih, XmToggleButtonC
         if (cb && cb(last_tg, 0) == IUP_CLOSE)
             IupExitLoop();
 
-        iupBaseCallValueChangedCb(last_tg);
+        if (iupObjectCheck(ih))
+          iupBaseCallValueChangedCb(last_tg);
       }
       iupAttribSetStr(radio, "_IUPMOT_LASTTOGGLE", (char*)ih);
 
@@ -297,7 +329,8 @@ static void motToggleValueChangedCallback(Widget w, Ihandle* ih, XmToggleButtonC
         if (cb && cb (ih, 1) == IUP_CLOSE)
             IupExitLoop();
 
-        iupBaseCallValueChangedCb(ih);
+        if (iupObjectCheck(ih))
+          iupBaseCallValueChangedCb(ih);
       }
     }
     else
@@ -318,10 +351,30 @@ static void motToggleValueChangedCallback(Widget w, Ihandle* ih, XmToggleButtonC
         IupExitLoop();
     }
 
-    iupBaseCallValueChangedCb(ih);
+    if (iupObjectCheck(ih))
+      iupBaseCallValueChangedCb(ih);
   }
 
   (void)w;
+}
+
+static void motToggleEnterLeaveWindowEvent(Widget w, Ihandle* ih, XEvent *evt, Boolean *cont)
+{
+  /* Used only when FLAT=Yes */
+  unsigned char check = 0;
+
+  iupmotEnterLeaveWindowEvent(w, ih, evt, cont);
+
+  XtVaGetValues (ih->handle, XmNset, &check, NULL);
+  if (check == XmSET)
+    XtVaSetValues(ih->handle, XmNshadowThickness, 2, NULL);
+  else
+  {
+    if (evt->type == EnterNotify)
+      XtVaSetValues(ih->handle, XmNshadowThickness, 2, NULL);
+    else  if (evt->type == LeaveNotify)
+      XtVaSetValues(ih->handle, XmNshadowThickness, 0, NULL);
+  }
 }
 
 static int motToggleMapMethod(Ihandle* ih)
@@ -424,8 +477,17 @@ static int motToggleMapMethod(Ihandle* ih)
 
   XtAddCallback(ih->handle, XmNhelpCallback, (XtCallbackProc)iupmotHelpCallback, (XtPointer)ih);
 
-  XtAddEventHandler(ih->handle, EnterWindowMask, False, (XtEventHandler)iupmotEnterLeaveWindowEvent, (XtPointer)ih);
-  XtAddEventHandler(ih->handle, LeaveWindowMask, False, (XtEventHandler)iupmotEnterLeaveWindowEvent, (XtPointer)ih);
+  if (ih->data->type == IUP_TOGGLE_IMAGE && ih->data->flat)
+  {
+    XtVaSetValues(ih->handle, XmNshadowThickness, 0, NULL);
+    XtAddEventHandler(ih->handle, EnterWindowMask, False, (XtEventHandler)motToggleEnterLeaveWindowEvent, (XtPointer)ih);
+    XtAddEventHandler(ih->handle, LeaveWindowMask, False, (XtEventHandler)motToggleEnterLeaveWindowEvent, (XtPointer)ih);
+  }
+  else
+  {
+    XtAddEventHandler(ih->handle, EnterWindowMask, False, (XtEventHandler)iupmotEnterLeaveWindowEvent, (XtPointer)ih);
+    XtAddEventHandler(ih->handle, LeaveWindowMask, False, (XtEventHandler)iupmotEnterLeaveWindowEvent, (XtPointer)ih);
+  }
 
   XtAddEventHandler(ih->handle, FocusChangeMask, False, (XtEventHandler)iupmotFocusChangeEvent, (XtPointer)ih);
   XtAddEventHandler(ih->handle, KeyPressMask,    False, (XtEventHandler)iupmotKeyPressEvent,    (XtPointer)ih);
@@ -452,7 +514,7 @@ void iupdrvToggleInitClass(Iclass* ic)
   /* Driver Dependent Attribute functions */
 
   /* Overwrite Visual */
-  iupClassRegisterAttribute(ic, "BGCOLOR", iupmotGetBgColorAttrib, motToggleSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_DEFAULT);
+  iupClassRegisterAttribute(ic, "BGCOLOR", iupmotGetBgColorAttrib, motToggleSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_NO_SAVE|IUPAF_DEFAULT);
   iupClassRegisterAttribute(ic, "BACKGROUND", NULL, motToggleSetBackgroundAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_DEFAULT);
 
   /* Special */
@@ -461,11 +523,15 @@ void iupdrvToggleInitClass(Iclass* ic)
 
   /* IupToggle only */
   iupClassRegisterAttribute(ic, "ALIGNMENT", NULL, motToggleSetAlignmentAttrib, IUPAF_SAMEASSYSTEM, "ACENTER:ACENTER", IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "IMAGE", NULL, motToggleSetImageAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "IMINACTIVE", NULL, motToggleSetImInactiveAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "IMPRESS", NULL, motToggleSetImPressAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "IMAGE", NULL, motToggleSetImageAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "IMINACTIVE", NULL, motToggleSetImInactiveAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "IMPRESS", NULL, motToggleSetImPressAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "VALUE", motToggleGetValueAttrib, motToggleSetValueAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SELECTCOLOR", motToggleGetSelectColorAttrib, motToggleSetSelectColorAttrib, NULL, NULL, IUPAF_NO_INHERIT);
 
   iupClassRegisterAttribute(ic, "PADDING", iupToggleGetPaddingAttrib, motToggleSetPaddingAttrib, IUPAF_SAMEASSYSTEM, "0x0", IUPAF_NOT_MAPPED);
+
+  /* NOT supported */
+  iupClassRegisterAttribute(ic, "RIGHTBUTTON", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_DEFAULT);
+  iupClassRegisterAttribute(ic, "MARKUP", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_DEFAULT);
 }
