@@ -1,5 +1,5 @@
 /******************************************************************************
- * Automatically generated file (iuplua5). Please don't change anything.                *
+ * Automatically generated file. Please don't change anything.                *
  *****************************************************************************/
 
 #include <stdlib.h>
@@ -28,8 +28,8 @@ int iupfontdlglua_open(lua_State * L)
 #ifdef IUPLUA_USELOH
 #include "fontdlg.loh"
 #else
-#ifdef IUPLUA_USELZH
-#include "fontdlg.lzh"
+#ifdef IUPLUA_USELH
+#include "fontdlg.lh"
 #else
   iuplua_dofile(L, "fontdlg.lua");
 #endif

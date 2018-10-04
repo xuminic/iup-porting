@@ -565,7 +565,15 @@ static int winTextGetCaretPos(Ihandle* ih)
   else
   {
     if (ih->data->has_formatting)
+    {
       pos = SendMessage(ih->handle, EM_CHARFROMPOS, 0, (LPARAM)&point);
+    }
+    else if(point.x < 0 && point.y < 0)
+    {
+    /* if the caret position is located outside the visible client area,
+       then use the selection start position */
+      SendMessage(ih->handle, EM_GETSEL, (WPARAM)&pos, 0);
+    }
     else
     {
       LRESULT ret;
@@ -1100,6 +1108,15 @@ static char* winTextGetCaretPosAttrib(Ihandle* ih)
   return str;
 }
 
+static void winTextScrollTo(Ihandle* ih, int lin, int col)
+{
+  DWORD old_lin = SendMessage(ih->handle, EM_GETFIRSTVISIBLELINE, 0, 0);
+  if (ih->data->has_formatting)
+    SendMessage(ih->handle, EM_LINESCROLL, (WPARAM)0, (LPARAM)(lin-old_lin));
+  else  /* How to get the current horizontal position?????  */
+    SendMessage(ih->handle, EM_LINESCROLL, (WPARAM)col, (LPARAM)(lin-old_lin));
+}
+
 static int winTextSetScrollToAttrib(Ihandle* ih, const char* value)
 {
   int lin = 1, col = 1;
@@ -1122,10 +1139,7 @@ static int winTextSetScrollToAttrib(Ihandle* ih, const char* value)
   lin--;  /* return to Windows referece */
   col--;
 
-  if (ih->data->has_formatting)
-    SendMessage(ih->handle, EM_LINESCROLL, (WPARAM)0, (LPARAM)lin);
-  else
-    SendMessage(ih->handle, EM_LINESCROLL, (WPARAM)col, (LPARAM)lin);
+  winTextScrollTo(ih, lin, col);
 
   return 0;
 }
@@ -1147,10 +1161,7 @@ static int winTextSetScrollToPosAttrib(Ihandle* ih, const char* value)
   lin--;  /* return to Windows referece */
   col--;
 
-  if (ih->data->has_formatting)
-    SendMessage(ih->handle, EM_LINESCROLL, (WPARAM)0, (LPARAM)lin);
-  else
-    SendMessage(ih->handle, EM_LINESCROLL, (WPARAM)col, (LPARAM)lin);
+  winTextScrollTo(ih, lin, col);
 
   return 0;
 }
@@ -1207,6 +1218,13 @@ static int winTextSetClipboardAttrib(Ihandle *ih, const char *value)
     SendMessage(ih->handle, msg, 0, 0);
 
   return 0;
+}
+
+static int winTextSetFgColorAttrib(Ihandle *ih, const char *value)
+{
+  (void)value;
+  iupdrvPostRedraw(ih);
+  return 1;
 }
 
 static int winTextSetBgColorAttrib(Ihandle *ih, const char *value)
@@ -1704,7 +1722,8 @@ static int winTextProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *res
       }
       else if ((char)wp == '\n' || (char)wp == '\r')
       {
-        if (!ih->data->has_formatting && !(GetKeyState(VK_CONTROL) & 0x8000)) /* when formatting is processed in WM_KEYDOWN */
+        if (ih->data->is_multiline && 
+            !ih->data->has_formatting && !(GetKeyState(VK_CONTROL) & 0x8000)) /* when formatting is processed in WM_KEYDOWN */
         {
           char insert_value[2];
           insert_value[0] = '\n';
@@ -1989,7 +2008,10 @@ static void winTextUnMapMethod(Ihandle* ih)
 {
   HWND hSpin = (HWND)iupAttribGet(ih, "_IUPWIN_SPIN");
   if (hSpin)
+  {
+    iupwinHandleRemove(hSpin);
     DestroyWindow(hSpin);
+  }
 
   iupdrvBaseUnMapMethod(ih);
 }
@@ -2085,9 +2107,9 @@ static int winTextMapMethod(Ihandle* ih)
   if (!ih->data->is_multiline && iupAttribGetBoolean(ih, "SPIN"))
     winTextCreateSpin(ih);
 
-  /* configure for DRAG&DROP */
+  /* configure for DROP of files */
   if (IupGetCallback(ih, "DROPFILES_CB"))
-    iupAttribSetStr(ih, "DRAGDROP", "YES");
+    iupAttribSetStr(ih, "DROPFILESTARGET", "YES");
 
   if (ih->data->has_formatting)
   {
@@ -2123,7 +2145,7 @@ void iupdrvTextInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "VISIBLE", iupBaseGetVisibleAttrib, winTextSetVisibleAttrib, "YES", "NO", IUPAF_NO_SAVE|IUPAF_DEFAULT);
 
   /* Special */
-  iupClassRegisterAttribute(ic, "FGCOLOR", NULL, NULL, IUPAF_SAMEASSYSTEM, "TXTFGCOLOR", IUPAF_NOT_MAPPED);  /* usually black */    
+  iupClassRegisterAttribute(ic, "FGCOLOR", NULL, winTextSetFgColorAttrib, IUPAF_SAMEASSYSTEM, "TXTFGCOLOR", IUPAF_NOT_MAPPED);  /* usually black */    
   iupClassRegisterAttribute(ic, "AUTOREDRAW", NULL, iupwinSetAutoRedrawAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
 
   /* IupText only */
@@ -2153,7 +2175,6 @@ void iupdrvTextInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "ADDFORMATTAG", NULL, iupTextSetAddFormatTagAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "ADDFORMATTAG_HANDLE", NULL, iupTextSetAddFormatTagHandleAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "ALIGNMENT", NULL, winTextSetAlignmentAttrib, IUPAF_SAMEASSYSTEM, "ALEFT", IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "DRAGDROP", NULL, iupwinSetDragDropAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "FORMATTING", iupTextGetFormattingAttrib, iupTextSetFormattingAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "OVERWRITE", NULL, winTextSetOverwriteAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "REMOVEFORMATTING", NULL, winTextSetRemoveFormattingAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);

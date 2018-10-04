@@ -19,6 +19,7 @@ void iupwinDrawText(HDC hDC, const char* text, int x, int y, int width, int heig
 
 void iupwinDrawParentBackground(Ihandle* ih, HDC hDC, RECT* rect);
 void iupwinDrawButtonBorder(HWND hWnd, HDC hDC, RECT *rect, UINT itemState);
+void iupwinDraw3StateButton(HWND hWnd, HDC hDC, RECT *rect);
 
 void iupwinDrawThemeFrameBorder(HWND hWnd, HDC hDC, RECT *rect, UINT itemState);
 int  iupwinDrawGetThemeTabsBgColor(HWND hWnd, COLORREF *color);
@@ -30,10 +31,10 @@ typedef struct _iupwinBitmapDC
 {
   HBITMAP hBitmap, hOldBitmap;
   HDC hBitmapDC, hDC;
-  int w, h;
+  int x, y, w, h;
 } iupwinBitmapDC;
 
-HDC iupwinDrawCreateBitmapDC(iupwinBitmapDC *bmpDC, HDC hDC, int w, int h);
+HDC iupwinDrawCreateBitmapDC(iupwinBitmapDC *bmpDC, HDC hDC, int x, int y, int w, int h);
 void iupwinDrawDestroyBitmapDC(iupwinBitmapDC *bmpDC);
 
 #ifndef ODS_HOTLIGHT     /* Not defined for MingW and Cygwin */

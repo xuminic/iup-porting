@@ -457,6 +457,7 @@ int iupdrvDialogSetPlacement(Ihandle* ih)
   return 1;
 }
 
+
 /****************************************************************************
                                    Attributes
 ****************************************************************************/
@@ -476,7 +477,7 @@ static int motDialogSetMinSizeAttrib(Ihandle* ih, const char* value)
   if (min_h > decorheight)
     XtVaSetValues(ih->handle, XmNminHeight, min_h-decorheight, NULL);  
 
-  return 1;
+  return iupBaseSetMinSizeAttrib(ih, value);
 }
 
 static int motDialogSetMaxSizeAttrib(Ihandle* ih, const char* value)
@@ -493,7 +494,7 @@ static int motDialogSetMaxSizeAttrib(Ihandle* ih, const char* value)
   if (max_h > decorheight)
     XtVaSetValues(ih->handle, XmNmaxHeight, max_h-decorheight, NULL);  
 
-  return 1;
+  return iupBaseSetMaxSizeAttrib(ih, value);
 }
 
 static int motDialogSetTitleAttrib(Ihandle* ih, const char* value)
@@ -876,13 +877,6 @@ static int motDialogMapMethod(Ihandle* ih)
   int has_titlebar = 0;
   Arg args[20];
 
-  if (iupAttribGetBoolean(ih, "DIALOGFRAME")) 
-  {
-    iupAttribSetStr(ih, "RESIZE", "NO");
-    iupAttribSetStr(ih, "MAXBOX", "NO");
-    iupAttribSetStr(ih, "MINBOX", "NO");
-  }
-
   /****************************/
   /* Create the dialog shell  */
   /****************************/
@@ -1105,7 +1099,6 @@ void iupdrvDialogInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "XWINDOW", iupmotGetXWindowAttrib, NULL, NULL, NULL, IUPAF_NO_INHERIT|IUPAF_NO_STRING);
 
   /* Not Supported */
-  iupClassRegisterAttribute(ic, "DRAGDROP", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "OPACITY", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "TOPMOST", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "TRAY", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);

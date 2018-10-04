@@ -34,9 +34,6 @@
 #include "iupmat_mark.h"
 
 
-/* Color attenuation factor in a marked cell, 20% darker */
-#define IMAT_ATENUATION(_x)    ((unsigned char)(((_x)*8)/10))
-
 /* Text alignment that will be draw. Used by iMatrixDrawCellValue */
 #define IMAT_T_CENTER  1
 #define IMAT_T_LEFT    2
@@ -44,7 +41,7 @@
 
 #define IMAT_CD_INACTIVE_FGCOLOR  0x666666L
 
-#define IMAT_COMBOBOX_W 16
+#define IMAT_DROPBOX_W 16
 
 
 
@@ -188,8 +185,8 @@ static unsigned long iMatrixDrawSetBgColor(Ihandle* ih, int lin, int col, int ma
 static void iMatrixDrawFrameHorizLineCell(Ihandle* ih, int lin, int col, int x1, int x2, int y, long framecolor, char* str)
 {
   if (ih->data->checkframecolor && (ih->data->callback_mode || 
-                                    ih->data->cells[lin][col].flags & IMAT_HAS_FRAMEHCOLOR ||
-                                    ih->data->lines.flags[col] & IMAT_HAS_FRAMEHCOLOR))
+                                    ih->data->cells[lin][col].flags & IMAT_HAS_FRAMEHORIZCOLOR ||
+                                    ih->data->lines.flags[lin] & IMAT_HAS_FRAMEHORIZCOLOR))
   {
     char* color;
     unsigned char r,g,b;
@@ -213,8 +210,8 @@ static void iMatrixDrawFrameHorizLineCell(Ihandle* ih, int lin, int col, int x1,
 static void iMatrixDrawFrameVertLineCell(Ihandle* ih, int lin, int col, int x, int y1, int y2, long framecolor, char* str)
 {
   if (ih->data->checkframecolor && (ih->data->callback_mode || 
-                                    ih->data->cells[lin][col].flags & IMAT_HAS_FRAMEVCOLOR ||
-                                    ih->data->columns.flags[col] & IMAT_HAS_FRAMEVCOLOR))
+                                    ih->data->cells[lin][col].flags & IMAT_HAS_FRAMEVERTCOLOR ||
+                                    ih->data->columns.flags[col] & IMAT_HAS_FRAMEVERTCOLOR))
   {
     char* color;
     unsigned char r,g,b;
@@ -343,15 +340,20 @@ static int iMatrixDrawSortSign(Ihandle* ih, int x2, int y1, int y2, int col, int
   return 1;
 }
 
-static void iMatrixDrawComboFeedback(Ihandle* ih, int x2, int y1, int y2, int active, long framecolor)
+void iupMatrixDrawSetDropFeedbackArea(int *x1, int *y1, int *x2, int *y2)
+{
+  *x2 -= IMAT_PADDING_W/2 + IMAT_FRAME_W/2;
+  *x1  = *x2 - IMAT_DROPBOX_W; 
+  *y1 += IMAT_PADDING_H/2 + IMAT_FRAME_H/2;
+  *y2 -= IMAT_PADDING_H/2 + IMAT_FRAME_H/2;
+}
+
+static void iMatrixDrawDropFeedback(Ihandle* ih, int x2, int y1, int y2, int active, long framecolor)
 {
   int xh2, yh2, x1;
 
   /* feedback area */
-  x2 -= IMAT_PADDING_W/2 + IMAT_FRAME_W/2;
-  x1  = x2 - IMAT_COMBOBOX_W; 
-  y1 += IMAT_PADDING_H/2 + IMAT_FRAME_H/2;
-  y2 -= IMAT_PADDING_H/2 + IMAT_FRAME_H/2;
+  iupMatrixDrawSetDropFeedbackArea(&x1, &y1, &x2, &y2);
 
   /* feedback background */
   iMatrixDrawSetBgColor(ih, 0, 0, 0, active);
@@ -362,7 +364,7 @@ static void iMatrixDrawComboFeedback(Ihandle* ih, int x2, int y1, int y2, int ac
   iupMATRIX_RECT(ih, x1, x2, y1, y2);
 
   /* feedback arrow */
-  xh2 = x2 - IMAT_COMBOBOX_W / 2;
+  xh2 = x2 - IMAT_DROPBOX_W / 2;
   yh2 = y2 - (y2 - y1) / 2;
 
   cdCanvasBegin(ih->data->cddbuffer, CD_FILL);
@@ -463,7 +465,7 @@ static void iMatrixDrawCellValue(Ihandle* ih, int x1, int x2, int y1, int y2, in
     else
       iMatrixDrawSetCellClipping(ih, x1, x2, y1, y2);
 
-    cdCanvasNativeFont(ih->data->cddbuffer, iupMatrixGetFont(ih, lin, col));
+    cdIupSetFont(ih, ih->data->cddbuffer, iupMatrixGetFont(ih, lin, col));
 
     /* Create an space between text and cell frame */
     x1 += IMAT_PADDING_W/2;       x2 -= IMAT_PADDING_W/2;
@@ -575,14 +577,17 @@ static void iMatrixDrawMatrix(Ihandle* ih)
   iupMatrixDrawLineTitle(ih, ih->data->lines.first, ih->data->lines.last);
 
   /* If there are ordinary cells, then draw them */
+  if (ih->data->columns.num_noscroll>1 && ih->data->lines.num_noscroll>1)
+    iupMatrixDrawCells(ih, 1,                              1, 
+                           ih->data->lines.num_noscroll-1, ih->data->columns.num_noscroll-1);
   if (ih->data->columns.num_noscroll>1)
     iupMatrixDrawCells(ih, ih->data->lines.first, 1, 
-                           ih->data->lines.last, ih->data->columns.num_noscroll-1);
+                           ih->data->lines.last,  ih->data->columns.num_noscroll-1);
   if (ih->data->lines.num_noscroll>1)
-    iupMatrixDrawCells(ih, 1, ih->data->columns.first, 
+    iupMatrixDrawCells(ih, 1,                              ih->data->columns.first, 
                            ih->data->lines.num_noscroll-1, ih->data->columns.last);
   iupMatrixDrawCells(ih, ih->data->lines.first, ih->data->columns.first, 
-                         ih->data->lines.last, ih->data->columns.last);
+                         ih->data->lines.last,  ih->data->columns.last);
 }
 
 static void iMatrixDrawFocus(Ihandle* ih)
@@ -775,7 +780,7 @@ void iupMatrixDrawColumnTitle(Ihandle* ih, int col1, int col2)
       iMatrixDrawFrameRectTitle(ih, 0, col, x1, x2, y1, y2, framecolor, str);
 
       if (iMatrixDrawSortSign(ih, x2, y1, y2, col, active, str))
-        sort = IMAT_COMBOBOX_W; /* same space is used by the sort sign */
+        sort = IMAT_DROPBOX_W; /* same space is used by the sort sign */
 
       iMatrixDrawCellValue(ih, x1, x2-sort, y1, y2, IMAT_T_CENTER, marked, active, 0, col, draw_cb);
     }
@@ -941,8 +946,8 @@ void iupMatrixDrawCells(Ihandle* ih, int lin1, int col1, int lin2, int col2)
 
       if (dropcheck_cb && dropcheck_cb(ih, lin, col) == IUP_DEFAULT)
       {
-        drop = IMAT_COMBOBOX_W+IMAT_PADDING_W/2;
-        iMatrixDrawComboFeedback(ih, x2, y1, y2, active, framecolor);
+        drop = IMAT_DROPBOX_W+IMAT_PADDING_W/2;
+        iMatrixDrawDropFeedback(ih, x2, y1, y2, active, framecolor);
       }
         
       /* draw the cell contents */
@@ -996,8 +1001,17 @@ int iupMatrixDrawSetRedrawAttrib(Ihandle* ih, const char* value)
     int min = 0, max = 0;
     value++;
 
-    if(iupStrToIntInt(value, &min, &max, ':') != 2)
-      max = min;
+    /* compatibility code */
+    if (strchr(value, ':')!=NULL)
+    {
+      if(iupStrToIntInt(value, &min, &max, ':') != 2)
+        max = min;
+    }
+    else
+    {
+      if(iupStrToIntInt(value, &min, &max, '-') != 2)
+        max = min;
+    }
 
     if (min > max)
       return 0;

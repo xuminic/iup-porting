@@ -195,7 +195,7 @@ int IupAlarm(const char *title, const char *msg, const char *b1, const char *b2,
   IupAppend(button_box, IupFill()); /* to center the buttons */
 
   button = IupButton(b1, NULL);
-  iupAttribSetStrf(button, "_IUP_BUTTON_NUMBER", "1");
+  iupAttribSetStr(button, "_IUP_BUTTON_NUMBER", "1");
   IupSetAttribute(button, "PADDING", padding);
   IupAppend(button_box, button);
   IupSetCallback (button, "ACTION", (Icallback)iAlarmButtonAction_CB);
@@ -365,7 +365,7 @@ int IupGetFile(char* filename)
     char* value = IupGetAttribute(dlg, "VALUE");
     if (value) 
     {
-      strcpy(filename, value);
+      iupStrCopyN(filename, 4096, value);
       iupStrFileNameSplit(filename, dir, NULL);
     }
   }
@@ -430,7 +430,7 @@ int IupGetText(const char* title, char* text)
 
   bt = IupGetInt(dlg, "STATUS");
   if (bt==1)
-    strcpy(text, IupGetAttribute(multi_text, "VALUE"));
+    iupStrCopyN(text, 10240, IupGetAttribute(multi_text, "VALUE"));
   else
     bt = 0; /* return 0 instead of -1 */
 

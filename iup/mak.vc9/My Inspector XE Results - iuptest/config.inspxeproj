@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+ <rdmgr>
+  <timestamp type="u64_t">1331574378</timestamp>
+  <hostname>antonio</hostname>
+  <os>windows</os>
+  <product>Intel® Inspector XE 2011 Update 8</product>
+  <buildNumber type="s32_t">206270</buildNumber>
+ </rdmgr>
+ <All_Configurations-All_Platforms>
+  <searchDirs>
+   <searchCategory>
+    <category type="u8_t">1</category>
+   </searchCategory>
+   <searchCategory>
+    <category type="u8_t">2</category>
+   </searchCategory>
+   <searchCategory>
+    <category type="u8_t">3</category>
+   </searchCategory>
+   <searchCategory>
+    <category type="u8_t">4</category>
+   </searchCategory>
+  </searchDirs>
+  <target_settings>
+   <result_pattern>r@@@{at}</result_pattern>
+   <selected_workload>workload.application</selected_workload>
+   <result_dir>D:\tecgraf\iup\mak.vc9\My Inspector XE Results - iuptest</result_dir>
+   <workloads>
+    <workload>
+     <application type="pointer" type_id="dasID_cctrl2::ApplicationWorkload" ptr_type="dasID_cctrl2::IWorkload">
+      <workload>
+       <result_directory.path>D:\tecgraf\iup\mak.vc9\My Inspector XE Results - iuptest\r@@@{at}</result_directory.path>
+       <launch_app.app_to_launch>d:\tecgraf\iup\bin\iuptest.exe</launch_app.app_to_launch>
+       <launch_app.working_folder>D:\tecgraf\iup\mak.vc9</launch_app.working_folder>
+       <search_directories>
+        <item>
+         <value>sym=d:/tecgraf/iup/bin</value>
+        </item>
+        <item>
+         <value>sym=D:/tecgraf/iup/mak.vc9</value>
+        </item>
+       </search_directories>
+       <context>
+        <contextValue>
+         <id>analysis_mode</id>
+         <value>default</value>
+        </contextValue>
+        <contextValue>
+         <id>modules_switch</id>
+         <value>knob.modules_switch.include</value>
+        </contextValue>
+        <contextValue>
+         <id>mrte_mode</id>
+         <value>native</value>
+        </contextValue>
+        <contextValue>
+         <id>process_for_analysis</id>
+         <value></value>
+        </contextValue>
+        <contextValue>
+         <id>suppressions</id>
+         <value>delete</value>
+        </contextValue>
+        <contextValue>
+         <id>vsdbg_support</id>
+         <value>off</value>
+        </contextValue>
+       </context>
+      </workload>
+     </application>
+    </workload>
+   </workloads>
+  </target_settings>
+  <analysis_type_settings>
+   <selected_analysis_type_path>C:\Program Files (x86)\Intel\Inspector XE 2011\config\analysis_type\mi3.cfg</selected_analysis_type_path>
+  </analysis_type_settings>
+ </All_Configurations-All_Platforms>
+ <suppressionsdefault>
+  <suppression_location>
+   <suppression_location>\suppressions</suppression_location>
+  </suppression_location>
+ </suppressionsdefault>
+ <suppressions type="bag"/>
+</root>

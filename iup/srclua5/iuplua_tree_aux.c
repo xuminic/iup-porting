@@ -69,7 +69,7 @@ static void tree_push_userid(lua_State *L, void* userid)
   else 
   {
     if (ref > 0) ref--; /* only positive references are shifted */
-    lua_getref(L, ref);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
   }
 }
 
@@ -99,7 +99,7 @@ static int TreeGetId(lua_State *L)
 static int TreeGetUserId(lua_State *L)
 {  
   Ihandle *ih = iuplua_checkihandle(L,1);
-  int id = luaL_checkinteger(L,2);
+  int id = luaL_checkint(L,2);
   tree_push_userid(L, IupTreeGetUserId(ih, id));
   return 1;
 }
@@ -107,16 +107,16 @@ static int TreeGetUserId(lua_State *L)
 static int TreeSetUserId(lua_State *L)
 {  
   Ihandle *ih = iuplua_checkihandle(L,1);
-  int id = luaL_checkinteger(L,2);
+  int id = luaL_checkint(L,2);
   int ref = (int)IupTreeGetUserId(ih, id);
   if (ref != 0) /* userid is not NULL */
   {
     if (ref > 0) ref--; /* only positive references are shifted */
 
     /* release the previous object referenced there */
-    lua_getref(L, ref);
+    lua_rawgeti(L, LUA_REGISTRYINDEX, ref);
     tree_settableref(L, 4, LUA_NOREF);
-    lua_unref(L, ref);
+    luaL_unref(L, LUA_REGISTRYINDEX, ref);
     lua_pop(L, 1);
   }
 
@@ -126,7 +126,7 @@ static int TreeSetUserId(lua_State *L)
   {
     /* add a new reference */
     lua_pushvalue(L, 3);
-    ref = lua_ref(L, 1);
+    ref = luaL_ref(L, LUA_REGISTRYINDEX);
     tree_settableref(L, 3, ref);
 
     if (ref >= 0) ref++;  /* only positive references are shifted */

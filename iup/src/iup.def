@@ -194,6 +194,7 @@ iupdrvGetSystemFont
 iupdrvGetScrollbarSize
 iupdrvGetScreenSize
 iupdrvGetScreenDepth
+iupdrvGetScreenDpi
 iupdrvGetKeyState
 iupdrvGetFullSize
 iupdrvGetDisplay
@@ -216,6 +217,7 @@ iupdrvActivate
 iupdrvSendMouse
 iupdrvSendKey
 iupdrvWarpPointer
+iupdrvKeyEncode
 iupdrvImageCreateImageRaw
 iupdrvImageGetRawInfo
 iupdrvImageGetRawData
@@ -259,11 +261,13 @@ iupStrLineCount
 iupStrInsert
 iupStrGetMemoryCopy
 iupStrGetMemory
+iupStrGetLargeMem
 iupStrFileMakeFileName
 iupStrFileGetTitle
 iupStrFileGetPath
 iupStrFileGetExt
 iupStrEqualPartial
+iupStrEqualNoCasePartial
 iupStrEqualNoCase
 iupStrEqual
 iupStrDup
@@ -292,7 +296,7 @@ iupKeyCallKeyPressCb
 iupKeyCallKeyCb
 iupKeyProcessNavigation
 iupImageStockSet
-iupImageStockLoad
+iupImageStockLoadAll
 iupImageColorMakeInactive
 iupGetFontStyleAttrib
 iupGetFontSizeAttrib
@@ -385,6 +389,8 @@ iupArrayDestroy
 iupArrayCreate
 iupArrayCount
 iupArrayAdd
+iupArrayInsert
+iupArrayRemove
 iupSaveImageAsText
 iupDrawCreateCanvas
 iupDrawKillCanvas
@@ -400,3 +406,5 @@ iupDrawSetClipRect
 iupDrawText
 iupDrawUpdateSize
 iupDrawImage
+iupGetFontInfo
+

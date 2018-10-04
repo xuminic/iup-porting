@@ -26,20 +26,32 @@ void iupwinWmSetFocus(Ihandle *ih);
 /* key */
 int iupwinKeyEvent(Ihandle* ih, int wincode, int press);
 void iupwinButtonKeySetStatus(WORD keys, char* status, int doubleclick);
-void iupwinKeyEncode(int key, unsigned int *keyval, unsigned int *state);
 int iupwinKeyDecode(int wincode);
 
 /* tips */
 void iupwinTipsGetDispInfo(LPARAM lp);
 void iupwinTipsUpdateInfo(Ihandle* ih, HWND tips_hwnd);
+void iupwinTipsDestroy(Ihandle* ih);
+
+/* touch */
+void iupwinTouchInit(void);
+void iupwinTouchRegisterAttrib(Iclass* ic);
+void iupwinTouchProcessInput(Ihandle* ih, int count, void* lp);
 
 /* font */
 char* iupwinGetHFontAttrib(Ihandle *ih);
 HFONT iupwinGetHFont(const char* value);
 char* iupwinFindHFont(HFONT hFont);
 
+/* DnD */
+int iupwinDragStart(Ihandle* ih);
+void iupwinDropFiles(HDROP hDrop, Ihandle *ih);
+void iupwinDestroyDragDrop(Ihandle* ih);
+
 /* menu */
 void iupwinMenuDialogProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp);
+Ihandle* iupwinMenuGetItemHandle(HMENU hmenu, int menuId);
+Ihandle* iupwinMenuGetHandle(HMENU hMenu);
 
 /* common */
 
@@ -74,26 +86,28 @@ int iupwinBaseProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result)
    Handle messages that are sent to the parent Window.  */
 int iupwinBaseContainerProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result);
 
+void iupwinChangeProc(Ihandle *ih, WNDPROC new_proc);
+
 /* Creates the Window with native parent and child ID, associate HWND with Ihandle*, 
    and replace the WinProc by iupwinBaseWinProc */
 int iupwinCreateWindowEx(Ihandle* ih, LPCSTR lpClassName, DWORD dwExStyle, DWORD dwStyle);
-void iupwinGetNativeParentStyle(Ihandle* ih, DWORD *dwExStyle, DWORD *dwStyle);
 
-int iupwinClassExist(const char* name);
-int iupwinGetColorRef(Ihandle *ih, char *name, COLORREF *color);
-int iupwinGetParentBgColor(Ihandle* ih, COLORREF* cr);
-void iupwinDropFiles(HDROP hDrop, Ihandle *ih);
-Ihandle* iupwinMenuGetItemHandle(HMENU hmenu, int menuId);
-Ihandle* iupwinMenuGetHandle(HMENU hMenu);
-int iupwinSetDragDropAttrib(Ihandle* ih, const char* value);
-void iupwinChangeProc(Ihandle *ih, WNDPROC new_proc);
+void iupwinGetNativeParentStyle(Ihandle* ih, DWORD *dwExStyle, DWORD *dwStyle);
 void iupwinMergeStyle(Ihandle* ih, DWORD old_mask, DWORD value);
 void iupwinSetStyle(Ihandle* ih, DWORD value, int set);
+
+int iupwinClassExist(const char* name);
+
+int iupwinGetColorRef(Ihandle *ih, char *name, COLORREF *color);
+int iupwinGetParentBgColor(Ihandle* ih, COLORREF* cr);
+
 WCHAR* iupwinStrChar2Wide(const char* str);
 char* iupwinStrWide2Char(const WCHAR* wstr);
+
 int iupwinButtonUp(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp);
 int iupwinButtonDown(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp);
 int iupwinMouseMove(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp);
+
 char* iupwinGetClipboardText(Ihandle* ih);
 int iupwinSetAutoRedrawAttrib(Ihandle* ih, const char* value);
 
@@ -106,7 +120,7 @@ int iupwinGetScreenRes(void);
 
 /* child window identifier of the first MDI child window created,
    should not conflict with any other command identifiers. */
-#define IUP_MDICHILD_START 100000000
+#define IUP_MDI_FIRSTCHILD 100000000
 
 
 #ifdef __cplusplus

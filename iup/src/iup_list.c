@@ -20,6 +20,7 @@
 #include "iup_stdcontrols.h"
 #include "iup_layout.h"
 #include "iup_mask.h"
+#include "iup_image.h"
 #include "iup_list.h"
 
 
@@ -173,11 +174,15 @@ void iupListMultipleCallActionCallback(Ihandle* ih, IFnsii cb, IFns multi_cb, in
 
 int iupListGetPos(Ihandle* ih, int pos)
 {
-  int count = iupdrvListGetCount(ih);
+  int count;
 
   pos--; /* IUP items start at 1 */
 
-  if (pos < 0) return -1;
+  if (pos < 0) 
+    return -1;
+
+  count = iupdrvListGetCount(ih);
+
   if (pos == count) return -2;
   if (pos > count) return -1;
 
@@ -302,7 +307,7 @@ static int iListSetRemoveItemAttrib(Ihandle* ih, const char* value)
 {
   if (!ih->handle)  /* do not do the action before map */
     return 0;
-  if (!value)
+  if (!value || iupStrEqualNoCase(value, "ALL"))
   {
     iupdrvListRemoveAllItems(ih);
     iupAttribSetStr(ih, "_IUPLIST_OLDVALUE", NULL);
@@ -552,6 +557,28 @@ static int iListSetMaskFloatAttrib(Ihandle* ih, const char* value)
   return 0;
 }
 
+static int iListSetShowImageAttrib(Ihandle* ih, const char* value)
+{
+  /* valid only before map */
+  if (ih->handle)
+    return 0;
+
+  if (iupStrBoolean(value))
+    ih->data->show_image = 1;
+  else
+    ih->data->show_image = 0;
+
+  return 0;
+}
+
+static char* iListGetShowImageAttrib(Ihandle* ih)
+{
+  if (ih->data->show_image)
+    return "YES";
+  else
+    return "NO";
+}
+
 
 /*****************************************************************************************/
 
@@ -567,10 +594,25 @@ static int iListCreateMethod(Ihandle* ih, void** params)
   return IUP_NOERROR;
 }
 
+static void iListGetItemImageInfo(Ihandle *ih, int id, int *img_w, int *img_h)
+{
+  char str[20];
+  char *value;
+
+  *img_w = 0;
+  *img_h = 0;
+
+  sprintf(str, "IMAGE%d", id);
+  value = iupAttribGet(ih, str);
+  if (value)
+    iupImageGetInfo(value, img_w, img_h, NULL);
+}
+
 static void iListGetNaturalItemsSize(Ihandle *ih, int *w, int *h)
 {
   char *value;
-  int visiblecolumns, 
+  int max_w = 0, max_h = 0;
+  int visiblecolumns, i, 
       count = iListGetCount(ih);
 
   *w = 0;
@@ -586,29 +628,51 @@ static void iListGetNaturalItemsSize(Ihandle *ih, int *w, int *h)
   }
   else
   {
-    int item_w, i;
-    char str[20];
+    int item_w;
 
     for (i=1; i<=count; i++)
     {
-      sprintf(str, "%d", i);
-      value = IupGetAttribute(ih, str);  /* must use IupGetAttribute to check the native system */
+      item_w = 0;
+
+      value = IupGetAttributeId(ih, "", i);  /* must use IupGetAttribute to check the native system */
       if (value)
-      {
         item_w = iupdrvFontGetStringWidth(ih, value);
-        if (item_w > *w)
-          *w = item_w;
-      }
+
+      if (item_w > *w)
+        *w = item_w;
     }
 
     if (*w == 0) /* default is 5 characters in 1 item */
       *w = iupdrvFontGetStringWidth(ih, "WWWWW");
   }
 
-  /* compute height for multiple lines, drodown is just 1 line */
+  if (ih->data->show_image)
+  {
+    for (i=1; i<=count; i++)
+    {
+      int img_w, img_h;
+      iListGetItemImageInfo(ih, i, &img_w, &img_h);
+      if (img_w > max_w)
+        max_w = img_w;
+      if (img_h > max_h)
+        max_h = img_h;
+    }
+
+    /* Used only in Windows */
+    ih->data->maximg_w = max_w;
+    ih->data->maximg_h = max_h;
+
+    *w += max_w;
+  }
+
+  /* compute height for multiple lines, dropdown is just 1 line */
   if (!ih->data->is_dropdown)
   {
-    int visiblelines, num_lines, line_size = *h;
+    int visiblelines, num_lines, 
+        edit_line_size = *h;  /* don't include the highest image */
+
+    if (ih->data->show_image && max_h > *h)  /* use the highest image to compute the natural size */
+      *h = max_h;
 
     iupdrvListAddItemSpace(ih, h);  /* this independs from spacing */
 
@@ -625,7 +689,15 @@ static void iListGetNaturalItemsSize(Ihandle *ih, int *w, int *h)
     *h = *h * num_lines;
 
     if (ih->data->has_editbox) 
-      *h += line_size;
+      *h += edit_line_size;
+  }
+  else
+  {
+    if (!ih->data->has_editbox)
+    {
+      if (ih->data->show_image && max_h > *h)  /* use the highest image to compute the natural size */
+        *h = max_h;
+    }
   }
 }
 
@@ -728,6 +800,9 @@ Iclass* iupListNewClass(void)
   /* Visual */
   iupBaseRegisterVisualAttrib(ic);
 
+  /* Drag&Drop */
+  iupdrvRegisterDragDropAttrib(ic);
+
   /* IupList only */
   iupClassRegisterAttribute(ic, "SCROLLBAR", iListGetScrollbarAttrib, iListSetScrollbarAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "MULTIPLE", iListGetMultipleAttrib, iListSetMultipleAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
@@ -747,6 +822,8 @@ Iclass* iupListNewClass(void)
 
   iupClassRegisterAttribute(ic, "VISIBLECOLUMNS", NULL, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "VISIBLELINES", NULL, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+
+  iupClassRegisterAttribute(ic, "SHOWIMAGE", iListGetShowImageAttrib, iListSetShowImageAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 
   iupdrvListInitClass(ic);
 

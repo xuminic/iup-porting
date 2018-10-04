@@ -83,12 +83,17 @@ void iupdrvDialogGetPosition(Ihandle *ih, InativeHandle* handle, int *x, int *y)
 #else
   if (GTK_WIDGET_VISIBLE(handle))
 #endif
-    gtk_window_get_position((GtkWindow*)handle, x, y);
+  {
+    gint gx, gy;
+    gtk_window_get_position((GtkWindow*)handle, &gx, &gy);
+    if (x) *x = gx;
+    if (y) *y = gy;
+  }
   else if (ih)
   {
     /* gtk_window_get_position returns an outdated value if window is not visible */
-    *x = iupAttribGetInt(ih, "_IUPGTK_OLD_X");
-    *y = iupAttribGetInt(ih, "_IUPGTK_OLD_Y");
+    if (x) *x = iupAttribGetInt(ih, "_IUPGTK_OLD_X");
+    if (y) *y = iupAttribGetInt(ih, "_IUPGTK_OLD_Y");
   }
 }
 
@@ -102,7 +107,7 @@ static int gtkDialogGetMenuSize(Ihandle* ih)
 #ifdef HILDON
   return 0;
 #else
-  if (ih->data->menu)
+  if (ih->data->menu && !iupgtk_globalmenu)
     return iupdrvMenuGetMenuBarSize(ih->data->menu);
   else
     return 0;
@@ -498,13 +503,6 @@ static int gtkDialogMapMethod(Ihandle* ih)
   /* initialize the widget */
   gtk_widget_realize(ih->handle);
 
-  if (iupAttribGetBoolean(ih, "DIALOGFRAME"))
-  {
-    iupAttribSetStr(ih, "RESIZE", "NO");
-    iupAttribSetStr(ih, "MAXBOX", "NO");
-    iupAttribSetStr(ih, "MINBOX", "NO");
-  }
-
   if (iupAttribGet(ih, "TITLE"))
     has_titlebar = 1;
   if (iupAttribGetBoolean(ih, "RESIZE")) 
@@ -557,7 +555,7 @@ static int gtkDialogMapMethod(Ihandle* ih)
 
   /* configure for DRAG&DROP */
   if (IupGetCallback(ih, "DROPFILES_CB"))
-    iupAttribSetStr(ih, "DRAGDROP", "YES");
+    iupAttribSetStr(ih, "DROPFILESTARGET", "YES");
 
   {
     /* Reset the DLGBGCOLOR global attribute 
@@ -671,6 +669,7 @@ static void gtkDialogSetMinMax(Ihandle* ih, int min_w, int min_h, int max_w, int
   if (max_h > decorheight && max_w > geometry.min_height)
     geometry.max_height = max_h-decorheight;
 
+  /* must set both at the same time, or GTK will assume its default */
   gtk_window_set_geometry_hints((GtkWindow*)ih->handle, ih->handle,
                                 &geometry, (GdkWindowHints)(GDK_HINT_MIN_SIZE | GDK_HINT_MAX_SIZE));
 }
@@ -685,7 +684,8 @@ static int gtkDialogSetMinSizeAttrib(Ihandle* ih, const char* value)
   iupStrToIntInt(iupAttribGet(ih, "MAXSIZE"), &max_w, &max_h, 'x');
 
   gtkDialogSetMinMax(ih, min_w, min_h, max_w, max_h);
-  return 1;
+
+  return iupBaseSetMinSizeAttrib(ih, value);
 }
 
 static int gtkDialogSetMaxSizeAttrib(Ihandle* ih, const char* value)
@@ -698,7 +698,8 @@ static int gtkDialogSetMaxSizeAttrib(Ihandle* ih, const char* value)
   iupStrToIntInt(iupAttribGet(ih, "MINSIZE"), &min_w, &min_h, 'x');
 
   gtkDialogSetMinMax(ih, min_w, min_h, max_w, max_h);
-  return 1;
+
+  return iupBaseSetMaxSizeAttrib(ih, value);
 }
 
 static int gtkDialogSetTitleAttrib(Ihandle* ih, const char* value)
@@ -968,7 +969,10 @@ static int gtkDialogSetTrayTipAttrib(Ihandle *ih, const char *value)
   if (value)
   {
     gtk_status_icon_set_has_tooltip(status_icon, TRUE);
-    gtk_status_icon_set_tooltip_text(status_icon, value);
+    if (iupAttribGetBoolean(ih, "TIPMARKUP"))
+      gtk_status_icon_set_tooltip_markup(status_icon, value);
+    else
+      gtk_status_icon_set_tooltip_text(status_icon, value);
   }
   else
     gtk_status_icon_set_has_tooltip(status_icon, FALSE);
@@ -1029,7 +1033,6 @@ void iupdrvDialogInitClass(Iclass* ic)
   /* IupDialog Windows and GTK Only */
   iupClassRegisterAttribute(ic, "ACTIVEWINDOW", gtkDialogGetActiveWindowAttrib, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "TOPMOST", NULL, gtkDialogSetTopMostAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "DRAGDROP", NULL, iupgtkSetDragDropAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "DIALOGHINT", NULL, NULL, NULL, NULL, IUPAF_NO_INHERIT);
 #if GTK_CHECK_VERSION(2, 12, 0)
   iupClassRegisterAttribute(ic, "OPACITY", NULL, gtkDialogSetOpacityAttrib, NULL, NULL, IUPAF_NO_INHERIT);
@@ -1038,6 +1041,7 @@ void iupdrvDialogInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "TRAY", NULL, gtkDialogSetTrayAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "TRAYIMAGE", NULL, gtkDialogSetTrayImageAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "TRAYTIP", NULL, gtkDialogSetTrayTipAttrib, NULL, NULL, IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "TRAYTIPMARKUP", NULL, NULL, IUPAF_SAMEASSYSTEM, NULL, IUPAF_NOT_MAPPED);
 #endif
 
   /* Not Supported */

@@ -42,7 +42,9 @@ struct _IcontrolData
       last_caret_pos,
       is_multiple,
       is_dropdown,
-      has_editbox;
+      has_editbox,
+      maximg_w, maximg_h, /* used only in Windows */
+      show_image;
   Imask* mask;
 };
 

@@ -53,7 +53,7 @@ static int matrix_bgcolor_cb(Ihandle *self, int p0, int p1, unsigned int *p2, un
   *p2 = (unsigned int)lua_tointeger(L, -4); 
   *p3 = (unsigned int)lua_tointeger(L, -3); 
   *p4 = (unsigned int)lua_tointeger(L, -2); 
-  lua_pop(L, 1);
+  lua_pop(L, 4);
   return IUP_DEFAULT;
 }
 
@@ -77,7 +77,7 @@ static int matrix_fgcolor_cb(Ihandle *self, int p0, int p1, unsigned int *p2, un
   *p2 = (unsigned int)lua_tointeger(L, -4); 
   *p3 = (unsigned int)lua_tointeger(L, -3); 
   *p4 = (unsigned int)lua_tointeger(L, -2); 
-  lua_pop(L, 1);
+  lua_pop(L, 4);
   return IUP_DEFAULT;
 }
 
@@ -85,8 +85,8 @@ static int MatGetAttribute(lua_State *L)
 {
   Ihandle *ih = iuplua_checkihandle(L,1);
   const char *name = luaL_checkstring(L,2);
-  int lin = luaL_checkinteger(L,3);
-  int col = luaL_checkinteger(L,4);
+  int lin = luaL_checkint(L,3);
+  int col = luaL_checkint(L,4);
   const char *value = IupMatGetAttribute(ih, name, lin, col);
   if (!value || iupATTRIB_ISINTERNAL(name))
     lua_pushnil(L);
@@ -109,8 +109,8 @@ static int MatStoreAttribute(lua_State *L)
 {
   Ihandle *ih = iuplua_checkihandle(L,1);
   const char *a = luaL_checkstring(L,2);
-  int lin = luaL_checkinteger(L,3);
-  int col = luaL_checkinteger(L,4);
+  int lin = luaL_checkint(L,3);
+  int col = luaL_checkint(L,4);
 
   if (lua_isnil(L,5)) 
     IupMatSetAttribute(ih,a,lin, col,NULL);

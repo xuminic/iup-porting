@@ -16,6 +16,11 @@ local ctrl = {
     copydata_cb = "sn",
     trayclick_cb = "nnn",
     dropfiles_cb = "snnn",
+    dragbegin_cb = "nn",
+    dragdatasize_cb = "s",
+    dragdata_cb = "son",
+    dragend_cb = "n",
+    dropdata_cb = "sonnn",
   }
 }
 
@@ -29,10 +34,6 @@ end
 
 function ctrl.showxy(handle, x, y)
   return iup.ShowXY(handle, x, y)
-end
-
-function ctrl.destroy(handle)
-  return iup.Destroy(handle)
 end
 
 iup.RegisterWidget(ctrl)

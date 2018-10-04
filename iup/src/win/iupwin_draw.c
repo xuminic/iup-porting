@@ -117,6 +117,23 @@ static int winDrawThemeButtonBorder(HWND hWnd, HDC hDC, RECT *rect, UINT itemSta
   return 1;
 }
 
+static int winDrawTheme3StateButton(HWND hWnd, HDC hDC, RECT *rect)
+{
+  HTHEME hTheme;
+
+  if (!winDrawThemeEnabled()) 
+    return 0; 
+
+  hTheme = winThemeOpenData(hWnd, L"BUTTON");
+  if (!hTheme) 
+    return 0;
+
+  winThemeDrawBackground(hTheme, hDC, BP_CHECKBOX, CBS_MIXEDNORMAL, rect, NULL);
+
+  winThemeCloseData(hTheme);
+  return 1;
+}
+
 void iupwinDrawThemeFrameBorder(HWND hWnd, HDC hDC, RECT *rect, UINT itemState)
 {
   int iStateId = GBS_NORMAL;
@@ -289,6 +306,12 @@ void iupwinDrawButtonBorder(HWND hWnd, HDC hDC, RECT *rect, UINT itemState)
   }
 }
 
+void iupwinDraw3StateButton(HWND hWnd, HDC hDC, RECT *rect)
+{
+  if (!winDrawTheme3StateButton(hWnd, hDC, rect))
+    DrawFrameControl(hDC, rect, DFC_BUTTON, DFCS_BUTTON3STATE|DFCS_CHECKED|DFCS_FLAT);
+}
+
 void iupdrvDrawFocusRect(Ihandle* ih, void* gc, int x, int y, int w, int h)
 {
   HDC hDC = (HDC)gc;
@@ -312,8 +335,10 @@ void iupwinDrawParentBackground(Ihandle* ih, HDC hDC, RECT* rect)
   FillRect(hDC, rect, (HBRUSH)GetStockObject(DC_BRUSH));
 }
 
-HDC iupwinDrawCreateBitmapDC(iupwinBitmapDC *bmpDC, HDC hDC, int w, int h)
+HDC iupwinDrawCreateBitmapDC(iupwinBitmapDC *bmpDC, HDC hDC, int x, int y, int w, int h)
 {
+  bmpDC->x = x;
+  bmpDC->y = y;
   bmpDC->w = w;
   bmpDC->h = h;
   bmpDC->hDC = hDC;
@@ -326,7 +351,7 @@ HDC iupwinDrawCreateBitmapDC(iupwinBitmapDC *bmpDC, HDC hDC, int w, int h)
 
 void iupwinDrawDestroyBitmapDC(iupwinBitmapDC *bmpDC)
 {
-  BitBlt(bmpDC->hDC, 0, 0, bmpDC->w, bmpDC->h, bmpDC->hBitmapDC, 0, 0, SRCCOPY);
+  BitBlt(bmpDC->hDC, bmpDC->x, bmpDC->y, bmpDC->w, bmpDC->h, bmpDC->hBitmapDC, 0, 0, SRCCOPY);
   SelectObject(bmpDC->hBitmapDC, bmpDC->hOldBitmap);
   DeleteObject(bmpDC->hBitmap);
   DeleteDC(bmpDC->hBitmapDC);
@@ -440,13 +465,13 @@ void iupDrawRectangle(IdrawCanvas* dc, int x1, int y1, int x2, int y2, unsigned 
   if (style==IUP_DRAW_FILL)
   {
     RECT rect;
-    rect.left = x1; rect.top = y1; rect.right = x2+1; rect.bottom = y2+1;
+    SetRect(&rect, x1, y1, x2+1, y2+1);
     FillRect(dc->hBitmapDC, &rect, (HBRUSH)GetStockObject(DC_BRUSH));
   }
   else if (style==IUP_DRAW_STROKE)
   {
     RECT rect;
-    rect.left = x1; rect.top = y1; rect.right = x2+1; rect.bottom = y2+1;
+    SetRect(&rect, x1, y1, x2+1, y2+1);
     FrameRect(dc->hBitmapDC, &rect, (HBRUSH)GetStockObject(DC_BRUSH));
   }
   else

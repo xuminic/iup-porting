@@ -27,6 +27,7 @@ static int drop(Ihandle *self, Ihandle *drop, int lin, int col)
     IupSetAttribute(drop, "6", "6");
     IupSetAttribute(drop, "7", "7");
     IupSetAttribute(drop, "8", NULL);
+    IupSetAttribute(drop, "VALUE", "4");
     return IUP_DEFAULT;
   }
   return IUP_IGNORE;
@@ -78,7 +79,7 @@ static Ihandle* create_matrix(void)
   //IupSetAttribute(mat, "FGCOLOR1:2", "255 0 0");
   //IupSetAttribute(mat, "FGCOLOR2:*", "0 128 0");
   //IupSetAttribute(mat, "FGCOLOR*:3", "0 0 255");
-  //IupSetAttribute(mat, "FONT1:2", "Helvetica, 24");
+  IupSetAttribute(mat, "FONT3:3", "Helvetica, 24");
   //IupSetAttribute(mat, "FONT2:*", "Courier, 14");
   //IupSetAttribute(mat, "FONT*:3", "Times, Bold 14");
   //IupSetAttribute(mat, "ALIGNMENT2", "ARIGHT");
@@ -131,7 +132,8 @@ static Ihandle* create_matrix(void)
   //}
 
   IupSetCallback(mat, "DROPCHECK_CB", (Icallback)dropcheck_cb);
-  IupSetCallback(mat,"DROP_CB",(Icallback)drop);
+//  IupSetCallback(mat,"DROP_CB",(Icallback)drop);
+  IupSetCallback(mat,"MENUDROP_CB",(Icallback)drop);
 //  IupSetCallback(mat, "MOUSEMOVE_CB", (Icallback)mousemove_cb);
 
   return mat;

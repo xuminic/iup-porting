@@ -1,11 +1,15 @@
 PROJNAME = iup
 LIBNAME = iupimglib
-OPT = YES
+
+#Turn off optimization to speed up compilation
+#OPT = YES
 
 INCLUDES = ../include ../src
 
-# Uncomment if you want to include images larger than 48x48 (inclusive)
-#DEFINES += IUP_IMGLIB_LARGE
+ifdef USE_IUP_IMGLIB_LARGE
+  # if you want to include images larger than 48x48 (inclusive)
+  DEFINES += IUP_IMGLIB_LARGE
+endif
 
 SRC = iup_image_library.c iup_imglib_bitmapsgtk.c iup_imglib_icons.c iup_imglib_logos.c
 

@@ -34,6 +34,12 @@ int iupStrEqualNoCase(const char* str1, const char* str2);
  * \ingroup str */
 int iupStrEqualPartial(const char* str1, const char* str2);
 
+/** Returns a non zero value if the two strings are equal but ignores case 
+ * up to a number of characters defined by the strlen of the second string.
+ * str1 or str2 can be NULL.
+ * \ingroup str */
+int iupStrEqualNoCasePartial(const char* str1, const char* str2);
+
 /** Returns 1 if the string is "1", "YES", "ON" or "TRUE". \n
  * Returns 0 otherwise.
  * \ingroup str */
@@ -70,7 +76,7 @@ char* iupStrDup(const char* str);
 char *iupStrCopyUntil(char **str, int c);
 
 /** Copy the string to the buffer, but limited to the max_size of the buffer.
- * buffer is always porperly ended.
+ * buffer is always properly ended.
  * \ingroup str */
 void iupStrCopyN(char* dst_str, int dst_max_size, const char* src_str);
 
@@ -83,6 +89,11 @@ char *iupStrGetMemory(int size);
 /** Returns a buffer that contains a copy of the given buffer using \ref iupStrGetMemory.
  * \ingroup str */
 char *iupStrGetMemoryCopy(const char* str);
+
+/** Returns a very large buffer to be used in unknown size string construction.
+ * Use snprintf or vsnprintf with the given size.
+ * \ingroup str */
+char *iupStrGetLargeMem(int *size);
 
 /** Converts a string into lower case. Can be used in-place.
  * \ingroup str */

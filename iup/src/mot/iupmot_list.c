@@ -491,20 +491,14 @@ static int motListSetSpacingAttrib(Ihandle* ih, const char* value)
 
   if (ih->handle)
   {
+    Widget list = ih->handle;
     if (ih->data->has_editbox)
-    {
-      Widget cblist;
-      XtVaGetValues(ih->handle, XmNlist, &cblist, NULL);
-      XtVaSetValues(cblist, XmNlistSpacing, ih->data->spacing*2, 
-                            XmNlistMarginWidth, ih->data->spacing, 
-                            XmNlistMarginHeight, ih->data->spacing, 
-                            NULL);
-    }
-    else
-      XtVaSetValues(ih->handle, XmNlistSpacing, ih->data->spacing*2, 
-                                XmNlistMarginWidth, ih->data->spacing, 
-                                XmNlistMarginHeight, ih->data->spacing, 
-                                NULL);
+      XtVaGetValues(ih->handle, XmNlist, &list, NULL);
+
+    XtVaSetValues(list, XmNlistSpacing, ih->data->spacing*2, 
+                        XmNlistMarginWidth, ih->data->spacing, 
+                        XmNlistMarginHeight, ih->data->spacing, 
+                        NULL);
     return 0;
   }
   else
@@ -1231,6 +1225,9 @@ static int motListMapMethod(Ihandle* ih)
     else
       iupMOT_SETARG(args, num_args, XmNcomboBoxType, XmDROP_DOWN_LIST);   /* hidden-list */
 
+    /* XmComboBoxWidget inherits from XmManager, 
+       so it is a container with the actual list inside */
+
     ih->handle = XtCreateManagedWidget(
       child_id,  /* child identifier */
       xmComboBoxWidgetClass, /* widget class */
@@ -1330,8 +1327,7 @@ static int motListMapMethod(Ihandle* ih)
       XtAddCallback(cbedit, XmNmotionVerifyCallback, (XtCallbackProc)motListEditMotionVerifyCallback, (XtPointer)ih);
       XtAddCallback(cbedit, XmNvalueChangedCallback, (XtCallbackProc)motListEditValueChangedCallback, (XtPointer)ih);
 
-      /* Disable Drag Source */
-      iupmotDisableDragSource(cbedit);
+      iupAttribSetStr(ih, "_IUPMOT_DND_WIDGET", (char*)cbedit);
     }
     else
       XtAddEventHandler(cbedit, KeyPressMask, False, (XtEventHandler)iupmotKeyPressEvent, (XtPointer)ih);
@@ -1350,7 +1346,7 @@ static int motListMapMethod(Ihandle* ih)
 
       /* Disable Drag Source */
       iupmotDisableDragSource(cblist);
-    }
+  }
   }
   else
   {
@@ -1429,7 +1425,8 @@ void iupdrvListInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "SCROLLTOPOS", NULL, motListSetScrollToPosAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
 
   /* Not Supported */
-  iupClassRegisterAttribute(ic, "DRAGDROP", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "IMAGE", NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "SHOWIMAGE", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "DROPEXPAND", NULL, NULL, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AUTOREDRAW", NULL, NULL, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);
 }

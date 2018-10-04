@@ -122,7 +122,7 @@ static int GetAttributeId(lua_State *L)
 {
   Ihandle *ih = iuplua_checkihandle(L,1);
   const char *name = luaL_checkstring(L,2);
-  int id = luaL_checkinteger(L,3);
+  int id = luaL_checkint(L,3);
   const char *value = IupGetAttributeId(ih, name, id);
   if (!value || iupATTRIB_ISINTERNAL(name))
     lua_pushnil(L);
@@ -313,9 +313,9 @@ static int GetDialog(lua_State *L)
 static int GetFile (lua_State *L)
 {
   const char *fname = luaL_checkstring(L,1);
-  char returned_fname[10240];
+  char returned_fname[4096];
   int ret;
-  iupStrCopyN(returned_fname, 10240, fname);
+  iupStrCopyN(returned_fname, 4096, fname);
   ret = IupGetFile(returned_fname);
   lua_pushstring(L, returned_fname);
   lua_pushinteger(L, ret);
@@ -717,6 +717,15 @@ static int GetNextChild(lua_State *L)
   return 1;
 }
 
+static int GetChild(lua_State *L)
+{
+  Ihandle* ih = iuplua_checkihandle(L,1);
+  int pos = luaL_checkint(L,2);
+  Ihandle* child = IupGetChild(ih, pos);
+  iuplua_pushihandle(L, child);
+  return 1;
+}
+
 static int GetChildPos(lua_State *L)
 {
   Ihandle* ih = iuplua_checkihandle(L,1);
@@ -757,14 +766,14 @@ static int ElementPropertiesDialog(lua_State *L)
 
 static int ConvertXYToPos(lua_State *L)
 {
-  lua_pushinteger(L, IupConvertXYToPos(iuplua_checkihandle(L,1), luaL_checkinteger(L, 2), luaL_checkinteger(L, 3)));
+  lua_pushinteger(L, IupConvertXYToPos(iuplua_checkihandle(L,1), luaL_checkint(L, 2), luaL_checkint(L, 3)));
   return 1;
 }
 
 static int TextConvertLinColToPos(lua_State *L)
 {
   int pos;
-  IupTextConvertLinColToPos(iuplua_checkihandle(L,1), luaL_checkinteger(L, 2), luaL_checkinteger(L, 3), &pos);
+  IupTextConvertLinColToPos(iuplua_checkihandle(L,1), luaL_checkint(L, 2), luaL_checkint(L, 3), &pos);
   lua_pushinteger(L, pos);
   return 1;
 }
@@ -772,7 +781,7 @@ static int TextConvertLinColToPos(lua_State *L)
 static int TextConvertPosToLinCol(lua_State *L)
 {
   int lin, col;
-  IupTextConvertPosToLinCol(iuplua_checkihandle(L,1), luaL_checkinteger(L, 2), &lin, &col);
+  IupTextConvertPosToLinCol(iuplua_checkihandle(L,1), luaL_checkint(L, 2), &lin, &col);
   lua_pushinteger(L, lin);
   lua_pushinteger(L, col);
   return 2;
@@ -856,7 +865,7 @@ static int UpdateChildren (lua_State *L)
 
 static int Redraw(lua_State *L)
 {
-  IupRedraw(iuplua_checkihandle(L,1), luaL_checkinteger(L, 2));
+  IupRedraw(iuplua_checkihandle(L,1), luaL_checkint(L, 2));
   return 0;
 }
 
@@ -905,7 +914,7 @@ static int StoreAttributeId(lua_State *L)
 {
   Ihandle *ih = iuplua_checkihandle(L,1);
   const char *a = luaL_checkstring(L,2);
-  int id = luaL_checkinteger(L,3);
+  int id = luaL_checkint(L,3);
 
   if (lua_isnil(L,4)) 
     IupSetAttributeId(ih,a,id,NULL);
@@ -950,7 +959,7 @@ static int UnMapFont (lua_State *L)
 
 void iupluaapi_open(lua_State * L)
 {
-  struct luaL_reg funcs[] = {
+  struct luaL_Reg funcs[] = {
     {"Append", Append},
     {"Insert", Insert},
     {"Reparent", Reparent},
@@ -1016,6 +1025,7 @@ void iupluaapi_open(lua_State * L)
     {"isbutton5", cf_isbutton5},
     {"GetParent", GetParent},
     {"GetNextChild", GetNextChild},
+    {"GetChild", GetChild},
     {"GetChildPos", GetChildPos},
     {"VersionNumber", VersionNumber},
     {"GetBrother", GetBrother},
@@ -1059,3 +1069,6 @@ void iupluaapi_open(lua_State * L)
   /* "iup" table is at the top of the stack */
   luaL_register(L, NULL, funcs);
 }
+
+
+Ihandle*  IupGetChild     (Ihandle* ih, int pos);

@@ -31,25 +31,6 @@
 #include "iupwin_info.h"
 
 
-#ifndef WM_TOUCH
-#define WM_TOUCH                        0x0240
-DECLARE_HANDLE(HTOUCHINPUT);
-typedef struct tagTOUCHINPUT {
-    LONG x; LONG y; HANDLE hSource; DWORD dwID; DWORD dwFlags; DWORD dwMask;
-    DWORD dwTime; ULONG_PTR dwExtraInfo; DWORD cxContact; DWORD cyContact;
-} TOUCHINPUT;
-#define TOUCHEVENTF_MOVE            0x0001
-#define TOUCHEVENTF_DOWN            0x0002
-#define TOUCHEVENTF_UP              0x0004
-#define TOUCHEVENTF_PRIMARY         0x0010
-#endif
-
-static int has_touch = 0;
-static BOOL (WINAPI *winGetTouchInputInfo)(HTOUCHINPUT hTouchInput, UINT cInputs, TOUCHINPUT* pInputs, int cbSize) = NULL;
-static BOOL (WINAPI *winCloseTouchInputHandle)(HTOUCHINPUT hTouchInput) = NULL;
-static BOOL (WINAPI *winRegisterTouchWindow)(HWND hwnd, ULONG ulFlags) = NULL;
-static BOOL (WINAPI *winUnregisterTouchWindow)(HWND hwnd) = NULL;
-static BOOL (WINAPI *winIsTouchWindow)(HWND hwnd, PULONG pulFlags) = NULL;
 
 static void winCanvasSetScrollInfo(HWND hWnd, int imin, int imax, int ipos, int ipage, int flag)
 {
@@ -378,38 +359,6 @@ static void winCanvasUpdateVerScroll(Ihandle* ih, WORD winop)
   }
 }
 
-static void winCanvasInitTouch(void)
-{
-  HINSTANCE lib = LoadLibrary("user32");
-  has_touch = 1;
-  winGetTouchInputInfo = (BOOL (WINAPI *)(HTOUCHINPUT,UINT,TOUCHINPUT *,int))GetProcAddress(lib, "GetTouchInputInfo");
-  winCloseTouchInputHandle = (BOOL (WINAPI *)(HTOUCHINPUT))GetProcAddress(lib, "CloseTouchInputHandle");
-  winRegisterTouchWindow = (BOOL (WINAPI *)(HWND,ULONG))GetProcAddress(lib, "RegisterTouchWindow");
-  winUnregisterTouchWindow = (BOOL (WINAPI *)(HWND))GetProcAddress(lib, "UnregisterTouchWindow");
-  winIsTouchWindow = (BOOL (WINAPI *)(HWND,PULONG))GetProcAddress(lib, "IsTouchWindow");
-}
-
-static int winCanvasSetTouchAttrib(Ihandle *ih, const char *value)
-{
-  if (has_touch)
-  {
-    if (iupStrBoolean(value))
-      winRegisterTouchWindow(ih->handle, 0);
-    else
-      winUnregisterTouchWindow(ih->handle);
-  }
-  return 0;
-}
-
-static char* winCanvasGetTouchAttrib(Ihandle* ih)
-{
-  ULONG pulFlags = 0;
-  if (has_touch && winIsTouchWindow(ih->handle, &pulFlags))
-    return "Yes";
-  else
-    return "No";
-}
-
 static char* winCanvasGetDrawSizeAttrib(Ihandle* ih)
 {
   char* str = iupStrGetMemory(20);
@@ -417,77 +366,6 @@ static char* winCanvasGetDrawSizeAttrib(Ihandle* ih)
   GetClientRect(ih->handle, &rect);
   sprintf(str, "%dx%d", (int)(rect.right-rect.left), (int)(rect.bottom-rect.top));
   return str;
-}
-
-static void winCanvasProcessMultiTouch(Ihandle* ih, int count, HTOUCHINPUT hTouchInput)
-{
-  IFniIIII mcb = (IFniIIII)IupGetCallback(ih, "MULTITOUCH_CB");
-  IFniiis cb = (IFniiis)IupGetCallback(ih, "TOUCH_CB");
-
-  if (mcb || cb)
-  {
-    int *px=NULL, *py=NULL, *pid=NULL, *pstate=NULL;
-    TOUCHINPUT* ti = malloc(count*sizeof(TOUCHINPUT));
-
-    if (mcb)
-    {
-      px = malloc(sizeof(int)*(count));
-      py = malloc(sizeof(int)*(count));
-      pid = malloc(sizeof(int)*(count));
-      pstate = malloc(sizeof(int)*(count));
-    }
-
-    if (winGetTouchInputInfo(hTouchInput, count, ti, sizeof(TOUCHINPUT)))
-    {
-      int i, x, y;
-      for (i = 0; i < count; i++)
-      {
-        x = ti[i].x / 100;
-        y = ti[i].y / 100;
-        iupdrvScreenToClient(ih, &x, &y);
-
-        if (ti[i].dwFlags & TOUCHEVENTF_DOWN ||
-            ti[i].dwFlags & TOUCHEVENTF_MOVE ||
-            ti[i].dwFlags & TOUCHEVENTF_UP)
-        {
-          char* state = (ti[i].dwFlags & TOUCHEVENTF_DOWN)? "DOWN": ((ti[i].dwFlags & TOUCHEVENTF_UP)? "UP": "MOVE");
-          if (cb)
-          {
-            if (ti[i].dwFlags & TOUCHEVENTF_PRIMARY)
-              state = (ti[i].dwFlags & TOUCHEVENTF_DOWN)? "DOWN-PRIMARY": ((ti[i].dwFlags & TOUCHEVENTF_UP)? "UP-PRIMARY": "MOVE-PRIMARY");
-
-            if (cb(ih, ti->dwID, x, y, state)==IUP_CLOSE)
-            {
-              IupExitLoop();
-              return;
-            }
-          }
-
-          if (mcb)
-          {
-            px[i] = x;
-            py[i] = y;
-            pid[i] = ti[i].dwID;
-            pstate[i] = state[0];
-          }
-        }
-      }
-    }
-
-    if (mcb)
-    {
-      if (mcb(ih, count, pid, px, py, pstate)==IUP_CLOSE)
-        IupExitLoop();
-
-      free(px);
-      free(py);
-      free(pid);
-      free(pstate);
-    }
-
-    winCloseTouchInputHandle(hTouchInput);
-    free(ti);
-  }
 }
 
 static int winCanvasProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result)
@@ -541,8 +419,14 @@ static int winCanvasProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *r
         /* w=LOWORD (lp), h=HIWORD(lp) can not be used because an invalid size 
            at the first time of WM_SIZE with scroolbars. */
       }
-      *result = 0;
-      return 1;
+
+      if (!iupAttribGetBoolean(ih, "MDICLIENT"))
+      {
+        /* If a MDI client, let the DefMDIChildProc do its work. */
+        *result = 0;
+        return 1;
+      }
+      break;
     }
   case WM_GETDLGCODE:
     /* avoid beeps when keys are pressed */
@@ -663,17 +547,21 @@ static int winCanvasProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *r
     ReleaseCapture();
     break;
   case WM_VSCROLL:
-    winCanvasUpdateVerScroll(ih, LOWORD(wp));
-    *result = 0;
-    return 1;
+    if (!iupAttribGetBoolean(ih, "MDICLIENT"))
+    {
+      /* only update the scrollbar is not a MDI client */
+      winCanvasUpdateVerScroll(ih, LOWORD(wp));
+      *result = 0;
+      return 1;
+    }
   case WM_HSCROLL:
-    winCanvasUpdateHorScroll(ih, LOWORD(wp));
-    *result = 0;
-    return 1;
-  case WM_TOUCH:
-    if (has_touch && LOWORD(wp))
-      winCanvasProcessMultiTouch(ih, (int)LOWORD(wp), (HTOUCHINPUT)lp);
-    break;
+    if (!iupAttribGetBoolean(ih, "MDICLIENT"))
+    {
+      /* only update the scrollbar is not a MDI client */
+      winCanvasUpdateHorScroll(ih, LOWORD(wp));
+      *result = 0;
+      return 1;
+    }
   case WM_SETFOCUS:
     if (!iupAttribGetBoolean(ih, "CANFOCUS"))
     {
@@ -710,6 +598,15 @@ static int winCanvasMapMethod(Ihandle* ih)
                            
   if (ih->firstchild) /* can be a container */
     iupwinGetNativeParentStyle(ih, &dwExStyle, &dwStyle);
+
+  if (iupAttribGetBoolean(ih, "BORDER"))
+    dwStyle |= WS_BORDER;
+
+  ih->data->sb = iupBaseGetScrollbar(ih);
+  if (ih->data->sb & IUP_SB_HORIZ)
+    dwStyle |= WS_HSCROLL;
+  if (ih->data->sb & IUP_SB_VERT)
+    dwStyle |= WS_VSCROLL;
                            
   if (iupAttribGetBoolean(ih, "MDICLIENT"))  
   {
@@ -718,6 +615,8 @@ static int winCanvasMapMethod(Ihandle* ih)
     Ihandle *winmenu = IupGetAttributeHandle(ih, "MDIMENU");
 
     classname = "mdiclient";
+    dwStyle = WS_CHILD|WS_CLIPCHILDREN|WS_VSCROLL|WS_HSCROLL|MDIS_ALLCHILDSTYLES;
+    dwExStyle = WS_EX_CLIENTEDGE;
 
     iupAttribSetStr(ih, "BORDER", "NO");
 
@@ -730,19 +629,10 @@ static int winCanvasMapMethod(Ihandle* ih)
        for each additional MDI child window the application creates, 
        and reassigns identifiers when the application 
        destroys a window to keep the range of identifiers contiguous. */
-    clientstruct.idFirstChild = IUP_MDICHILD_START;
+    clientstruct.idFirstChild = IUP_MDI_FIRSTCHILD;
   }
   else 
     classname = "IupCanvas";
-
-  if (iupAttribGetBoolean(ih, "BORDER"))
-    dwStyle |= WS_BORDER;
-
-  ih->data->sb = iupBaseGetScrollbar(ih);
-  if (ih->data->sb & IUP_SB_HORIZ)
-    dwStyle |= WS_HSCROLL;
-  if (ih->data->sb & IUP_SB_VERT)
-    dwStyle |= WS_VSCROLL;
 
   ih->serial = iupDialogGetChildId(ih);
 
@@ -763,17 +653,18 @@ static int winCanvasMapMethod(Ihandle* ih)
     return IUP_ERROR;
 
   /* associate HWND with Ihandle*, all Win32 controls must call this. */
-  iupwinHandleSet(ih);
+  iupwinHandleAdd(ih, ih->handle);
 
-  IupSetCallback(ih, "_IUPWIN_OLDPROC_CB", (Icallback)DefWindowProc);
+  if (iupAttribGetBoolean(ih, "MDICLIENT"))  
+    iupwinChangeProc(ih, iupwinBaseWinProc);
+  else
+    IupSetCallback(ih, "_IUPWIN_OLDPROC_CB", (Icallback)DefWindowProc);
+
   IupSetCallback(ih, "_IUPWIN_CTRLPROC_CB", (Icallback)winCanvasProc);
 
-  /* configure for DRAG&DROP */
+  /* configure for DROP of files */
   if (IupGetCallback(ih, "DROPFILES_CB"))
-    iupAttribSetStr(ih, "DRAGDROP", "YES");
-
-  if (iupwinIs7OrNew())
-    winCanvasInitTouch();
+    iupAttribSetStr(ih, "DROPFILESTARGET", "YES");
 
   return IUP_NOERROR;
 }
@@ -809,8 +700,11 @@ static void winCanvasUnMapMethod(Ihandle* ih)
     return;
   }
 
+  iupwinTipsDestroy(ih);
+  iupwinDestroyDragDrop(ih);
+
   /* remove the association before destroying */
-  iupwinHandleRemove(ih);
+  iupwinHandleRemove(ih->handle);
 
   /* remove from parent and destroys window */
   SetParent(ih->handle, NULL);
@@ -844,9 +738,6 @@ void iupdrvCanvasInitClass(Iclass* ic)
   if (!iupwinClassExist("IupCanvas"))
     winCanvasRegisterClass();
 
-  iupClassRegisterCallback(ic, "TOUCH_CB", "iiis");
-  iupClassRegisterCallback(ic, "MULTITOUCH_CB", "iIII");
-
   /* Driver Dependent Class functions */
   ic->Map = winCanvasMapMethod;
   ic->UnMap = winCanvasUnMapMethod;
@@ -859,7 +750,6 @@ void iupdrvCanvasInitClass(Iclass* ic)
 
   /* IupCanvas only */
   iupClassRegisterAttribute(ic, "DRAWSIZE", winCanvasGetDrawSizeAttrib, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "TOUCH", winCanvasGetTouchAttrib, winCanvasSetTouchAttrib, NULL, NULL, IUPAF_NO_INHERIT);
 
   iupClassRegisterAttribute(ic, "DX", NULL, winCanvasSetDXAttrib, "0.1", NULL, IUPAF_NO_INHERIT);  /* force new default value */
   iupClassRegisterAttribute(ic, "DY", NULL, winCanvasSetDYAttrib, "0.1", NULL, IUPAF_NO_INHERIT);  /* force new default value */
@@ -869,8 +759,8 @@ void iupdrvCanvasInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "YAUTOHIDE", NULL, NULL, "YES", NULL, IUPAF_NOT_MAPPED);
 
   /* IupCanvas Windows only */
-  iupClassRegisterAttribute(ic, "DRAGDROP", NULL, iupwinSetDragDropAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "HWND", iupBaseGetWidAttrib, NULL, NULL, NULL, IUPAF_NO_STRING|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "HDC_WMPAINT", NULL, NULL, NULL, NULL, IUPAF_NO_STRING|IUPAF_NO_INHERIT);
 
   /* Not Supported */
   iupClassRegisterAttribute(ic, "BACKINGSTORE", NULL, NULL, "YES", NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);

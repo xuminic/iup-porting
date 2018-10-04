@@ -146,6 +146,12 @@ static int file_cb(Ihandle* ih, const char* filename, const char* status)
     drawTest(ih);
 #endif
   }
+  else if (strcmp(status, "FILTER")==0)
+  {
+    //IupSetAttribute(ih, "FILE", "test");
+    //return IUP_CONTINUE; 
+  }
+
   return IUP_DEFAULT; 
 }
 
@@ -247,12 +253,13 @@ static void new_file(char* dialogtype, int preview)
     IupSetAttribute(dlg, "EXTFILTER", "IMAGEFILES|*.bmp;*.jpg|TEXT|*.txt|");
   }
   IupSetCallback(dlg, "HELP_CB", (Icallback)help_cb);
+  IupSetAttribute(dlg, "FILE", "test.bmp");
 //  IupSetAttributes(dlg, "FILE = \"\\tecgraf\\iup\\test.bmp\""); // OK
 //  IupSetAttributes(dlg, "FILE = \"/tecgraf/iup/test.bmp\""); // OK
 //  IupSetAttributes(dlg, "FILE = \"test.bmp\", DIRECTORY = \"/tecgraf/iup\"");   // OK
 //  IupSetAttributes(dlg, "FILE = \"test.bmp\", DIRECTORY = \"\\tecgraf\\iup\"");  // OK
 //  IupSetAttribute(dlg, "NOCHANGEDIR", "NO");
-  IupSetAttribute(dlg, "MULTIPLEFILES", "YES");
+//  IupSetAttribute(dlg, "MULTIPLEFILES", "YES");
 //  IupSetAttribute(dlg, "RASTERSIZE", "800x600");
   IupSetCallback(dlg, "FILE_CB", (Icallback)file_cb);
 

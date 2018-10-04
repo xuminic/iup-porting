@@ -14,15 +14,17 @@ iupDoNothing = function() end
 iupSetMethod = iupDoNothing
 iup.RegisterWidget = iupDoNothing
 
--- TODO: This is different from iupClassRegisterCallback, must use the same standard
+-- TODO: This is different from iupClassRegisterCallback, 
+--       should be changed to use the same standard
 c_types = {
+  c = "unsigned char ",    -- should be b
   n = "int",               -- should be i
+  f = "float",
+  d = "double",
   s = "char *",
   i = "Ihandle *",         -- should be h
-  c = "unsigned char ",    -- should be b
-  d = "double",
-  f = "float",
   v = "Ihandle **",        -- should be g
+  o = "void*",             -- should be v
 }
 
 -- Adjust the callbacks table
@@ -44,7 +46,7 @@ end
 function header(o,i)
    io.write [[
 /******************************************************************************
- * Automatically generated file (iuplua5). Please don't change anything.                *
+ * Automatically generated file. Please don't change anything.                *
  *****************************************************************************/
 
 #include <stdlib.h>
@@ -136,6 +138,8 @@ function write_callbacks(o, c)
             io.write("\n  lua_pushstring(L, p"..aux.n..");")
          elseif p == "i" then
             io.write("\n  iuplua_pushihandle(L, p"..aux.n..");")
+         elseif p == "o" then
+            io.write("\n  lua_pushlightuserdata(L, p"..aux.n..");")
          else
             io.write("\n ERROR !! ")
          end
@@ -189,8 +193,8 @@ function write_initialization(o,t)
    io.write('#ifdef IUPLUA_USELOH\n')
    io.write('#include "', o,'.loh"\n')
    io.write('#else\n')
-   io.write('#ifdef IUPLUA_USELZH\n')
-   io.write('#include "', o,'.lzh"\n')
+   io.write('#ifdef IUPLUA_USELH\n')
+   io.write('#include "', o,'.lh"\n')
    io.write('#else\n')
    io.write('  iuplua_dofile(L, "', o,'.lua");\n')
    io.write('#endif\n')  

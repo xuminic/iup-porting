@@ -14,6 +14,7 @@ extern "C" {
 
 /* global variables, declared in iupgtk_globalattrib.c */
 extern int iupgtk_utf8autoconvert;         
+extern int iupgtk_globalmenu;
 
 
 /* common */
@@ -22,7 +23,6 @@ gboolean iupgtkShowHelp(GtkWidget *widget, GtkWidgetHelpType *arg1, Ihandle* ih)
 GtkFixed* iupgtkBaseGetFixed(Ihandle* ih);
 void iupgtkBaseAddToParent(Ihandle* ih);
 void iupgdkColorSet(GdkColor* color, unsigned char r, unsigned char g, unsigned char b);
-int iupgtkSetDragDropAttrib(Ihandle* ih, const char* value);
 int iupgtkSetMnemonicTitle(Ihandle* ih, GtkLabel* label, const char* value);
 char* iupgtkStrConvertToUTF8(const char* str);
 char* iupgtkStrConvertFromUTF8(const char* str);
@@ -48,7 +48,6 @@ void iupgtkSetCanFocus(GtkWidget *widget, int can);
 gboolean iupgtkKeyPressEvent(GtkWidget *widget, GdkEventKey *evt, Ihandle* ih);
 gboolean iupgtkKeyReleaseEvent(GtkWidget *widget, GdkEventKey *evt, Ihandle* ih);
 void iupgtkButtonKeySetStatus(guint state, unsigned int but, char* status, int doubleclick);
-void iupgtkKeyEncode(int key, guint *keyval, guint *state);
 int iupgtkKeyDecode(GdkEventKey *evt);
 
 

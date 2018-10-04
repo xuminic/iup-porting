@@ -1,5 +1,5 @@
 /******************************************************************************
- * Automatically generated file (iuplua5). Please don't change anything.                *
+ * Automatically generated file. Please don't change anything.                *
  *****************************************************************************/
 
 #include <stdlib.h>
@@ -33,8 +33,8 @@ int iupimagergblua_open(lua_State * L)
 #ifdef IUPLUA_USELOH
 #include "imagergb.loh"
 #else
-#ifdef IUPLUA_USELZH
-#include "imagergb.lzh"
+#ifdef IUPLUA_USELH
+#include "imagergb.lh"
 #else
   iuplua_dofile(L, "imagergb.lua");
 #endif

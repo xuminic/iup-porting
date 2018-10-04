@@ -62,8 +62,8 @@ void PreDialogsTest(void);
 #ifdef PPLOT_TEST
 void PPlotTest(void);
 #endif
-#ifdef PLPLOT_TEST
-void PLPlotTest(void);
+#ifdef MGLPLOT_TEST
+void MglPlotTest(void);
 #endif
 void GetParamTest(void);
 void ClassInfo(void);
@@ -72,6 +72,7 @@ void ScanfTest(void);
 void SboxTest(void);
 void SplitTest(void);
 void ClipboardTest(void);
+void CharacTest(void);
 
 void HelpTest(void)
 {
@@ -93,6 +94,7 @@ static TestItems test_list[] = {
   {"CellsCheckboard", CellsCheckboardTest},
   {"CellsDegrade", CellsDegradeTest},
   {"CellsNumbering", CellsNumberingTest},
+  {"CharacTest", CharacTest},
   {"Classes Info", ClassInfo},
   {"Clipboard", ClipboardTest},
   {"ColorBrowser", ColorBrowserTest},
@@ -117,11 +119,11 @@ static TestItems test_list[] = {
   {"MatrixCbs", MatrixCbsTest},
   {"Mdi", MdiTest},
   {"Menu", MenuTest},
+#ifdef MGLPLOT_TEST
+  {"MglPlot", MglPlotTest},
+#endif
 #ifdef PPLOT_TEST
   {"PPlot", PPlotTest},
-#endif
-#ifdef PLPLOT_TEST
-  {"PLPlot", PLPlotTest},
 #endif
   {"PreDialogs", PreDialogsTest},
   {"Progressbar", ProgressbarTest},

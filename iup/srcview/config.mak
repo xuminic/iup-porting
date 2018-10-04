@@ -54,4 +54,12 @@ ifneq ($(findstring Win, $(TEC_SYSNAME)), )
   SRC += ../etc/iup.rc
 endif
 
+ifneq ($(findstring cygw, $(TEC_UNAME)), )
+  LIBS += fontconfig
+endif
+
+ifneq ($(findstring MacOS, $(TEC_UNAME)), )
+  LIBS += fontconfig
+endif
+
 INCLUDES = ../src

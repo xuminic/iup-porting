@@ -1,5 +1,5 @@
 /******************************************************************************
- * Automatically generated file (iuplua5). Please don't change anything.                *
+ * Automatically generated file. Please don't change anything.                *
  *****************************************************************************/
 
 #include <stdlib.h>
@@ -28,8 +28,8 @@ int iupsubmenulua_open(lua_State * L)
 #ifdef IUPLUA_USELOH
 #include "submenu.loh"
 #else
-#ifdef IUPLUA_USELZH
-#include "submenu.lzh"
+#ifdef IUPLUA_USELH
+#include "submenu.lh"
 #else
   iuplua_dofile(L, "submenu.lua");
 #endif

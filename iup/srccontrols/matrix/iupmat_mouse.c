@@ -57,7 +57,50 @@ static int iMatrixMouseCallClickCb(Ihandle* ih, int press, int lin, int col, cha
   return IUP_DEFAULT;
 }
 
-static void iMatrixMouseLeftPress(Ihandle* ih, int lin, int col, int shift, int ctrl, int dclick)
+static void iMatrixMouseEdit(Ihandle* ih)
+{
+  if (iupMatrixEditShow(ih))
+  {
+    if (ih->data->datah == ih->data->droph)
+      IupSetAttribute(ih->data->datah, "SHOWDROPDOWN", "YES");
+
+    if (IupGetGlobal("MOTIFVERSION"))
+    {
+      /* Sequece of focus_cb in Motif from here:
+            Matrix-Focus(0) - ok
+            Edit-KillFocus - weird, must avoid using _IUPMAT_DOUBLECLICK
+         Since OpenMotif version 2.2.3 this is not necessary anymore. */
+      if (atoi(IupGetGlobal("MOTIFNUMBER")) < 2203) 
+        iupAttribSetStr(ih, "_IUPMAT_DOUBLECLICK", "1");
+    }
+  }
+
+  /* reset mouse flags */
+  ih->data->dclick = 0;
+  ih->data->leftpressed = 0;
+}
+
+static int iMatrixIsDropArea(Ihandle* ih, int lin, int col, int x, int y)
+{
+  IFnii dropcheck_cb = (IFnii)IupGetCallback(ih, "DROPCHECK_CB");
+  if (dropcheck_cb && dropcheck_cb(ih, lin, col) == IUP_DEFAULT)
+  {
+    int x1, y1, x2, y2;
+
+    iupMatrixGetVisibleCellDim(ih, lin, col, &x1, &y1, &x2, &y2);
+    x2 += x1;  /* the previous fucntion returns w and h */
+    y2 += y1;
+
+    iupMatrixDrawSetDropFeedbackArea(&x1, &y1, &x2, &y2);
+
+    if (x > x1 && x < x2 &&
+        y > y1 && y < y2)
+      return 1;
+  }
+  return 0;
+}
+
+static void iMatrixMouseLeftPress(Ihandle* ih, int lin, int col, int shift, int ctrl, int dclick, int x, int y)
 {
   if (dclick)
   {
@@ -79,21 +122,7 @@ static void iMatrixMouseLeftPress(Ihandle* ih, int lin, int col, int shift, int 
       iupMatrixAuxCallEnterCellCb(ih);
     }
     
-    if (iupMatrixEditShow(ih))
-    {
-      if (ih->data->datah == ih->data->droph)
-        IupSetAttribute(ih->data->datah, "SHOWDROPDOWN", "YES");
-
-      if (IupGetGlobal("MOTIFVERSION"))
-      {
-        /* Sequece of focus_cb in Motif from here:
-              Matrix-Focus(0) - ok
-              Edit-KillFocus - weird, must avoid using _IUPMAT_DOUBLECLICK
-           Since OpenMotif version 2.2.3 this is not necessary anymore. */
-        if (atoi(IupGetGlobal("MOTIFNUMBER")) < 2203) 
-          iupAttribSetStr(ih, "_IUPMAT_DOUBLECLICK", "1");
-      }
-    }
+    ih->data->dclick = 1; /* prepare for double click action */
   }
   else /* single click */
   {
@@ -118,6 +147,9 @@ static void iMatrixMouseLeftPress(Ihandle* ih, int lin, int col, int shift, int 
           iupMatrixMarkMouseItem(ih, ctrl, lin, col);
 
         iupMatrixAuxCallEnterCellCb(ih);
+
+        if (iMatrixIsDropArea(ih, lin, col, x, y))
+          iMatrixMouseEdit(ih);
       }
       else
       {
@@ -141,6 +173,8 @@ int iupMatrixMouseButton_CB(Ihandle* ih, int b, int press, int x, int y, char* r
 
   if (press)
   {
+    ih->data->dclick = 0;
+
     /* The edit Focus callback is not called when the user clicks in the parent canvas. 
        so we have to compensate that. */
     iupMatrixEditForceHidden(ih);
@@ -159,12 +193,15 @@ int iupMatrixMouseButton_CB(Ihandle* ih, int b, int press, int x, int y, char* r
         return IUP_DEFAULT;  /* Resize of the width a of a column was started */
 
       if (lin!=-1 && col!=-1)
-        iMatrixMouseLeftPress(ih, lin, col, isshift(r), iscontrol(r), isdouble(r));
+        iMatrixMouseLeftPress(ih, lin, col, isshift(r), iscontrol(r), isdouble(r), x, y);
     }
     else
     {
       if (iupMatrixColResIsResizing(ih))  /* If it was made a column resize, finish it */
         iupMatrixColResFinish(ih, x);
+
+      if (ih->data->dclick)  /* when releasing the button from a double click */
+        iMatrixMouseEdit(ih);
     }
   }
   else

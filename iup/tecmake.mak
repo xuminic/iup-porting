@@ -35,6 +35,10 @@ ifndef TEC_UNAME
   ifeq ($(TEC_SYSNAME), FreeBSD)
     TEC_SYSMINOR:=$(shell uname -r|cut -f2 -d.|cut -f1 -d-)
   endif
+  ifeq ($(TEC_SYSNAME), GNU/kFreeBSD)
+    TEC_SYSNAME:=kFreeBSD
+    TEC_SYSMINOR:=$(shell uname -r|cut -f2 -d.|cut -f1 -d-)
+  endif
   ifeq ($(TEC_SYSNAME), AIX)
     TEC_SYSVERSION:=$(shell uname -v)
     TEC_SYSMINOR:=$(shell uname -r)
@@ -129,9 +133,13 @@ ifndef TEC_UNAME
     ifeq ($(TEC_SYSMINOR), 6)
       TEC_SYSARCH:=x64
     else
+    ifeq ($(TEC_SYSMINOR), 7)
+      TEC_SYSARCH:=x64
+    else
       ifeq ($(TEC_SYSARCH), x86)
         TEC_UNAME:=$(TEC_UNAME)x86
       endif
+    endif
     endif
   endif
 endif
@@ -261,7 +269,7 @@ RCC      := $(TEC_TOOLCHAIN)windres
 # Remote build script
 REMOTE  = $(TECMAKE_HOME)/remote
 
-# Packed LOHs script
+# Packed Lua script
 LUAPRE = $(TECMAKE_HOME)/luapre.lua
 
 
@@ -296,10 +304,14 @@ endif
 
 PROJNAME ?= $(TARGETNAME)
 
-DEPEND := $(TARGETNAME).dep
+DEPEXT := dep
+ifneq ($(findstring cygw, $(TEC_UNAME)), )
+  DEPEXT := cdep
+endif
 
+DEPEND := $(TARGETNAME).$(DEPEXT)
 ifdef DEPENDDIR
-  DEPEND := $(DEPENDDIR)/$(TARGETNAME).dep.$(TEC_UNAME)
+  DEPEND := $(DEPENDDIR)/$(TARGETNAME).$(DEPEXT).$(TEC_UNAME)
 endif
 
 ifeq ($(MAKETYPE), APP)
@@ -392,10 +404,14 @@ ifdef NO_ECHO
 endif
 
 #---------------------------------#
-# LO and LOH Suffix
+# LO, LOH and LH folders
 
 SRCLUADIR ?= $(SRCDIR)
-LOHDIR ?= $(SRCLUADIR)
+ifdef NO_LUAOBJECT
+  LHDIR  ?= $(SRCLUADIR)
+else
+  LOHDIR ?= $(SRCLUADIR)
+endif
 
 ifdef USE_LOH_SUBDIR
   ifeq ($(TEC_BYTEORDER), TEC_BIGENDIAN)
@@ -411,6 +427,7 @@ ifdef USE_LOH_SUBDIR
       LOH_SUBDIR ?= le32
     endif
   endif
+  
   LOHDIR := $(LOHDIR)/$(LOH_SUBDIR)
   INCLUDES += $(LOHDIR)
 else
@@ -429,6 +446,9 @@ else
   endif
 endif
 
+ifdef USE_LH_SUBDIR
+  INCLUDES += $(LHDIR)
+endif
 
 
 #---------------------------------#
@@ -458,10 +478,13 @@ ifdef GTK_BASE
   GTK := $(GTK_BASE)
 else
   ifneq ($(findstring MacOS, $(TEC_UNAME)), )
-  # Option 1 - Fink GTK port
+  # Prefer using GTK_BASE then changing this
+  # Fink GTK port
     GTK = /sw
-  # Option 3 - GTK-OSX Framework
-  #   GTK := /Users/cpts/gtk/inst
+  # MacPorts GTK
+  #  GTK = /opt/local
+  # GTK-OSX Framework
+  #   GTK := /gtk/inst
   else
     GTK = /usr
   endif
@@ -482,6 +505,10 @@ ifneq ($(findstring Linux, $(TEC_UNAME)), )
   endif
   X11_INC := /usr/X11R6/include
   MOTIFGL_LIB :=
+  ifdef USE_OPENMP
+    STDFLAGS += -fopenmp
+    LIBS += gomp
+  endif
 endif
 
 ifneq ($(findstring IRIX, $(TEC_UNAME)), )
@@ -554,6 +581,15 @@ ifneq ($(findstring SunOS, $(TEC_UNAME)), )
       LINKER += -xarch=v9
     endif
   endif
+  ifdef USE_CC
+    ifdef DBG
+      STDFLAGS += -g
+    else
+      ifdef OPT
+#        STDFLAGS +=  ????
+      endif
+    endif
+  endif
 endif
 
 ifneq ($(findstring MacOS, $(TEC_UNAME)), )
@@ -576,6 +612,10 @@ ifneq ($(findstring MacOS, $(TEC_UNAME)), )
       #   ld: cycle in dylib re-exports with /usr/X11R6/lib/libGL.dylib
       LFLAGS += -dylib_file /System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libGL.dylib:/System/Library/Frameworks/OpenGL.framework/Versions/A/Libraries/libGL.dylib
     endif
+  endif
+  ifdef USE_OPENMP
+    STDFLAGS += -fopenmp
+    LIBS += gomp
   endif
 endif
 
@@ -657,6 +697,9 @@ ifdef USE_LUA52
   NO_LUALIB := Yes
 endif
 
+ifdef USE_IUP
+  override USE_IUP3 = Yes
+endif
 ifdef USE_IUP3
   override USE_IUP = Yes
 endif
@@ -861,19 +904,22 @@ ifdef USE_CD
       SLIB += $(CD_LIB)/libcdcontextplus.a
       LIBS += Xrender Xft
     endif
+    
     ifdef USE_CAIRO
       # To use Cairo with X11 base driver (NOT for GDK)
       # Can NOT be used together with XRender
       SLIB += $(CD_LIB)/libcdcairo.a
       LIBS += pangocairo-1.0 cairo
     endif
+    
     SLIB += $(CD_LIB)/libcd$(CD_SUFFIX).a
+    
+    # Freetype is already included in GTK
     ifndef USE_GTK
-      # Freetype is already included in GTK
-      SLIB += $(CD_LIB)/libfreetype.a
+      LINK_FREETYPE = Yes
     else
       ifneq ($(findstring cygw, $(TEC_UNAME)), )
-        SLIB += $(CD_LIB)/libfreetype-6.a
+        LINK_FREETYPE = Yes
       endif
     endif
   else
@@ -882,22 +928,21 @@ ifdef USE_CD
       LIBS += cdcontextplus
       LIBS += Xrender Xft
     endif
+    
     ifdef USE_CAIRO
       # To use Cairo with X11 base driver (NOT for GDK)
       # Can NOT be used together with XRender
       LIBS += cdcairo
       LIBS += pangocairo-1.0 cairo
     endif
+    
     LIBS += cd$(CD_SUFFIX)
     LDIR += $(CD_LIB)
-    ifndef USE_GTK
-      ifndef NO_OVERRIDE
-        # Freetype is already included in GTK
-        ifneq ($(findstring cygw, $(TEC_UNAME)), )
-          LIBS += freetype-6
-        else
-          LIBS += freetype
-        endif
+    
+    ifndef NO_OVERRIDE
+      # Freetype is already included in GTK
+      ifndef USE_GTK
+        LINK_FREETYPE = Yes
       endif
     endif
   endif
@@ -908,6 +953,11 @@ endif
 
 ifdef USE_IM
   IM_LIB ?= $(IM)/lib/$(TEC_UNAME_LIB_DIR)
+  
+  ifndef NO_ZLIB
+    LINK_ZLIB = Yes
+  endif
+  
   ifdef USE_STATIC
     SLIB += $(IM_LIB)/libim.a
   else
@@ -917,6 +967,42 @@ ifdef USE_IM
 
   IM_INC ?= $(IM)/include
   INCLUDES += $(IM_INC)
+endif
+
+ifdef LINK_FREETYPE
+  FREETYPE = freetype
+  ifneq ($(findstring cygw, $(TEC_UNAME)), )
+    FREETYPE = freetype-6
+  endif
+  
+  ifndef NO_ZLIB
+    LINK_ZLIB = Yes
+  endif
+  
+  ifdef USE_STATIC
+    FREETYPE_LIB = $(CD_LIB)
+    SLIB += $(FREETYPE_LIB)/lib$(FREETYPE).a
+  else
+    LIBS += $(FREETYPE)
+  endif
+endif
+
+ifdef LINK_ZLIB
+  ifndef ZLIB
+    ZLIB = z
+  endif
+  
+  ifdef USE_STATIC
+    ifdef USE_IM
+      ZLIB_LIB = $(IM_LIB)
+    else
+      ZLIB_LIB = $(CD_LIB)
+    endif
+    
+    SLIB += $(ZLIB_LIB)/lib$(ZLIB).a
+  else
+    LIBS += $(ZLIB)
+  endif
 endif
 
 ifdef USE_GLUT
@@ -969,7 +1055,11 @@ ifdef USE_GTK
       ifndef NO_OVERRIDE
         override USE_X11 = Yes
       endif
-      LIBS += gtk-x11-2.0 gdk-x11-2.0 pangox-1.0
+      ifdef GTK_MAC
+        LIBS += gtk-quartz-2.0 gdk-quartz-2.0 pango-1.0
+      else
+        LIBS += gtk-x11-2.0 gdk-x11-2.0 pangox-1.0
+      endif
   # Option 2 - Imendio Framework
   #   STDINCS += /Library/Frameworks/Gtk.framework/Headers
   #   STDINCS += /Library/Frameworks/GLib.framework/Headers
@@ -994,17 +1084,29 @@ ifdef USE_GTK
     endif
 
     LIBS += gdk_pixbuf-2.0 pango-1.0 gobject-2.0 gmodule-2.0 glib-2.0
-    STDINCS += $(GTK)/include/atk-1.0 $(GTK)/include/gtk-2.0 $(GTK)/include/gdk-pixbuf-2.0 $(GTK)/include/cairo $(GTK)/include/pango-1.0 $(GTK)/include/glib-2.0
+    
+    STDINCS += $(GTK)/include/atk-1.0 $(GTK)/include/gtk-2.0 $(GTK)/include/gdk-pixbuf-2.0 
+    STDINCS += $(GTK)/include/cairo $(GTK)/include/pango-1.0 $(GTK)/include/glib-2.0
+#    STDINCS += $(GTK)/include/gtk-unix-print-2.0
 
     ifeq ($(TEC_SYSARCH), x64)
       STDINCS += $(GTK)/lib64/glib-2.0/include $(GTK)/lib64/gtk-2.0/include
+      
       # Add also these to avoid errors in systems that lib64 does not exists
       STDINCS += $(GTK)/lib/glib-2.0/include $(GTK)/lib/gtk-2.0/include
+      
+      # Add also support for newer instalations
+      STDINCS += $(GTK)/lib/x86_64-linux-gnu/glib-2.0/include
+      STDINCS += $(GTK)/lib/x86_64-linux-gnu/gtk-2.0/include
     else
     ifeq ($(TEC_SYSARCH), ia64)
       STDINCS += $(GTK)/lib64/glib-2.0/include $(GTK)/lib64/gtk-2.0/include
     else
       STDINCS += $(GTK)/lib/glib-2.0/include $(GTK)/lib/gtk-2.0/include
+      
+      # Add also support for newer instalations
+      STDINCS += $(GTK)/lib/i386-linux-gnu/glib-2.0/include
+      STDINCS += $(GTK)/lib/i386-linux-gnu/gtk-2.0/include
     endif
     endif
     ifneq ($(findstring FreeBSD, $(TEC_UNAME)), )
@@ -1116,15 +1218,23 @@ ifdef LOHPACK
   LOHS := $(LOHDIR)/$(LOHPACK)
   LOHDIRS :=
 else
-  # LOH: list of .loh, without path
-  # LOHS: list of .loh, with relative path
-  LO = $(notdir $(SRCLUA))
-  LO := $(LO:.lua=$(LO_SUFFIX).lo)
-  LOS = $(addprefix $(OBJROOT)/, $(LO))
+  ifdef NO_LUAOBJECT
+    LH = $(notdir $(SRCLUA))
+    LH := $(LH:.lua=.lh)
+    LHS = $(addprefix $(LHDIR)/, $(LH))
+    LUAS := $(LHS)
+  else
+    # LOH: list of .loh, without path
+    # LOHS: list of .loh, with relative path
+    LO = $(notdir $(SRCLUA))
+    LO := $(LO:.lua=$(LO_SUFFIX).lo)
+    LOS = $(addprefix $(OBJROOT)/, $(LO))
 
-  LOH = $(notdir $(SRCLUA))
-  LOH := $(LOH:.lua=$(LO_SUFFIX).loh)
-  LOHS = $(addprefix $(LOHDIR)/, $(LOH))
+    LOH = $(notdir $(SRCLUA))
+    LOH := $(LOH:.lua=$(LO_SUFFIX).loh)
+    LOHS = $(addprefix $(LOHDIR)/, $(LOH))
+    LUAS := $(LOHS)
+  endif
 endif
 
 # Construct VPATH variable
@@ -1185,7 +1295,7 @@ system-check:
 .PHONY: dynamic-lib
 dynamic-lib: $(TARGETDIR)/$(TARGETDLIBNAME)
 
-$(TARGETDIR)/$(TARGETDLIBNAME) : $(LOHS) $(OBJS) $(EXTRADEPS)
+$(TARGETDIR)/$(TARGETDLIBNAME) : $(LUAS) $(OBJS) $(EXTRADEPS)
 	@echo ''; echo Tecmake: linking $(@F) ...
 	$(ECHO)$(LD) $(STDLDFLAGS) -o $@ $(OBJS) $(SLIB) $(LFLAGS)
 	@echo ''; echo 'Tecmake: Dynamic Library ($@) Done.'; echo ''
@@ -1197,7 +1307,7 @@ $(TARGETDIR)/$(TARGETDLIBNAME) : $(LOHS) $(OBJS) $(EXTRADEPS)
 .PHONY: static-lib
 static-lib: $(TARGETDIR)/$(TARGETSLIBNAME)
 
-$(TARGETDIR)/$(TARGETSLIBNAME) : $(LOHS) $(OBJS) $(EXTRADEPS)
+$(TARGETDIR)/$(TARGETSLIBNAME) : $(LUAS) $(OBJS) $(EXTRADEPS)
 	@echo ''; echo Tecmake: librarian $(@F) ...
 	$(ECHO)$(AR) $(STDLFLAGS) $@ $(OBJS) $(SLIB) $(LCFLAGS)
 	@echo ''; echo Tecmake: updating lib TOC $(@F) ...
@@ -1211,7 +1321,7 @@ $(TARGETDIR)/$(TARGETSLIBNAME) : $(LOHS) $(OBJS) $(EXTRADEPS)
 .PHONY: application
 application: $(TARGETDIR)/$(TARGETAPPNAME)
 
-$(TARGETDIR)/$(TARGETAPPNAME) : $(LOHS) $(OBJS) $(EXTRADEPS)
+$(TARGETDIR)/$(TARGETAPPNAME) : $(LUAS) $(OBJS) $(EXTRADEPS)
 	@echo ''; echo Tecmake: linking $(@F) ...
 	$(ECHO)$(LINKER) -o $@ $(OBJS) $(SLIB) $(LFLAGS)
 	@if [ ! -z "$(STRIP)" ]; then \
@@ -1249,7 +1359,7 @@ $(SRELEASE): $(MAKENAME)
 # Directories Creation
 
 .PHONY: directories
-directories: $(OBJDIR) $(TARGETDIR) $(EXTRADIR) $(LOHDIR)
+directories: $(OBJDIR) $(TARGETDIR) $(EXTRADIR) $(LOHDIR) $(LHDIR)
 
 $(OBJDIR) $(TARGETDIR):
 	if [ ! -d $@ ] ; then mkdir -p $@ ; fi
@@ -1266,6 +1376,13 @@ ifdef LOHDIR
 	  if [ ! -d $@ ] ; then mkdir -p $@ ; fi
 else
   $(LOHDIR): ;
+endif
+
+ifdef LHDIR
+  $(LHDIR):
+	  if [ ! -d $@ ] ; then mkdir -p $@ ; fi
+else
+  $(LHDIR): ;
 endif
 
 
@@ -1299,6 +1416,10 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.for
 $(OBJDIR)/%.ro:  $(SRCDIR)/%.rc
 	@echo ''; echo Tecmake: compiling $(<F) ...
 	$(ECHO)$(RCC) $(RCFLAGS) -O coff -o $@ $<
+
+$(LHDIR)/%.lh:  $(SRCLUADIR)/%.lua
+	@echo ''; echo Tecmake: generating $(<F) ...
+	$(ECHO)$(BIN2C) $< > $@
 
 $(LOHDIR)/%.loh:  $(OBJROOT)/%.lo
 	@echo ''; echo Tecmake: generating $(<F) ...
@@ -1363,6 +1484,11 @@ clean-extra:
 clean-lohs:
 	rm -f $(LOS) $(LOHS)
 
+#   Remove Lua inclusion files
+.PHONY: clean-lhs
+clean-lhs:
+	rm -f $(LHS)
+
 #   Remove object files
 .PHONY: clean-obj
 clean-obj:
@@ -1388,7 +1514,7 @@ strip:
 
 #   Rebuild target and object files
 .PHONY: rebuild
-rebuild: clean-extra clean-lohs clean-obj clean-target tecmake
+rebuild: clean-obj clean-target tecmake
 
 #   Rebuild target without rebuilding object files
 .PHONY: relink

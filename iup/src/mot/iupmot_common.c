@@ -480,7 +480,7 @@ static Cursor motGetCursor(Ihandle* ih, const char* name)
   };
 
   Cursor cur;
-  char str[50];
+  char str[200];
   int i, count = sizeof(table)/sizeof(table[0]);
 
   /* check the cursor cache first (per control)*/
@@ -539,27 +539,6 @@ void iupdrvBaseRegisterCommonAttrib(Iclass* ic)
   iupClassRegisterAttribute(ic, "XMFONTLIST", iupmotGetFontListAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
   iupClassRegisterAttribute(ic, "XFONTSTRUCT", iupmotGetFontStructAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
   iupClassRegisterAttribute(ic, "XFONTID", iupmotGetFontIdAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
-}
-
-static void motDoNothing(Widget w, XEvent*  evt, String* params, Cardinal* num_params)
-{
-  (void)w;
-  (void)evt;
-  (void)params;
-  (void)num_params;
-}
-
-void iupmotDisableDragSource(Widget w)
-{
-  char dragTranslations[] = "#override <Btn2Down>: iupDoNothing()";
-  static int do_nothing_rec = 0;
-  if (!do_nothing_rec)
-  {
-    XtActionsRec rec = {"iupDoNothing", (XtActionProc)motDoNothing};
-    XtAppAddActions(iupmot_appcontext, &rec, 1);
-    do_nothing_rec = 1;
-  }
-  XtOverrideTranslations(w, XtParseTranslationTable(dragTranslations));
 }
 
 int iupdrvGetScrollbarSize(void)
@@ -664,7 +643,7 @@ void iupdrvSendKey(int key, int press)
 	XGetInputFocus(iupmot_display, &focus, &revert_to);
   evt.window = focus;
 
-  iupmotKeyEncode(key, &evt.keycode, &evt.state);
+  iupdrvKeyEncode(key, &evt.keycode, &evt.state);
   if (!evt.keycode)
     return;
 

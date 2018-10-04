@@ -259,15 +259,24 @@ static int il_destroy_cb(Ihandle* ih)
 
     /* removes the ihandle reference in the lua table */
     /* object.handle = nil */
-    lua_getref(L, ref);  /* push object */
+    lua_rawgeti(L, LUA_REGISTRYINDEX, ref);  /* push object */
     lua_pushstring(L, "handle");
     lua_pushnil(L);
     lua_settable(L, -3);
     lua_pop(L,1);
 
     /* removes the association of the ihandle with the lua table */
-    lua_unref(L, ref);  /* this is the complement of SetWidget */
+    luaL_unref(L, LUA_REGISTRYINDEX, ref);  /* this is the complement of SetWidget */
     IupSetAttribute(ih, "_IUPLUA_WIDGET_TABLE_REF", NULL);
+
+    sref = IupGetAttribute(ih, "_IUPLUA_STATE_THREAD");
+    if (sref)
+    {
+      ref = atoi(sref);
+      luaL_unref(L, LUA_REGISTRYINDEX, ref);
+      IupSetAttribute(ih, "_IUPLUA_STATE_THREAD", NULL);
+    }
+
     IupSetCallback(ih, "LDESTROY_CB", NULL);
   }
 
@@ -396,6 +405,14 @@ Ihandle ** iuplua_checkihandle_array(lua_State *L, int pos, int n)
 void iuplua_plugstate(lua_State *L, Ihandle *ih)
 {
   IupSetAttribute(ih, "_IUPLUA_STATE_CONTEXT",(char *) L);
+
+  if (IupGetGlobal("IUPLUA_THREADED"))
+  {
+    int ref;
+    lua_pushthread(L);
+    ref = luaL_ref(L, LUA_REGISTRYINDEX);   /* keep ref for L, L maybe a thread */
+    IupSetfAttribute(ih, "_IUPLUA_STATE_THREAD", "%d", ref);
+  }
 }
 
 lua_State* iuplua_getstate(Ihandle *ih)
@@ -598,7 +615,7 @@ static int GetWidget(lua_State *L)
   if (!sref)
     lua_pushnil(L);
   else
-    lua_getref(L, atoi(sref));
+    lua_rawgeti(L, LUA_REGISTRYINDEX, atoi(sref));
   return 1;
 }
 
@@ -612,8 +629,8 @@ static int SetWidget(lua_State *L)
   char* sref = IupGetAttribute(ih, "_IUPLUA_WIDGET_TABLE_REF");
   if (!sref)
   {
-    int ref = lua_ref(L, 1);
-    IupSetfAttribute(ih, "_IUPLUA_WIDGET_TABLE_REF", "%d", ref);  /* this must be a non-inheritable attribute */
+    int ref = luaL_ref(L, LUA_REGISTRYINDEX);
+    IupSetfAttribute(ih, "_IUPLUA_WIDGET_TABLE_REF", "%d", ref);
     IupSetCallback(ih, "LDESTROY_CB", il_destroy_cb);
   }
   return 0;
@@ -682,6 +699,48 @@ static int killfocus_cb(Ihandle *self)
 {
   lua_State *L = iuplua_call_start(self, "killfocus_cb");
   return iuplua_call(L, 0);
+}
+
+static int multitouch_cb(Ihandle *ih, int count, int* pid, int* px, int* py, int* pstate)
+{
+  int i;
+  lua_State *L = iuplua_call_start(ih, "multitouch_cb");
+  lua_pushinteger(L, count);
+  
+  lua_createtable(L, count, 0);
+  for (i = 0; i < count; i++)
+  {
+    lua_pushinteger(L,i+1);
+    lua_pushinteger(L,pid[i]);
+    lua_settable(L,-3);
+  }
+  
+  lua_createtable(L, count, 0);
+  for (i = 0; i < count; i++)
+  {
+    lua_pushinteger(L,i+1);
+    lua_pushinteger(L,px[i]);
+    lua_settable(L,-3);
+  }
+  
+  lua_createtable(L, count, 0);
+  for (i = 0; i < count; i++)
+  {
+    lua_pushinteger(L,i+1);
+    lua_pushinteger(L,py[i]);
+    lua_settable(L,-3);
+  }
+  
+  
+  lua_createtable(L, count, 0);
+  for (i = 0; i < count; i++)
+  {
+    lua_pushinteger(L,i+1);
+    lua_pushinteger(L,pstate[i]);
+    lua_settable(L,-3);
+  }
+  
+  return iuplua_call(L, 5);
 }
 
 static int Idlecall(void)
@@ -839,7 +898,7 @@ int iuplua_open(lua_State * L)
 {
   int ret;
 
-  struct luaL_reg funcs[] = {
+  struct luaL_Reg funcs[] = {
     {"key_open", iupkey_open},
     {"Open", il_open},
     {"Close", iuplua_close},
@@ -883,9 +942,9 @@ int iuplua_open(lua_State * L)
 #include "iuplua.loh"
 #include "constants.loh"
 #else
-#ifdef IUPLUA_USELZH
-#include "iuplua.lzh"
-#include "constants.lzh"
+#ifdef IUPLUA_USELH
+#include "iuplua.lh"
+#include "constants.lh"
 #else
   iuplua_dofile(L, "iuplua.lua");
   iuplua_dofile(L, "constants.lua");
@@ -897,6 +956,7 @@ int iuplua_open(lua_State * L)
   iuplua_register_cb(L, "GETFOCUS_CB", (lua_CFunction)getfocus_cb, NULL);
   iuplua_register_cb(L, "K_ANY", (lua_CFunction)k_any, NULL);
   iuplua_register_cb(L, "KILLFOCUS_CB", (lua_CFunction)killfocus_cb, NULL);
+  iuplua_register_cb(L, "MULTITOUCH_CB", (lua_CFunction)multitouch_cb, NULL);
 
   /* Register Keys */
   iupKeyForEach(register_key, (void*)L);

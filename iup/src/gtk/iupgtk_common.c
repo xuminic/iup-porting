@@ -34,7 +34,7 @@
    in fact it can return a base native window shared by many controls.
    IupCanvas is a special case that uses an exclusive native window. */
 
-/* GTK only has abssolute positioning using a GtkFixed container,
+/* GTK only has absolute positioning using a GtkFixed container,
    so all elements returned by iupChildTreeGetNativeParentHandle should be a GtkFixed. 
    If not looks in the native parent. */
 static GtkFixed* gtkGetFixedParent(Ihandle* ih)
@@ -431,7 +431,7 @@ static GdkCursor* gtkGetCursor(Ihandle* ih, const char* name)
   };
 
   GdkCursor* cur;
-  char str[50];
+  char str[200];
   int i, count = sizeof(table)/sizeof(table[0]);
 
   /* check the cursor cache first (per control)*/
@@ -487,66 +487,6 @@ void iupgdkColorSet(GdkColor* color, unsigned char r, unsigned char g, unsigned 
   color->pixel = 0;
 }
 
-static void gtkDragDataReceived(GtkWidget* w, GdkDragContext* context, int x, int y,
-                                      GtkSelectionData* seldata, guint info, guint time, Ihandle* ih)
-{
-  gchar **uris = NULL;
-  int i, count;
-
-  IFnsiii cb = (IFnsiii)IupGetCallback(ih, "DROPFILES_CB");
-  if (!cb) return; 
-
-#if GTK_CHECK_VERSION(2, 6, 0)
-#if GTK_CHECK_VERSION(2, 14, 0)
-  uris = g_uri_list_extract_uris((char*)gtk_selection_data_get_data(seldata));
-#else
-  uris = g_uri_list_extract_uris((char*)seldata->data);
-#endif
-#endif
-
-  if (!uris)
-    return;
-
-  count = 0;
-  while (uris[count])
-    count++;
-
-  for (i=0; i<count; i++)
-  {
-    char* filename = uris[i];
-    if (iupStrEqualPartial(filename, "file://"))
-    {
-      filename += strlen("file://");
-      if (filename[2] == ':') /* in Windows there is an extra '/' at the begining. */
-        filename++;
-    }
-    if (cb(ih, filename, count-i-1, x, y) == IUP_IGNORE)
-      break;
-  }
-
-  g_strfreev (uris);
-  (void)time;
-  (void)info;
-  (void)w;
-  (void)context;
-}
-
-int iupgtkSetDragDropAttrib(Ihandle* ih, const char* value)
-{
-  if (iupStrBoolean(value))
-  {
-    GtkTargetEntry dragtypes[] = { { "text/uri-list", 0, 0 } };
-    gtk_drag_dest_set(ih->handle, GTK_DEST_DEFAULT_ALL, dragtypes,
-                      sizeof(dragtypes) / sizeof(dragtypes[0]), GDK_ACTION_COPY);
-    g_signal_connect(G_OBJECT(ih->handle), "drag_data_received", G_CALLBACK(gtkDragDataReceived), ih);
-  }
-  else
-  {
-    gtk_drag_dest_unset(ih->handle);
-  }
-  return 1;
-}
-
 int iupdrvGetScrollbarSize(void)
 {
   static int size = 0;
@@ -590,6 +530,9 @@ void iupdrvBaseRegisterCommonAttrib(Iclass* ic)
 #endif
   iupClassRegisterAttribute(ic, "PANGOFONTDESC", iupgtkGetPangoFontDescAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
   iupClassRegisterAttribute(ic, "PANGOLAYOUT", iupgtkGetPangoLayoutAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
+
+  iupClassRegisterAttribute(ic, "TIPMARKUP", NULL, NULL, IUPAF_SAMEASSYSTEM, NULL, IUPAF_NOT_MAPPED);
+  iupClassRegisterAttribute(ic, "TIPICON", NULL, NULL, IUPAF_SAMEASSYSTEM, NULL, IUPAF_NOT_MAPPED);
 }
 
 static int gtkStrIsAscii(const char* str)
@@ -875,7 +818,7 @@ void iupdrvSendKey(int key, int press)
     return;
   evt.window = iupgtkGetWindow(focus->handle);
 
-  iupgtkKeyEncode(key, &evt.keyval, &evt.state);
+  iupdrvKeyEncode(key, &evt.keyval, &evt.state);
   if (!evt.keyval)
     return;
 

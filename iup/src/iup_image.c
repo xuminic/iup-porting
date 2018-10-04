@@ -41,6 +41,7 @@ void iupImageStockFinish(void)
     IimageStock* istock = (IimageStock*)iupTableGetCurr(istock_table);
     if (iupObjectCheck(istock->image))
       IupDestroy(istock->image);
+    memset(istock, 0, sizeof(IimageStock));
     free(istock);
     name = iupTableNext(istock_table);
   }
@@ -80,14 +81,23 @@ static void iImageStockGet(const char* name, Ihandle* *ih, const char* *native_n
   }
 }
 
-void iupImageStockLoad(const char *name)
+static void iImageStockUnload(const char* name)
 {
-  /* Used only in iupImageLibLoadAll */
+  IimageStock* istock = (IimageStock*)iupTableGet(istock_table, name);
+  if (istock)
+    istock->image = NULL;
+}
+
+static void iImageStockLoad(const char *name)
+{
   const char* native_name = NULL;
   Ihandle* ih = NULL;
   iImageStockGet(name, &ih, &native_name);
   if (ih)
+  {
     IupSetHandle(name, ih);
+    iupAttribStoreStr(ih, "_IUPSTOCKLOAD", name);
+  }
   else if (native_name)
   {
     /* dummy image to save the GTK stock name */
@@ -104,6 +114,18 @@ void iupImageStockLoad(const char *name)
     }
   }
 }
+
+void iupImageStockLoadAll(void)
+{
+  /* Used only in IupView */
+  char* name = iupTableFirst(istock_table);
+  while (name)
+  {
+    iImageStockLoad(name);
+    name = iupTableNext(istock_table);
+  }
+}
+
 
 
 /**************************************************************************************************/
@@ -289,15 +311,17 @@ void* iupImageGetIcon(const char* name)
   if (!name)
     return NULL;
 
-  /* Check first in the system resources. */
-  icon = iupdrvImageLoad(name, IUPIMAGE_ICON);
-  if (icon) 
-    return icon;
-
   /* get handle from name */
   ih = IupGetHandle(name);
   if (!ih)
+  {
+    /* Check in the system resources. */
+    icon = iupdrvImageLoad(name, IUPIMAGE_ICON);
+    if (icon) 
+      return icon;
+
     return NULL;
+  }
   
   /* Check for an already created icon */
   icon = iupAttribGet(ih, "_IUPIMAGE_ICON");
@@ -321,15 +345,17 @@ void* iupImageGetCursor(const char* name)
   if (!name)
     return NULL;
 
-  /* Check first in the system resources. */
-  cursor = iupdrvImageLoad(name, IUPIMAGE_CURSOR);
-  if (cursor) 
-    return cursor;
-
   /* get handle from name */
   ih = IupGetHandle(name);
   if (!ih)
+  {
+    /* Check in the system resources. */
+    cursor = iupdrvImageLoad(name, IUPIMAGE_CURSOR);
+    if (cursor) 
+      return cursor;
+
     return NULL;
+  }
   
   /* Check for an already created cursor */
   cursor = iupAttribGet(ih, "_IUPIMAGE_CURSOR");
@@ -353,22 +379,22 @@ void iupImageGetInfo(const char* name, int *w, int *h, int *bpp)
   if (!name)
     return;
 
-  /* Check first in the system resources. */
-  handle = iupdrvImageLoad(name, IUPIMAGE_IMAGE);
-  if (handle)
-  {
-    iupdrvImageGetInfo(handle, w, h, bpp);
-    return;
-  }
-
   /* get handle from name */
   ih = IupGetHandle(name);
   if (!ih)
   {
-    /* Check in the stock images. */
     const char* native_name = NULL;
-    iImageStockGet(name, &ih, &native_name);
 
+    /* Check in the system resources. */
+    handle = iupdrvImageLoad(name, IUPIMAGE_IMAGE);
+    if (handle)
+    {
+      iupdrvImageGetInfo(handle, w, h, bpp);
+      return;
+    }
+
+    /* Check in the stock images. */
+    iImageStockGet(name, &ih, &native_name);
     if (native_name) 
     {
       handle = iupdrvImageLoad(native_name, IUPIMAGE_IMAGE);
@@ -399,19 +425,19 @@ void* iupImageGetImage(const char* name, Ihandle* ih_parent, int make_inactive)
   if (!name)
     return NULL;
 
-  /* Check first in the system resources. */
-  handle = iupdrvImageLoad(name, IUPIMAGE_IMAGE);
-  if (handle) 
-    return handle;
-
   /* get handle from name */
   ih = IupGetHandle(name);
   if (!ih)
   {
-    /* Check in the stock images. */
     const char* native_name = NULL;
-    iImageStockGet(name, &ih, &native_name);
 
+    /* Check in the system resources. */
+    handle = iupdrvImageLoad(name, IUPIMAGE_IMAGE);
+    if (handle) 
+      return handle;
+
+    /* Check in the stock images. */
+    iImageStockGet(name, &ih, &native_name);
     if (native_name) 
     {
       handle = iupdrvImageLoad(native_name, IUPIMAGE_IMAGE);
@@ -622,12 +648,17 @@ static int iImageRGBACreateMethod(Ihandle* ih, void** params)
 
 static void iImageDestroyMethod(Ihandle* ih)
 {
+  char* stock_name;
   unsigned char* imgdata = (unsigned char*)iupAttribGetStr(ih, "WID");
   if (imgdata)
   {
     iupAttribSetStr(ih, "WID", NULL);
     free(imgdata);
   }
+
+  stock_name = iupAttribGet(ih, "_IUPSTOCKLOAD");
+  if (stock_name)
+    iImageStockUnload(stock_name);
 }
 
 /******************************************************************************/

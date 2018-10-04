@@ -9,6 +9,7 @@
 #include <ctype.h>   
 #include <stdlib.h>  
 #include <stdio.h>  
+#include <limits.h>
 
 #include "iup_str.h"
 
@@ -36,6 +37,20 @@ int iupStrEqualNoCase(const char* str1, const char* str2)
   while (str1[i] && str2[i] && tolower(str1[i])==tolower(str2[i])) 
     i++;
   if (str1[i] == str2[i]) return 1; 
+
+  return 0;
+}
+
+int iupStrEqualNoCasePartial(const char* str1, const char* str2) 
+{
+  int i = 0;
+  if (str1 == str2) return 1;
+  if (!str1 || !str2 || tolower(*str1) != tolower(*str2)) return 0;
+
+  while (str1[i] && str2[i] && tolower(str1[i])==tolower(str2[i])) 
+    i++;
+  if (str1[i] == str2[i]) return 1; 
+  if (str2[i] == 0) return 1;
 
   return 0;
 }
@@ -226,6 +241,35 @@ char *iupStrCopyUntilNoCase(char **str, int c)
   }
 }
 
+char *iupStrGetLargeMem(int *size)
+{
+#define LARGE_MAX_BUFFERS 10
+#define LARGE_SIZE SHRT_MAX
+  static char buffers[LARGE_MAX_BUFFERS][LARGE_SIZE];
+  static int buffers_index = -1;
+  char* ret_str;
+
+  /* init buffers array */
+  if (buffers_index == -1)
+  {
+    memset(buffers, 0, sizeof(char*)*LARGE_MAX_BUFFERS);
+    buffers_index = 0;
+  }
+
+  /* clear memory */
+  memset(buffers[buffers_index], 0, LARGE_SIZE);
+  ret_str = buffers[buffers_index];
+
+  buffers_index++;
+  if (buffers_index == LARGE_MAX_BUFFERS)
+    buffers_index = 0;
+
+  *size = LARGE_SIZE;
+  return ret_str;
+#undef LARGE_MAX_BUFFERS
+#undef LARGE_SIZE 
+}
+
 char *iupStrGetMemory(int size)
 {
 #define MAX_BUFFERS 50
@@ -253,6 +297,7 @@ char *iupStrGetMemory(int size)
   {
     char* ret_str;
 
+    /* init buffers array */
     if (buffers_index == -1)
     {
       memset(buffers, 0, sizeof(char*)*MAX_BUFFERS);
@@ -260,17 +305,19 @@ char *iupStrGetMemory(int size)
       buffers_index = 0;
     }
 
+    /* first alocation */
     if (!(buffers[buffers_index]))
     {
       buffers_sizes[buffers_index] = size+1;
       buffers[buffers_index] = (char*)malloc(buffers_sizes[buffers_index]);
     }
-    else if (buffers_sizes[buffers_index] < size+1)
+    else if (buffers_sizes[buffers_index] < size+1)  /* reallocate if necessary */
     {
       buffers_sizes[buffers_index] = size+1;
       buffers[buffers_index] = (char*)realloc(buffers[buffers_index], buffers_sizes[buffers_index]);
     }
 
+    /* clear memory */
     memset(buffers[buffers_index], 0, buffers_sizes[buffers_index]);
     ret_str = buffers[buffers_index];
 
@@ -280,6 +327,7 @@ char *iupStrGetMemory(int size)
 
     return ret_str;
   }
+#undef MAX_BUFFERS
 }
 
 char *iupStrGetMemoryCopy(const char* str)
@@ -783,10 +831,12 @@ char* iupStrProcessMnemonic(const char* str, char *c, int action)
     {
       if (*(str+1) == '&') /* remove & from the string, add next & to the string */
       {
+        found = -1;
+
         str++;
         new_str[i++] = *str;
       }
-      else if (!found) /* mnemonic found */
+      else if (found!=1) /* mnemonic found */
       {
         found = 1;
 
@@ -806,7 +856,7 @@ char* iupStrProcessMnemonic(const char* str, char *c, int action)
   }
   new_str[i] = 0;
 
-  if (!found)
+  if (found==0)
   {
     free(new_str);
     return orig_str;

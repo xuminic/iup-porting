@@ -275,7 +275,7 @@ InodeHandle* iupTreeGetNode(Ihandle* ih, int id)
 {
   if (id >= 0 && id < ih->data->node_count)
     return ih->data->node_cache[id].node_handle;
-  else if (id == -1 && ih->data->node_count!=0)
+  else if (id == IUP_INVALID_ID && ih->data->node_count!=0)
     return iupdrvTreeGetFocusNode(ih);
   else
     return NULL;
@@ -283,7 +283,7 @@ InodeHandle* iupTreeGetNode(Ihandle* ih, int id)
 
 InodeHandle* iupTreeGetNodeFromString(Ihandle* ih, const char* name_id)
 {
-  int id = -1;
+  int id = IUP_INVALID_ID;
   iupStrToInt(name_id, &id);
   return iupTreeGetNode(ih, id);
 }
@@ -488,6 +488,31 @@ static int iTreeSetShowRenameAttrib(Ihandle* ih, const char* value)
   return 0;
 }
 
+static char* iTreeGetShowToggleAttrib(Ihandle* ih)
+{
+  if (ih->data->show_toggle)
+  {
+    if (ih->data->show_toggle == 2)
+      return "3STATE";
+    else
+      return "YES";
+  }
+  else
+    return "NO";
+}
+
+static int iTreeSetShowToggleAttrib(Ihandle* ih, const char* value)
+{
+  if (iupStrEqualNoCase(value, "3STATE"))
+    ih->data->show_toggle = 2;
+  else if (iupStrBoolean(value))
+    ih->data->show_toggle = 1;
+  else
+    ih->data->show_toggle = 0;
+
+  return 0;
+}
+
 static char* iTreeGetShowDragDropAttrib(Ihandle* ih)
 {
   if (ih->data->show_dragdrop)
@@ -583,7 +608,7 @@ static char* iTreeGetUserDataAttrib(Ihandle* ih, int id)
 {
   if (id >= 0 && id < ih->data->node_count)
     return ih->data->node_cache[id].userdata;
-  else if (id == -1 && ih->data->node_count!=0)
+  else if (id == IUP_INVALID_ID && ih->data->node_count!=0)
   {
     InodeHandle* node_handle = iupdrvTreeGetFocusNode(ih);
     id = iupTreeFindNodeId(ih, node_handle);
@@ -597,7 +622,7 @@ static int iTreeSetUserDataAttrib(Ihandle* ih, int id, const char* value)
 {
   if (id >= 0 && id < ih->data->node_count)
     ih->data->node_cache[id].userdata = (void*)value;
-  else if (id == -1 && ih->data->node_count!=0)
+  else if (id == IUP_INVALID_ID && ih->data->node_count!=0)
   {
     InodeHandle* node_handle = iupdrvTreeGetFocusNode(ih);
     id = iupTreeFindNodeId(ih, node_handle);
@@ -657,6 +682,7 @@ Iclass* iupTreeNewClass(void)
   ic->Destroy = iTreeDestroyMethod;
 
   /* Callbacks */
+  iupClassRegisterCallback(ic, "TOGGLEVALUE_CB",    "ii");
   iupClassRegisterCallback(ic, "SELECTION_CB",      "ii");
   iupClassRegisterCallback(ic, "MULTISELECTION_CB", "Ii");
   iupClassRegisterCallback(ic, "MULTIUNSELECTION_CB", "Ii");
@@ -679,10 +705,14 @@ Iclass* iupTreeNewClass(void)
   /* Visual */
   iupBaseRegisterVisualAttrib(ic);
 
+  /* Drag&Drop */
+  iupdrvRegisterDragDropAttrib(ic);
+
   /* IupTree Attributes - GENERAL */
-  iupClassRegisterAttribute(ic, "SHOWDRAGDROP", iTreeGetShowDragDropAttrib,    iTreeSetShowDragDropAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "SHOWRENAME",   iTreeGetShowRenameAttrib,      iTreeSetShowRenameAttrib,   NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "ADDEXPANDED",  iTreeGetAddExpandedAttrib,     iTreeSetAddExpandedAttrib,  IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "SHOWDRAGDROP", iTreeGetShowDragDropAttrib, iTreeSetShowDragDropAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "SHOWRENAME",   iTreeGetShowRenameAttrib,   iTreeSetShowRenameAttrib,   NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "SHOWTOGGLE",   iTreeGetShowToggleAttrib,   iTreeSetShowToggleAttrib,   NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "ADDEXPANDED",  iTreeGetAddExpandedAttrib,  iTreeSetAddExpandedAttrib,  IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "COUNT",        iTreeGetCountAttrib, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_READONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "LASTADDNODE", NULL, NULL, IUPAF_SAMEASSYSTEM, NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "ADDROOT", NULL, NULL, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NO_INHERIT);
@@ -740,10 +770,11 @@ float IupTreeGetFloat(Ihandle* ih, const char* a, int id)
 
 void IupTreeSetfAttribute(Ihandle* ih, const char* a, int id, const char* f, ...)
 {
-  static char v[SHRT_MAX];
+  int size;
+  char* v = iupStrGetLargeMem(&size);
   va_list arglist;
   va_start(arglist, f);
-  vsprintf(v, f, arglist);
+  vsnprintf(v, size, f, arglist);
   va_end(arglist);
   IupStoreAttributeId(ih, a, id, v);
 }

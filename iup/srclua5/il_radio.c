@@ -1,5 +1,5 @@
 /******************************************************************************
- * Automatically generated file (iuplua5). Please don't change anything.                *
+ * Automatically generated file. Please don't change anything.                *
  *****************************************************************************/
 
 #include <stdlib.h>
@@ -28,8 +28,8 @@ int iupradiolua_open(lua_State * L)
 #ifdef IUPLUA_USELOH
 #include "radio.loh"
 #else
-#ifdef IUPLUA_USELZH
-#include "radio.lzh"
+#ifdef IUPLUA_USELH
+#include "radio.lh"
 #else
   iuplua_dofile(L, "radio.lua");
 #endif

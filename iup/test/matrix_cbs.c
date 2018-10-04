@@ -28,10 +28,10 @@ static int enter(Ihandle *self, int lin, int col)
   {
     IupSetAttribute(IupGetHandle("mat1"), "REDRAW", "ALL");
     IupSetAttribute(IupGetHandle("mat2"), "REDRAW", "ALL");
-    IupSetAttribute(IupGetHandle("mat3"), "REDRAW", "ALL");
-    IupSetAttribute(IupGetHandle("mat4"), "REDRAW", "ALL");
-    IupSetAttribute(IupGetHandle("mat5"), "REDRAW", "ALL");
-    IupSetAttribute(IupGetHandle("mat6"), "REDRAW", "ALL");
+    //IupSetAttribute(IupGetHandle("mat3"), "REDRAW", "ALL");
+    //IupSetAttribute(IupGetHandle("mat4"), "REDRAW", "ALL");
+    //IupSetAttribute(IupGetHandle("mat5"), "REDRAW", "ALL");
+    //IupSetAttribute(IupGetHandle("mat6"), "REDRAW", "ALL");
   }
   return IUP_DEFAULT;
 }
@@ -106,7 +106,7 @@ static int edition(Ihandle *self, int lin, int col, int mode)
 
 static int drawcb(Ihandle *h, int lin, int col,int x1, int x2, int y1, int y2)
 {
-  if (lin < 4)
+  if (lin < 5 || lin > 12 || col < 2 || col > 8)
     return IUP_IGNORE;
 
   cdForeground(CD_RED);
@@ -142,14 +142,12 @@ static int actioncb(Ihandle *h, int c, int lin, int col, int active, char* after
 }
 
 
-static Ihandle *create_mat(void)
+static Ihandle *create_mat(int mati)
 {
   Ihandle *mat = IupMatrix(NULL); 
-  static int mati = 1;
   char name[30];
 
   sprintf(name, "mat%d", mati);
-  mati++;
 
   IupSetHandle(name, mat);
   
@@ -254,6 +252,8 @@ static int addline(Ihandle *self)
 {
   IupSetAttribute(IupGetHandle("mat1"),"ADDLIN","0"); 
 //  IupSetAttribute(IupGetHandle("mat1"),"ADDLIN","0-5"); 
+//  IupSetAttribute(IupGetHandle("mat1"),"NUMCOL_NOSCROLL","2");
+//  IupSetAttribute(IupGetHandle("mat1"),"NUMLIN_NOSCROLL","2");
   return IUP_DEFAULT;
 }
 
@@ -272,6 +272,17 @@ static int addcol(Ihandle *self)
 static int bt_cb(Ihandle *self) 
 {
   printf("DEFAULTENTER\n"); 
+
+//  IupHide(IupGetHandle("mat1")); 
+
+//  IupSetAttribute(IupGetHandle("mat1"),"CLEARVALUE*:2","1-10"); 
+//  IupSetAttribute(IupGetHandle("mat1"),"CLEARVALUE2:*","1-10"); 
+//  IupSetAttribute(IupGetHandle("mat1"),"CLEARVALUE2:2","10-10"); 
+//  IupSetAttribute(IupGetHandle("mat1"),"CLEARVALUE","ALL"); 
+//  IupSetAttribute(IupGetHandle("mat1"),"CLEARVALUE","CONTENTS"); 
+
+//  IupSetAttribute(IupGetHandle("mat1"),"CLEARATTRIB2:*","ALL"); 
+//  IupSetAttribute(IupGetHandle("mat1"),"CLEARATTRIB3:*","ALL"); 
   return IUP_DEFAULT;
 }
 
@@ -307,10 +318,10 @@ void MatrixCbsTest(void)
 //          IupZbox(
           IupTabs(
             IupSetAttributes(
-              IupVbox((create_mat()), bt, IupText(""), IupLabel("Label Text"), IupFrame(IupVal("HORIZONTAL")), 
+              IupVbox((create_mat(1)), bt, IupText(""), IupLabel("Label Text"), IupFrame(IupVal("HORIZONTAL")), 
                 NULL), "MARGIN=10x10, GAP=10, TABTITLE=Test1"),
             IupSetAttributes(
-              IupVbox(IupFrame(create_mat()), IupText(""), IupLabel("Label Text"), IupVal("HORIZONTAL"), 
+              IupVbox(IupFrame(create_mat(2)), IupText(""), IupLabel("Label Text"), IupVal("HORIZONTAL"), 
 //                NULL), "BGCOLOR=\"0 255 255\", MARGIN=10x10, GAP=10, TABTITLE=Test2,FONT=HELVETICA_ITALIC_14"), 
 //                NULL), "FONT=HELVETICA_NORMAL_12, BGCOLOR=\"0 255 255\", MARGIN=10x10, GAP=10, TABTITLE=Test2"), 
                 NULL), "BGCOLOR=\"0 255 255\", MARGIN=10x10, GAP=10, TABTITLE=Test2"), 

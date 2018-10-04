@@ -1,5 +1,5 @@
 /******************************************************************************
- * Automatically generated file (iuplua5). Please don't change anything.                *
+ * Automatically generated file. Please don't change anything.                *
  *****************************************************************************/
 
 #include <stdlib.h>
@@ -36,8 +36,8 @@ int iupspinlua_open(lua_State * L)
 #ifdef IUPLUA_USELOH
 #include "spin.loh"
 #else
-#ifdef IUPLUA_USELZH
-#include "spin.lzh"
+#ifdef IUPLUA_USELH
+#include "spin.lh"
 #else
   iuplua_dofile(L, "spin.lua");
 #endif

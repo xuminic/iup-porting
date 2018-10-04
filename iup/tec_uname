@@ -25,6 +25,10 @@ ComputeTecUname()
   if [ $TEC_SYSNAME == FreeBSD ]; then
     TEC_SYSMINOR=`uname -r|cut -f2 -d.|cut -f1 -d-`
   fi
+  if [ $TEC_SYSNAME == GNU/kFreeBSD ]; then
+    TEC_SYSNAME=kFreeBSD
+    TEC_SYSMINOR=`uname -r|cut -f2 -d.|cut -f1 -d-`
+  fi
   if [ $TEC_SYSNAME == AIX ]; then
     TEC_SYSVERSION=`uname -v`
     TEC_SYSMINOR=`uname -r`
@@ -119,9 +123,13 @@ ComputeTecUname()
     if [ $TEC_SYSMINOR == 6 ]; then
       TEC_SYSARCH=x64
     else
+    if [ $TEC_SYSMINOR == 7 ]; then
+      TEC_SYSARCH=x64
+    else
       if [ $TEC_SYSARCH == x86 ]; then
         TEC_UNAME=$TEC_UNAME'x86'
       fi
+    fi
     fi
   fi
 }
@@ -140,7 +148,7 @@ ComputeSystemPaths()
 
   TEC_SYSTEM_INC=/usr/include
   
-  TEC_LUA_LIB=$TEC_SYSTEM_LIB/lua/5.1
+  TEC_LUA_LIB=$TEC_SYSTEM_LIB/lua/$LUA_VER
 }
 
 PrintInfo()

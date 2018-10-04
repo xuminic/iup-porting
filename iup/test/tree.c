@@ -203,6 +203,13 @@ static int showrename_cb(Ihandle* ih, int id)
   return IUP_DEFAULT;
 }
 
+static int togglevalue_cb(Ihandle* ih, int id, int status)
+{
+  (void)ih;
+  printf("TOGGLEVALUE_CB(%d, %d)\n", id, status);
+  return IUP_DEFAULT;
+}
+
 static int selection_cb(Ihandle *ih, int id, int status)
 {
   (void)ih;
@@ -330,6 +337,8 @@ static int nodeinfo(Ihandle* ih)
   int branch = 0, id = IupGetInt(tree, "VALUE");
   printf("\nTree Info:\n");
   printf("  TOTALCOUNT=%s\n", IupGetAttribute(tree, "COUNT"));
+  if (id == -1)
+    return IUP_DEFAULT;
   printf("Node Info:\n");
   printf("  ID=%d\n", id);
   printf("  TITLE=%s\n", IupGetAttribute(tree, "TITLE"));
@@ -471,12 +480,19 @@ static void init_tree_nodes(void)
   IupSetAttribute(tree, "INSERTLEAF6","2D");  /* new id=9 */
   IupSetAttribute(tree, "INSERTBRANCH9","3D");
 #endif
+  IupSetAttribute(tree, "TOGGLEVALUE2", "ON");
+  IupSetAttribute(tree, "TOGGLEVALUE6", "ON");
+  IupSetAttribute(tree, "TOGGLEVALUE9", "NOTDEF");
+  IupSetAttribute(tree, "TOGGLEVALUE2", "OFF");
 //  IupSetAttribute(tree, "AUTOREDRAW", "Yes");
 
-  //IupSetAttribute(tree, "VALUE",        "6");
+  IupSetAttribute(tree, "MARKED1", "Yes");
+  IupSetAttribute(tree, "MARKED8", "Yes");
+  IupSetAttribute(tree, "VALUE",        "6");
+
   IupSetAttribute(tree, "RASTERSIZE", NULL);   /* remove the minimum size limitation */
   IupSetAttribute(tree, "COLOR8", "92 92 255");
-  IupSetAttribute(tree, "TITLEFONT8", "Courier, 14");
+//  IupSetAttribute(tree, "TITLEFONT8", "Courier, 14");
   IupSetAttributeHandle(tree, "IMAGE8", load_image_LogoTecgraf());
   IupSetAttributeHandle(tree, "IMAGE7", load_image_TestImage());
   IupSetAttribute(tree, "IMAGE6", IupGetAttribute(tree, "IMAGE8"));
@@ -496,26 +512,30 @@ static void init_tree(void)
   IupSetCallback(tree, "K_ANY",          (Icallback) k_any_cb);
   IupSetCallback(tree, "SHOWRENAME_CB", (Icallback) showrename_cb);
   IupSetCallback(tree, "SELECTION_CB", (Icallback) selection_cb);
-  IupSetCallback(tree, "MULTISELECTION_CB", (Icallback) multiselection_cb);
-  IupSetCallback(tree, "MULTIUNSELECTION_CB", (Icallback) multiunselection_cb);
+//  IupSetCallback(tree, "MULTISELECTION_CB", (Icallback) multiselection_cb);
+//  IupSetCallback(tree, "MULTIUNSELECTION_CB", (Icallback) multiunselection_cb);
   IupSetCallback(tree, "GETFOCUS_CB", (Icallback) getfocus_cb);
   IupSetCallback(tree, "KILLFOCUS_CB", (Icallback) killfocus_cb);
   //IupSetCallback(tree, "ENTERWINDOW_CB", (Icallback) enterwindow_cb);
   //IupSetCallback(tree, "LEAVEWINDOW_CB", (Icallback)leavewindow_cb);
-  IupSetCallback(tree, "BUTTON_CB",    (Icallback)button_cb);
+  //IupSetCallback(tree, "BUTTON_CB",    (Icallback)button_cb);
   //IupSetCallback(tree, "MOTION_CB",    (Icallback)motion_cb);
   IupSetCallback(tree, "NODEREMOVED_CB", (Icallback)noderemoved_cb);
+  IupSetCallback(tree, "TOGGLEVALUE_CB", (Icallback)togglevalue_cb);
 
   IupSetCallback(tree, "HELP_CB", (Icallback)help_cb);
 
-//  IupSetAttribute(tree, "FONT",         "COURIER_NORMAL_14");
+//  IupSetAttribute(tree, "FONT", "COURIER_NORMAL_14");
 //  IupSetAttribute(tree, "FGCOLOR", "255 0 0");
 //  IupSetAttribute(tree, "SPACING",   "10");
 //  IupSetAttribute(tree, "BGCOLOR", "255 255 255");
+//  IupSetAttribute(tree, "BGCOLOR", "128 0 255");
 
 //  IupSetAttribute(tree, "MARKMODE",     "MULTIPLE");
-  IupSetAttribute(tree, "SHOWRENAME",   "YES");
+//  IupSetAttribute(tree, "SHOWRENAME",   "YES");
   IupSetAttribute(tree, "SHOWDRAGDROP", "YES");
+//  IupSetAttribute(tree, "SHOWTOGGLE",   "YES");
+//  IupSetAttribute(tree, "SHOWTOGGLE",   "3STATE");
 //  IupSetAttribute(tree, "DROPEQUALDRAG", "YES");
 
   IupSetAttribute(tree, "ADDEXPANDED",  "YES");
@@ -531,6 +551,8 @@ static void init_tree(void)
 //  IupSetAttribute(tree, "TIPBALLOON", "YES");
 //  IupSetAttribute(tree, "TIPBALLOONTITLE", "Tip Title");
 //  IupSetAttribute(tree, "TIPBALLOONTITLEICON", "2");
+
+//  IupSetAttribute(tree, "ADDROOT", "NO");
 
   IupSetHandle("tree", tree);
 }

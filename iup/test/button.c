@@ -183,7 +183,7 @@ static int action_cb(Ihandle *ih)
 {
   static int count = 1;
   printf("ACTION(%s) - %d\n", get_name(ih), count); count++;
-  show_menu(ih);
+//  show_menu(ih);
   return IUP_DEFAULT;
 }
 
@@ -295,11 +295,12 @@ void ButtonTest(void)
   IupAppend(box1, button);
 
   button = IupButton(NULL, NULL);
-  IupSetAttribute(button, "TITLE", "&Text (згн)");
-  IupSetAttribute(button, "TIP", "Button Tip");
+  IupSetAttribute(button, "TITLE", "&Text && Test(згн)");
+  IupSetAttribute(button, "TIP", "Button & Tip");
   //IupSetAttribute(button, "PADDING", "15x15");
   //IupSetAttribute(button, "BGCOLOR", "128 128 255");
-  IupSetAttribute(button, "SIZE", "40");
+//  IupSetAttribute(button, "SIZE", "40");
+//  IupSetAttribute(button, "EXPAND", "Yes");
 //  IupSetAttribute(button, "FGCOLOR", "0 0 255");
 //  IupSetAttribute(button, "RASTERSIZE", "200x100");
   IupSetAttribute(button, "ALIGNMENT", "ACENTER:ACENTER");
@@ -310,7 +311,7 @@ void ButtonTest(void)
   IupAppend(box1, button);
 
   button = IupButton(NULL, NULL);
-  IupSetAttribute(button, "TITLE", "Text Button\nSecond Line");
+  IupSetAttribute(button, "TITLE", "Text\nSecond Line");
   IupSetAttribute(button, "RASTERSIZE", "200x100");
   IupSetAttribute(button, "ALIGNMENT", "ACENTER:ACENTER");
   IupSetAttribute(button, "FONT", "Helvetica, 14");
@@ -320,7 +321,7 @@ void ButtonTest(void)
   IupAppend(box1, button);
 
   button = IupButton(NULL, NULL);
-  IupSetAttribute(button, "TITLE", "Text Button\n<b>Second Line</b>");
+  IupSetAttribute(button, "TITLE", "Text\n<b>Second Line</b>");
   IupSetAttribute(button, "RASTERSIZE", "200x100");
   IupSetAttribute(button, "ALIGNMENT", "ARIGHT:ABOTTOM");
   IupSetAttribute(button, "MARKUP", "YES");

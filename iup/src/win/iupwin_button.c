@@ -239,6 +239,11 @@ static void winButtonDrawImageText(Ihandle* ih, HDC hDC, int rect_width, int rec
     break;
   }
 
+  if (ih->data->horiz_alignment == IUP_ALIGN_ACENTER)
+    style |= DT_CENTER;  /* let DrawText do the internal horizontal alignment, usefull for multiple lines */
+  else if (ih->data->horiz_alignment == IUP_ALIGN_ARIGHT)
+    style |= DT_RIGHT;
+
   iupwinDrawBitmap(hDC, hBitmap, hMask, img_x, img_y, img_width, img_height, bpp);
   iupwinDrawText(hDC, title, txt_x, txt_y, txt_width, txt_height, hFont, fgcolor, style);
 
@@ -299,6 +304,11 @@ static void winButtonDrawText(Ihandle* ih, HDC hDC, int rect_width, int rect_hei
     x = winButtonCalcAlignPosX(ih->data->horiz_alignment, rect_width, width, xpad, shift);
     y = winButtonCalcAlignPosY(ih->data->vert_alignment, rect_height, height, ypad, shift);
 
+    if (ih->data->horiz_alignment == IUP_ALIGN_ACENTER)
+      style |= DT_CENTER;  /* let DrawText do the internal horizontal alignment, usefull for multiple lines */
+    else if (ih->data->horiz_alignment == IUP_ALIGN_ARIGHT)
+      style |= DT_RIGHT;
+
     iupwinDrawText(hDC, title, x, y, width, height, hFont, fgcolor, style);
   }
   else
@@ -311,10 +321,7 @@ static void winButtonDrawText(Ihandle* ih, HDC hDC, int rect_width, int rect_hei
       unsigned char r=0, g=0, b=0;
       iupStrToRGB(bgcolor, &r, &g, &b);
       SetDCBrushColor(hDC, RGB(r,g,b));
-      rect.left = xpad;
-      rect.top = ypad;
-      rect.right = rect_width - xpad;
-      rect.bottom = rect_height - ypad;
+      SetRect(&rect, xpad, ypad, rect_width - xpad, rect_height - ypad);
       FillRect(hDC, &rect, (HBRUSH)GetStockObject(DC_BRUSH));
     }
   }
@@ -328,7 +335,7 @@ static void winButtonDrawItem(Ihandle* ih, DRAWITEMSTRUCT *drawitem)
   int width = drawitem->rcItem.right - drawitem->rcItem.left;
   int height = drawitem->rcItem.bottom - drawitem->rcItem.top;
 
-  hDC = iupwinDrawCreateBitmapDC(&bmpDC, drawitem->hDC, width, height);
+  hDC = iupwinDrawCreateBitmapDC(&bmpDC, drawitem->hDC, 0, 0, width, height);
 
   iupwinDrawParentBackground(ih, hDC, &drawitem->rcItem);
 

@@ -1,5 +1,5 @@
 /******************************************************************************
- * Automatically generated file (iuplua5). Please don't change anything.                *
+ * Automatically generated file. Please don't change anything.                *
  *****************************************************************************/
 
 #include <stdlib.h>
@@ -72,8 +72,8 @@ int iuplistlua_open(lua_State * L)
 #ifdef IUPLUA_USELOH
 #include "list.loh"
 #else
-#ifdef IUPLUA_USELZH
-#include "list.lzh"
+#ifdef IUPLUA_USELH
+#include "list.lh"
 #else
   iuplua_dofile(L, "list.lua");
 #endif

@@ -19,7 +19,9 @@
 #include "iup_key.h"
 #include "iup_str.h"
 
+#include "iup_drv.h"
 #include "iupmot_drv.h"
+
 
 typedef struct Imot2iupkey
 {
@@ -139,6 +141,7 @@ static Imot2iupkey motkey_map[] = {
 { XK_dead_tilde,   K_tilde, K_circum, 0, 0, 0 },
 { XK_dead_acute,   K_acute, K_grave,  0, 0, 0 },
 { XK_dead_grave,   K_grave, K_tilde,  0, 0, 0 },
+{ XK_dead_circumflex, K_tilde, K_circum, 0, 0, 0 },
 
 { XK_KP_F1,  K_F1,  K_sF1,  K_cF1,  K_mF1,  K_yF1 },
 { XK_KP_F2,  K_F2,  K_sF2,  K_cF2,  K_mF2,  K_yF2 },
@@ -163,7 +166,7 @@ static Imot2iupkey motkey_map[] = {
 
 };
 
-void iupmotKeyEncode(int key, unsigned int *keyval, unsigned int *state)
+void iupdrvKeyEncode(int key, unsigned int *keyval, unsigned int *state)
 {
   int i, iupcode = key & 0xFF; /* 0-255 interval */
   int count = sizeof(motkey_map)/sizeof(motkey_map[0]);

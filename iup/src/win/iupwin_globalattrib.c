@@ -15,6 +15,7 @@
 #include "iup_drv.h"
 #include "iup_drvinfo.h"
 #include "iup_key.h"
+#include "iup_class.h"
 
 #include "iupwin_drv.h"
 
@@ -383,6 +384,27 @@ char *iupdrvGetGlobal(const char *name)
     GetCPInfoEx(CP_ACP, 0, &info);
     sprintf(str, "%d", info.CodePage);
     return str;
+  }
+  if (iupStrEqual(name, "LASTERROR"))
+  {
+    DWORD error = GetLastError();
+    if (error)
+    {
+      LPVOID lpMsgBuf = NULL;
+      FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER|
+                    FORMAT_MESSAGE_FROM_SYSTEM|
+                    FORMAT_MESSAGE_IGNORE_INSERTS,
+                    NULL, error, 0, 
+                    (LPTSTR)&lpMsgBuf, 0, NULL);
+      if (lpMsgBuf)
+      {
+        char* str = iupStrGetMemoryCopy((const char*)lpMsgBuf);
+        LocalFree(lpMsgBuf);
+        return str;
+      }
+      else
+        return "Unknown Error";
+    }
   }
   return NULL;
 }

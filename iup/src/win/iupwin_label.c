@@ -137,7 +137,7 @@ static void winLabelDrawItem(Ihandle* ih, DRAWITEMSTRUCT *drawitem)
   width = drawitem->rcItem.right - drawitem->rcItem.left;
   height = drawitem->rcItem.bottom - drawitem->rcItem.top;
 
-  hDC = iupwinDrawCreateBitmapDC(&bmpDC, drawitem->hDC, width, height);
+  hDC = iupwinDrawCreateBitmapDC(&bmpDC, drawitem->hDC, 0, 0, width, height);
 
   iupwinDrawParentBackground(ih, hDC, &drawitem->rcItem);
 
@@ -343,9 +343,9 @@ static int winLabelMapMethod(Ihandle* ih)
     IupSetCallback(ih, "_IUPWIN_DRAWITEM_CB", (Icallback)winLabelDrawItem);
   }
 
-  /* configure for DRAG&DROP of files */
+  /* configure for DROP of files */
   if (IupGetCallback(ih, "DROPFILES_CB"))
-    iupAttribSetStr(ih, "DRAGDROP", "YES");
+    iupAttribSetStr(ih, "DROPFILESTARGET", "YES");
 
   return IUP_NOERROR;
 }
@@ -373,7 +373,6 @@ void iupdrvLabelInitClass(Iclass* ic)
   /* IupLabel Windows and GTK only */
   iupClassRegisterAttribute(ic, "WORDWRAP", NULL, winLabelSetWordWrapAttrib, NULL, NULL, IUPAF_DEFAULT);
   iupClassRegisterAttribute(ic, "ELLIPSIS", NULL, winLabelSetEllipsisAttrib, NULL, NULL, IUPAF_DEFAULT);
-  iupClassRegisterAttribute(ic, "DRAGDROP", NULL, iupwinSetDragDropAttrib, NULL, NULL, IUPAF_NO_INHERIT);
 
   /* Not Supported */
   iupClassRegisterAttribute(ic, "MARKUP", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);

@@ -29,11 +29,15 @@
 #include "iupwin_drv.h"
 #include "iupwin_handle.h"
 #include "iupwin_brush.h"
+#include "iupwin_info.h"
 
 
 /* Not defined in compilers older than VC9 or WinSDK older than 6.0 */
 #ifndef MAPVK_VK_TO_VSC
 #define MAPVK_VK_TO_VSC     (0)
+#endif
+#ifndef WM_TOUCH
+#define WM_TOUCH            0x0240
 #endif
 
 int iupwinClassExist(const char* name)
@@ -228,6 +232,16 @@ int iupwinBaseProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result)
   case WM_DROPFILES:
     iupwinDropFiles((HDROP)wp, ih);
     break;
+  case WM_LBUTTONDOWN:
+    if(iupAttribGetBoolean(ih, "DRAGSOURCE"))
+    {
+      if (iupwinDragStart(ih))
+      {
+        *result = 0;
+        return 1;  /* abort default processing */
+      }
+    }
+    break;
   case WM_HELP:
     {
       Ihandle* child;
@@ -236,7 +250,7 @@ int iupwinBaseProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result)
       if (help_info->iContextType == HELPINFO_MENUITEM)
         child = iupwinMenuGetItemHandle((HMENU)help_info->hItemHandle, (int)help_info->iCtrlId);
       else
-        child = iupwinHandleGet(help_info->hItemHandle);
+        child = iupwinHandleGet((HWND)help_info->hItemHandle);
 
       if (child)
       {
@@ -303,6 +317,15 @@ int iupwinBaseProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result)
     break;
   case WM_KILLFOCUS:
     iupCallKillFocusCb(ih);
+    break;
+  case WM_TOUCH:
+    /* TODO: 
+     - considering touch messages are greedy, one window got it all?
+     - how this work? only for the dialog, or also for the children?
+     - should a container forward to its children?
+    */
+    if (LOWORD(wp))
+      iupwinTouchProcessInput(ih, (int)LOWORD(wp), (void*)lp);
     break;
   case WOM_CLOSE:
   case WOM_DONE:
@@ -377,9 +400,9 @@ static Ihandle* winContainerWmCommandGetIhandle(Ihandle *ih, WPARAM wp, LPARAM l
       child = ih;                              /* native parent */
     else
     {
-      child = iupwinHandleGet((void*)lp);       /* control */
+      child = iupwinHandleGet((HWND)lp);       /* control */
       if (!child)
-        child = iupwinHandleGet((void*)GetParent((HWND)lp));       /* control */
+        child = iupwinHandleGet(GetParent((HWND)lp));       /* control */
     }
   }
 
@@ -427,7 +450,7 @@ int iupwinBaseContainerProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT
   case WM_CTLCOLORSCROLLBAR:
   case WM_CTLCOLORSTATIC:
     {
-      Ihandle* child = iupwinHandleGet((void*)lp);
+      Ihandle* child = iupwinHandleGet((HWND)lp);
       if (child && winCheckParent(child, ih))
       {
         IFctlColor cb = (IFctlColor)IupGetCallback(child, "_IUPWIN_CTLCOLOR_CB");
@@ -467,7 +490,7 @@ int iupwinBaseContainerProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT
   case WM_HSCROLL:
   case WM_VSCROLL:
     {
-      Ihandle *child = iupwinHandleGet((void*)lp);
+      Ihandle *child = iupwinHandleGet((HWND)lp);
       if (child && winCheckParent(child, ih))
       {
         IFni cb = (IFni)IupGetCallback(child, "_IUPWIN_CUSTOMSCROLL_CB");
@@ -514,7 +537,6 @@ void iupwinChangeProc(Ihandle *ih, WNDPROC new_proc)
 
 void iupdrvBaseUnMapMethod(Ihandle* ih)
 {
-  HWND tips_hwnd;
   WNDPROC oldProc = (WNDPROC)IupGetCallback(ih, "_IUPWIN_OLDPROC_CB");
   if (oldProc)
   {
@@ -522,45 +544,14 @@ void iupdrvBaseUnMapMethod(Ihandle* ih)
     IupSetCallback(ih, "_IUPWIN_OLDPROC_CB",  NULL);
   }
 
-  tips_hwnd = (HWND)iupAttribGet(ih, "_IUPWIN_TIPSWIN");
-  if (tips_hwnd)
-    DestroyWindow(tips_hwnd);
+  iupwinTipsDestroy(ih);
+  iupwinDestroyDragDrop(ih);
 
   /* remove the association before destroying */
-  iupwinHandleRemove(ih);
+  iupwinHandleRemove(ih->handle);
 
   /* destroys window (it will remove from parent) */
   DestroyWindow(ih->handle);
-}
-
-void iupwinDropFiles(HDROP hDrop, Ihandle *ih)
-{
-  char *filename;
-  int i, numFiles, numchar, ret;
-  POINT point;
-
-  IFnsiii cb = (IFnsiii)IupGetCallback(ih, "DROPFILES_CB");
-  if (!cb) return; 
-
-  numFiles = DragQueryFile(hDrop, 0xFFFFFFFF, NULL, 0);
-  DragQueryPoint(hDrop, &point);  
-  for (i = 0; i < numFiles; i++)
-  {
-    numchar = DragQueryFile(hDrop, i, NULL, 0);
-    filename = malloc(numchar+1); 
-    if (!filename)
-      break;
-
-    DragQueryFile(hDrop, i, filename, numchar+1);
-
-    ret = cb(ih, filename, numFiles-i-1, (int) point.x, (int) point.y); 
-
-    free(filename);
-
-    if (ret == IUP_IGNORE)
-      break;
-  }
-  DragFinish(hDrop);
 }
 
 int iupwinGetColorRef(Ihandle *ih, char *name, COLORREF *color)
@@ -642,15 +633,6 @@ char* iupdrvBaseGetTitleAttrib(Ihandle* ih)
     return NULL;
 }
 
-int iupwinSetDragDropAttrib(Ihandle* ih, const char* value)
-{
-  if (iupStrBoolean(value))
-    DragAcceptFiles(ih->handle, TRUE);
-  else
-    DragAcceptFiles(ih->handle, FALSE);
-  return 1;
-}
-
 #ifndef IDC_HAND
 #define IDC_HAND            MAKEINTRESOURCE(32649)
 #endif
@@ -705,7 +687,7 @@ static HCURSOR winGetCursor(Ihandle* ih, const char* name)
   };
 
   HCURSOR cur = NULL;
-  char str[50];
+  char str[200];
   int i, count = sizeof(table)/sizeof(table[0]);
 
   /* check the cursor cache first (per control)*/
@@ -764,6 +746,13 @@ int iupdrvBaseSetCursorAttrib(Ihandle* ih, const char* value)
 void iupdrvBaseRegisterCommonAttrib(Iclass* ic)
 {
   iupClassRegisterAttribute(ic, "HFONT", iupwinGetHFontAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
+
+  if (iupwinIs7OrNew())
+    iupwinTouchRegisterAttrib(ic);
+
+  iupClassRegisterAttribute(ic, "TIPBALLOON", NULL, NULL, IUPAF_SAMEASSYSTEM, NULL, IUPAF_NOT_MAPPED);
+  iupClassRegisterAttribute(ic, "TIPBALLOONTITLE", NULL, NULL, IUPAF_SAMEASSYSTEM, NULL, IUPAF_NOT_MAPPED);
+  iupClassRegisterAttribute(ic, "TIPBALLOONTITLEICON", NULL, NULL, IUPAF_SAMEASSYSTEM, NULL, IUPAF_NOT_MAPPED);
 }
 
 int iupwinButtonDown(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp)
@@ -899,7 +888,7 @@ int iupwinCreateWindowEx(Ihandle* ih, LPCSTR lpClassName, DWORD dwExStyle, DWORD
     return 0;
 
   /* associate HWND with Ihandle*, all Win32 controls must call this. */
-  iupwinHandleSet(ih);
+  iupwinHandleAdd(ih, ih->handle);
 
   /* replace the WinProc to handle base callbacks */
   iupwinChangeProc(ih, iupwinBaseWinProc);
@@ -943,7 +932,7 @@ void iupdrvSendKey(int key, int press)
   WORD state_scan = 0, key_scan;
   ZeroMemory(input, 2*sizeof(INPUT));
 
-  iupwinKeyEncode(key, &keyval, &state);
+  iupdrvKeyEncode(key, &keyval, &state);
   if (!keyval)
     return;
 

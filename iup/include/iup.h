@@ -19,11 +19,11 @@ extern "C" {
 
 
 #define IUP_NAME "IUP - Portable User Interface"
-#define IUP_COPYRIGHT  "Copyright (C) 1994-2011 Tecgraf, PUC-Rio."
-#define IUP_DESCRIPTION	"Portable toolkit for building graphical user interfaces."
-#define IUP_VERSION "3.5"         /* bug fixes are reported only by IupVersion functions */
-#define IUP_VERSION_NUMBER 305000
-#define IUP_VERSION_DATE "2011/04/26"  /* does not include bug fix releases */
+#define IUP_COPYRIGHT  "Copyright (C) 1994-2012 Tecgraf, PUC-Rio."
+#define IUP_DESCRIPTION	"Multi-platform toolkit for building graphical user interfaces."
+#define IUP_VERSION "3.6"         /* bug fixes are reported only by IupVersion functions */
+#define IUP_VERSION_NUMBER 306000
+#define IUP_VERSION_DATE "2012/06/23"  /* does not include bug fix releases */
 
 typedef struct Ihandle_ Ihandle;
 typedef int (*Icallback)(Ihandle*);
@@ -354,6 +354,15 @@ enum{IUP_SBUP,   IUP_SBDN,    IUP_SBPGUP,   IUP_SBPGDN,    IUP_SBPOSV, IUP_SBDRA
 
 
 /************************************************************************/
+/*                   IupGetParam Callback situations                    */
+/************************************************************************/
+#define IUP_GETPARAM_OK     -1
+#define IUP_GETPARAM_INIT   -2
+#define IUP_GETPARAM_CANCEL -3
+#define IUP_GETPARAM_HELP   -4
+
+
+/************************************************************************/
 /*                   Record Input Modes                                 */
 /************************************************************************/
 enum {IUP_RECBINARY, IUP_RECTEXT};
@@ -374,7 +383,7 @@ int IupMain (int argc, char** argv); /* In C++ we have to declare the prototype 
 #endif
 
 /******************************************************************************
-* Copyright (C) 1994-2011 Tecgraf, PUC-Rio.
+* Copyright (C) 1994-2012 Tecgraf, PUC-Rio.
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the
