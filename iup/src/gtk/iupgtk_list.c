@@ -1205,7 +1205,8 @@ static int gtkListMapMethod(Ihandle* ih)
     GtkCellRenderer *renderer = NULL;
 
     if (ih->data->has_editbox)
-      ih->handle = gtk_combo_box_entry_new_with_model(GTK_TREE_MODEL(store), 0);
+      //ih->handle = gtk_combo_box_entry_new_with_model(GTK_TREE_MODEL(store), 0);
+      ih->handle = gtk_combo_box_new_with_model_and_entry(GTK_TREE_MODEL(store));
     else
       ih->handle = gtk_combo_box_new_with_model(GTK_TREE_MODEL(store));
     g_object_unref(store);
@@ -1243,7 +1244,8 @@ static int gtkListMapMethod(Ihandle* ih)
       g_signal_connect(G_OBJECT(entry), "button-release-event",G_CALLBACK(gtkListEditButtonEvent), ih);
 
       if (!iupAttribGetBoolean(ih, "CANFOCUS"))
-        GTK_WIDGET_FLAGS(ih->handle) &= ~GTK_CAN_FOCUS;
+        //GTK_WIDGET_FLAGS(ih->handle) &= ~GTK_CAN_FOCUS;
+	gtk_widget_set_can_focus(ih->handle, FALSE);
     }
     else
     {
@@ -1264,9 +1266,11 @@ static int gtkListMapMethod(Ihandle* ih)
       g_signal_connect(G_OBJECT(ih->handle), "show-help",       G_CALLBACK(iupgtkShowHelp), ih);
 
       if (!iupAttribGetBoolean(ih, "CANFOCUS"))
-        GTK_WIDGET_FLAGS(ih->handle) &= ~GTK_CAN_FOCUS;
+        //GTK_WIDGET_FLAGS(ih->handle) &= ~GTK_CAN_FOCUS;
+        gtk_widget_set_can_focus(ih->handle, FALSE);
       else
-        GTK_WIDGET_FLAGS(box) |= GTK_CAN_FOCUS;
+        //GTK_WIDGET_FLAGS(box) |= GTK_CAN_FOCUS;
+	gtk_widget_set_can_focus(box, TRUE);
     }
 
     g_signal_connect(ih->handle, "changed", G_CALLBACK(gtkListComboBoxChanged), ih);
@@ -1308,9 +1312,11 @@ static int gtkListMapMethod(Ihandle* ih)
       iupAttribSetStr(ih, "_IUP_EXTRAPARENT", (char*)vbox);
       iupAttribSetStr(ih, "_IUPGTK_SCROLLED_WINDOW", (char*)scrolled_window);
 
-      GTK_WIDGET_FLAGS(ih->handle) &= ~GTK_CAN_FOCUS; /* focus goes only to the edit box */
+      //GTK_WIDGET_FLAGS(ih->handle) &= ~GTK_CAN_FOCUS; /* focus goes only to the edit box */
+      gtk_widget_set_can_focus(ih->handle, FALSE);
       if (!iupAttribGetBoolean(ih, "CANFOCUS"))
-        GTK_WIDGET_FLAGS(entry) &= ~GTK_CAN_FOCUS;
+        //GTK_WIDGET_FLAGS(entry) &= ~GTK_CAN_FOCUS;
+        gtk_widget_set_can_focus(entry, FALSE);
 
       g_signal_connect(G_OBJECT(entry), "focus-in-event",     G_CALLBACK(iupgtkFocusInOutEvent), ih);
       g_signal_connect(G_OBJECT(entry), "focus-out-event",    G_CALLBACK(iupgtkFocusInOutEvent), ih);
@@ -1332,7 +1338,8 @@ static int gtkListMapMethod(Ihandle* ih)
       iupAttribSetStr(ih, "_IUP_EXTRAPARENT", (char*)scrolled_window);
 
       if (!iupAttribGetBoolean(ih, "CANFOCUS"))
-        GTK_WIDGET_FLAGS(ih->handle) &= ~GTK_CAN_FOCUS;
+        //GTK_WIDGET_FLAGS(ih->handle) &= ~GTK_CAN_FOCUS;
+	gtk_widget_set_can_focus(ih->handle, FALSE);
 
       g_signal_connect(G_OBJECT(ih->handle), "focus-in-event",     G_CALLBACK(iupgtkFocusInOutEvent), ih);
       g_signal_connect(G_OBJECT(ih->handle), "focus-out-event",    G_CALLBACK(iupgtkFocusInOutEvent), ih);

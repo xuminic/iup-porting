@@ -284,7 +284,7 @@ char* iupgtkGetFontIdAttrib(Ihandle *ih)
   else
   {
     GdkFont* gdk_font = gdk_font_from_description(gtkfont->fontdesc);
-    return (char*)gdk_font_id(gdk_font);  /* In UNIX will return an X Font ID, in Win32 will return an HFONT */
+    return (char*)((long)gdk_font_id(gdk_font));  /* In UNIX will return an X Font ID, in Win32 will return an HFONT */
   }
 }
 

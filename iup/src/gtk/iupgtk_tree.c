@@ -2263,7 +2263,8 @@ static int gtkTreeMapMethod(Ihandle* ih)
   iupgtkBaseAddToParent(ih);
 
   if (!iupAttribGetBoolean(ih, "CANFOCUS"))
-    GTK_WIDGET_FLAGS(ih->handle) &= ~GTK_CAN_FOCUS;
+    //GTK_WIDGET_FLAGS(ih->handle) &= ~GTK_CAN_FOCUS;
+    gtk_widget_set_can_focus(ih->handle, FALSE);
 
   gtk_widget_realize((GtkWidget*)scrolled_window);
   gtk_widget_realize(ih->handle);

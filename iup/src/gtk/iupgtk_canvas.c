@@ -547,7 +547,8 @@ static int gtkCanvasMapMethod(Ihandle* ih)
   if (ih->iclass->is_interactive)
   {
     if (iupAttribGetBoolean(ih, "CANFOCUS"))
-      GTK_WIDGET_FLAGS(ih->handle) |= GTK_CAN_FOCUS;
+      //GTK_WIDGET_FLAGS(ih->handle) |= GTK_CAN_FOCUS;
+      gtk_widget_set_can_focus(ih->handle, TRUE);
   }
 
   if (iupAttribGetBoolean(ih, "BORDER"))
