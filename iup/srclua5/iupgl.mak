@@ -17,6 +17,21 @@ USE_IUPLUA = Yes
 INCLUDES = ../srclua5
 DEF_FILE = ctrl/iupluagl.def
 
+ifdef USE_LUA_VERSION
+  USE_LUA51:=
+  USE_LUA52:=
+  USE_LUA53:=
+  ifeq ($(USE_LUA_VERSION), 53)
+    USE_LUA53:=Yes
+  endif
+  ifeq ($(USE_LUA_VERSION), 52)
+    USE_LUA52:=Yes
+  endif
+  ifeq ($(USE_LUA_VERSION), 51)
+    USE_LUA51:=Yes
+  endif
+endif
+
 ifdef USE_LUA53
   LUASFX = 53
 else
@@ -39,7 +54,7 @@ else
   LOHDIR = loh$(LUASFX)
 endif
 
-SRCLUA = glcanvas.lua
+SRCLUA = glcanvas.lua glbackgroundbox.lua
 LIBS = iupgl iuplua$(LUASFX)
 
 GC = $(addsuffix .c, $(basename $(SRCLUA)))
@@ -51,5 +66,6 @@ $(GC) : ctrl/il_%.c : ctrl/%.lua generator.lua
 SRC	= ctrl/iuplua_glcanvas.c $(GC)
 
 ifneq ($(findstring MacOS, $(TEC_UNAME)), )
+  USE_IUPLUA:=
   LIBS:=iupgl
 endif

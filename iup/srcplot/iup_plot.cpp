@@ -827,18 +827,22 @@ static int iPlotProperties_CB(Ihandle* ih_item)
 static int iPlotDatasetProperties_CB(Ihandle* ih_item)
 {
   Ihandle* ih = (Ihandle*)IupGetAttribute(ih_item, "PLOT");
-  char* ds_name = IupGetAttribute(ih_item, "DS_NAME");
+  int ds = IupGetInt(ih_item, "DS");
   char name[100];
+
+  IupSetInt(ih, "CURRENT", ds);
+
+  char* ds_name = IupGetAttribute(ih, "DS_NAME");
   strcpy(name, ds_name);
 
-  IupSetStrAttribute(ih, "CURRENT", ds_name);
-
   const char* ds_color = IupGetAttribute(ih, "DS_COLOR");
+  if (!ds_color)
+    ds_color = ds_color;
   char color[30];
   strcpy(color, ds_color);
 
   const char* ds_mode = IupGetAttribute(ih, "DS_MODE");
-  const char* mode_list[] = { "LINE", "MARK", "MARKLINE", "BAR", "AREA", NULL };
+  const char* mode_list[] = { "LINE", "MARK", "MARKLINE", "AREA", "BAR", "STEM", "MARKSTEM", "HORIZONTALBAR", "MULTIBAR", "STEP", "ERRORBAR", NULL };
   int mode = iPlotGetListIndex(mode_list, ds_mode);
 
   const char* ds_linestyle = IupGetAttribute(ih, "DS_LINESTYLE");
@@ -855,14 +859,13 @@ static int iPlotDatasetProperties_CB(Ihandle* ih_item)
   char format[1024] =
     "_@IUP_NAME%s\n"
     "_@IUP_COLOR%c\n"
-    "_@IUP_MODE%l|_@IUP_LINES|_@IUP_MARKS|_@IUP_MARKSLINES|_@IUP_BARS|_@IUP_AREA|\n"
+    "_@IUP_MODE%l|_@IUP_LINES|_@IUP_MARKS|_@IUP_MARKSLINES|_@IUP_AREA_@IUP_BARS|_@IUP_STEMS|_@IUP_MARKSSTEMS|_@IUP_HORIZONTALBARS|_@IUP_MULTIBARS|_@IUP_STEPS|_@IUP_ERRORBARS|\n"
     "_@IUP_LINESTYLE%l|_@IUP_CONTINUOUS|_@IUP_DASHED|_@IUP_DOTTED|_@IUP_DASH_DOT|_@IUP_DASH_DOT_DOT|\n"
     "_@IUP_LINEWIDTH%i[1,,]\n"
     "_@IUP_MARKSTYLE%l|_@IUP_PLUS|_@IUP_STAR|_@IUP_CIRCLE|_@IUP_X|_@IUP_BOX|_@IUP_DIAMOND|_@IUP_HOLLOW_CIRCLE|_@IUP_HOLLOW_BOX|_@IUP_HOLLOW_DIAMOND|\n"
     "_@IUP_MARKSIZE%i[1,,]\n";
 
-  if (!IupGetParam("_@IUP_DATASETPROPERTIESDLG", NULL, NULL, format,
-    name, color, &mode, &linestyle, &linewidth, &markstyle, &marksize, NULL))
+  if (!IupGetParam("_@IUP_DATASETPROPERTIESDLG", NULL, NULL, format, name, color, &mode, &linestyle, &linewidth, &markstyle, &marksize, NULL))
     return IUP_DEFAULT;
 
   IupSetStrAttribute(ih, "DS_NAME", name);
@@ -928,7 +931,7 @@ static Ihandle* iPlotCreateMenuContext(Ihandle* ih, int x, int y)
     const char* strX;
     if (ih->data->current_plot->FindDataSetSample((double)x, (double)y, ds, ds_name, sample, rx, ry, strX))
     {
-      IupSetStrAttribute(item, "DS_NAME", ds_name);
+      IupSetInt(item, "DS", ds);
       IupSetAttribute(item, "ACTIVE", "YES");
     }
     else
@@ -1935,6 +1938,28 @@ int IupPlotGetSampleSelection(Ihandle* ih, int inIndex, int inSampleIndex)
   return theDataSet->GetSampleSelection(inSampleIndex);
 }
 
+double IupPlotGetSampleExtra(Ihandle* ih, int inIndex, int inSampleIndex)
+{
+  iupASSERT(iupObjectCheck(ih));
+  if (!iupObjectCheck(ih))
+    return -1;
+
+  if (ih->iclass->nativetype != IUP_TYPECANVAS ||
+      !IupClassMatch(ih, "plot"))
+      return -1;
+
+  if (inIndex < 0 || inIndex >= ih->data->current_plot->mDataSetListCount)
+    return -1;
+
+  iupPlotDataSet* theDataSet = ih->data->current_plot->mDataSetList[inIndex];
+
+  int theCount = theDataSet->GetCount();
+  if (inSampleIndex < 0 || inSampleIndex >= theCount)
+    return -1;
+
+  return theDataSet->GetSampleExtra(inSampleIndex);
+}
+
 void IupPlotSetSample(Ihandle* ih, int inIndex, int inSampleIndex, double x, double y)
 {
   iupASSERT(iupObjectCheck(ih));
@@ -1989,6 +2014,28 @@ void IupPlotSetSampleSelection(Ihandle* ih, int inIndex, int inSampleIndex, int 
     return;
 
   return theDataSet->SetSampleSelection(inSampleIndex, inSelected ? true : false);
+}
+
+void IupPlotSetSampleExtra(Ihandle* ih, int inIndex, int inSampleIndex, double inExtra)
+{
+  iupASSERT(iupObjectCheck(ih));
+  if (!iupObjectCheck(ih))
+    return;
+
+  if (ih->iclass->nativetype != IUP_TYPECANVAS ||
+      !IupClassMatch(ih, "plot"))
+      return;
+
+  if (inIndex < 0 || inIndex >= ih->data->current_plot->mDataSetListCount)
+    return;
+
+  iupPlotDataSet* theDataSet = ih->data->current_plot->mDataSetList[inIndex];
+
+  int theCount = theDataSet->GetCount();
+  if (inSampleIndex < 0 || inSampleIndex >= theCount)
+    return;
+
+  return theDataSet->SetSampleExtra(inSampleIndex, inExtra);
 }
 
 void IupPlotTransform(Ihandle* ih, double x, double y, double *cnv_x, double *cnv_y)
@@ -2355,6 +2402,12 @@ static void iPlotSetClassUpdate(Iclass* ic)
     IupSetLanguageString("IUP_MARKSLINES", "Marks & Lines");
     IupSetLanguageString("IUP_BARS", "Bars");
     IupSetLanguageString("IUP_AREA", "Area");
+    IupSetLanguageString("IUP_STEMS", "Stems");
+    IupSetLanguageString("IUP_MARKSSTEMS", "Marks & Stems");
+    IupSetLanguageString("IUP_HORIZONTALBARS", "Horizontal Bars");
+    IupSetLanguageString("IUP_MULTIBARS", "Multiple Bars");
+    IupSetLanguageString("IUP_ERRORBARS", "Error Bars");
+    IupSetLanguageString("IUP_STEP", "Step");
     IupSetLanguageString("IUP_LINESTYLE", "Line Style:");
     IupSetLanguageString("IUP_CONTINUOUS", "Continuous");
     IupSetLanguageString("IUP_DASHED", "Dashed");
@@ -2470,6 +2523,12 @@ static void iPlotSetClassUpdate(Iclass* ic)
     IupSetLanguageString("IUP_MARKSLINES", "Marcas e Linhas");
     IupSetLanguageString("IUP_BARS", "Barras");
     IupSetLanguageString("IUP_AREA", "¡rea");
+    IupSetLanguageString("IUP_STEMS", "Hastes");
+    IupSetLanguageString("IUP_MARKSSTEMS", "Macas & Hastes");
+    IupSetLanguageString("IUP_HORIZONTALBARS", "Barras Horizontais");
+    IupSetLanguageString("IUP_MULTIBARS", "Barras M˙ltiplas");
+    IupSetLanguageString("IUP_ERRORBARS", "Barras de Erro");
+    IupSetLanguageString("IUP_STEP", "Degrau");
     IupSetLanguageString("IUP_LINESTYLE", "Estilo de Linha:");
     IupSetLanguageString("IUP_CONTINUOUS", "ContÌnuo");
     IupSetLanguageString("IUP_DASHED", "Tracejada");
@@ -2565,6 +2624,7 @@ static void iPlotSetClassUpdate(Iclass* ic)
       /* When seeing this file assuming ISO8859-1 encoding, above will appear correct.
       When seeing this file assuming UTF-8 encoding, bellow will appear correct. */
 
+      IupSetLanguageString("IUP_MULTIBARS", "Barras M√∫ltiplas");
       IupSetLanguageString("IUP_ERRORINVALIDFORMULA", "F√≥rmula Inv√°lida.");
       IupSetLanguageString("IUP_AREA", "√Årea");
       IupSetLanguageString("IUP_CONTINUOUS", "Cont√≠nuo");

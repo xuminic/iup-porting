@@ -587,10 +587,20 @@ static int winCanvasMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT
         SetFocus(previous);
     }
     break;
+  case WM_NCHITTEST:
+    {
+      if (iupAttribGetBoolean(ih, "HTTRANSPARENT"))
+      {
+        *result = HTTRANSPARENT;
+        return 1;
+      }
+
+      break;
+    }
   }
 
   /* can be a container */
-  if (ih->firstchild)
+  if (ih->iclass->childtype != IUP_CHILDNONE || ih->firstchild)
     return iupwinBaseContainerMsgProc(ih, msg, wp, lp, result);
   else
     return iupwinBaseMsgProc(ih, msg, wp, lp, result);
@@ -613,7 +623,7 @@ static int winCanvasMapMethod(Ihandle* ih)
       dwStyle |= WS_TABSTOP;
   }
                            
-  if (ih->firstchild) /* can be a container */
+  if (ih->iclass->childtype != IUP_CHILDNONE || ih->firstchild) /* can be a container */
     iupwinGetNativeParentStyle(ih, &dwExStyle, &dwStyle);
 
   if (iupAttribGetBoolean(ih, "BORDER"))
@@ -750,6 +760,7 @@ void iupdrvCanvasInitClass(Iclass* ic)
   /* IupCanvas Windows only */
   iupClassRegisterAttribute(ic, "HWND", iupBaseGetWidAttrib, NULL, NULL, NULL, IUPAF_NO_STRING|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "HDC_WMPAINT", NULL, NULL, NULL, NULL, IUPAF_NO_STRING|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "HTTRANSPARENT", NULL, NULL, NULL, NULL, IUPAF_NO_INHERIT);
 
   /* Not Supported */
   iupClassRegisterAttribute(ic, "BACKINGSTORE", NULL, NULL, "YES", NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);

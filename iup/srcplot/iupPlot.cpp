@@ -160,7 +160,7 @@ bool iupPlotDataBool::CalculateRange(double &outMin, double &outMax) const
 
 iupPlotDataSet::iupPlotDataSet(bool strXdata)
   :mColor(CD_BLACK), mLineStyle(CD_CONTINUOUS), mLineWidth(1), mMarkStyle(CD_X), mMarkSize(7),
-   mMode(IUP_PLOT_LINE), mName(NULL), mHasSelected(false)
+  mMultibarIndex(-1), mMultibarCount(0), mBarOutlineColor(0), mBarShowOutline(false), mBarSpacingPercent(10), mMode(IUP_PLOT_LINE), mName(NULL), mHasSelected(false)
 {
   if (strXdata)
     mDataX = (iupPlotDataBase*)(new iupPlotDataString());
@@ -171,6 +171,7 @@ iupPlotDataSet::iupPlotDataSet(bool strXdata)
 
   mSelection = new iupPlotDataBool();
   mSegment = NULL;
+  mExtra = NULL;
 }
 
 iupPlotDataSet::~iupPlotDataSet()
@@ -182,6 +183,8 @@ iupPlotDataSet::~iupPlotDataSet()
   delete mSelection;
   if (mSegment)
     delete mSegment;
+  if (mExtra)
+    delete mExtra;
 }
 
 bool iupPlotDataSet::FindSample(double inX, double inY, double tolX, double tolY,
@@ -336,6 +339,8 @@ void iupPlotDataSet::AddSample(double inX, double inY)
   mSelection->AddSample(false);
   if (mSegment)
     mSegment->AddSample(false);
+  if (mExtra)
+    mExtra->AddSample(0);
 }
 
 void iupPlotDataSet::InsertSample(int inSampleIndex, double inX, double inY)
@@ -351,6 +356,8 @@ void iupPlotDataSet::InsertSample(int inSampleIndex, double inX, double inY)
   mSelection->InsertSample(inSampleIndex, false);
   if (mSegment)
     mSegment->InsertSample(inSampleIndex, false);
+  if (mExtra)
+    mExtra->InsertSample(inSampleIndex, 0);
 }
 
 void iupPlotDataSet::InitSegment()
@@ -360,6 +367,15 @@ void iupPlotDataSet::InitSegment()
   int theCount = mDataX->GetCount();
   for (int i = 0; i < theCount; i++)
     mSegment->AddSample(false);
+}
+
+void iupPlotDataSet::InitExtra()
+{
+  mExtra = new iupPlotDataReal();
+
+  int theCount = mDataX->GetCount();
+  for (int i = 0; i < theCount; i++)
+    mExtra->AddSample(0);
 }
 
 void iupPlotDataSet::AddSampleSegment(double inX, double inY, bool inSegment)
@@ -377,6 +393,8 @@ void iupPlotDataSet::AddSampleSegment(double inX, double inY, bool inSegment)
   theYData->AddSample(inY);
   mSelection->AddSample(false);
   mSegment->AddSample(inSegment);
+  if (mExtra)
+    mExtra->AddSample(0);
 }
 
 void iupPlotDataSet::InsertSampleSegment(int inSampleIndex, double inX, double inY, bool inSegment)
@@ -394,6 +412,8 @@ void iupPlotDataSet::InsertSampleSegment(int inSampleIndex, double inX, double i
   theYData->InsertSample(inSampleIndex, inY);
   mSelection->InsertSample(inSampleIndex, false);
   mSegment->InsertSample(inSampleIndex, inSegment);
+  if (mExtra)
+    mExtra->InsertSample(inSampleIndex, 0);
 }
 
 void iupPlotDataSet::AddSample(const char* inX, double inY)
@@ -407,6 +427,10 @@ void iupPlotDataSet::AddSample(const char* inX, double inY)
   theXData->AddSample(inX);
   theYData->AddSample(inY);
   mSelection->AddSample(false);
+  if (mSegment)
+    mSegment->AddSample(false);
+  if (mExtra)
+    mExtra->AddSample(0);
 }
 
 void iupPlotDataSet::InsertSample(int inSampleIndex, const char* inX, double inY)
@@ -420,6 +444,10 @@ void iupPlotDataSet::InsertSample(int inSampleIndex, const char* inX, double inY
   theXData->InsertSample(inSampleIndex, inX);
   theYData->InsertSample(inSampleIndex, inY);
   mSelection->InsertSample(inSampleIndex, false);
+  if (mSegment)
+    mSegment->InsertSample(inSampleIndex, false);
+  if (mExtra)
+    mExtra->InsertSample(inSampleIndex, 0);
 }
 
 void iupPlotDataSet::RemoveSample(int inSampleIndex)
@@ -429,6 +457,8 @@ void iupPlotDataSet::RemoveSample(int inSampleIndex)
   mSelection->RemoveSample(inSampleIndex);
   if (mSegment)
     mSegment->RemoveSample(inSampleIndex);
+  if (mExtra)
+    mExtra->RemoveSample(inSampleIndex);
 }
 
 void iupPlotDataSet::GetSample(int inSampleIndex, double *inX, double *inY)
@@ -472,6 +502,15 @@ bool iupPlotDataSet::GetSampleSelection(int inSampleIndex)
   return mSelection->GetSampleBool(inSampleIndex);
 }
 
+double iupPlotDataSet::GetSampleExtra(int inSampleIndex)
+{
+  int theCount = mDataX->GetCount();
+  if (inSampleIndex < 0 || inSampleIndex >= theCount || !mExtra)
+    return 0;
+
+  return mExtra->GetSample(inSampleIndex);
+}
+
 void iupPlotDataSet::SetSample(int inSampleIndex, double inX, double inY)
 {
   iupPlotDataReal *theXData = (iupPlotDataReal*)mDataX;
@@ -511,6 +550,18 @@ void iupPlotDataSet::SetSampleSelection(int inSampleIndex, bool inSelected)
     return;
 
   mSelection->SetSampleBool(inSampleIndex, inSelected);
+}
+
+void iupPlotDataSet::SetSampleExtra(int inSampleIndex, double inExtra)
+{
+  int theCount = mDataX->GetCount();
+  if (inSampleIndex < 0 || inSampleIndex >= theCount)
+    return;
+
+  if (!mExtra)
+    InitExtra();
+
+  mExtra->SetSample(inSampleIndex, inExtra);
 }
 
 
@@ -726,7 +777,8 @@ iupPlot::iupPlot(Ihandle* _ih, int inDefaultFontStyle, int inDefaultFontSize)
   :ih(_ih), mCurrentDataSet(-1), mRedraw(true), mDataSetListCount(0), mCrossHairH(false), mCrossHairV(false),
   mGrid(true), mGridMinor(false), mViewportSquare(false), mScaleEqual(false),
   mDefaultFontSize(inDefaultFontSize), mDefaultFontStyle(inDefaultFontStyle), 
-  mAxisX(inDefaultFontStyle, inDefaultFontSize), mAxisY(inDefaultFontStyle, inDefaultFontSize)
+  mAxisX(inDefaultFontStyle, inDefaultFontSize), mAxisY(inDefaultFontStyle, inDefaultFontSize),
+  mCrossHairX(0), mCrossHairY(0), mShowSelectionBand(false)
 {
 }
 
@@ -771,6 +823,32 @@ void iupPlot::SetFont(cdCanvas* canvas, int inFontStyle, int inFontSize) const
   if (inFontStyle == -1) inFontStyle = mDefaultFontStyle;
   if (inFontSize == 0) inFontSize = mDefaultFontSize;
   cdCanvasFont(canvas, NULL, inFontStyle, inFontSize);
+}
+
+void iupPlot::UpdateMultibarCount()
+{
+  int i, count = 0, index = 0;
+  
+  for (i = 0; i < mDataSetListCount; i++)
+  {
+    if (mDataSetList[i]->mMode == IUP_PLOT_MULTIBAR)
+      count++;
+  }
+
+  for (i = 0; i < mDataSetListCount; i++)
+  {
+    if (mDataSetList[i]->mMode == IUP_PLOT_MULTIBAR)
+    {
+      mDataSetList[i]->mMultibarCount = count;
+      mDataSetList[i]->mMultibarIndex = index;
+      index++;
+    }
+    else
+    {
+      mDataSetList[i]->mMultibarCount = 0;
+      mDataSetList[i]->mMultibarIndex = 0;
+    }
+  }
 }
 
 static long iPlotGetDefaultColor(int index)

@@ -39,6 +39,13 @@ InativeHandle* iupDialogGetNativeParent(Ihandle* ih)
     return (InativeHandle*)iupAttribGet(ih, "NATIVEPARENT");
 }
 
+static char* iDialogGetBorderSizeAttrib(Ihandle* ih)
+{
+  int border, caption, menu;
+  iupdrvDialogGetDecoration(ih, &border, &caption, &menu);
+  return iupStrReturnInt(border);
+}
+
 int iupDialogSetClientSizeAttrib(Ihandle* ih, const char* value)
 {
   int width = 0, height = 0;
@@ -334,6 +341,15 @@ static void iDialogSetChildrenPositionMethod(Ihandle* ih, int x, int y)
 
     if (offset) iupStrToIntInt(offset, &x, &y, 'x');
 
+    if (iupAttribGetBoolean(ih, "CUSTOMFRAME"))
+    {
+      int border, caption, menu;
+      iupdrvDialogGetDecoration(ih, &border, &caption, &menu);
+
+      x += border;
+      y += border + caption + menu;
+    }
+
     /* Child coordinates are relative to client left-top corner. */
     iupBaseSetPosition(ih->firstchild, x, y);
   }
@@ -405,13 +421,13 @@ char* iupDialogGetChildIdStr(Ihandle* ih)
   return iupStrReturnStrf("iup-%s-%d", ih->iclass->name, dialog->data->child_id);
 }
 
-static void iDialogListCheckLastVisible()
+static void iDialogListCheckLastVisible(int was_modal)
 {
   if (iupDlgListVisibleCount() <= 0)
   {
     /* if this is the last window visible,
     exit message loop except when LOCKLOOP==YES */
-    if (!iupStrBoolean(IupGetGlobal("LOCKLOOP")))
+    if (!was_modal && !iupStrBoolean(IupGetGlobal("LOCKLOOP")))
     {
       IupExitLoop();
     }
@@ -471,11 +487,16 @@ static void iDialogModalLoop(Ihandle* ih)
   hide the dialog if still visible. */
   if (iupObjectCheck(ih))
   {
+    iupAttribSet(ih, "_IUP_WAS_MODAL", "1");
+
     iDialogUnSetModal(ih);
     iupDialogHide(ih);
+
+    if (iupObjectCheck(ih))
+      iupAttribSet(ih, "_IUP_WAS_MODAL", NULL);
   }
   else
-    iDialogListCheckLastVisible();
+    iDialogListCheckLastVisible(1);
 }
 
 int iupDialogPopup(Ihandle* ih, int x, int y)
@@ -527,6 +548,8 @@ int iupDialogShowXY(Ihandle* ih, int x, int y)
 
 void iupDialogHide(Ihandle* ih)
 {
+  int was_modal = iupAttribGet(ih, "_IUP_WAS_MODAL") != NULL;
+
   /* hidden at the system and marked hidden in IUP */
   if (!iupdrvDialogIsVisible(ih) && ih->data->show_state == IUP_HIDE) 
     return;
@@ -537,6 +560,7 @@ void iupDialogHide(Ihandle* ih)
   /* if called IupHide for a Popup window */
   if (iupAttribGetBoolean(ih, "MODAL"))
   {
+    was_modal = 1;
     iDialogUnSetModal(ih);
     IupExitLoop();
   }
@@ -554,7 +578,7 @@ void iupDialogHide(Ihandle* ih)
   /* process flush and process show_cb */
   iDialogAfterHide(ih);
 
-  iDialogListCheckLastVisible();
+  iDialogListCheckLastVisible(was_modal);
 }
 
 
@@ -735,8 +759,16 @@ void iupDialogGetDecorSize(Ihandle* ih, int *decorwidth, int *decorheight)
   int border, caption, menu;
   iupdrvDialogGetDecoration(ih, &border, &caption, &menu);
 
-  *decorwidth = 2*border;
-  *decorheight = 2*border + caption + menu;
+  if (iupAttribGetBoolean(ih, "CUSTOMFRAMEEX"))
+  {
+    *decorwidth = 0;
+    *decorheight = 0;
+  }
+  else
+  {
+    *decorwidth = 2 * border;
+    *decorheight = 2 * border + caption + menu;
+  }
 }
 
 static int iDialogSetHideTaskbarAttrib(Ihandle *ih, const char *value)
@@ -913,6 +945,7 @@ Iclass* iupDialogNewClass(void)
   iupClassRegisterAttribute(ic, "MINBOX", NULL, NULL, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "RESIZE", NULL, NULL, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "BORDER", NULL, NULL, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "BORDERSIZE", iDialogGetBorderSizeAttrib, NULL, NULL, NULL, IUPAF_READONLY | IUPAF_NO_INHERIT);
   
   iupClassRegisterAttribute(ic, "DEFAULTENTER", NULL, NULL, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "DEFAULTESC",   NULL, NULL, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NO_INHERIT);

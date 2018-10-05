@@ -13,9 +13,23 @@ LUAMOD_DIR = Yes
 NO_LUAOBJECT = Yes
 USE_BIN2C_LUA = Yes
 
+ifdef USE_LUA_VERSION
+  USE_LUA51:=
+  USE_LUA52:=
+  USE_LUA53:=
+  ifeq ($(USE_LUA_VERSION), 53)
+    USE_LUA53:=Yes
+  endif
+  ifeq ($(USE_LUA_VERSION), 52)
+    USE_LUA52:=Yes
+  endif
+  ifeq ($(USE_LUA_VERSION), 51)
+    USE_LUA51:=Yes
+  endif
+endif
+
 ifdef USE_LUA53
   LUASFX = 53
-  
   ifneq ($(findstring SunOS, $(TEC_UNAME)), )
     ifneq ($(findstring x86, $(TEC_UNAME)), )
       FLAGS = -std=gnu99
@@ -169,12 +183,13 @@ else
     USE_DLL = Yes
     GEN_MANIFEST = No
   else
-    # In UNIX Lua is always statically linked, late binding is used.
-    USE_STATIC = Yes
-    
-    # Except in Cygwin
+    LDIR += $(IUP_LIB)/Lua$(LUASFX)
     ifneq ($(findstring cygw, $(TEC_UNAME)), )
-      USE_STATIC:=
+      # Except in Cygwin
+    else
+      # In UNIX Lua is always statically linked, late binding is used.
+      NO_LUALINK = Yes
+      SLIB += $(LUA_LIB)/liblua$(LUA_SFX).a
     endif
   endif
 endif
