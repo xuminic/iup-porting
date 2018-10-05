@@ -223,10 +223,10 @@ static int gtkToggleSetAlignmentAttrib(Ihandle* ih, const char* value)
 
   if (iupStrEqualNoCase(value1, "ARIGHT"))
     xalign = 1.0f;
-  else if (iupStrEqualNoCase(value1, "ACENTER"))
-    xalign = 0.5f;
-  else /* "ALEFT" */
+  else if (iupStrEqualNoCase(value1, "ALEFT"))
     xalign = 0;
+  else /* "ACENTER" (default) */
+    xalign = 0.5f;
 
   if (iupStrEqualNoCase(value2, "ABOTTOM"))
     yalign = 1.0f;
@@ -469,16 +469,13 @@ static int gtkToggleMapMethod(Ihandle* ih)
   if (!ih->parent)
     return IUP_ERROR;
 
-  if (radio)
-    ih->data->is_radio = 1;
-
   value = iupAttribGet(ih, "IMAGE");
   if (value)
     ih->data->type = IUP_TOGGLE_IMAGE;
   else
     ih->data->type = IUP_TOGGLE_TEXT;
 
-  if (ih->data->is_radio)
+  if (radio)
   {
     GtkRadioButton* last_tg = (GtkRadioButton*)iupAttribGet(radio, "_IUPGTK_LASTRADIOBUTTON");
     if (last_tg)
@@ -490,6 +487,8 @@ static int gtkToggleMapMethod(Ihandle* ih)
     /* make sure it has at least one name */
     if (!iupAttribGetHandleName(ih))
       iupAttribSetHandleName(ih);
+
+    ih->data->is_radio = 1;
   }
   else
   {

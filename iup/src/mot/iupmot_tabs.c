@@ -423,7 +423,8 @@ static void motTabsConfigureNotify(Widget w, XEvent *evt, String* s, Cardinal *c
   XtVaGetValues(w, XmNuserData, &child, NULL);
   if (!child) return;
 
-  iupLayoutUpdate(child);
+  if (child->handle)
+    iupLayoutUpdate(child);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -638,9 +639,6 @@ static int motTabsMapMethod(Ihandle* ih)
   /* update Tab position */
   motTabsUpdateTabType(ih);
 
-  /* current value is now given by the native system */
-  iupAttribSet(ih, "_IUPTABS_VALUE_HANDLE", NULL);
-
   /* initialize the widget */
   XtRealizeWidget(ih->handle);
 
@@ -648,8 +646,18 @@ static int motTabsMapMethod(Ihandle* ih)
   if (ih->firstchild)
   {
     Ihandle* child;
+    Ihandle* current_child = (Ihandle*)iupAttribGet(ih, "_IUPTABS_VALUE_HANDLE");
+
     for (child = ih->firstchild; child; child = child->brother)
       motTabsChildAddedMethod(ih, child);
+
+    if (current_child)
+    {
+      IupSetAttribute(ih, "VALUE_HANDLE", (char*)current_child);
+
+      /* current value is now given by the native system */
+      iupAttribSet(ih, "_IUPTABS_VALUE_HANDLE", NULL);
+    }
   }
 
   return IUP_NOERROR;

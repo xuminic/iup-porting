@@ -271,6 +271,21 @@
     <ClCompile Include="..\src\iup_flatscrollbar.c">
       <Filter>src_controls</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\iup_dial.c">
+      <Filter>src_controls</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\iup_gauge.c">
+      <Filter>src_controls</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\iup_colorbar.c">
+      <Filter>src_controls</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\iup_colorbrowser.c">
+      <Filter>src_controls</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\iup_colorhsi.c">
+      <Filter>src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\iup_array.h">
@@ -440,6 +455,9 @@
     </ClInclude>
     <ClInclude Include="..\include\iup_varg.h">
       <Filter>include</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\iup_colorhsi.h">
+      <Filter>inc</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

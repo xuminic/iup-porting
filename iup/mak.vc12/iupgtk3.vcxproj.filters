@@ -57,9 +57,6 @@
     <ClCompile Include="..\src\gtk\iupgtk_clipboard.c">
       <Filter>src_controls</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\gtk\iupgtk_colordlg.c">
-      <Filter>src_controls</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\gtk\iupgtk_dialog.c">
       <Filter>src_controls</Filter>
     </ClCompile>
@@ -137,8 +134,5 @@
     <ClInclude Include="..\src\gtk\iupgtk_drv.h">
       <Filter>inc</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="..\src\iupgtk.def" />
   </ItemGroup>
 </Project>
