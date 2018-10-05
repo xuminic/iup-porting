@@ -458,7 +458,7 @@ ifdef LUAMOD_DIR
 endif
 
 OBJDIR := $(OBJROOT)/$(TEC_UNAME_DIR)
-TARGETDIR := $(TARGETROOT)/$(TEC_UNAME_DIR)
+TARGETDIR := $(TARGETROOT)
 
 # Change linker if any C++ source
 ifndef LINKER
@@ -1527,7 +1527,7 @@ system-check:
 # Dynamic Library Build
 
 .PHONY: dynamic-lib
-dynamic-lib: $(TARGETDIR)/$(TARGETDLIBNAME)
+dynamic-lib:
 
 $(TARGETDIR)/$(TARGETDLIBNAME) : $(LUAS) $(OBJS) $(EXTRADEPS)
 	@echo ''; echo Tecmake: linking $(@F) ...
