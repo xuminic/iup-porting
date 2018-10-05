@@ -1,0 +1,43 @@
+$(OBJDIR)/iuplua_glcontrols.o: gl/iuplua_glcontrols.c ../include/iup.h \
+ ../include/iupkey.h ../include/iupdef.h ../include/iupglcontrols.h \
+ ../include/iuplua.h ../include/iupluaglcontrols.h ../srclua5/il.h \
+ gl/il_glcontrols.h
+$(OBJDIR)/il_glcanvasbox.o: gl/il_glcanvasbox.c ../include/iup.h \
+ ../include/iupkey.h ../include/iupdef.h ../include/iuplua.h \
+ ../include/iupglcontrols.h ../srclua5/il.h lh/glcanvasbox.lh
+$(OBJDIR)/il_glsubcanvas.o: gl/il_glsubcanvas.c ../include/iup.h \
+ ../include/iupkey.h ../include/iupdef.h ../include/iuplua.h \
+ ../include/iupglcontrols.h ../srclua5/il.h lh/glsubcanvas.lh
+$(OBJDIR)/il_gllabel.o: gl/il_gllabel.c ../include/iup.h ../include/iupkey.h \
+ ../include/iupdef.h ../include/iuplua.h ../include/iupglcontrols.h \
+ ../srclua5/il.h lh/gllabel.lh
+$(OBJDIR)/il_glbutton.o: gl/il_glbutton.c ../include/iup.h ../include/iupkey.h \
+ ../include/iupdef.h ../include/iuplua.h ../include/iupglcontrols.h \
+ ../srclua5/il.h lh/glbutton.lh
+$(OBJDIR)/il_glexpander.o: gl/il_glexpander.c ../include/iup.h ../include/iupkey.h \
+ ../include/iupdef.h ../include/iuplua.h ../include/iupglcontrols.h \
+ ../srclua5/il.h lh/glexpander.lh
+$(OBJDIR)/il_glframe.o: gl/il_glframe.c ../include/iup.h ../include/iupkey.h \
+ ../include/iupdef.h ../include/iuplua.h ../include/iupglcontrols.h \
+ ../srclua5/il.h lh/glframe.lh
+$(OBJDIR)/il_gllink.o: gl/il_gllink.c ../include/iup.h ../include/iupkey.h \
+ ../include/iupdef.h ../include/iuplua.h ../include/iupglcontrols.h \
+ ../srclua5/il.h lh/gllink.lh
+$(OBJDIR)/il_glprogressbar.o: gl/il_glprogressbar.c ../include/iup.h \
+ ../include/iupkey.h ../include/iupdef.h ../include/iuplua.h \
+ ../include/iupglcontrols.h ../srclua5/il.h lh/glprogressbar.lh
+$(OBJDIR)/il_glseparator.o: gl/il_glseparator.c ../include/iup.h \
+ ../include/iupkey.h ../include/iupdef.h ../include/iuplua.h \
+ ../include/iupglcontrols.h ../srclua5/il.h lh/glseparator.lh
+$(OBJDIR)/il_gltoggle.o: gl/il_gltoggle.c ../include/iup.h ../include/iupkey.h \
+ ../include/iupdef.h ../include/iuplua.h ../include/iupglcontrols.h \
+ ../srclua5/il.h lh/gltoggle.lh
+$(OBJDIR)/il_glval.o: gl/il_glval.c ../include/iup.h ../include/iupkey.h \
+ ../include/iupdef.h ../include/iuplua.h ../include/iupglcontrols.h \
+ ../srclua5/il.h lh/glval.lh
+$(OBJDIR)/il_glscrollbox.o: gl/il_glscrollbox.c ../include/iup.h \
+ ../include/iupkey.h ../include/iupdef.h ../include/iuplua.h \
+ ../include/iupglcontrols.h ../srclua5/il.h lh/glscrollbox.lh
+$(OBJDIR)/il_glsizebox.o: gl/il_glsizebox.c ../include/iup.h ../include/iupkey.h \
+ ../include/iupdef.h ../include/iuplua.h ../include/iupglcontrols.h \
+ ../srclua5/il.h lh/glsizebox.lh

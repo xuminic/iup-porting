@@ -35,7 +35,7 @@ char* iupMatrixExGetCellValue(Ihandle* ih, int lin, int col, int convert)
   if (convert)
     return iupMatrixGetValue(ih, lin, col);  /* Display value */
   else
-    return iupMatrixGetValueString(ih, lin, col);
+    return iupMatrixGetValueString(ih, lin, col);  /* Internal value (Maximum Precision) */
 }
 
 /* Exported to IupMatrixEx */
@@ -91,7 +91,19 @@ static int iMatrixSetNumericFormatPrecisionAttrib(Ihandle* ih, int col, const ch
 {
   int precision;
   if (iupStrToInt(value, &precision))
-    IupSetStrfId(ih, "NUMERICFORMAT", col, "%%.%dlf",precision);
+  {
+    if (col == IUP_INVALID_ID)
+      IupSetStrf(ih, "NUMERICFORMATDEF", "%%.%dlf", precision);
+    else
+      IupSetStrfId(ih, "NUMERICFORMAT", col, "%%.%dlf", precision);
+  }
+  else
+  {
+    if (col == IUP_INVALID_ID)
+      IupSetAttribute(ih, "NUMERICFORMATDEF", NULL);
+    else
+      IupSetAttributeId(ih, "NUMERICFORMAT", col, NULL);
+  }
   return 0;
 }
 
@@ -374,6 +386,7 @@ void iupMatrixRegisterEx(Iclass* ic)
   iupClassRegisterAttributeId(ic, "NUMERICUNITINDEX", NULL, iMatrixSetNumericUnitIndexAttrib, IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "NUMERICUNITSHOWNINDEX", NULL, iMatrixSetNumericUnitShownIndexAttrib, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "NUMERICFORMATDEF", NULL, NULL, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "NUMERICDECIMALSYMBOL", NULL, NULL, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
 
   iupClassRegisterCallback(ic, "NUMERICGETVALUE_CB", "ii=d");
   iupClassRegisterCallback(ic, "NUMERICSETVALUE_CB", "iid");

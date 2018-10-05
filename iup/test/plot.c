@@ -4,7 +4,7 @@
  *               It is organised as two side-by-side panels:
  *                 - left panel for current plot control
  *                 - right panel containg tabbed plots
- *      Remark : depend on libs IUP, CD, IUP_PLPLOT
+ *      Remark : depend on libs IUP, CD, IUP_PPLOT
  */
 
 #include <stdio.h>
@@ -20,32 +20,33 @@
 #include <cd.h>
 #include <cdiup.h>
 #include <cdpdf.h>
-#include <cdgdiplus.h>
 
+
+#ifdef PPLOT_TEST
 
 #define MAXPLOT 6  /* room for examples */
 
 
-static Ihandle *plot[MAXPLOT] = {NULL}; /* PPlot controls */
+static Ihandle *plot[MAXPLOT] = {NULL}; /* Plot controls */
 static Ihandle *dial1, *dial2,          /* dials for zooming */
         *tgg1, *tgg2,            /* autoscale on|off toggles */
         *tgg3, *tgg4,            /* grid show|hide toggles */
         *tgg5,                   /* legend show|hide toggle */
         *tabs;                   /* tabbed control */
 
-static int delete_cb(Ihandle* ih, int index, int sample_index, float x, float y)
+static int delete_cb(Ihandle* ih, int index, int sample_index, double x, double y)
 {
   printf("DELETE_CB(%d, %d, %g, %g)\n", index, sample_index, x, y);
   return IUP_DEFAULT;
 }
 
-static int select_cb(Ihandle* ih, int index, int sample_index, float x, float y, int select)
+static int select_cb(Ihandle* ih, int index, int sample_index, double x, double y, int select)
 {
   printf("SELECT_CB(%d, %d, %g, %g, %d)\n", index, sample_index, x, y, select);
   return IUP_DEFAULT;
 }
 
-static int edit_cb(Ihandle* ih, int index, int sample_index, float x, float y, float *new_x, float *new_y)
+static int edit_cb(Ihandle* ih, int index, int sample_index, double x, double y, double *new_x, double *new_y)
 {
   printf("EDIT_CB(%d, %d, %g, %g, %g, %g)\n", index, sample_index, x, y, *new_x, *new_y);
   return IUP_DEFAULT;
@@ -53,12 +54,12 @@ static int edit_cb(Ihandle* ih, int index, int sample_index, float x, float y, f
 
 static int postdraw_cb(Ihandle* ih, cdCanvas* cnv)
 {
-  int ix, iy;
+  double ix, iy;
 
   IupPlotTransform(ih, 0.003f, 0.02f, &ix, &iy);
   cdCanvasFont(cnv, NULL, CD_BOLD, 10);
   cdCanvasTextAlignment(cnv, CD_SOUTH);
-  cdCanvasText(cnv, ix, iy, "My Inline Legend");
+  cdfCanvasText(cnv, ix, iy, "My Inline Legend");
   printf("POSTDRAW_CB()\n");
 
   return IUP_DEFAULT;
@@ -73,84 +74,87 @@ static int predraw_cb(Ihandle* ih, cdCanvas* cnv)
 static void InitPlots(void)
 {
   int theI;
-  float x, y, theFac;
+  double x, y, theFac;
 
+  /************************************************************************/
   /* PLOT 0 - MakeExamplePlot1 */
   IupSetAttribute(plot[0], "TITLE", "AutoScale");
-  IupSetAttribute(plot[0], "MARGINTOP", "40");
-  IupSetAttribute(plot[0], "MARGINLEFT", "40");
-  IupSetAttribute(plot[0], "MARGINBOTTOM", "50");
-  IupSetAttribute(plot[0], "TITLEFONTSIZE", "16");
+  IupSetAttribute(plot[0], "FONT", "Helvetica, 10");
+  //  IupSetAttribute(plot[0], "MARGINTOP", "40");
+  //  IupSetAttribute(plot[0], "MARGINLEFT", "40");
+  //  IupSetAttribute(plot[0], "MARGINBOTTOM", "50");
+//  IupSetAttribute(plot[0], "TITLEFONTSIZE", "16");
   IupSetAttribute(plot[0], "LEGENDSHOW", "YES");
   IupSetAttribute(plot[0], "AXS_XLABEL", "gnu (Foo)");
   IupSetAttribute(plot[0], "AXS_YLABEL", "Space (m^3)");
-  IupSetAttribute(plot[0], "AXS_YFONTSIZE", "8");
-  IupSetAttribute(plot[0], "AXS_YTICKFONTSIZE", "8");
-  IupSetAttribute(plot[0], "AXS_XFONTSIZE", "10");
-  IupSetAttribute(plot[0], "AXS_YFONTSIZE", "10");
-  IupSetAttribute(plot[0], "AXS_XLABELCENTERED", "NO");
-  IupSetAttribute(plot[0], "AXS_YLABELCENTERED", "NO");
-  
-//  IupSetAttribute(plot[0], "USE_IMAGERGB", "YES");
-//  IupSetAttribute(plot[0], "USE_GDI+", "YES");
+//  IupSetAttribute(plot[0], "AXS_YFONTSIZE", "8");
+//  IupSetAttribute(plot[0], "AXS_YTICKFONTSIZE", "8");
+//  IupSetAttribute(plot[0], "AXS_XFONTSIZE", "10");
+//  IupSetAttribute(plot[0], "AXS_YFONTSIZE", "10");
+  IupSetAttribute(plot[0], "AXS_XCROSSORIGIN", "Yes");
+  IupSetAttribute(plot[0], "AXS_YCROSSORIGIN", "Yes");
 
-  theFac = (float)1.0/(100*100*100);
+  IupSetAttribute(plot[0], "GRAPHICSMODE", "OPENGL");
+//  IupSetAttribute(plot[0], "GRAPHICSMODE", "IMAGERGB");
+
+  theFac = 1.0/(100*100*100);
   IupPlotBegin(plot[0], 0);
   for (theI=-100; theI<=100; theI++) 
   {
-    x = (float)(theI+50);
+    x = (theI+50);
     y = theFac*theI*theI*theI;
     IupPlotAdd(plot[0], x, y);
   }
   IupPlotEnd(plot[0]);
   IupSetAttribute(plot[0], "DS_LINEWIDTH", "3");
   IupSetAttribute(plot[0], "DS_LEGEND", "Line");
+//  IupSetAttribute(plot[0], "DS_MODE", "AREA");
 
-  theFac = (float)2.0/100;
+  theFac = 2.0/100;
   IupPlotBegin(plot[0], 0);
-#if 0
-  for (theI=-100; theI<=100; theI++) 
+  for (theI=-100; theI<0; theI++) 
   {
-    x = (float)theI;
+    x = theI;
     y = -theFac*theI;
     IupPlotAdd(plot[0], x, y);
   }
-  IupPlotEnd(plot[0]);
-#else
+
   {
     int index = IupPlotEnd(plot[0]); /* add an empty plot */
-    float px[210], py[210];
+    double px[210], py[210];
     int count = 0;
-    for (theI=-100; theI<=100; theI++) 
+    for (theI=0; theI<=100; theI++) 
     {
-      x = (float)theI;
+      x = theI;
       y = -theFac*theI;
-      px[theI+100] = x;
-      py[theI+100] = y;
+      px[theI] = x;
+      py[theI] = y;
       count++;
     }
-    IupPlotAddPoints(plot[0], index, px, py, count);
+    //IupPlotAddPoints(plot[0], index, px, py, count);
+    IupPlotInsertPoints(plot[0], index, 100, px, py, count);
   }
-#endif
+
   IupSetAttribute(plot[0], "DS_LEGEND", "Curve 1");
 
   IupPlotBegin(plot[0], 0);
   for (theI=-100; theI<=100; theI++) 
   {
-    x = (float)(0.01*theI*theI-30);
-    y = (float)0.01*theI;
+    x = (0.01*theI*theI-30);
+    y = 0.01*theI;
     IupPlotAdd(plot[0], x, y);
   }
   IupPlotEnd(plot[0]);
   IupSetAttribute(plot[0], "DS_LEGEND", "Curve 2");
 
-
-  /* PLOT 1 - MakeExamplePlot2 */
+  /************************************************************************/
+  /* PLOT 1 */
   IupSetAttribute(plot[1], "TITLE", "No Autoscale+No CrossOrigin");
-  IupSetAttribute(plot[1], "TITLEFONTSIZE", "16");
-  IupSetAttribute(plot[1], "MARGINTOP", "40");
-  IupSetAttribute(plot[1], "MARGINLEFT", "65");
-  IupSetAttribute(plot[1], "MARGINBOTTOM", "60");
+  IupSetAttribute(plot[1], "FONT", "Helvetica, 10");
+  //  IupSetAttribute(plot[1], "TITLEFONTSIZE", "16");
+  //  IupSetAttribute(plot[1], "MARGINTOP", "40");
+  //IupSetAttribute(plot[1], "MARGINLEFT", "65");
+  //IupSetAttribute(plot[1], "MARGINBOTTOM", "60");
   IupSetAttribute(plot[1], "BGCOLOR", "0 192 192");
   IupSetAttribute(plot[1], "AXS_XLABEL", "Tg (X)");
   IupSetAttribute(plot[1], "AXS_YLABEL", "Tg (Y)");
@@ -162,42 +166,44 @@ static void InitPlots(void)
   IupSetAttribute(plot[1], "AXS_XMAX", "60");
   IupSetAttribute(plot[1], "AXS_YMIN", "-0.5");
   IupSetAttribute(plot[1], "AXS_YMAX", "0.5");
-  IupSetAttribute(plot[1], "AXS_XCROSSORIGIN", "NO");
-  IupSetAttribute(plot[1], "AXS_YCROSSORIGIN", "NO");
-  IupSetAttribute(plot[1], "AXS_XFONTSTYLE", "BOLD");
+  IupSetAttribute(plot[1], "AXS_XFONTSTYLE", "ITALIC");
   IupSetAttribute(plot[1], "AXS_YFONTSTYLE", "BOLD");
   IupSetAttribute(plot[1], "AXS_XREVERSE", "YES");
   IupSetAttribute(plot[1], "GRIDCOLOR", "128 255 128");
   IupSetAttribute(plot[1], "GRIDLINESTYLE", "DOTTED");
   IupSetAttribute(plot[1], "GRID", "YES");
   IupSetAttribute(plot[1], "LEGENDSHOW", "YES");
+  IupSetAttribute(plot[1], "AXS_XLABELCENTERED", "Yes");
+  IupSetAttribute(plot[1], "AXS_YLABELCENTERED", "Yes");
+  IupSetAttribute(plot[1], "GRAPHICSMODE", "IMAGERGB");
 
-  theFac = (float)1.0/(100*100*100);
+  theFac = 1.0/(100*100*100);
   IupPlotBegin(plot[1], 0);
   for (theI=0; theI<=100; theI++) 
   {
-    x = (float)(theI);
+    x = (theI);
     y = theFac*theI*theI*theI;
     IupPlotAdd(plot[1], x, y);
   }
   IupPlotEnd(plot[1]);
 
-  theFac = (float)2.0/100;
+  theFac = 2.0/100;
   IupPlotBegin(plot[1], 0);
   for (theI=0; theI<=100; theI++) 
   {
-    x = (float)(theI);
+    x = (theI);
     y = -theFac*theI;
     IupPlotAdd(plot[1], x, y);
   }
   IupPlotEnd(plot[1]);
 
-  /* PLOT 2 - MakeExamplePlot4 */
+  /************************************************************************/
+  /* PLOT 2 */
   IupSetAttribute(plot[2], "TITLE", "Log Scale");
-  IupSetAttribute(plot[2], "TITLEFONTSIZE", "16");
-  IupSetAttribute(plot[2], "MARGINTOP", "40");
-  IupSetAttribute(plot[2], "MARGINLEFT", "70");
-  IupSetAttribute(plot[2], "MARGINBOTTOM", "60");
+//  IupSetAttribute(plot[2], "TITLEFONTSIZE", "16");
+  //IupSetAttribute(plot[2], "MARGINTOP", "40");
+  //IupSetAttribute(plot[2], "MARGINLEFT", "70");
+  //IupSetAttribute(plot[2], "MARGINBOTTOM", "60");
   IupSetAttribute(plot[2], "GRID", "YES");
   IupSetAttribute(plot[2], "AXS_XSCALE", "LOG10");
   IupSetAttribute(plot[2], "AXS_YSCALE", "LOG2");
@@ -206,28 +212,29 @@ static void InitPlots(void)
   IupSetAttribute(plot[2], "AXS_XFONTSTYLE", "BOLD");
   IupSetAttribute(plot[2], "AXS_YFONTSTYLE", "BOLD");
 
-  theFac = (float)100.0/(100*100*100);
+  theFac = 100.0/(100*100*100);
   IupPlotBegin(plot[2], 0);
   for (theI=0; theI<=100; theI++) 
   {
-    x = (float)(0.0001+theI*0.001);
-    y = (float)(0.01+theFac*theI*theI*theI);
+    x = (0.0001+theI*0.001);
+    y = (0.01+theFac*theI*theI*theI);
     IupPlotAdd(plot[2], x, y);
   }
   IupPlotEnd(plot[2]);
   IupSetAttribute(plot[2], "DS_COLOR", "100 100 200");
   IupSetAttribute(plot[2], "DS_LINESTYLE", "DOTTED");
 
-  /* PLOT 3 - MakeExamplePlot5 */
+  /************************************************************************/
+  /* PLOT 3 */
   IupSetAttribute(plot[3], "TITLE", "Bar Mode");
-  IupSetAttribute(plot[3], "TITLEFONTSIZE", "16");
-  IupSetAttribute(plot[3], "MARGINTOP", "40");
-  IupSetAttribute(plot[3], "MARGINLEFT", "30");
-  IupSetAttribute(plot[3], "MARGINBOTTOM", "30");
+//  IupSetAttribute(plot[3], "TITLEFONTSIZE", "16");
+  //IupSetAttribute(plot[3], "MARGINTOP", "40");
+  //IupSetAttribute(plot[3], "MARGINLEFT", "30");
+  //IupSetAttribute(plot[3], "MARGINBOTTOM", "30");
 
   {
     const char * kLables[12] = {"jan","feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"};
-    const float kData[12] = {1,2,3,4,5,6,7,8,9,0,1,2};
+    const double kData[12] = {10,20,30,40,50,60,70,80,90,0,10,20};
     IupPlotBegin(plot[3], 1);
     for (theI=0;  theI<12; theI++) 
       IupPlotAddStr(plot[3], kLables[theI], kData[theI]);
@@ -236,12 +243,13 @@ static void InitPlots(void)
   IupSetAttribute(plot[3], "DS_COLOR", "100 100 200");
   IupSetAttribute(plot[3], "DS_MODE", "BAR");
 
-  /* PLOT 4 - MakeExamplePlot6 */
+  /************************************************************************/
+  /* PLOT 4 */
   IupSetAttribute(plot[4], "TITLE", "Marks Mode");
-  IupSetAttribute(plot[4], "TITLEFONTSIZE", "16");
-  IupSetAttribute(plot[4], "MARGINTOP", "40");
-  IupSetAttribute(plot[4], "MARGINLEFT", "45");
-  IupSetAttribute(plot[4], "MARGINBOTTOM", "40");
+//  IupSetAttribute(plot[4], "TITLEFONTSIZE", "16");
+  //  IupSetAttribute(plot[4], "MARGINTOP", "40");
+  //IupSetAttribute(plot[4], "MARGINLEFT", "45");
+  //IupSetAttribute(plot[4], "MARGINBOTTOM", "40");
   IupSetAttribute(plot[4], "AXS_XAUTOMIN", "NO");
   IupSetAttribute(plot[4], "AXS_XAUTOMAX", "NO");
   IupSetAttribute(plot[4], "AXS_YAUTOMIN", "NO");
@@ -250,57 +258,60 @@ static void InitPlots(void)
   IupSetAttribute(plot[4], "AXS_XMAX", "0.011");
   IupSetAttribute(plot[4], "AXS_YMIN", "0");
   IupSetAttribute(plot[4], "AXS_YMAX", "0.22");
-  IupSetAttribute(plot[4], "AXS_XCROSSORIGIN", "NO");
-  IupSetAttribute(plot[4], "AXS_YCROSSORIGIN", "NO");
   IupSetAttribute(plot[4], "AXS_XTICKFORMAT", "%1.3f");
   IupSetAttribute(plot[4], "LEGENDSHOW", "YES");
   IupSetAttribute(plot[4], "LEGENDPOS", "BOTTOMRIGHT");
 
-  theFac = (float)100.0/(100*100*100);
+  theFac = 100.0/(100*100*100);
   IupPlotBegin(plot[4], 0);
   for (theI=0; theI<=10; theI++) 
   {
-    x = (float)(0.0001+theI*0.001);
-    y = (float)(0.01+theFac*theI*theI);
+    x = (0.0001+theI*0.001);
+    y = (0.01+theFac*theI*theI);
     IupPlotAdd(plot[4], x, y);
   }
   IupPlotEnd(plot[4]);
   IupSetAttribute(plot[4], "DS_MODE", "MARKLINE");
-  IupSetAttribute(plot[4], "DS_SHOWVALUES", "YES");
 
   IupPlotBegin(plot[4], 0);
   for (theI=0; theI<=10; theI++) 
   {
-    x = (float)(0.0001+theI*0.001);
-    y = (float)(0.2-theFac*theI*theI);
+    x = (0.0001+theI*0.001);
+    y = (0.2-theFac*theI*theI);
     IupPlotAdd(plot[4], x, y);
   }
   IupPlotEnd(plot[4]);
   IupSetAttribute(plot[4], "DS_MODE", "MARK");
   IupSetAttribute(plot[4], "DS_MARKSTYLE", "HOLLOW_CIRCLE");
   
-  /* PLOT 5 - MakeExamplePlot8 */
+  /************************************************************************/
+  /* PLOT 5 */
   IupSetAttribute(plot[5], "TITLE", "Data Selection and Editing");
-  IupSetAttribute(plot[5], "TITLEFONTSIZE", "16");
-  IupSetAttribute(plot[5], "MARGINTOP", "40");
+  //IupSetAttribute(plot[5], "TITLEFONTSIZE", "16");
+  //IupSetAttribute(plot[5], "MARGINTOP", "40");
 
-  theFac = (float)100.0/(100*100*100);
+#if 0
+  IupPlotLoadData(plot[5], "../test/plot.dat", 0);
+#else
+  theFac = 100.0/(100*100*100);
   IupPlotBegin(plot[5], 0);
   for (theI=-10; theI<=10; theI++) 
   {
-    x = (float)(0.001*theI);
-    y = (float)(0.01+theFac*theI*theI*theI);
+    x = (0.001*theI);
+    y = (0.01+theFac*theI*theI*theI);
     IupPlotAdd(plot[5], x, y);
   }
   IupPlotEnd(plot[5]);
+
+  IupSetAttribute(plot[5], "AXS_XCROSSORIGIN", "Yes");
+  IupSetAttribute(plot[5], "AXS_YCROSSORIGIN", "Yes");
+#endif
+
   IupSetAttribute(plot[5], "DS_COLOR", "100 100 200");
-  IupSetAttribute(plot[5], "DS_EDIT", "YES");
   IupSetCallback(plot[5], "DELETE_CB", (Icallback)delete_cb);
   IupSetCallback(plot[5], "SELECT_CB", (Icallback)select_cb);
   IupSetCallback(plot[5], "POSTDRAW_CB", (Icallback)postdraw_cb);
   IupSetCallback(plot[5], "PREDRAW_CB", (Icallback)predraw_cb);
-  IupSetCallback(plot[5], "EDIT_CB", (Icallback)edit_cb);
-
 }
 
 static int tabs_get_index(void)
@@ -523,8 +534,8 @@ static int dial1_btnup_cb(Ihandle *self, double angle)
 
   if (x1<x2)
   {
-    IupSetfAttribute(plot[ii], "AXS_YMIN", "%f", x1);
-    IupSetfAttribute(plot[ii], "AXS_YMAX", "%f", x2);
+    IupSetfAttribute(plot[ii], "AXS_YMIN", "%g", x1);
+    IupSetfAttribute(plot[ii], "AXS_YMAX", "%g", x2);
   }
 
   IupSetAttribute(plot[ii], "REDRAW", NULL);
@@ -557,8 +568,8 @@ static int dial2_btnup_cb(Ihandle *self, double angle)
   x1 = xm - (xm - x1)*(1.0-angle*1.0/3.141592); /* one circle will zoom 2 times */
   x2 = xm + (x2 - xm)*(1.0-angle*1.0/3.141592);
 
-  IupSetfAttribute(plot[ii], "AXS_XMIN", "%f", x1);
-  IupSetfAttribute(plot[ii], "AXS_XMAX", "%f", x2);
+  IupSetfAttribute(plot[ii], "AXS_XMIN", "%g", x1);
+  IupSetfAttribute(plot[ii], "AXS_XMAX", "%g", x2);
 
   IupSetAttribute(plot[ii], "REDRAW", NULL);
 
@@ -585,10 +596,7 @@ void PlotTest(void)
           *boxinfo, *boxdial1, *boxdial2, *f1, *f2;
   int ii;
 
-  IupControlsOpen();
   IupPlotOpen();     /* init IupPlot library */
-
-//  cdInitGdiPlus();
 
   /* create plots */
   for (ii=0; ii<MAXPLOT; ii++)
@@ -695,13 +703,13 @@ void PlotTest(void)
   IupSetAttribute(hbox, "GAP", "10");
   
   dlg = IupDialog(hbox);
-  IupSetAttribute(dlg, "SIZE", "170x");
   IupSetAttribute(dlg, "TITLE", "IupPlot Example");
 
   InitPlots(); /* It must be able to be done independent of dlg Mapping */
 
   tabs_tabchange_cb(tabs, vboxr[0]);
 
+  IupSetAttribute(dlg, "SIZE", "300x");
   IupShowXY(dlg, IUP_CENTER, IUP_CENTER);
   IupSetAttribute(dlg, "SIZE", NULL);
 }
@@ -710,6 +718,7 @@ void PlotTest(void)
 int main(int argc, char* argv[])
 {
   IupOpen(&argc, &argv);
+  IupControlsOpen();
 
   PlotTest();
 
@@ -719,4 +728,6 @@ int main(int argc, char* argv[])
 
   return EXIT_SUCCESS;
 }
+#endif
+
 #endif

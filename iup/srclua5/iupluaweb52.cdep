@@ -1,6 +1,3 @@
-$(OBJDIR)/il_webbrowser.o: il_webbrowser.c /cygdrive/d/tecgraf/lua52/include/lua.h \
- /cygdrive/d/tecgraf/lua52/include/luaconf.h \
- /cygdrive/d/tecgraf/lua52/include/lauxlib.h \
- /cygdrive/d/tecgraf/lua52/include/lua.h ../include/iup.h \
+$(OBJDIR)/il_webbrowser.o: ctrl/il_webbrowser.c ../include/iup.h \
  ../include/iupkey.h ../include/iupdef.h ../include/iuplua.h \
- ../include/iupweb.h il.h lh/webbrowser.lh
+ ../include/iupweb.h ../srclua5/il.h lh/webbrowser.lh
