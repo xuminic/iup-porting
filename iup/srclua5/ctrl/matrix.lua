@@ -26,7 +26,7 @@ local ctrl = {
     colresize_cb = "n",
     scrolltop_cb = "nn",
     fgcolor_cb = "nn",  -- fake definitions to be replaced by matrixfuncs module
-    bgcolor_cb = "nn",
+    bgcolor_cb = "nn",  -- fake definitions to be replaced by matrixfuncs module
     font_cb = {"nn", ret = "s"}, -- ret is return type
     type_cb = {"nn", ret = "s"}, -- ret is return type
     value_cb = {"nn", ret = "s"}, -- ret is return type
@@ -44,17 +44,17 @@ function ctrl.createElement(class, param)
    return iup.Matrix(param.action)
 end
 
-function ctrl.setcell(handle, l, c, val)
-  iup.SetAttributeId2(handle,"",l,c,val)
+function ctrl.setcell(ih, l, c, val)
+  iup.SetAttributeId2(ih,"",l,c,val)
 end
 
-function ctrl.getcell(handle, l, c)
-  return iup.GetAttributeId2(handle,"",l,c)
+function ctrl.getcell(ih, l, c)
+  return iup.GetAttributeId2(ih,"",l,c)
 end
 
-function ctrl.setformula(handle, col, formula)
-  iup.MatrixSetFormula(handle, col, formula)
-end
+-- Defined in C
+ctrl.SetFormula = iup.MatrixSetFormula
+ctrl.SetDynamic = iup.MatrixSetDynamic
 
 iup.RegisterWidget(ctrl)
-iup.SetClass(ctrl, "iup widget")
+iup.SetClass(ctrl, "iupWidget")

@@ -31,6 +31,7 @@ Ihandle* iuplua_checkihandle(lua_State *L, int pos);
 void iuplua_pushihandle(lua_State *L, Ihandle *n);
 int iuplua_dofile(lua_State *L, const char *filename);
 int iuplua_dostring(lua_State *L, const char *string, const char *chunk_name);
+int iuplua_dobuffer(lua_State *L, const char *buffer, int len, const char *chunk_name);
 
 #endif
 

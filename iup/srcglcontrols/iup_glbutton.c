@@ -63,7 +63,9 @@ void iupGLButtonDraw(Ihandle* ih)
   if (draw_border)
   {
     char* bordercolor = iupAttribGetStr(ih, "BORDERCOLOR");
-    iupGLDrawRect(ih, 0, ih->currentwidth - 1, 0, ih->currentheight - 1, bwidth, bordercolor, active, 0);
+    iupGLDrawRect(ih, 0, ih->currentwidth - 1, 
+                      0, ih->currentheight - 1, 
+                      bwidth, bordercolor, active, 0);
   }
 
   /* draw background */
@@ -84,6 +86,17 @@ void iupGLButtonDraw(Ihandle* ih)
     iupGLDrawImageZoom(ih, border_width, ih->currentwidth - 1 - border_width,
                            border_width, ih->currentheight - 1 - border_width,
                            "FRONTIMAGE", fgimage, active);
+  else if (!image && !title)
+  {
+    int space = border_width + 2;
+    iupGLDrawRect(ih, space, ih->currentwidth - 1 - space,
+                      space, ih->currentheight - 1 - space,
+                      1, "0 0 0", active, 0);
+    space++;
+    iupGLDrawBox(ih, space, ih->currentwidth - 1 - space,
+                     space, ih->currentheight - 1 - space,
+                     fgcolor, active);
+  }
 
   if (selected && !pressed && (bgimage || image))
     iupAttribSet(ih, "PRESSED", NULL);
@@ -99,6 +112,7 @@ static int iGLButtonBUTTON_CB(Ihandle* ih, int button, int pressed, int x, int y
 {
   if (button == IUP_BUTTON1)
   {
+    /* "PRESSED" was already updated */
     iupGLSubCanvasRedraw(ih);
 
     if (!pressed)
@@ -150,9 +164,9 @@ static void iGLButtonComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *
     /* add to the label natural size */
     *w += 2 * border_width;
     *h += 2 * border_width;
-
-    (void)children_expand; /* unset if not a container */
   }
+
+  (void)children_expand; /* unset if not a container */
 }
 
 

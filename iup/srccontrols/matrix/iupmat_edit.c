@@ -400,12 +400,12 @@ int iupMatrixEditShowXY(Ihandle* ih, int x, int y)
     iupMatrixEditHide(ih);
   }
 
+  ih->data->edit_lin = ih->data->lines.focus_cell;
+  ih->data->edit_col = ih->data->columns.focus_cell;
+
   /* notify application */
   if (iMatrixEditCallEditionCbUpdateValue(ih, 1, 0) == IUP_IGNORE)  /* only place where mode=1 */
     return 0;
-
-  ih->data->edit_lin = ih->data->lines.focus_cell;
-  ih->data->edit_col = ih->data->columns.focus_cell;
 
   if (iMatrixEditCallMenuDropCb(ih, ih->data->edit_lin, ih->data->edit_col))
     return 0;
@@ -678,6 +678,7 @@ void iupMatrixEditCreate(Ihandle* ih)
   IupSetAttribute(ih->data->texth, "VALUE",  "");
   IupSetAttribute(ih->data->texth, "VISIBLE", "NO");
   IupSetAttribute(ih->data->texth, "ACTIVE",  "NO");
+  IupSetAttribute(ih->data->texth, "FLOATING", "IGNORE");
 
 
   /******** DROPDOWN *************/
@@ -696,4 +697,5 @@ void iupMatrixEditCreate(Ihandle* ih)
   IupSetAttribute(ih->data->droph, "MULTIPLE", "NO");
   IupSetAttribute(ih->data->droph, "VISIBLE", "NO");
   IupSetAttribute(ih->data->droph, "ACTIVE",  "NO");
+  IupSetAttribute(ih->data->droph, "FLOATING", "IGNORE");
 }

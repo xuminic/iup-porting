@@ -502,7 +502,7 @@ static char* iMatrixListGetColumnOrderAttrib(Ihandle *ih)
 static int iMatrixListSetColumnOrderAttrib(Ihandle *ih, const char* value)
 {
   ImatrixListData* mtxList = (ImatrixListData*)iupAttribGet(ih, "_IUPMTXLIST_DATA");
-  char value1[30]="", value2[30]="", value3[30]="";
+  char value1[30], value2[30], value3[30];
   int ret;
 
   /* valid only before map */
@@ -541,7 +541,8 @@ static int iMatrixListSetColumnOrderAttrib(Ihandle *ih, const char* value)
     return 0;
   }
   
-  ret = iupStrToStrStr(value2, value2, value3, ':');
+  strcpy(value1, value2);
+  ret = iupStrToStrStr(value1, value2, value3, ':');
   if (ret == 0)
     return 0;
 
@@ -1359,7 +1360,7 @@ static int iMatrixListCreateMethod(Ihandle* ih, void **params)
   iMatrixListInitSize(ih, mtxList);
 
   /* change the IupCanvas default values */
-  iupAttribSet(ih, "EXPAND", "NO");      /* Disable the expand option */
+  IupSetAttribute(ih, "EXPAND", "NO");
 
   /* Change the IupMatrix default values */
   iupAttribSet(ih, "HIDEFOCUS", "YES");  /* Hide the matrix focus feedback, but cell focus will still be processed internally */

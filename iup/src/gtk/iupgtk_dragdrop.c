@@ -28,7 +28,7 @@
 static void gtkDragDataReceived(GtkWidget *widget, GdkDragContext *drag_context, gint x, gint y,
                             GtkSelectionData *seldata, guint info, guint time, Ihandle *ih)
 {
-  IFnsCiii cbDropData = (IFnsCiii)IupGetCallback(ih, "DROPDATA_CB");
+  IFnsViii cbDropData = (IFnsViii)IupGetCallback(ih, "DROPDATA_CB");
   void* targetData = NULL;
   char* type;
   int size, format;
@@ -71,7 +71,7 @@ static void gtkDragDataReceived(GtkWidget *widget, GdkDragContext *drag_context,
 
 static void gtkDragDataGet(GtkWidget *widget, GdkDragContext *drag_context, GtkSelectionData *seldata, guint info, guint time, Ihandle* ih)
 {
-  IFnsCi cbDragData = (IFnsCi)IupGetCallback(ih, "DRAGDATA_CB");
+  IFnsVi cbDragData = (IFnsVi)IupGetCallback(ih, "DRAGDATA_CB");
   IFns cbDragDataSize = (IFns)IupGetCallback(ih, "DRAGDATASIZE_CB");
   if(cbDragData && cbDragDataSize)
   {
@@ -204,16 +204,19 @@ static GtkTargetList* gtkCreateTargetList(const char* value)
 {
   GtkTargetList* targetlist = gtk_target_list_new(NULL, 0);
   char valueCopy[256];
-  char valueTemp[256];
+  char valueTemp1[256];
+  char valueTemp2[256];
   int info = 0;
 
   strcpy(valueCopy, value);
-  while(iupStrToStrStr(valueCopy, valueTemp, valueCopy, ',') > 0)
+  while (iupStrToStrStr(valueCopy, valueTemp1, valueTemp2, ',') > 0)
   {
-    gtk_target_list_add(targetlist, gdk_atom_intern(valueTemp, FALSE), 0, info++);
+    gtk_target_list_add(targetlist, gdk_atom_intern(valueTemp1, FALSE), 0, info++);
 
-    if(iupStrEqualNoCase(valueCopy, valueTemp))
+    if (iupStrEqualNoCase(valueTemp2, valueTemp1))
       break;
+
+    strcpy(valueCopy, valueTemp2);
   }
 
   if (info == 0)

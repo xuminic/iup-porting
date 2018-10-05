@@ -288,9 +288,6 @@ static int iGLExpanderCallExtraButtonCb(Ihandle* ih, int button, int pressed)
   if (old_state != ih->data->extra_buttons_state[button])
     iupGLSubCanvasRedraw(ih);
 
-  if (!pressed)
-    pressed = pressed;
-
   /* if pressed always call,
      if not pressed, call only if was pressed */
   if (pressed || old_state == 1)
@@ -911,7 +908,7 @@ Iclass* iupGLExpanderNewClass(void)
   Iclass* ic = iupClassNew(iupRegisterFindClass("glsubcanvas"));
 
   ic->name   = "glexpander";
-  ic->format = "h";   /* one ihandle */
+  ic->format = "h";   /* one Ihandle* */
   ic->nativetype = IUP_TYPEVOID;
   ic->childtype  = IUP_CHILDMANY+1;  /* one child */
   ic->is_interactive = 0;

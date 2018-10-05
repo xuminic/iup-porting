@@ -43,16 +43,25 @@ static GtkWidget* gtk_button_get_image(GtkButton *button)
 }
 #endif
 
-void iupdrvToggleAddCheckBox(int *x, int *y)
-{
 #ifdef HILDON
-  (*x) += 30+4;
-  if ((*y) < 30) (*y) = 30; /* minimum height */
+#define IUP_TOGGLE_BOX 30
 #else
-  (*x) += 16+4;
-  if ((*y) < 16) (*y) = 16; /* minimum height */
+#if GTK_CHECK_VERSION(3, 0, 0)
+#define IUP_TOGGLE_BOX 18
+#else
+#define IUP_TOGGLE_BOX 16
 #endif
-  (*y) += 4;
+#endif
+
+void iupdrvToggleAddCheckBox(int *x, int *y, const char* str)
+{
+  /* has margins too */
+  (*x) += 2+IUP_TOGGLE_BOX+2;
+  if ((*y) < 2+IUP_TOGGLE_BOX+2) (*y) = 2+IUP_TOGGLE_BOX+2; /* minimum height */
+  else (*y) += 2+2;
+
+  if (str && str[0]) /* add spacing between check box and text */
+    (*x) += 8;
 }
 
 static int gtkToggleGetCheck(Ihandle* ih)
@@ -202,7 +211,7 @@ static int gtkToggleSetAlignmentAttrib(Ihandle* ih, const char* value)
 {
   GtkButton* button = (GtkButton*)ih->handle;
   float xalign, yalign;
-  char value1[30]="", value2[30]="";
+  char value1[30], value2[30];
 
   if (ih->data->type == IUP_TOGGLE_TEXT)
     return 0;

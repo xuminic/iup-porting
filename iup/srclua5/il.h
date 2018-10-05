@@ -57,8 +57,10 @@ int iupexpanderlua_open(lua_State * L);
 int iupprogressdlglua_open(lua_State * L);
 int iupdetachboxlua_open(lua_State * L);
 int iupbackgroundboxlua_open(lua_State * L);
+int iupflatbuttonlua_open(lua_State * L);
 
 void iupgetparamlua_open (lua_State * L);
+void iupconfiglua_open(lua_State * L);
 
 int iupluaScanf(lua_State *L);
 void iupluaapi_open(lua_State * L);
@@ -134,7 +136,7 @@ void iuplua_register_cb(lua_State *L, const char* name, lua_CFunction func, cons
             /*     Functions                     */
 
 /** Pushes a raw Ihandle into the stack (an userdata).
- * Used by the control creation functions.
+ * Used ONLY by the control creation functions.
  */
 void iuplua_pushihandle_raw(lua_State *L, Ihandle *h);
 
@@ -158,7 +160,7 @@ double* iuplua_checkdouble_array(lua_State *L, int pos, int count);
  If count is 0, table size is used. Else table size must match count. */
 unsigned char* iuplua_checkuchar_array(lua_State *L, int pos, int count);
 
-/** Returns an array of ihandle stored in a Lua table.
+/** Returns an array of Ihandle* stored in a Lua table.
  If count is 0, table size is used. Else table size must match count. */
 Ihandle** iuplua_checkihandle_array(lua_State *L, int pos, int count);
 
