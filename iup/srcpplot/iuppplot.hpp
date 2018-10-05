@@ -95,8 +95,9 @@ public:
   int _x, _y, _width, _height;
 
   // Called from C functions
-  void Draw(int force, int flush);   // paint the stuff
-  void Resize(int x, int y, int w, int h); // called when resizing
+  void Paint(int force, int flush);   // paint the stuff
+  void SetSize(int x, int y, int w, int h); // called when resizing
+  void UpdateViewport();
   void MouseButton(int btn, int stat, int x, int y, char *r); // mouse event
   void MouseMove(int x, int y); // mouse event
   void MouseWheel(float delta, char *r); // mouse event
@@ -116,7 +117,6 @@ protected:
   void FillArrow(int inX1, int inY1, int inX2, int inY2, int inX3, int inY3);
   void DrawLine(float inX1, float inY1, float inX2, float inY2);
   void FillRect(int inX, int inY, int inW, int inH);
-  void InvertRect(int inX, int inY, int inW, int inH);
   void SetClipRect(int inX, int inY, int inW, int inH);
   long GetWidth() const { return _width; }
   long GetHeight() const { return _height; }
@@ -128,6 +128,9 @@ protected:
   void DrawRotatedText(int inX, int inY, float inDegrees,
                         short align, const char *inString);
   void SetStyle(const PStyle &inStyle);
+  void BeginArea();
+  void AddVertex(float inX, float inY);
+  void EndArea();
 
 }; // PPainterIup
 

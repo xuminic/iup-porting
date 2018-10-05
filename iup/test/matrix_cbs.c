@@ -40,20 +40,15 @@ static int enter(Ihandle *self, int lin, int col)
 
 static int dropselect(Ihandle *self, int lin, int col, Ihandle *drop, char *t, int i, int v)
 {
-  printf("dropselect_cb(%d, %d)\n", lin, col);
-  return IUP_CONTINUE;
+  printf("dropselect_cb(%d, %d, %s, i=%d v=%d)\n", lin, col, t, i, v);
+  // return IUP_CONTINUE;
+  return IUP_DEFAULT;
 }
 
-int mdrop = 1;
 static int dropcheck(Ihandle *self, int lin, int col)
 {
   if(lin == 1 && col == 1)
-  {
-    if (mdrop)
-      return IUP_DEFAULT;
-    else
-      return IUP_IGNORE;
-  }
+    return IUP_DEFAULT;
   return IUP_IGNORE;
 }
 
@@ -78,7 +73,7 @@ static int release(Ihandle *self, int lin, int col)
 static int drop(Ihandle *self, Ihandle *drop, int lin, int col)
 {
   printf("drop_cb(%d, %d)\n", lin, col);
-  if(lin == 1 && col == 1 && mdrop)
+  if(lin == 1 && col == 1)
   {
     IupSetAttribute(drop, "1", "A - Test of Very Big String for Dropdown!");
     IupSetAttribute(drop, "2", "B");
@@ -180,8 +175,8 @@ static Ihandle *create_mat(int mati)
   IupSetAttribute(mat,"MARKMODE", "CELL");
 //  IupSetAttribute(mat,"MARKMODE", "LINCOL");
   IupSetAttribute(mat,"MARKMULTIPLE", "YES");
-//  IupSetAttribute(mat,"MARKAREA", "NOT_CONTINUOUS");
- IupSetAttribute(mat, "MARKAREA", "CONTINUOUS");
+  IupSetAttribute(mat,"MARKAREA", "NOT_CONTINUOUS");
+// IupSetAttribute(mat, "MARKAREA", "CONTINUOUS");
 
   IupSetAttribute(mat,"0:0","Test");
   IupSetAttribute(mat,"1:0","Medicine");

@@ -61,7 +61,6 @@ struct _IcontrolData
   char* text;
 
   cdCanvas *cddbuffer;
-  cdCanvas *cdcanvas;
 };
 
 static void iGaugeDrawText(Ihandle* ih, int xmid)
@@ -157,18 +156,6 @@ static void iGaugeDrawGauge(Ihandle* ih)
 
 static int iGaugeResize_CB(Ihandle* ih)
 {
-  if (!ih->data->cddbuffer)
-  {
-    /* update canvas size */
-    cdCanvasActivate(ih->data->cdcanvas);
-
-    /* this can fail if canvas size is zero */
-    ih->data->cddbuffer = cdCreateCanvas(CD_DBUFFER, ih->data->cdcanvas);
-  }
-
-  if (!ih->data->cddbuffer)
-    return IUP_DEFAULT;
-
   /* update size */
   cdCanvasActivate(ih->data->cddbuffer);
   cdCanvasGetSize(ih->data->cddbuffer,&ih->data->w,&ih->data->h,NULL,NULL);
@@ -233,8 +220,10 @@ static int iGaugeSetValueAttrib(Ihandle* ih, const char* value)
   if(value == NULL)
     ih->data->value = 0;
   else
-    ih->data->value = atof(value);
-  iGaugeCropValue(ih);
+  {
+    if (iupStrToDouble(value, &(ih->data->value)))
+      iGaugeCropValue(ih);
+  }
 
   iGaugeRepaint(ih);
   return 0; /* do not store value in hash table */
@@ -242,13 +231,13 @@ static int iGaugeSetValueAttrib(Ihandle* ih, const char* value)
 
 static char* iGaugeGetValueAttrib(Ihandle* ih)
 {
-  return iupStrReturnFloat((float)ih->data->value);
+  return iupStrReturnDouble(ih->data->value);
 }
 
 static int iGaugeSetMinAttrib(Ihandle* ih, const char* value)
 {
-  ih->data->vmin = atof(value);
-  iGaugeCropValue(ih);
+  if (iupStrToDouble(value, &(ih->data->vmin)))
+    iGaugeCropValue(ih);
 
   iGaugeRepaint(ih);
   return 0; /* do not store value in hash table */
@@ -256,20 +245,21 @@ static int iGaugeSetMinAttrib(Ihandle* ih, const char* value)
 
 static char* iGaugeGetMinAttrib(Ihandle* ih)
 {
-  return iupStrReturnFloat((float)ih->data->vmin);
+  return iupStrReturnDouble(ih->data->vmin);
 }
 
 static int iGaugeSetMaxAttrib(Ihandle* ih, const char* value)
 {
-  ih->data->vmax = atof(value);
-  iGaugeCropValue(ih);
+  if (iupStrToDouble(value, &(ih->data->vmax)))
+    iGaugeCropValue(ih);
+
   iGaugeRepaint(ih);
   return 0; /* do not store value in hash table */
 }
 
 static char* iGaugeGetMaxAttrib(Ihandle* ih)
 {
-  return iupStrReturnFloat((float)ih->data->vmax);
+  return iupStrReturnDouble(ih->data->vmax);
 }
 
 static int iGaugeSetShowTextAttrib(Ihandle* ih, const char* value)
@@ -339,22 +329,13 @@ static void iGaugeUnMapMethod(Ihandle* ih)
     cdKillCanvas(ih->data->cddbuffer);
     ih->data->cddbuffer = NULL;
   }
-
-  if (ih->data->cdcanvas)
-  {
-    cdKillCanvas(ih->data->cdcanvas);
-    ih->data->cdcanvas = NULL;
-  }
 }
 
 static int iGaugeMapMethod(Ihandle* ih)
 {
-  ih->data->cdcanvas = cdCreateCanvas(CD_IUP, ih);
-  if (!ih->data->cdcanvas)
+  ih->data->cddbuffer = cdCreateCanvas(CD_IUPDBUFFER, ih);
+  if (!ih->data->cddbuffer)
     return IUP_ERROR;
-
-  /* this can fail if canvas size is zero */
-  ih->data->cddbuffer = cdCreateCanvas(CD_DBUFFER, ih->data->cdcanvas);
 
   return IUP_NOERROR;
 }

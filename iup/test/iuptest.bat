@@ -1,3 +1,3 @@
 @echo off
-REM Script generated automatically by tecmake v4.6
-..\bin\Win32\iuptest.exe %*
+REM Script generated automatically by tecmake v4.10
+..\bin\Win64\iuptest.exe %*

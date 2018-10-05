@@ -75,10 +75,10 @@ static int cbUnHideAllTabs(Ihandle* ih)
     if (!IupGetIntId(tabs, "TABVISIBLE", i))
     {
       IupSetAttributeId(tabs, "TABVISIBLE", i, "Yes");
-      printf("tab %d = hidden\n", i);
+      printf("tab %d = was hidden\n", i);
     }
     else
-      printf("tab %d = visible\n", i);
+      printf("tab %d = is visible\n", i);
   }
 
   return IUP_DEFAULT;
@@ -117,28 +117,32 @@ static int cbTest(Ihandle* ih)
 {
   Ihandle* tabs = (Ihandle*)IupGetAttribute(ih, "APP_TABS");
 
+
+
+#if 0
   char att[50];
   int m_handle_id = 1;
   char* title;
   sprintf(att, "TABTITLE%d", m_handle_id);
-
   {
     Ihandle* child = IupGetChild(tabs, 1);
-    title = iupAttribGet(child, "TABTITLE");
     title = IupGetAttribute(child, "TABTITLE");
     printf("%s=%s\n", att, title);
   }
-
   title = IupGetAttribute(tabs, att);
   printf("%s=%s\n", att, title);
+#endif
 
-//  IupSetAttribute(tabs, "VALUEPOS", "0");
-//  IupSetAttribute(tabs, "TABTITLE0", "1asdasd");
-//  printf("VALUE=%s\n", IupGetAttribute(tabs, "VALUE"));
-//  if (IupGetInt(tabs, "TABVISIBLE2"))
-//    IupSetAttribute(tabs, "TABVISIBLE2", "No");
-//  else
-//    IupSetAttribute(tabs, "TABVISIBLE2", "Yes");
+#if 0
+  IupSetAttribute(tabs, "VALUEPOS", "0");
+  IupSetAttribute(tabs, "TABTITLE0", "1asdasd");
+  printf("VALUE=%s\n", IupGetAttribute(tabs, "VALUE"));
+  if (IupGetInt(tabs, "TABVISIBLE2"))
+    IupSetAttribute(tabs, "TABVISIBLE2", "No");
+  else
+    IupSetAttribute(tabs, "TABVISIBLE2", "Yes");
+#endif
+
   return IUP_DEFAULT;
 }
 
@@ -443,7 +447,7 @@ static Ihandle* CreateTabs(int tab)
   return tabs;
 }
 
-void TabsTest1(void)
+void TabsTest(void)
 {
   Ihandle *box, *frm1, *frm2, *dlg, *tabs;
 

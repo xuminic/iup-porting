@@ -18,12 +18,11 @@
 #ifdef WIN32
 #include <windows.h>
 #endif
-#ifdef __APPLE__
+
+#if defined (__APPLE__) || defined (OSX)
 #include <OpenGL/gl.h>
-#include <OpenGL/glu.h>
 #else
 #include <GL/gl.h>
-#include <GL/glu.h>
 #endif
 #endif
 
@@ -82,16 +81,19 @@ struct _IcontrolData
 
   int sync_view;
 
-  // This will be referenced from all plots
-#ifndef USE_OPENGL
-  cdCanvas* cdcanvas;       /* iup drawing surface */
-#endif
   cdCanvas* cddbuffer;      /* double buffer drawing surface */
 };
 
 
 static int iPPlotGetCDFontStyle(const char* value);
 
+static void iPPlotFlush(Ihandle* ih)
+{
+  cdCanvasFlush(ih->data->cddbuffer);
+#ifdef USE_OPENGL
+  IupGLSwapBuffers(ih);
+#endif
+}
 
 static void iPPlotSetPlotCurrent(Ihandle* ih, int p)
 {
@@ -104,21 +106,16 @@ static int iPPlotRedraw_CB(Ihandle* ih)
   if (!ih->data->cddbuffer)
     return IUP_DEFAULT;
 
-  cdCanvasActivate(ih->data->cddbuffer);
-
-  int old_index = ih->data->plt_index;
+  int old_current = ih->data->plt_index;
   for(int p=0; p<ih->data->plots_count; p++)
   {
     iPPlotSetPlotCurrent(ih, p);
-    ih->data->plt->Draw(0, 0);  /* full redraw only if nothing changed */
+    ih->data->plt->Paint(0, 0);  /* full redraw only if nothing changed */
   }
-  iPPlotSetPlotCurrent(ih, old_index);
+  iPPlotSetPlotCurrent(ih, old_current);
 
   // Do the flush once
-  cdCanvasFlush(ih->data->cddbuffer);
-#ifdef USE_OPENGL
-  IupGLSwapBuffers(ih);
-#endif
+  iPPlotFlush(ih);
 
   return IUP_DEFAULT;
 }
@@ -132,6 +129,7 @@ static void iPPlotUpdateSizes(Ihandle* ih)
 
   cdCanvasActivate(ih->data->cddbuffer);
   cdCanvasGetSize(ih->data->cddbuffer, &w, &h, NULL, NULL);
+
   int numcol = ih->data->plots_numcol;
   if (numcol > ih->data->plots_count) numcol = ih->data->plots_count;
   int numlin = ih->data->plots_count / numcol;
@@ -145,36 +143,23 @@ static void iPPlotUpdateSizes(Ihandle* ih)
     int px = col * pw;
     int py = lin * ph;
 
-    ih->data->plots[p]->Resize(px, py, pw, ph);
+    ih->data->plots[p]->SetSize(px, py, pw, ph);
   }
 }
 
 static int iPPlotResize_CB(Ihandle* ih)
 {
-#ifndef USE_OPENGL
-  if (!ih->data->cddbuffer)
-  {
-    /* update canvas size */
-    cdCanvasActivate(ih->data->cdcanvas);
-
-    /* this can fail if canvas size is zero */
-    if (IupGetInt(ih, "USE_IMAGERGB"))
-      ih->data->cddbuffer = cdCreateCanvas(CD_DBUFFERRGB, ih->data->cdcanvas);
-    else
-      ih->data->cddbuffer = cdCreateCanvas(CD_DBUFFER, ih->data->cdcanvas);
-  }
-#endif
-
   iPPlotUpdateSizes(ih);
-
   return IUP_DEFAULT;
 }
 
 static int iPPlotFindPlot(Ihandle* ih, int x, int y)
 {
   int w, h;
+
   cdCanvasActivate(ih->data->cddbuffer);
   cdCanvasGetSize(ih->data->cddbuffer, &w, &h, NULL, NULL);
+
   int numcol = ih->data->plots_numcol;
   if (numcol > ih->data->plots_count) numcol = ih->data->plots_count;
   int numlin = ih->data->plots_count / numcol;
@@ -194,18 +179,23 @@ static int iPPlotFindPlot(Ihandle* ih, int x, int y)
 static int iPPlotMouseButton_CB(Ihandle* ih, int btn, int stat, int x, int y, char* r)
 {
   int index = iPPlotFindPlot(ih, x, y);
-  if (index==-1)
+  if (index<0)
     return IUP_DEFAULT;
+
   iPPlotSetPlotCurrent(ih, index);
-  ih->data->plt->MouseButton(btn, stat, x-ih->data->plt->_x, y-ih->data->plt->_y, r);
 
   IFniiffs cb = (IFniiffs)IupGetCallback(ih, "PLOTBUTTON_CB");
   if (cb) 
   {
-    float rx = ih->data->plt->_plot.mXTrafo->TransformBack((float)x);
-    float ry = ih->data->plt->_plot.mYTrafo->TransformBack((float)y);
-    cb(ih, btn, stat, rx, ry, r);
+    ih->data->plt->UpdateViewport();
+
+    float rx = ih->data->plt->_plot.mXTrafo->TransformBack((float)(x - ih->data->plt->_x));
+    float ry = ih->data->plt->_plot.mYTrafo->TransformBack((float)(y - ih->data->plt->_y));
+    if (cb(ih, btn, stat, rx, ry, r) == IUP_IGNORE)
+      return IUP_DEFAULT;
   }
+
+  ih->data->plt->MouseButton(btn, stat, x - ih->data->plt->_x, y - ih->data->plt->_y, r);
 
   return IUP_DEFAULT;
 }
@@ -213,18 +203,23 @@ static int iPPlotMouseButton_CB(Ihandle* ih, int btn, int stat, int x, int y, ch
 static int iPPlotMouseMove_CB(Ihandle* ih, int x, int y)
 {
   int index = iPPlotFindPlot(ih, x, y);
-  if (index==-1)
+  if (index<0)
     return IUP_DEFAULT;
+
   iPPlotSetPlotCurrent(ih, index);
-  ih->data->plt->MouseMove(x-ih->data->plt->_x, y-ih->data->plt->_y);
 
   IFnff cb = (IFnff)IupGetCallback(ih, "PLOTMOTION_CB");
   if (cb) 
   {
-    float rx = ih->data->plt->_plot.mXTrafo->TransformBack((float)x);
-    float ry = ih->data->plt->_plot.mYTrafo->TransformBack((float)y);
-    cb(ih, rx, ry);
+    ih->data->plt->UpdateViewport();
+
+    float rx = ih->data->plt->_plot.mXTrafo->TransformBack((float)(x - ih->data->plt->_x));
+    float ry = ih->data->plt->_plot.mYTrafo->TransformBack((float)(y - ih->data->plt->_y));
+    if (cb(ih, rx, ry) == IUP_IGNORE)
+      return IUP_DEFAULT;
   }
+
+  ih->data->plt->MouseMove(x - ih->data->plt->_x, y - ih->data->plt->_y);
 
   return IUP_DEFAULT;
 }
@@ -232,8 +227,9 @@ static int iPPlotMouseMove_CB(Ihandle* ih, int x, int y)
 static int iPPlotWheel_CB(Ihandle *ih, float delta, int x, int y, char *status)
 {
   int index = iPPlotFindPlot(ih, x, y);
-  if (index==-1)
+  if (index<0)
     return IUP_DEFAULT;
+
   iPPlotSetPlotCurrent(ih, index);
   ih->data->plt->MouseWheel(delta, status);
   return IUP_DEFAULT;
@@ -241,13 +237,13 @@ static int iPPlotWheel_CB(Ihandle *ih, float delta, int x, int y, char *status)
 
 static int iPPlotKeyPress_CB(Ihandle* ih, int c, int press)
 {
-  int old_index = ih->data->plt_index;
-  for(int p=0; p<ih->data->plots_count; p++)
+  int old_current = ih->data->plt_index;
+  for (int p = 0; p<ih->data->plots_count; p++)
   {
     iPPlotSetPlotCurrent(ih, p);
     ih->data->plt->KeyPress(c, press);
   }
-  iPPlotSetPlotCurrent(ih, old_index);
+  iPPlotSetPlotCurrent(ih, old_current);
   return IUP_DEFAULT;
 } 
 
@@ -360,6 +356,50 @@ void IupPPlotInsert(Ihandle* ih, int inIndex, int inSampleIndex, float inX, floa
 
   theXData->insert(theXData->begin()+inSampleIndex, inX);
   theYData->insert(theYData->begin()+inSampleIndex, inY);
+}
+
+void IupPPlotGetSample(Ihandle* ih, int inIndex, int inSampleIndex, float *x, float *y)
+{
+  iupASSERT(iupObjectCheck(ih));
+  if (!iupObjectCheck(ih))
+    return;
+
+  if (ih->iclass->nativetype != IUP_TYPECANVAS ||
+    !IupClassMatch(ih, "pplot"))
+    return;
+
+  PlotDataBase* theXDataBase = ih->data->plt->_plot.mPlotDataContainer.GetXData(inIndex);
+  PlotDataBase* theYDataBase = ih->data->plt->_plot.mPlotDataContainer.GetYData(inIndex);
+  PlotData* theXData = (PlotData*)theXDataBase;
+  PlotData* theYData = (PlotData*)theYDataBase;
+
+  if (!theYData || !theXData || theXData->IsString())
+    return;
+
+  if (x) *x = theXData->GetValue(inSampleIndex);
+  if (y) *y = theYData->GetValue(inSampleIndex);
+}
+
+void IupPPlotGetSampleStr(Ihandle* ih, int inIndex, int inSampleIndex, const char* *x, float *y)
+{
+  iupASSERT(iupObjectCheck(ih));
+  if (!iupObjectCheck(ih))
+    return;
+
+  if (ih->iclass->nativetype != IUP_TYPECANVAS ||
+    !IupClassMatch(ih, "pplot"))
+    return;
+
+  PlotDataBase* theXDataBase = ih->data->plt->_plot.mPlotDataContainer.GetXData(inIndex);
+  PlotDataBase* theYDataBase = ih->data->plt->_plot.mPlotDataContainer.GetYData(inIndex);
+  StringPlotData* theXData = (StringPlotData*)theXDataBase;
+  PlotData* theYData = (PlotData*)theYDataBase;
+
+  if (!theYData || !theXData || !theXData->IsString())
+    return;
+
+  if (x) *x = (*(theXData->GetStringData()))[inSampleIndex].c_str();
+  if (y) *y = theYData->GetValue(inSampleIndex);
 }
 
 void IupPPlotAddPoints(Ihandle* ih, int inIndex, float *x, float *y, int count)
@@ -535,22 +575,17 @@ void IupPPlotPaintTo(Ihandle* ih, void* _cnv)
   cdCanvas *old_cddbuffer  = ih->data->cddbuffer;
   ih->data->cddbuffer = (cdCanvas*)_cnv;
 
-#ifndef USE_OPENGL
-  cdCanvas *old_cdcanvas = ih->data->cdcanvas;
-  ih->data->cdcanvas = (cdCanvas*)_cnv;
-#endif
-
   iPPlotUpdateSizes(ih);
 
-  for(int p=0; p<ih->data->plots_count; p++)
+  int old_current = ih->data->plt_index;
+  for (int p = 0; p<ih->data->plots_count; p++)
   {
-    ih->data->plots[p]->Draw(1, 0); /* no flush here */
+    iPPlotSetPlotCurrent(ih, p);
+    ih->data->plots[p]->Paint(1, 0); /* no flush here */
   }
+  iPPlotSetPlotCurrent(ih, old_current);
 
   ih->data->cddbuffer = old_cddbuffer;
-#ifndef USE_OPENGL
-  ih->data->cdcanvas  = old_cdcanvas;
-#endif
 
   iPPlotUpdateSizes(ih);
 }
@@ -837,9 +872,14 @@ class MarkDataDrawer: public LineDataDrawer
      _ih = inHandle;
    };
    virtual bool DrawPoint (int inScreenX, int inScreenY, const PRect &inRect, Painter &inPainter) const;
+   virtual DataDrawerBase* Clone() const;
 protected:
   Ihandle *_ih;   // IUP handle
 };
+
+DataDrawerBase* MarkDataDrawer::Clone() const {
+  return new MarkDataDrawer(*this);
+}
 
 bool MarkDataDrawer::DrawPoint (int inScreenX, int inScreenY, const PRect &inRect, Painter &inPainter) const
 {
@@ -900,8 +940,8 @@ static char* iPPlotGetPlotFontStyle(int style)
 {
   if (style >= CD_PLAIN && style <= CD_BOLD_ITALIC)
   {
-    char* style_str[4] = {"PLAIN", "BOLD", "ITALIC", "BOLDITALIC"};
-    return style_str[style];
+    const char* style_str[4] = {"PLAIN", "BOLD", "ITALIC", "BOLDITALIC"};
+    return (char*)style_str[style];
   }
   else
     return NULL;
@@ -911,8 +951,8 @@ static char* iPPlotGetPlotPenStyle(int style)
 {
   if (style >= CD_CONTINUOUS && style <= CD_DASH_DOT_DOT)
   {
-    char* style_str[5] = {"CONTINUOUS", "DASHED", "DOTTED", "DASH_DOT", "DASH_DOT_DOT"};
-    return style_str[style];
+    const char* style_str[5] = {"CONTINUOUS", "DASHED", "DOTTED", "DASH_DOT", "DASH_DOT_DOT"};
+    return (char*)style_str[style];
   }
   else
     return NULL;
@@ -938,8 +978,8 @@ static char* iPPlotGetPlotMarkStyle(int style)
 {
   if (style >= CD_PLUS && style <= CD_HOLLOW_DIAMOND)
   {
-    char* style_str[9] = {"PLUS", "STAR", "CIRCLE", "X", "BOX", "DIAMOND", "HOLLOW_CIRCLE", "HOLLOW_BOX", "HOLLOW_DIAMOND"};
-    return style_str[style];
+    const char* style_str[9] = {"PLUS", "STAR", "CIRCLE", "X", "BOX", "DIAMOND", "HOLLOW_CIRCLE", "HOLLOW_BOX", "HOLLOW_DIAMOND"};
+    return (char*)style_str[style];
   }
   else
     return NULL;
@@ -975,19 +1015,42 @@ static int iPPlotGetCDMarkStyle(const char* value)
 
 static int iPPlotSetRedrawAttrib(Ihandle* ih, const char* value)
 {
+  int flush = 1, 
+    current = 0;
+
   if (!ih->data->cddbuffer)
     return IUP_DEFAULT;
 
-  cdCanvasActivate(ih->data->cddbuffer);
-  cdCanvasClear(ih->data->cddbuffer);
-
-  int old_index = ih->data->plt_index;
-  for(int p=0; p<ih->data->plots_count; p++)
+  if (iupStrEqualNoCase(value, "NOFLUSH"))
+    flush = 0;
+  else if (iupStrEqualNoCase(value, "CURRENT"))
   {
-    iPPlotSetPlotCurrent(ih, p);
-    ih->data->plt->Draw(1, 1);   /* force a full redraw here */
+    flush = 0;
+    current = 1;
   }
-  iPPlotSetPlotCurrent(ih, old_index);
+
+  if (current)
+  {
+    ih->data->plt->Paint(1, 0);
+  }
+  else
+  {
+    int old_current = ih->data->plt_index;
+    for (int p = 0; p < ih->data->plots_count; p++)
+    {
+      iPPlotSetPlotCurrent(ih, p);
+      ih->data->plt->Paint(1, 0);
+    }
+    iPPlotSetPlotCurrent(ih, old_current);
+  }
+
+  if (ih->data->plots_count == 1 &&
+      ih->data->plt->_plot.mPlotDataContainer.GetPlotCount() == 0)
+    cdCanvasClear(ih->data->cddbuffer);
+
+  // Do the flush once
+  if (flush)
+    iPPlotFlush(ih);
 
   (void)value;  /* not used */
   return 0;
@@ -1033,9 +1096,8 @@ static int iPPlotSetLegendPosAttrib(Ihandle* ih, const char* value)
 
 static char* iPPlotGetLegendPosAttrib(Ihandle* ih)
 {
-  char* legendpos_str[4] = {"TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT"};
-
-  return legendpos_str[ih->data->plt->_plot.mLegendPos];
+  const char* legendpos_str[4] = {"TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT"};
+  return (char*)legendpos_str[ih->data->plt->_plot.mLegendPos];
 }
 
 static int iPPlotSetBGColorAttrib(Ihandle* ih, const char* value)
@@ -1516,6 +1578,11 @@ static char* iPPlotGetSyncViewAttrib(Ihandle* ih)
 {
   return iupStrReturnBoolean(ih->data->sync_view);
 }
+                                    
+static char* iPPlotGetCanvasAttrib(Ihandle* ih)
+{
+  return (char*)(ih->data->cddbuffer);
+}
 
 static void iPPlotCheckCurrentDataSet(Ihandle* ih)
 {
@@ -1761,7 +1828,9 @@ static int iPPlotSetDSModeAttrib(Ihandle* ih, const char* value)
     theDataDrawer = new BarDataDrawer();
     ih->data->plt->_plot.mXAxisSetup.mDiscrete = true;
   }
-  else if(iupStrEqualNoCase(value, "MARK"))
+  else if (iupStrEqualNoCase(value, "AREA"))
+    theDataDrawer = new AreaDataDrawer();
+  else if (iupStrEqualNoCase(value, "MARK"))
     theDataDrawer = new MarkDataDrawer(0, ih);
   else if(iupStrEqualNoCase(value, "MARKLINE"))
     theDataDrawer = new MarkDataDrawer(1, ih);
@@ -2776,25 +2845,35 @@ void PPainterIup::MouseButton(int btn, int stat, int x, int y, char *r)
 
   if( _InteractionContainer->HandleMouseEvent(theEvent))
   {
-    this->Draw(1, 1);
-
     if (btn == IUP_BUTTON1 && !_mouseDown && _ih->data->sync_view)
     {
+      this->Paint(1, 0);
+
       int size = _InteractionContainer->mZoomInteraction.GetZoomStackSize();
       if (size != old_size)
       {
-        for(int p=0; p<_ih->data->plots_count; p++)
+        int old_current = _ih->data->plt_index;
+
+        for (int p = 0; p<_ih->data->plots_count; p++)
         {
           if (_ih->data->plots[p] != this)
           {
             int off_x = _plot.mMargins.mLeft - _ih->data->plots[p]->_plot.mMargins.mLeft;
             int off_y = _plot.mMargins.mTop - _ih->data->plots[p]->_plot.mMargins.mTop;
             _ih->data->plots[p]->_InteractionContainer->mZoomInteraction.RepeatZoom(_InteractionContainer->mZoomInteraction, off_x, off_y);
-            _ih->data->plots[p]->Draw(1, 1);
+
+            iPPlotSetPlotCurrent(_ih, p);
+            _ih->data->plots[p]->Paint(1, 0);
           }
         }
+
+        iPPlotSetPlotCurrent(_ih, old_current);
       }
+
+      iPPlotFlush(_ih);
     }
+    else
+      this->Paint(1, 1);
   }
 }
 
@@ -2860,19 +2939,29 @@ void PPainterIup::MouseWheel(float delta, char *status)
       vertical = false;
   
     Pan(delta, vertical);
-    this->Draw(1, 1);
 
     if (_ih->data->sync_view)
     {
-      for(int p=0; p<_ih->data->plots_count; p++)
+      this->Paint(1, 0);
+
+      int old_current = _ih->data->plt_index;
+
+      for (int p = 0; p<_ih->data->plots_count; p++)
       {
         if (_ih->data->plots[p] != this)
         {
           _ih->data->plots[p]->Pan(delta, vertical);
-          _ih->data->plots[p]->Draw(1, 1);
+
+          iPPlotSetPlotCurrent(_ih, p);
+          _ih->data->plots[p]->Paint(1, 0);
         }
       }
+      iPPlotSetPlotCurrent(_ih, old_current);
+
+      iPPlotFlush(_ih);
     }
+    else
+      this->Paint(1, 1);
   }
 }
 
@@ -2903,7 +2992,7 @@ void PPainterIup::MouseMove(int x, int y)
   theEvent.SetModifierKeys (theModifierKeys);
 
   if(_InteractionContainer->HandleMouseEvent(theEvent))
-    this->Draw(1, 1);
+    this->Paint(1, 1);
 }
 
 void PPainterIup::KeyPress(int c, int press)
@@ -2962,10 +3051,33 @@ void PPainterIup::KeyPress(int c, int press)
   PKeyEvent theEvent (theKeyCode, theRepeatCount, theModifierKeys, theChar);
 
   if(_InteractionContainer->HandleKeyEvent(theEvent))
-    this->Draw(1, 1);
+    this->Paint(1, 1);
 }
 
-void PPainterIup::Draw(int force, int flush)
+void PPainterIup::UpdateViewport()
+{
+#ifdef USE_OPENGL
+  IupGLMakeCurrent(_ih);
+
+  glViewport(_x, _y, _width, _height);
+
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  glOrtho(_x, _x + _width, y, _y + _height, -1, 1);
+
+  glMatrixMode(GL_MODELVIEW);
+  glLoadIdentity();
+
+  char StrData[100];
+  sprintf(StrData, "%dx%d", _width, _height);
+  cdCanvasSetAttribute(_ih->data->cddbuffer, "SIZE", StrData);
+#endif
+
+  cdCanvasActivate(_ih->data->cddbuffer);
+  cdCanvasOrigin(_ih->data->cddbuffer, _x, _y);
+}
+
+void PPainterIup::Paint(int force, int flush)
 {
   if (!_ih->data->cddbuffer)
     return;
@@ -2973,11 +3085,9 @@ void PPainterIup::Draw(int force, int flush)
 #ifdef USE_OPENGL
   if (!IupGLIsCurrent(_ih))
     force = 1;
-  IupGLMakeCurrent(_ih);
 #endif
 
-  cdCanvasActivate(_ih->data->cddbuffer);
-  cdCanvasOrigin(_ih->data->cddbuffer, _x, _y);
+  UpdateViewport();
 
   if (force || _redraw)
   {
@@ -2986,47 +3096,16 @@ void PPainterIup::Draw(int force, int flush)
   }
 
   if (flush)
-  {
-    cdCanvasFlush(_ih->data->cddbuffer);
-
-#ifdef USE_OPENGL
-    IupGLSwapBuffers(_ih);
-#endif
-  }
+    iPPlotFlush(_ih);
 }
 
-void PPainterIup::Resize(int x, int y, int w, int h)
+void PPainterIup::SetSize(int x, int y, int w, int h)
 {
-  if (!_ih->data->cddbuffer)
-    return;
-
   _x = x;
   _y = y;
   _width = w;
   _height = h;
-
-#ifdef USE_OPENGL
-  IupGLMakeCurrent(_ih);
-  glViewport(x, y, w, h);
-
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity();
-  gluOrtho2D(x, x+w, y, y+h);
-
-  glMatrixMode(GL_MODELVIEW);
-  glLoadIdentity();
-
-  char StrData[100];
-  sprintf(StrData, "%dx%d", w, h);
-  cdCanvasSetAttribute(_ih->data->cddbuffer, "SIZE", StrData);
-#endif
-
-  /* update canvas size */
-  cdCanvasActivate(_ih->data->cddbuffer);
-
   _redraw = 1;
-
-  return;
 }
 
 void PPainterIup::FillArrow(int inX1, int inY1, int inX2, int inY2, int inX3, int inY3)
@@ -3038,6 +3117,30 @@ void PPainterIup::FillArrow(int inX1, int inY1, int inX2, int inY2, int inX3, in
   cdCanvasVertex(_ih->data->cddbuffer, inX1, cdCanvasInvertYAxis(_ih->data->cddbuffer, inY1));
   cdCanvasVertex(_ih->data->cddbuffer, inX2, cdCanvasInvertYAxis(_ih->data->cddbuffer, inY2));
   cdCanvasVertex(_ih->data->cddbuffer, inX3, cdCanvasInvertYAxis(_ih->data->cddbuffer, inY3));
+  cdCanvasEnd(_ih->data->cddbuffer);
+}
+
+void PPainterIup::BeginArea()
+{
+  if (!_ih->data->cddbuffer)
+    return;
+
+  cdCanvasBegin(_ih->data->cddbuffer, CD_FILL);
+}
+
+void PPainterIup::AddVertex(float inX, float inY)
+{
+  if (!_ih->data->cddbuffer)
+    return;
+
+  cdfCanvasVertex(_ih->data->cddbuffer, inX, cdfCanvasInvertYAxis(_ih->data->cddbuffer, inY));
+}
+
+void PPainterIup::EndArea()
+{
+  if (!_ih->data->cddbuffer)
+    return;
+
   cdCanvasEnd(_ih->data->cddbuffer);
 }
 
@@ -3058,27 +3161,6 @@ void PPainterIup::FillRect(int inX, int inY, int inW, int inH)
   cdCanvasBox(_ih->data->cddbuffer, inX, inX+inW, 
               cdCanvasInvertYAxis(_ih->data->cddbuffer, inY),
               cdCanvasInvertYAxis(_ih->data->cddbuffer, inY + inH - 1));
-}
-
-void PPainterIup::InvertRect(int inX, int inY, int inW, int inH)
-{
-  if (!_ih->data->cddbuffer)
-    return;
-
-  cdCanvas* cdcanvas = _ih->data->cddbuffer;
-#ifndef USE_OPENGL
-  cdcanvas = _ih->data->cdcanvas;
-#endif
-
-  cdCanvasWriteMode(cdcanvas, CD_NOT_XOR);
-  int old_lw = cdCanvasLineWidth(cdcanvas, 1);
-  long old_fg = cdCanvasForeground(cdcanvas, CD_WHITE);
-  cdCanvasRect(cdcanvas, inX, inX + inW - 1,
-               cdCanvasInvertYAxis(cdcanvas, inY),
-               cdCanvasInvertYAxis(cdcanvas, inY + inH - 1));
-  cdCanvasWriteMode(cdcanvas, CD_REPLACE);
-  cdCanvasForeground(cdcanvas, old_fg);
-  cdCanvasLineWidth(cdcanvas, old_lw);
 }
 
 void PPainterIup::SetClipRect(int inX, int inY, int inW, int inH)
@@ -3192,20 +3274,15 @@ static int iPPlotMapMethod(Ihandle* ih)
   if (IupGetInt(ih, "USE_GDI+") || IupGetInt(ih, "USE_CONTEXTPLUS"))
     old_gdi = cdUseContextPlus(1);
 
-  ih->data->cdcanvas = cdCreateCanvas(CD_IUP, ih);
-  if (ih->data->cdcanvas)
-  {
-    /* this can fail if canvas size is zero */
-    if (IupGetInt(ih, "USE_IMAGERGB"))
-      ih->data->cddbuffer = cdCreateCanvas(CD_DBUFFERRGB, ih->data->cdcanvas);
-    else
-      ih->data->cddbuffer = cdCreateCanvas(CD_DBUFFER, ih->data->cdcanvas);
+  if (IupGetInt(ih, "USE_IMAGERGB"))
+    ih->data->cddbuffer = cdCreateCanvas(CD_IUPDBUFFERRGB, ih);
+  else
+    ih->data->cddbuffer = cdCreateCanvas(CD_IUPDBUFFER, ih);
 
-    if (IupGetInt(ih, "USE_GDI+") || IupGetInt(ih, "USE_CONTEXTPLUS"))
-      cdUseContextPlus(old_gdi);
-  }
+  if (IupGetInt(ih, "USE_GDI+") || IupGetInt(ih, "USE_CONTEXTPLUS"))
+    cdUseContextPlus(old_gdi);
 
-  if (!ih->data->cdcanvas)
+  if (!ih->data->cddbuffer)
     return IUP_ERROR;
 #endif
 
@@ -3222,14 +3299,6 @@ static void iPPlotUnMapMethod(Ihandle* ih)
     cdKillCanvas(ih->data->cddbuffer);
     ih->data->cddbuffer = NULL;
   }
-
-#ifndef USE_OPENGL
-  if (ih->data->cdcanvas != NULL)
-  {
-    cdKillCanvas(ih->data->cdcanvas);
-    ih->data->cdcanvas = NULL;
-  }
-#endif
 }
 
 static void iPPlotDestroyMethod(Ihandle* ih)
@@ -3277,7 +3346,7 @@ static Iclass* iPPlotNewClass(void)
   Iclass* ic = iupClassNew(iupRegisterFindClass("canvas"));
 #endif
 
-  ic->name = "pplot";
+  ic->name = (char*)"pplot";
   ic->format = NULL;  /* none */
   ic->nativetype = IUP_TYPECANVAS;
   ic->childtype = IUP_CHILDNONE;
@@ -3293,6 +3362,8 @@ static Iclass* iPPlotNewClass(void)
   /* IupPPlot Callbacks */
   iupClassRegisterCallback(ic, "POSTDRAW_CB", "C");
   iupClassRegisterCallback(ic, "PREDRAW_CB", "C");
+  iupClassRegisterCallback(ic, "PLOTMOTION_CB", "ff");
+  iupClassRegisterCallback(ic, "PLOTBUTTON_CB", "iiffs");
   iupClassRegisterCallback(ic, "DELETE_CB", "iiff");
   iupClassRegisterCallback(ic, "DELETEBEGIN_CB", "");
   iupClassRegisterCallback(ic, "DELETEEND_CB", "");
@@ -3302,8 +3373,6 @@ static Iclass* iPPlotNewClass(void)
   iupClassRegisterCallback(ic, "EDIT_CB", "iiffff");
   iupClassRegisterCallback(ic, "EDITBEGIN_CB", "");
   iupClassRegisterCallback(ic, "EDITEND_CB", "");
-  iupClassRegisterCallback(ic, "PLOTMOTION_CB", "ff");
-  iupClassRegisterCallback(ic, "PLOTBUTTON_CB", "iiffs");
 
   /* Visual */
   iupClassRegisterAttribute(ic, "BGCOLOR", iPPlotGetBGColorAttrib, iPPlotSetBGColorAttrib, IUPAF_SAMEASSYSTEM, "255 255 255", IUPAF_NOT_MAPPED);   /* overwrite canvas implementation, set a system default to force a new default */
@@ -3313,6 +3382,7 @@ static Iclass* iPPlotNewClass(void)
 
   iupClassRegisterAttribute(ic, "REDRAW", NULL, iPPlotSetRedrawAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SYNCVIEW", iPPlotGetSyncViewAttrib, iPPlotSetSyncViewAttrib, NULL, NULL, IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "CANVAS", iPPlotGetCanvasAttrib, NULL, NULL, NULL, IUPAF_READONLY | IUPAF_NO_INHERIT);
 
   iupClassRegisterAttribute(ic, "TITLE", iPPlotGetTitleAttrib, iPPlotSetTitleAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "TITLEFONTSIZE", iPPlotGetTitleFontSizeAttrib, iPPlotSetTitleFontSizeAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);

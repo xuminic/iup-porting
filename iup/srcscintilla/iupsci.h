@@ -35,7 +35,8 @@ void iupScintillaRegisterScrolling(Iclass* ic);
 void iupScintillaRegisterAutocompletion(Iclass* ic);
 void iupScintillaRegisterSearching(Iclass* ic);
 
-sptr_t iupScintillaSendMessage(Ihandle* ih, unsigned int iMessage, uptr_t wParam, sptr_t lParam);
+/* this function is also exported in the DLL */
+sptr_t IupScintillaSendMessage(Ihandle* ih, unsigned int iMessage, uptr_t wParam, sptr_t lParam);
 
 enum {IUP_SCINTILLA_PLAIN, IUP_SCINTILLA_SQUIGGLE, IUP_SCINTILLA_TT, IUP_SCINTILLA_DIAGONAL, IUP_SCINTILLA_STRIKE, IUP_SCINTILLA_HIDDEN, IUP_SCINTILLA_BOX, IUP_SCINTILLA_ROUNDBOX, IUP_SCINTILLA_STRAIGHTBOX, IUP_SCINTILLA_DASH, IUP_SCINTILLA_DOTS, IUP_SCINTILLA_SQUIGGLELOW, IUP_SCINTILLA_DOTBOX, IUP_SCINTILLA_SQUIGGLEPIXMAP};
 

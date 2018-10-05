@@ -14,7 +14,6 @@
 
 #include "iuplua.h"
 #include "il.h"
-#include "il_controls.h"
 
 
 /* Used only by the Lua binding */
@@ -42,7 +41,7 @@ static int param_action(Ihandle* dialog, int param_index, void* user_data)
     lua_pushinteger(L, param_index);
     if (iuplua_call_raw(L, 2, 1) == 0)    /* 2 args, 1 return */
     {
-      ret = lua_tointeger(L,-1);
+      ret = (int)lua_tointeger(L, -1);
       lua_pop(L, 1);
     }
   }
@@ -106,6 +105,11 @@ static int GetParam(lua_State *L)
       param_data[i] = malloc(sizeof(float));
       *(float*)(param_data[i]) = (float)luaL_checknumber(L, lua_param_start); lua_param_start++;
       break;
+    case 'A':
+    case 'R':
+      param_data[i] = malloc(sizeof(double));
+      *(double*)(param_data[i]) = (double)luaL_checknumber(L, lua_param_start); lua_param_start++;
+      break;
     case 'f':
     case 's':
     case 'm':
@@ -117,7 +121,7 @@ static int GetParam(lua_State *L)
       else if (t == 'm')
         max_str = 10240;
       s = luaL_checkstring(L, lua_param_start); lua_param_start++;
-      size = strlen(s);
+      size = (int)strlen(s);
       if (size < max_str)
         param_data[i] = malloc(max_str);
       else
@@ -152,6 +156,10 @@ static int GetParam(lua_State *L)
       case 'o':
       case 'l':
         lua_pushinteger(L, *(int*)(param_data[i]));
+        break;
+      case 'A':
+      case 'R':
+        lua_pushnumber(L, *(double*)(param_data[i]));
         break;
       case 'a':
       case 'r':

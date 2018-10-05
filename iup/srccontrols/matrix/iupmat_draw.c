@@ -349,7 +349,7 @@ static int iMatrixDrawSortSign(Ihandle* ih, int x2, int y1, int y2, int col, int
 {
   int yc;
   char* sort = iupAttribGetId(ih, "SORTSIGN", col);
-  if (!sort)
+  if (!sort || iupStrEqualNoCase(sort, "NO"))
     return 0;
 
   /* Remove the space between text and cell frame */
@@ -806,7 +806,10 @@ static void iMatrixDrawFocus(Ihandle* ih)
   if (ih->data->lines.focus_cell == 1 && ih->data->lines.dt[0].size == 0)
     y1++;
 
-  IupCdDrawFocusRect(ih, ih->data->cdcanvas, x1, iupMATRIX_INVERTYAXIS(ih, y1), x2, iupMATRIX_INVERTYAXIS(ih, y2));
+  {
+    cdCanvas* cdcanvas = (cdCanvas*)IupGetAttribute(ih, "_CD_CANVAS");
+    IupCdDrawFocusRect(ih, cdcanvas, x1, iupMATRIX_INVERTYAXIS(ih, y1), x2, iupMATRIX_INVERTYAXIS(ih, y2));
+  }
 }
 
 

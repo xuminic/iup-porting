@@ -213,9 +213,10 @@ static int gtkTabsSetTabVisibleAttrib(Ihandle* ih, int pos, const char* value)
   return 0;
 }
 
-int iupdrvTabsIsTabVisible(Ihandle* child)
+int iupdrvTabsIsTabVisible(Ihandle* child, int pos)
 {
   GtkWidget* tab_page = (GtkWidget*)iupAttribGet(child, "_IUPTAB_PAGE");
+  (void)pos;
   return iupgtkIsVisible(tab_page);
 }
 
@@ -256,7 +257,7 @@ static int gtkTabsSetBgColorAttrib(Ihandle* ih, const char* value)
 /* gtkTabs - Callbacks                                                       */
 /* ------------------------------------------------------------------------- */
 
-static void gtkTabSwitchPage(GtkNotebook* notebook, void* page, int pos, Ihandle* ih)
+static void gtkTabsSwitchPage(GtkNotebook* notebook, void* page, int pos, Ihandle* ih)
 {
   IFnnn cb;
   Ihandle* child = IupGetChild(ih, pos);
@@ -284,7 +285,7 @@ static void gtkTabSwitchPage(GtkNotebook* notebook, void* page, int pos, Ihandle
   (void)page;
 }
 
-static gboolean gtkTabButtonPressEvent(GtkWidget *widget, GdkEventButton *evt, Ihandle *child)
+static gboolean gtkTabsButtonPressEvent(GtkWidget *widget, GdkEventButton *evt, Ihandle *child)
 {
   Ihandle* ih = IupGetParent(child);
   IFni cb = (IFni)IupGetCallback(ih, "RIGHTCLICK_CB");
@@ -398,8 +399,14 @@ static void gtkTabsChildAddedMethod(Ihandle* ih, Ihandle* child)
 
     if(ih->data->show_close)
     {
+#if GTK_CHECK_VERSION(3, 10, 0)
+      GtkWidget* image = gtk_image_new_from_icon_name("window-close", GTK_ICON_SIZE_MENU);
+#else
+      GtkWidget* image = gtk_image_new_from_stock(GTK_STOCK_CLOSE, GTK_ICON_SIZE_MENU);
+#endif
+
       tab_close = gtk_button_new();
-      gtk_button_set_image((GtkButton*)tab_close, gtk_image_new_from_stock(GTK_STOCK_CLOSE, GTK_ICON_SIZE_MENU));
+      gtk_button_set_image((GtkButton*)tab_close, image);
       gtk_button_set_relief((GtkButton*)tab_close, GTK_RELIEF_NONE);
       gtk_button_set_focus_on_click((GtkButton*)tab_close, FALSE);
       iupgtkSetCanFocus(tab_close, FALSE);
@@ -428,7 +435,7 @@ static void gtkTabsChildAddedMethod(Ihandle* ih, Ihandle* child)
     /* RIGHTCLICK_CB will not work without the eventbox */
     evtBox = gtk_event_box_new();
     gtk_widget_add_events(evtBox, GDK_BUTTON_PRESS_MASK);
-    g_signal_connect(G_OBJECT(evtBox), "button-press-event", G_CALLBACK(gtkTabButtonPressEvent), child);
+    g_signal_connect(G_OBJECT(evtBox), "button-press-event", G_CALLBACK(gtkTabsButtonPressEvent), child);
 
     if (tabimage && tabtitle)
     {
@@ -519,7 +526,7 @@ static void gtkTabsChildRemovedMethod(Ihandle* ih, Ihandle* child)
     {
       int pos = gtk_notebook_page_num((GtkNotebook*)ih->handle, tab_page);
 
-      iupTabsCheckCurrentTab(ih, pos);
+      iupTabsCheckCurrentTab(ih, pos, 1);
 
       iupAttribSet(ih, "_IUPGTK_IGNORE_CHANGE", "1");
       gtk_notebook_remove_page((GtkNotebook*)ih->handle, pos);
@@ -556,7 +563,7 @@ static int gtkTabsMapMethod(Ihandle* ih)
   g_signal_connect(G_OBJECT(ih->handle), "key-press-event",     G_CALLBACK(iupgtkKeyPressEvent),   ih);
   g_signal_connect(G_OBJECT(ih->handle), "show-help",           G_CALLBACK(iupgtkShowHelp),        ih);
 
-  g_signal_connect(G_OBJECT(ih->handle), "switch-page",         G_CALLBACK(gtkTabSwitchPage), ih);
+  g_signal_connect(G_OBJECT(ih->handle), "switch-page",         G_CALLBACK(gtkTabsSwitchPage), ih);
 
   gtk_widget_realize(ih->handle);
 
@@ -600,3 +607,4 @@ void iupdrvTabsInitClass(Iclass* ic)
   /* NOT supported */
   iupClassRegisterAttribute(ic, "MULTILINE", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_DEFAULT);
 }
+

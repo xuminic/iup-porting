@@ -245,37 +245,78 @@ static int iSplitAction_CB(Ihandle* bar)
 
   if (ih->data->showgrip)
   {
-    int i, w, h, x, y, count;
-    unsigned char r = 160, g = 160, b = 160, bg_r, bg_g, bg_b;
+    int w, h, x, y;
+    unsigned char r = 160, g = 160, b = 160;
     iupDrawGetSize(dc, &w, &h);
 
-    iupStrToRGB(IupGetAttribute(ih, "COLOR"), &r, &g, &b);
-    if (r+g+b > 3*190)
-      { bg_r = 100; bg_g = 100; bg_b = 100; }
-    else
-      { bg_r = 255; bg_g = 255; bg_b = 255; }
+    iupStrToRGB(iupAttribGetStr(ih, "COLOR"), &r, &g, &b);
 
-    if (ih->data->orientation == ISPLIT_VERT)
+    if (ih->data->showgrip == 1)
     {
-      x = ih->data->barsize/2-1;
-      y = 2;
-      count = (h-2)/5;
-    }
-    else
-    {
-      x = 2;
-      y = ih->data->barsize/2-1;
-      count = (w-2)/5;
-    }
+      int i, count;
+      unsigned char bg_r, bg_g, bg_b;
 
-    for (i = 0; i < count; i++)
-    {
-      iupDrawRectangle(dc, x+1, y+1, x+2, y+2, bg_r, bg_g, bg_b, IUP_DRAW_FILL);
-      iupDrawRectangle(dc, x, y, x+1, y+1, r, g, b, IUP_DRAW_FILL);
-      if (ih->data->orientation == ISPLIT_VERT)
-        y += 5;
+      if (r + g + b > 3 * 190)
+      {
+        bg_r = 100; bg_g = 100; bg_b = 100;
+      }
       else
-        x += 5;
+      {
+        bg_r = 255; bg_g = 255; bg_b = 255;
+      }
+
+      if (ih->data->orientation == ISPLIT_VERT)
+      {
+        x = ih->data->barsize / 2 - 1;
+        y = 2;
+        count = (h - 2) / 5;
+      }
+      else
+      {
+        x = 2;
+        y = ih->data->barsize / 2 - 1;
+        count = (w - 2) / 5;
+      }
+
+      for (i = 0; i < count; i++)
+      {
+        iupDrawRectangle(dc, x + 1, y + 1, x + 2, y + 2, bg_r, bg_g, bg_b, IUP_DRAW_FILL);
+        iupDrawRectangle(dc, x, y, x + 1, y + 1, r, g, b, IUP_DRAW_FILL);
+        if (ih->data->orientation == ISPLIT_VERT)
+          y += 5;
+        else
+          x += 5;
+      }
+    }
+    else
+    {
+      if (ih->data->orientation == ISPLIT_VERT)
+      {
+        x = ih->data->barsize / 2;
+
+        iupDrawLine(dc, x - 1, 0, x - 1, h - 1, r, g, b, IUP_DRAW_STROKE);
+        iupDrawLine(dc, x + 1, 0, x + 1, h - 1, r, g, b, IUP_DRAW_STROKE);
+      }
+      else
+      {
+        y = ih->data->barsize / 2;
+
+        iupDrawLine(dc, 0, y - 1, w - 1, y - 1, r, g, b, IUP_DRAW_STROKE);
+        iupDrawLine(dc, 0, y + 1, w - 1, y + 1, r, g, b, IUP_DRAW_STROKE);
+      }
+    }
+  }
+  else
+  {
+    char* color = iupAttribGet(ih, "COLOR");
+    if (color)
+    {
+      unsigned char r = 160, g = 160, b = 160;
+      int w, h;
+      iupDrawGetSize(dc, &w, &h);
+
+      iupStrToRGB(iupAttribGetStr(ih, "COLOR"), &r, &g, &b);
+      iupDrawRectangle(dc, 0, 0, w-1, h-1, r, g, b, IUP_DRAW_FILL);
     }
   }
 
@@ -391,6 +432,21 @@ static int iSplitFocus_CB(Ihandle* bar, int focus)
 |* Attributes                                                                *|
 \*****************************************************************************/
 
+
+static char* iSplitGetClientSizeAttrib(Ihandle* ih)
+{
+  int width = ih->currentwidth;
+  int height = ih->currentheight;
+
+  if (ih->data->orientation == ISPLIT_VERT)
+    width -= ih->data->barsize;
+  else
+    height -= ih->data->barsize;
+
+  if (width < 0) width = 0;
+  if (height < 0) height = 0;
+  return iupStrReturnIntInt(width, height, 'x');
+}
 
 static int iSplitSetColorAttrib(Ihandle* ih, const char* value)
 {
@@ -513,10 +569,15 @@ static int iSplitSetShowGripAttrib(Ihandle* ih, const char* value)
     ih->data->showgrip = 1;
   else
   {
-    ih->data->showgrip = 0;
+    if (iupStrEqualNoCase(value, "LINES"))
+      ih->data->showgrip = 2;
+    else
+    {
+      ih->data->showgrip = 0;
 
-    if (ih->data->barsize == 5)
-      iSplitSetBarSizeAttrib(ih, "3");
+      if (ih->data->barsize == 5)
+        iSplitSetBarSizeAttrib(ih, "3");
+    }
   }
 
   return 0; /* do not store value in hash table */
@@ -524,7 +585,10 @@ static int iSplitSetShowGripAttrib(Ihandle* ih, const char* value)
 
 static char* iSplitGetShowGripAttrib(Ihandle* ih)
 {
-  return iupStrReturnBoolean (ih->data->showgrip); 
+  if (ih->data->showgrip == 2)
+    return "LINES";
+  else
+    return iupStrReturnBoolean (ih->data->showgrip); 
 }
 
 static int iSplitSetAutoHideAttrib(Ihandle* ih, const char* value)
@@ -826,7 +890,7 @@ Iclass* iupSplitNewClass(void)
 
   /* Base Container */
   iupClassRegisterAttribute(ic, "EXPAND", iupBaseContainerGetExpandAttrib, NULL, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "CLIENTSIZE", iupBaseGetRasterSizeAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_READONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "CLIENTSIZE", iSplitGetClientSizeAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_READONLY | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "CLIENTOFFSET", iupBaseGetClientOffsetAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_READONLY|IUPAF_NO_INHERIT);
 
   /* IupSplit only */

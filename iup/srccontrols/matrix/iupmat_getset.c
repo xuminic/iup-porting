@@ -56,7 +56,7 @@ void iupMatrixModifyValue(Ihandle* ih, int lin, int col, const char* value)
 static char* iMatrixSetValueNumeric(Ihandle* ih, int lin, int col, const char* value, int convert)
 {
   double number;
-  if (sscanf(value, "%lf", &number) == 1)   /* lf=double */
+  if (iupStrToDouble(value, &number))
   {
     IFniid setvalue_cb;
 
@@ -74,7 +74,7 @@ static char* iMatrixSetValueNumeric(Ihandle* ih, int lin, int col, const char* v
     else if (convert && ih->data->numeric_columns[col].unit_shown!=ih->data->numeric_columns[col].unit) 
     {
       /* only use the number if a conversion occurred */
-      sprintf(ih->data->numeric_buffer_set, "%.18g", number);  /* maximum double precision */
+      sprintf(ih->data->numeric_buffer_set, IUP_DOUBLE2STR, number);
       value = ih->data->numeric_buffer_set;
     }
   }
@@ -160,7 +160,7 @@ double iupMatrixGetValueNumber(Ihandle* ih, int lin, int col)
   }
   else
   {
-    if (sscanf(value, "%lf", &number) != 1)   /* lf=double */
+    if (!iupStrToDouble(value, &number))
       return 0;
   }
 
@@ -217,12 +217,30 @@ char* iupMatrixGetValueString(Ihandle* ih, int lin, int col)
     if (getvalue_cb)
     {
       double number = getvalue_cb(ih, lin, col);
-      sprintf(ih->data->numeric_buffer_get, "%.18g", number);
+      sprintf(ih->data->numeric_buffer_get, IUP_DOUBLE2STR, number);
       return ih->data->numeric_buffer_get;
     }
   }
 
   return value;
+}
+
+char* iupMatrixGetNumericFormatDef(Ihandle* ih)
+{
+  char* format = iupAttribGet(ih, "NUMERICFORMATDEF");
+  if (!format)
+  {
+    int prec = IupGetInt(NULL, "DEFAULTPRECISION");
+    if (prec == 2)
+      format = "%.2lf";
+    else
+    {
+      static char f[30];
+      sprintf(f, "%%.%dlf", prec);
+      format = f;
+    }
+  }
+  return format;
 }
 
 static char* iMatrixGetValueNumericDisplay(Ihandle* ih, int lin, int col, const char* value)
@@ -256,8 +274,8 @@ static char* iMatrixGetValueNumericDisplay(Ihandle* ih, int lin, int col, const 
   if (ih->data->numeric_columns[col].flags & IMAT_HAS_FORMAT)
     format = iupAttribGetId(ih, "NUMERICFORMAT", col);
 
-  if (format==NULL)
-    format = iupAttribGetStr(ih, "NUMERICFORMATDEF");
+  if (format == NULL)
+    format = iupMatrixGetNumericFormatDef(ih);
 
   if (!value)
   {
@@ -269,7 +287,7 @@ static char* iMatrixGetValueNumericDisplay(Ihandle* ih, int lin, int col, const 
   }
   else
   {
-    if (sscanf(value, "%lf", &number) != 1)   /* lf=double */
+    if (!iupStrToDouble(value, &number))
       return (char*)value;
   }
 

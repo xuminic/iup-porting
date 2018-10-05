@@ -32,9 +32,9 @@ typedef struct _IattribFunc
 } IattribFunc;
 
 
-static int iClassIsGlobalDefault(const char* name)
+int iupClassIsGlobalDefault(const char* name, int colors)
 {
-  if (iupStrEqual(name, "DEFAULTFONT"))
+  if (!colors && iupStrEqual(name, "DEFAULTFONT"))
     return 1;
   if (iupStrEqual(name, "DLGBGCOLOR"))
     return 1;
@@ -43,6 +43,8 @@ static int iClassIsGlobalDefault(const char* name)
   if (iupStrEqual(name, "TXTBGCOLOR"))
     return 1;
   if (iupStrEqual(name, "TXTFGCOLOR"))
+    return 1;
+  if (iupStrEqual(name, "LINKFGCOLOR"))
     return 1;
   if (iupStrEqual(name, "MENUBGCOLOR"))
     return 1;
@@ -94,7 +96,7 @@ int iupClassObjectSetAttributeId2(Ihandle* ih, const char* name, int id1, int id
   IattribFunc* afunc;
 
   if (ih->iclass->has_attrib_id!=2)
-    return 0;
+    return 1;  /* function not found, default to string */
 
   if (name[0]==0)
     name = "IDVALUE";  /* pure numbers are used as attributes in IupList and IupMatrix, 
@@ -130,7 +132,7 @@ int iupClassObjectSetAttributeId2(Ihandle* ih, const char* name, int id1, int id
       return -1; /* value is NOT a string, can NOT call iupAttribSetStr */
   }
 
-  return 1;
+  return 1;  /* function not found, default to string */
 }
 
 int iupClassObjectSetAttributeId(Ihandle* ih, const char* name, int id, const char * value)
@@ -138,7 +140,7 @@ int iupClassObjectSetAttributeId(Ihandle* ih, const char* name, int id, const ch
   IattribFunc* afunc;
 
   if (ih->iclass->has_attrib_id==0)
-    return 0;
+    return 1;  /* function not found, default to string */
 
   if (name[0]==0)
     name = "IDVALUE";  /* pure numbers are used as attributes in IupList and IupMatrix, 
@@ -166,7 +168,7 @@ int iupClassObjectSetAttributeId(Ihandle* ih, const char* name, int id, const ch
       return -1; /* value is NOT a string, can NOT call iupAttribSetStr */
   }
 
-  return 1;
+  return 1;  /* function not found, default to string */
 }
 
 int iupClassObjectSetAttribute(Ihandle* ih, const char* name, const char * value, int *inherit)
@@ -272,7 +274,7 @@ int iupClassObjectSetAttribute(Ihandle* ih, const char* name, const char * value
     }
   }
 
-  return 1;
+  return 1;  /* function not found, default to string */
 }
 
 char* iupClassObjectGetAttributeId2(Ihandle* ih, const char* name, int id1, int id2)
@@ -475,7 +477,15 @@ int iupClassObjectCurAttribIsInherit(Iclass* ic)
 int iupClassObjectAttribIsNotString(Ihandle* ih, const char* name)
 {
   IattribFunc* afunc = (IattribFunc*)iupTableGet(ih->iclass->attrib_func, name);
-  if (afunc && (afunc->flags & IUPAF_NO_STRING || afunc->flags & IUPAF_CALLBACK))
+  if (afunc && (afunc->flags & IUPAF_NO_STRING || afunc->flags & IUPAF_CALLBACK || afunc->flags & IUPAF_IHANDLE))
+    return 1;
+  return 0;
+}
+
+int iupClassObjectAttribIsIhandle(Ihandle* ih, const char* name)
+{
+  IattribFunc* afunc = (IattribFunc*)iupTableGet(ih->iclass->attrib_func, name);
+  if (afunc && (afunc->flags & IUPAF_IHANDLE))
     return 1;
   return 0;
 }
@@ -524,7 +534,7 @@ void iupClassRegisterAttribute(Iclass* ic, const char* name,
   afunc->system_default = _system_default;
   afunc->flags = _flags;
 
-  if (iClassIsGlobalDefault(afunc->default_value))
+  if (iupClassIsGlobalDefault(afunc->default_value, 0))
     afunc->call_global_default = 1;
   else
     afunc->call_global_default = 0;
@@ -605,6 +615,11 @@ void iupClassRegisterReplaceAttribDef(Iclass* ic, const char* name, const char* 
     else
       afunc->default_value = _default_value;
     afunc->system_default = _system_default;
+
+    if (iupClassIsGlobalDefault(afunc->default_value, 0))
+      afunc->call_global_default = 1;
+    else
+      afunc->call_global_default = 0;
   }
 }
 
@@ -731,7 +746,7 @@ void IupSetClassDefaultAttribute(const char* classname, const char *name, const 
     else
       afunc->default_value = default_value;
 
-    if (iClassIsGlobalDefault(afunc->default_value))
+    if (iupClassIsGlobalDefault(afunc->default_value, 0))
       afunc->call_global_default = 1;
     else
       afunc->call_global_default = 0;

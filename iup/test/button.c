@@ -260,7 +260,7 @@ static void set_callbacks(Ihandle* button)
 
 //  IupSetCallback(button, "GETFOCUS_CB",  (Icallback)getfocus_cb); 
 //  IupSetCallback(button, "KILLFOCUS_CB", (Icallback)killfocus_cb);
-//  IupSetCallback(button, "ENTERWINDOW_CB", (Icallback)enterwindow_cb);
+  IupSetCallback(button, "ENTERWINDOW_CB", (Icallback)enterwindow_cb);
 //  IupSetCallback(button, "LEAVEWINDOW_CB", (Icallback)leavewindow_cb);
 }
 
@@ -356,6 +356,7 @@ void ButtonTest(void)
   IupSetAttribute(image1, "4", "255 255 255"); 
   IupSetAttribute(image1, "5", "0 0 0"); 
 
+#if 0
   image1i = IupImage(TEST_IMAGE_SIZE, TEST_IMAGE_SIZE, image_data_8_inactive);
   IupSetAttribute(image1i, "0", "BGCOLOR");
   IupSetAttribute(image1i, "1", "255 0 0"); 
@@ -364,7 +365,9 @@ void ButtonTest(void)
   IupSetAttribute(image1i, "4", "255 255 255"); 
   IupSetAttribute(image1i, "5", "0 0 0"); 
   IupSetHandle("image1i", image1i); /* so it will be destroyed even when not used */
+#endif
 
+#if 0
   image1p = IupImage(TEST_IMAGE_SIZE, TEST_IMAGE_SIZE, image_data_8_pressed);
   IupSetAttribute(image1p, "0", "BGCOLOR");
   IupSetAttribute(image1p, "1", "255 0 0"); 
@@ -372,6 +375,7 @@ void ButtonTest(void)
   IupSetAttribute(image1p, "3", "0 0 255"); 
   IupSetAttribute(image1p, "4", "255 255 255"); 
   IupSetAttribute(image1p, "5", "0 0 0"); 
+#endif
 
   image2 = IupImageRGB(TEST_IMAGE_SIZE, TEST_IMAGE_SIZE, image_data_24);
 
@@ -445,7 +449,11 @@ void ButtonTest(void)
 
   IupShow(dlg);
 
-//  IupShowXY(dlg,IUP_LEFT,IUP_TOP);
+//  IupSetAttribute(dlg, "PARENTDIALOG", "BIGTEST");
+//  IupShowXY(dlg, IUP_CENTERPARENT, IUP_CENTERPARENT);
+  //  IupShowXY(dlg,IUP_LEFT,IUP_TOP);
+//  IupShowXY(dlg, IUP_RIGHT, IUP_BOTTOM);
+//  IupShowXY(dlg, IUP_RIGHT, IUP_CENTER);
 //  IupShowXY(dlg,0,0);
 }
 

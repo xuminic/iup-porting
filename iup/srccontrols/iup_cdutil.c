@@ -122,8 +122,11 @@ void cdIupDrawHorizSunkenMark(cdCanvas *canvas, int x1, int x2, int y, long ligh
 void IupCdDrawFocusRect(Ihandle* ih, cdCanvas *canvas, int x1, int y1, int x2, int y2)
 {
   int y, x, w, h;
+
 #ifdef WIN32
   void* gc = cdCanvasGetAttribute(canvas, "HDC");
+  if (!gc)
+    gc = cdCanvasGetAttribute(canvas, "GC");  /* for Cairo running in Windows */
 #else
   void* gc = cdCanvasGetAttribute(canvas, "GC");  /* works for X11, GDK and Cairo */
 #endif
@@ -156,10 +159,10 @@ void cdIupDrawFocusRect(cdCanvas *canvas, int x1, int y1, int x2, int y2)
 
 void IupCdSetFont(Ihandle* ih, cdCanvas *canvas, const char* font)
 {
-  char* lastfont = iupAttribGetStr(ih, "_IUPLAST_FONT");
+  char* lastfont = iupAttribGetStr(ih, "_IUPCD_LASTFONT");
   if (!lastfont || !iupStrEqual(lastfont, font))
   {
-    iupAttribSetStr(ih, "_IUPLAST_FONT", font);
+    iupAttribSetStr(ih, "_IUPCD_LASTFONT", font);
     cdCanvasNativeFont(canvas, font);
   }
 }
@@ -284,7 +287,7 @@ static unsigned char* cdIupBuildImageBuffer(Ihandle *image, int width, int heigh
 
 void cdIupDrawImage(cdCanvas *canvas, Ihandle *image, int x, int y, int make_inactive, long bgcolor)
 {
-  int size, plane_size, depth;
+  int plane_size, depth;
   int width = IupGetInt(image, "WIDTH");
   int height = IupGetInt(image, "HEIGHT");
   int bpp = IupGetInt(image, "BPP");
@@ -296,6 +299,7 @@ void cdIupDrawImage(cdCanvas *canvas, Ihandle *image, int x, int y, int make_ina
   else if (bpp==32)
     depth = 4;
 
+  /* The buffer will be destroyed in IupImage unmap */
   if (depth!=1 && make_inactive)
     image_buffer = (unsigned char*)iupAttribGet(image, "_IUPIMAGE_CDIMAGE_INACTIVE");
   else
@@ -315,7 +319,6 @@ void cdIupDrawImage(cdCanvas *canvas, Ihandle *image, int x, int y, int make_ina
     return;
 
   plane_size = width*height;
-  size = plane_size*depth;
 
   if (depth==1)
   {

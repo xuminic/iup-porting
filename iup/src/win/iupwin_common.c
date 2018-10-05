@@ -55,6 +55,7 @@ int iupwinClassExist(const TCHAR* name)
 
 int iupwinGetScreenRes(void)
 {
+  /* same as iupdrvGetScreenDpi, but returns an integer value */
   int res;
   HDC ScreenDC = GetDC(NULL);
   res = GetDeviceCaps(ScreenDC, LOGPIXELSY);
@@ -139,46 +140,44 @@ void iupdrvClientToScreen(Ihandle* ih, int *x, int *y)
   *y = p.y;
 }
 
-static void winTrackMouse(HWND hwnd, int enter)
+void iupwinTrackMouseLeave(Ihandle* ih)
 {
   TRACKMOUSEEVENT mouse;
   mouse.cbSize = sizeof(TRACKMOUSEEVENT);
-
-  if (enter)
-    mouse.dwFlags = TME_HOVER;
-  else
-    mouse.dwFlags = TME_LEAVE;
-
-  mouse.hwndTrack = hwnd;
-  mouse.dwHoverTime = 1;
+  mouse.dwFlags = TME_LEAVE;
+  mouse.hwndTrack = ih->handle;
+  mouse.dwHoverTime = HOVER_DEFAULT;  /* unused */
   TrackMouseEvent(&mouse);
 }
 
 static void winCallEnterLeaveWindow(Ihandle *ih, int enter)
 {
-  Icallback cb = NULL;
+  Icallback enter_cb = IupGetCallback(ih, "ENTERWINDOW_CB");
+  Icallback leave_cb = IupGetCallback(ih, "LEAVEWINDOW_CB");
 
-  if (!ih->iclass->is_interactive)
+  if (!enter_cb && !leave_cb)
     return;
 
   if (enter)
   {
-    winTrackMouse(ih->handle, 0);
-
     if (!iupAttribGetInt(ih, "_IUPWIN_ENTERWIN"))
     {
-      cb = IupGetCallback(ih,"ENTERWINDOW_CB");
+      /* must be called so WM_MOUSELEAVE can also be called */
+      iupwinTrackMouseLeave(ih);
+
       iupAttribSet(ih, "_IUPWIN_ENTERWIN", "1");
+
+      if (enter_cb)
+        enter_cb(ih);
     }
   }
   else 
   {
-    cb = IupGetCallback(ih,"LEAVEWINDOW_CB");
     iupAttribSet(ih, "_IUPWIN_ENTERWIN", NULL);
-  }
 
-  if (cb)
-    cb(ih);
+    if (leave_cb)
+      leave_cb(ih);
+  }
 }
 
 void iupwinMergeStyle(Ihandle* ih, DWORD old_mask, DWORD value)
@@ -696,7 +695,7 @@ static HCURSOR winLoadComCtlCursor(LPCTSTR lpCursorName)
   return cur;
 }
 
-static HCURSOR winGetCursor(Ihandle* ih, const char* name)
+HCURSOR iupwinGetCursor(Ihandle* ih, const char* name)
 {
   static struct {
     const char* iupname;
@@ -777,7 +776,7 @@ static HCURSOR winGetCursor(Ihandle* ih, const char* name)
 int iupdrvBaseSetCursorAttrib(Ihandle* ih, const char* value)
 {
   /* Cursor can be NULL in Windows. */
-  HCURSOR hCur = winGetCursor(ih, value);
+  HCURSOR hCur = iupwinGetCursor(ih, value);
   iupAttribSet(ih, "_IUPWIN_HCURSOR", (char*)hCur);  /* To be used in WM_SETCURSOR */
   /* refresh the cursor */
   SendMessage(ih->handle, WM_SETCURSOR, (WPARAM)ih->handle, MAKELPARAM(1,WM_MOUSEMOVE));

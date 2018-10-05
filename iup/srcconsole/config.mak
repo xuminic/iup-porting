@@ -1,6 +1,6 @@
 PROJNAME = iup
 APPNAME := iuplua
-APPTYPE = CONSOLE
+APPTYPE = console
 
 STRIP = 
 OPT = YES      
@@ -77,6 +77,7 @@ ifdef ALL_STATIC
   #IUPLUA_NO_GL = Yes
   ifndef IUPLUA_NO_GL 
     USE_OPENGL = Yes
+    USE_IUPGLCONTROLS = Yes
   else
     DEFINES += IUPLUA_NO_GL
   endif
@@ -164,6 +165,7 @@ endif
 
 
 ifneq ($(findstring Win, $(TEC_SYSNAME)), )
+  #Comment the following line to build under MingW
   SLIB += setargv.obj
   SRC += iuplua5.rc
 endif

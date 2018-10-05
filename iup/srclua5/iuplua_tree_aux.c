@@ -12,7 +12,6 @@
 
 #include "iuplua.h"
 #include "il.h"
-#include "il_controls.h"
 
 /* 
    The REGISTRY is used to store references to the associated Lua objects.
@@ -26,7 +25,7 @@
 /* iup.TREEREFTABLE[object at pos] = ref */
 static void tree_settableref(lua_State *L, int pos, int ref)
 {
-  lua_getglobal(L, "iup");
+  lua_getglobal(L, iuplua_getglobaltable());
   lua_pushstring(L, "TREEREFTABLE");
   lua_gettable(L, -2);
   lua_remove(L, -2); /* remove "iup" from stack */
@@ -43,7 +42,7 @@ static void tree_settableref(lua_State *L, int pos, int ref)
 /* ref = iup.TREEREFTABLE[object at pos] */
 static int tree_gettableref(lua_State *L, int pos)
 {
-  lua_getglobal(L, "iup");
+  lua_getglobal(L, iuplua_getglobaltable());
   lua_pushstring(L, "TREEREFTABLE");
   lua_gettable(L, -2);
   lua_remove(L, -2); /* remove "iup" from stack */
@@ -57,7 +56,7 @@ static int tree_gettableref(lua_State *L, int pos)
   }
   else
   {
-    int ref = lua_tointeger(L, -1);
+    int ref = (int)lua_tointeger(L, -1);
     lua_pop(L, 1);
     return ref;
   }

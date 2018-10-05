@@ -74,7 +74,6 @@ struct _IcontrolData
   unsigned char red, green, blue;  /* 0<=x<=255 */
 
   cdCanvas *cddbuffer;
-  cdCanvas *cdcanvas;
 };
 
 
@@ -170,7 +169,7 @@ static void iColorBrowserRenderImageHue(Ihandle* ih)
 
       xl = x - ih->data->xc;
       yl = y - ih->data->yc;
-      radius = sqrtf(xl*xl + yl*yl);
+      radius = sqrtf((float)xl*xl + (float)yl*yl);
 
       diff1 = radius - (ih->data->R-ICB_SPACE-ICB_HUEWIDTH);
       diff2 = (ih->data->R-ICB_SPACE) - radius;
@@ -183,7 +182,7 @@ static void iColorBrowserRenderImageHue(Ihandle* ih)
         unsigned char* g = green + offset;
         unsigned char* b = blue + offset;
 
-        h = atan2f(yl, xl);
+        h = atan2f((float)yl, (float)xl);
         h = (float)(h * CD_RAD2DEG);
         s = 1.0f;   /* maximum saturation */
         i = 0.5f;   /* choose I where S is maximum */
@@ -240,7 +239,7 @@ static void iColorBrowserRenderImageSI(Ihandle* ih)
   int x, y, active = 1;
   unsigned char *red, *green, *blue;
   unsigned char bg_red, bg_green, bg_blue;
-  float angle, cos_angle, sin_angle;
+
   if (!ih->data->cddbuffer)
     return;
 
@@ -252,10 +251,6 @@ static void iColorBrowserRenderImageSI(Ihandle* ih)
   blue = cdBlueImage(ih->data->cddbuffer);
 
   cdDecodeColor(ih->data->bgcolor, &bg_red, &bg_green, &bg_blue);
-
-  angle = ih->data->hue * ICB_DEG2RAD;
-  cos_angle = cosf(angle);
-  sin_angle = sinf(angle);
 
   for (y = 0; y < ih->data->h; y++)
   {
@@ -356,7 +351,7 @@ static void iColorBrowserSetCursorHue(Ihandle* ih, int x, int y)
 {
   int xl = x - ih->data->xc;
   int yl = y - ih->data->yc;
-  ih->data->hue = (float)(atan2f(yl, xl) * CD_RAD2DEG);
+  ih->data->hue = (float)(atan2f((float)yl, (float)xl) * CD_RAD2DEG);
   ih->data->hue = fmodf(ih->data->hue, 360.0f);
   if (ih->data->hue < 0.0f)
     ih->data->hue += 360.0f;
@@ -368,7 +363,7 @@ static int iColorBrowserCheckInside(Ihandle* ih, int x, int y)
 {
   int xl = x - ih->data->xc;
   int yl = y - ih->data->yc;
-  float radius = sqrtf(xl*xl + yl*yl);
+  float radius = sqrtf((float)xl*xl + (float)yl*yl);
 
   if (radius < ih->data->R-ICB_SPACE-ICB_HUEWIDTH-ICB_SPACE)
     return ICB_INSIDE_SI;
@@ -397,22 +392,27 @@ static void iColorBrowserUpdateDisplay(Ihandle* ih)
   if (!ih->data->cddbuffer)
     return;
 
+  cdCanvasActivate(ih->data->cddbuffer);
   cdCanvasFlush(ih->data->cddbuffer);  /* swap the RGB to the display canvas */
 
   if (iupdrvIsActive(ih))
   {
-    cdCanvasForeground(ih->data->cdcanvas, CD_GRAY);
-    cdCanvasArc(ih->data->cdcanvas, ih->data->h_x+1, ih->data->h_y, ICB_MARKSIZE, ICB_MARKSIZE, 0, 360);
-    cdCanvasArc(ih->data->cdcanvas, ih->data->si_x+1, ih->data->si_y, ICB_MARKSIZE, ICB_MARKSIZE, 0, 360);
-    cdCanvasForeground(ih->data->cdcanvas, CD_WHITE);
-    cdCanvasArc(ih->data->cdcanvas, ih->data->h_x, ih->data->h_y, ICB_MARKSIZE, ICB_MARKSIZE, 0, 360);
-    cdCanvasArc(ih->data->cdcanvas, ih->data->si_x, ih->data->si_y, ICB_MARKSIZE, ICB_MARKSIZE, 0, 360);
+    cdCanvas* cdcanvas = (cdCanvas*)IupGetAttribute(ih, "_CD_CANVAS");
+
+    cdCanvasForeground(cdcanvas, CD_GRAY);
+    cdCanvasArc(cdcanvas, ih->data->h_x+1, ih->data->h_y, ICB_MARKSIZE, ICB_MARKSIZE, 0, 360);
+    cdCanvasArc(cdcanvas, ih->data->si_x+1, ih->data->si_y, ICB_MARKSIZE, ICB_MARKSIZE, 0, 360);
+    cdCanvasForeground(cdcanvas, CD_WHITE);
+    cdCanvasArc(cdcanvas, ih->data->h_x, ih->data->h_y, ICB_MARKSIZE, ICB_MARKSIZE, 0, 360);
+    cdCanvasArc(cdcanvas, ih->data->si_x, ih->data->si_y, ICB_MARKSIZE, ICB_MARKSIZE, 0, 360);
   }
   else
   {
-    cdCanvasForeground(ih->data->cdcanvas, CD_DARK_GRAY);
-    cdCanvasSector(ih->data->cdcanvas, ih->data->h_x, ih->data->h_y, ICB_MARKSIZE+1, ICB_MARKSIZE+1, 0, 360);
-    cdCanvasSector(ih->data->cdcanvas, ih->data->si_x, ih->data->si_y, ICB_MARKSIZE+1, ICB_MARKSIZE+1, 0, 360);
+    cdCanvas* cdcanvas = (cdCanvas*)IupGetAttribute(ih, "_CD_CANVAS");
+
+    cdCanvasForeground(cdcanvas, CD_DARK_GRAY);
+    cdCanvasSector(cdcanvas, ih->data->h_x, ih->data->h_y, ICB_MARKSIZE+1, ICB_MARKSIZE+1, 0, 360);
+    cdCanvasSector(cdcanvas, ih->data->si_x, ih->data->si_y, ICB_MARKSIZE+1, ICB_MARKSIZE+1, 0, 360);
   }
 }
 
@@ -473,7 +473,7 @@ static int iColorBrowserButton_CB(Ihandle* ih, int b, int press, int x, int y)
   if (b != IUP_BUTTON1)
     return IUP_DEFAULT;
 
-  cdCanvasUpdateYAxis(ih->data->cdcanvas, &y);
+  y = cdIupInvertYAxis(y, ih->data->h);
 
   if (press)
   {
@@ -521,12 +521,12 @@ static int iColorBrowserMotion_CB(Ihandle* ih, int x, int y, char *status)
 
   if (ih->data->h_down)
   {
-    cdCanvasUpdateYAxis(ih->data->cdcanvas, &y);
+    y = cdIupInvertYAxis(y, ih->data->h);
     iColorBrowserHmouse(ih, x, y, 1);
   }
   else if (ih->data->si_down)
   {
-    cdCanvasUpdateYAxis(ih->data->cdcanvas, &y);
+    y = cdIupInvertYAxis(y, ih->data->h);
     iColorBrowserSImouse(ih, x, y, 1);
   }
 
@@ -563,18 +563,6 @@ static void iColorBrowserUpdateSize(Ihandle* ih)
 
 static int iColorBrowserResize_CB(Ihandle* ih)
 {
-  if (!ih->data->cddbuffer)
-  {
-    /* update canvas size */
-    cdCanvasActivate(ih->data->cdcanvas);
-
-    /* this can fail if canvas size is zero */
-    ih->data->cddbuffer = cdCreateCanvas(CD_DBUFFERRGB, ih->data->cdcanvas);
-  }
-
-  if (!ih->data->cddbuffer)
-    return IUP_DEFAULT;
-
   /* update size */
   iColorBrowserUpdateSize(ih);
 
@@ -674,7 +662,7 @@ static int iColorBrowserKeypress_CB(Ihandle* ih, int c, int press)
 
 static char* iColorBrowserGetHSIAttrib(Ihandle* ih)
 {
-  return iupStrReturnStrf("%.9f %.9f %.9f", (double)ih->data->hue, (double)ih->data->saturation, (double)ih->data->intensity);
+  return iupStrReturnStrf(IUP_FLOAT2STR" "IUP_FLOAT2STR" "IUP_FLOAT2STR, ih->data->hue, ih->data->saturation, ih->data->intensity);
 }
 
 static int iColorBrowserSetHSIAttrib(Ihandle* ih, const char* value)
@@ -755,15 +743,11 @@ static int iColorBrowserSetActiveAttrib(Ihandle* ih, const char* value)
 
 static int iColorBrowserMapMethod(Ihandle* ih)
 {
-  ih->data->cdcanvas = cdCreateCanvas(CD_IUP, ih);
-  if (!ih->data->cdcanvas)
+  ih->data->cddbuffer = cdCreateCanvas(CD_IUPDBUFFERRGB, ih);
+  if (!ih->data->cddbuffer)
     return IUP_ERROR;
 
-  /* this can fail if canvas size is zero */
-  ih->data->cddbuffer = cdCreateCanvas(CD_DBUFFERRGB, ih->data->cdcanvas);
-
-  if (ih->data->cddbuffer)
-    iColorBrowserUpdateSize(ih);
+  iColorBrowserUpdateSize(ih);
 
   return IUP_NOERROR;
 }
@@ -774,12 +758,6 @@ static void iColorBrowserUnMapMethod(Ihandle* ih)
   {
     cdKillCanvas(ih->data->cddbuffer);
     ih->data->cddbuffer = NULL;
-  }
-
-  if (ih->data->cdcanvas)
-  {
-    cdKillCanvas(ih->data->cdcanvas);
-    ih->data->cdcanvas = NULL;
   }
 }
 

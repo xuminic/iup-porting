@@ -4,6 +4,8 @@
 * See Copyright Notice in "iup.h"
 */
 
+/* gtk_progress_bar_set_bar_style and gtk_progress_set_activity_mode are deprecated, 
+   but we still use it in GTK2 */
 #undef GTK_DISABLE_DEPRECATED
 #include <gtk/gtk.h>
 
@@ -56,7 +58,8 @@ static int gtkProgressBarSetValueAttrib(Ihandle* ih, const char* value)
   if (!value)
     ih->data->value = 0;
   else
-    ih->data->value = atof(value);
+    iupStrToDouble(value, &(ih->data->value));
+
   iProgressBarCropValue(ih);
 
   gtk_progress_bar_set_fraction(pbar, (ih->data->value - ih->data->vmin) / (ih->data->vmax - ih->data->vmin));

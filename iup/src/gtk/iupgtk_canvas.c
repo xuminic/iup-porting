@@ -30,7 +30,7 @@
 #include "iupgtk_drv.h"
 
 
-static void gtkCanvasUpdateChildLayout(Ihandle *ih)
+static void gtkCanvasUpdateChildLayout(Ihandle *ih, int flush)
 {
   GtkContainer* sb_win = (GtkContainer*)iupAttribGet(ih, "_IUP_EXTRAPARENT");
   GtkWidget* sb_horiz = (GtkWidget*)iupAttribGet(ih, "_IUPGTK_SBHORIZ");
@@ -51,7 +51,9 @@ static void gtkCanvasUpdateChildLayout(Ihandle *ih)
     iupgtkSetPosSize(sb_win, sb_horiz, border, height-sb_horiz_height-border, width-sb_vert_width-2*border, sb_horiz_height);
 
   iupgtkSetPosSize(sb_win, ih->handle, border, border, width-sb_vert_width-2*border, height-sb_horiz_height-2*border);
-  IupFlush();
+
+  if (flush)
+    IupFlush();
 }
 
 static int gtkCanvasScroll2Iup(GtkScrollType scroll, int vert)
@@ -128,13 +130,15 @@ static void gtkCanvasAdjustHorizValueChanged(GtkAdjustment *adjustment, Ihandle 
   cb = (IFniff)IupGetCallback(ih,"SCROLL_CB");
   if (cb)
   {
-    int op = iupAttribGetInt(ih, "_IUPGTK_SBOP");
+    int op = IUP_SBPOSH;
+    char* sbop = iupAttribGet(ih, "_IUPGTK_SBOP");
+    if (sbop) iupStrToInt(sbop, &op);
     if (op == -1)
       return;
 
     cb(ih, op, posx, posy);
 
-    iupAttribSetInt(ih, "_IUPGTK_SBOP", -1);
+    iupAttribSet(ih, "_IUPGTK_SBOP", NULL);
   }
   else
   {
@@ -177,13 +181,15 @@ static void gtkCanvasAdjustVertValueChanged(GtkAdjustment *adjustment, Ihandle *
   cb = (IFniff)IupGetCallback(ih,"SCROLL_CB");
   if (cb)
   {
-    int op = iupAttribGetInt(ih, "_IUPGTK_SBOP");
+    int op = IUP_SBPOSV;
+    char* sbop = iupAttribGet(ih, "_IUPGTK_SBOP");
+    if (sbop) iupStrToInt(sbop, &op);
     if (op == -1)
       return;
 
     cb(ih, op, posx, posy);
 
-    iupAttribSetInt(ih, "_IUPGTK_SBOP", -1);
+    iupAttribSet(ih, "_IUPGTK_SBOP", NULL);
   }
   else
   {
@@ -195,7 +201,7 @@ static void gtkCanvasAdjustVertValueChanged(GtkAdjustment *adjustment, Ihandle *
 
 static gboolean gtkCanvasScrollEvent(GtkWidget *widget, GdkEventScroll *evt, Ihandle *ih)
 {    
-  /* occours only for the mouse wheel. Not related to the scrollbars */
+  /* occurs only for the mouse wheel. Not related to the scrollbars */
   IFnfiis wcb = (IFnfiis)IupGetCallback(ih, "WHEEL_CB");
   if (wcb)
   {
@@ -326,7 +332,7 @@ static void gtkCanvasLayoutUpdateMethod(Ihandle *ih)
       gdk_window_resize(window, ih->currentwidth, ih->currentheight);
   }
 
-  gtkCanvasUpdateChildLayout(ih);
+  gtkCanvasUpdateChildLayout(ih, 0);
 }
 
 static void gtkCanvasSizeAllocate(GtkWidget* widget, GdkRectangle *allocation, Ihandle *ih)
@@ -376,7 +382,7 @@ static int gtkCanvasSetDXAttrib(Ihandle* ih, const char *value)
     GtkWidget* sb_horiz = (GtkWidget*)iupAttribGet(ih, "_IUPGTK_SBHORIZ");
     if (!sb_horiz) return 1;
 
-    if (!iupStrToFloat(value, &dx))
+    if (!iupStrToFloatDef(value, &dx, 0.1f))
       return 1;
 
     xmin = iupAttribGetFloat(ih, "XMIN");
@@ -400,7 +406,7 @@ static int gtkCanvasSetDXAttrib(Ihandle* ih, const char *value)
         if (iupgtkIsVisible(sb_horiz))
         {
           gtk_widget_hide(sb_horiz);
-          gtkCanvasUpdateChildLayout(ih);
+          gtkCanvasUpdateChildLayout(ih, 1);
         }
       }
       else
@@ -415,7 +421,7 @@ static int gtkCanvasSetDXAttrib(Ihandle* ih, const char *value)
       if (!iupgtkIsVisible(sb_horiz))
       {
         gtk_widget_show(sb_horiz);
-        gtkCanvasUpdateChildLayout(ih);
+        gtkCanvasUpdateChildLayout(ih, 1);
       }
       gtk_widget_set_sensitive(sb_horiz, TRUE);
     }
@@ -458,7 +464,7 @@ static int gtkCanvasSetDYAttrib(Ihandle* ih, const char *value)
     GtkWidget* sb_vert = (GtkWidget*)iupAttribGet(ih, "_IUPGTK_SBVERT");
     if (!sb_vert) return 1;
 
-    if (!iupStrToFloat(value, &dy))
+    if (!iupStrToFloatDef(value, &dy, 0.1f))
       return 1;
 
     ymin = iupAttribGetFloat(ih, "YMIN");
@@ -482,7 +488,7 @@ static int gtkCanvasSetDYAttrib(Ihandle* ih, const char *value)
         if (iupgtkIsVisible(sb_vert))
         {
           gtk_widget_hide(sb_vert);
-          gtkCanvasUpdateChildLayout(ih);
+          gtkCanvasUpdateChildLayout(ih, 1);
         }
       }
       else
@@ -497,7 +503,7 @@ static int gtkCanvasSetDYAttrib(Ihandle* ih, const char *value)
       if (!iupgtkIsVisible(sb_vert))
       {
         gtk_widget_show(sb_vert);
-        gtkCanvasUpdateChildLayout(ih);
+        gtkCanvasUpdateChildLayout(ih, 1);
       }
       gtk_widget_set_sensitive(sb_vert, TRUE);
     }
@@ -734,8 +740,6 @@ static int gtkCanvasMapMethod(Ihandle* ih)
 
   gtk_widget_realize(sb_win);
 
-  iupAttribSetInt(ih, "_IUPGTK_SBOP", -1);
-
   if (ih->data->sb & IUP_SB_HORIZ)
   {
 #if GTK_CHECK_VERSION(3, 0, 0)
@@ -780,7 +784,10 @@ static int gtkCanvasMapMethod(Ihandle* ih)
 
   /* force the update of BGCOLOR here, to let derived classes ignore it if ACTION is defined */
   gtkCanvasSetBgColorAttrib(ih, iupAttribGetStr(ih, "BGCOLOR"));
-    
+
+  gtkCanvasSetDXAttrib(ih, NULL);
+  gtkCanvasSetDYAttrib(ih, NULL);
+
   return IUP_NOERROR;
 }
 
@@ -798,8 +805,8 @@ void iupdrvCanvasInitClass(Iclass* ic)
   /* IupCanvas only */
   iupClassRegisterAttribute(ic, "DRAWSIZE", gtkCanvasGetDrawSizeAttrib, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
 
-  iupClassRegisterAttribute(ic, "DX", NULL, gtkCanvasSetDXAttrib, "0.1", NULL, IUPAF_NO_INHERIT);  /* force new default value */
-  iupClassRegisterAttribute(ic, "DY", NULL, gtkCanvasSetDYAttrib, "0.1", NULL, IUPAF_NO_INHERIT);  /* force new default value */
+  iupClassRegisterAttribute(ic, "DX", NULL, gtkCanvasSetDXAttrib, NULL, NULL, IUPAF_NO_INHERIT);  /* force new default value */
+  iupClassRegisterAttribute(ic, "DY", NULL, gtkCanvasSetDYAttrib, NULL, NULL, IUPAF_NO_INHERIT);  /* force new default value */
   iupClassRegisterAttribute(ic, "POSX", iupCanvasGetPosXAttrib, gtkCanvasSetPosXAttrib, "0", NULL, IUPAF_NO_INHERIT);  /* force new default value */
   iupClassRegisterAttribute(ic, "POSY", iupCanvasGetPosYAttrib, gtkCanvasSetPosYAttrib, "0", NULL, IUPAF_NO_INHERIT);  /* force new default value */
 

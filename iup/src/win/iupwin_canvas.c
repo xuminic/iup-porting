@@ -60,7 +60,7 @@ static int winCanvasSetDXAttrib(Ihandle* ih, const char *value)
     float dx;
     int iposx, ipagex;
 
-    if (!iupStrToFloat(value, &dx))
+    if (!iupStrToFloatDef(value, &dx, 0.1f))
       return 1;
 
     xmin = iupAttribGetFloat(ih, "XMIN");
@@ -83,44 +83,18 @@ static int winCanvasSetDXAttrib(Ihandle* ih, const char *value)
     }
     else
     {
-      ShowScrollBar(ih->handle, SB_HORZ, TRUE);
+      ShowScrollBar(ih->handle, SB_HORZ, FALSE);
       EnableScrollBar(ih->handle, SB_HORZ, ESB_ENABLE_BOTH);
+
+      winCanvasSetScrollInfo(ih->handle, IUP_SB_MIN, IUP_SB_MAX, iposx, ipagex, SB_HORZ);
+      ShowScrollBar(ih->handle, SB_HORZ, TRUE);
+
+      /* update position because it could be corrected */
+      iupCanvasCalcScrollRealPos(xmin, xmax, &posx, 
+                                 IUP_SB_MIN, IUP_SB_MAX, ipagex, &iposx);
+
+      ih->data->posx = (float)posx;
     }
-
-    winCanvasSetScrollInfo(ih->handle, IUP_SB_MIN, IUP_SB_MAX, iposx, ipagex, SB_HORZ);
-
-    /* update position because it could be corrected */
-    iupCanvasCalcScrollRealPos(xmin, xmax, &posx, 
-                               IUP_SB_MIN, IUP_SB_MAX, ipagex, &iposx);
-
-    ih->data->posx = (float)posx;
-  }
-  return 1;
-}
-
-static int winCanvasSetPosXAttrib(Ihandle *ih, const char *value)
-{
-  if (ih->data->sb & IUP_SB_HORIZ)
-  {
-    double xmin, xmax, dx;
-    float posx;
-    int iposx, ipagex;
-
-    if (!iupStrToFloat(value, &posx))
-      return 1;
-
-    xmin = iupAttribGetFloat(ih, "XMIN");
-    xmax = iupAttribGetFloat(ih, "XMAX");
-    dx = iupAttribGetFloat(ih, "DX");
-
-    if (posx < xmin) posx = (float)xmin;
-    if (posx > (xmax - dx)) posx = (float)(xmax - dx);
-    ih->data->posx = posx;
-
-    iupCanvasCalcScrollIntPos(xmin, xmax, dx, posx, 
-                              IUP_SB_MIN, IUP_SB_MAX, &ipagex, &iposx);
-
-    SetScrollPos(ih->handle, SB_HORZ, iposx, TRUE);
   }
   return 1;
 }
@@ -133,7 +107,7 @@ static int winCanvasSetDYAttrib(Ihandle* ih, const char *value)
     float dy;
     int iposy, ipagey;
 
-    if (!iupStrToFloat(value, &dy))
+    if (!iupStrToFloatDef(value, &dy, 0.1f))
       return 1;
 
     ymin = iupAttribGetFloat(ih, "YMIN");
@@ -156,17 +130,45 @@ static int winCanvasSetDYAttrib(Ihandle* ih, const char *value)
     }
     else
     {
-      ShowScrollBar(ih->handle, SB_VERT, TRUE);
+      ShowScrollBar(ih->handle, SB_VERT, FALSE);
       EnableScrollBar(ih->handle, SB_VERT, ESB_ENABLE_BOTH);
+
+      winCanvasSetScrollInfo(ih->handle, IUP_SB_MIN, IUP_SB_MAX, iposy, ipagey, SB_VERT);
+      ShowScrollBar(ih->handle, SB_VERT, TRUE);
+
+      /* update position because it could be corrected */
+      iupCanvasCalcScrollRealPos(ymin, ymax, &posy, 
+                                 IUP_SB_MIN, IUP_SB_MAX, ipagey, &iposy);
+
+      ih->data->posy = (float)posy;
     }
+  }
+  return 1;
+}
 
-    winCanvasSetScrollInfo(ih->handle, IUP_SB_MIN, IUP_SB_MAX, iposy, ipagey, SB_VERT);
+static int winCanvasSetPosXAttrib(Ihandle *ih, const char *value)
+{
+  if (ih->data->sb & IUP_SB_HORIZ)
+  {
+    double xmin, xmax, dx;
+    float posx;
+    int iposx, ipagex;
 
-    /* update position because it could be corrected */
-    iupCanvasCalcScrollRealPos(ymin, ymax, &posy, 
-                               IUP_SB_MIN, IUP_SB_MAX, ipagey, &iposy);
+    if (!iupStrToFloat(value, &posx))
+      return 1;
 
-    ih->data->posy = (float)posy;
+    xmin = iupAttribGetFloat(ih, "XMIN");
+    xmax = iupAttribGetFloat(ih, "XMAX");
+    dx = iupAttribGetFloat(ih, "DX");
+
+    if (posx < xmin) posx = (float)xmin;
+    if (posx >(xmax - dx)) posx = (float)(xmax - dx);
+    ih->data->posx = posx;
+
+    iupCanvasCalcScrollIntPos(xmin, xmax, dx, posx,
+      IUP_SB_MIN, IUP_SB_MAX, &ipagex, &iposx);
+
+    SetScrollPos(ih->handle, SB_HORZ, iposx, TRUE);
   }
   return 1;
 }
@@ -538,17 +540,17 @@ static int winCanvasMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT
     ReleaseCapture();
     break;
   case WM_VSCROLL:
-    if (!iupAttribGetBoolean(ih, "MDICLIENT"))
+    /* only update the scrollbar if not a MDI client AND a standard scrollbar */
+    if (!iupAttribGetBoolean(ih, "MDICLIENT") && lp == 0)
     {
-      /* only update the scrollbar is not a MDI client */
       winCanvasUpdateVerScroll(ih, LOWORD(wp));
       *result = 0;
       return 1;
     }
   case WM_HSCROLL:
-    if (!iupAttribGetBoolean(ih, "MDICLIENT"))
+    /* only update the scrollbar if not a MDI client AND a standard scrollbar */
+    if (!iupAttribGetBoolean(ih, "MDICLIENT") && lp == 0)
     {
-      /* only update the scrollbar is not a MDI client */
       winCanvasUpdateHorScroll(ih, LOWORD(wp));
       *result = 0;
       return 1;
@@ -634,6 +636,9 @@ static int winCanvasMapMethod(Ihandle* ih)
   if (IupGetCallback(ih, "DROPFILES_CB"))
     iupAttribSet(ih, "DROPFILESTARGET", "YES");
 
+  winCanvasSetDXAttrib(ih, NULL);
+  winCanvasSetDYAttrib(ih, NULL);
+
   return IUP_NOERROR;
 }
 
@@ -711,8 +716,8 @@ void iupdrvCanvasInitClass(Iclass* ic)
   /* IupCanvas only */
   iupClassRegisterAttribute(ic, "DRAWSIZE", winCanvasGetDrawSizeAttrib, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
 
-  iupClassRegisterAttribute(ic, "DX", NULL, winCanvasSetDXAttrib, "0.1", NULL, IUPAF_NO_INHERIT);  /* force new default value */
-  iupClassRegisterAttribute(ic, "DY", NULL, winCanvasSetDYAttrib, "0.1", NULL, IUPAF_NO_INHERIT);  /* force new default value */
+  iupClassRegisterAttribute(ic, "DX", NULL, winCanvasSetDXAttrib, NULL, NULL, IUPAF_NO_INHERIT);  /* force new default value */
+  iupClassRegisterAttribute(ic, "DY", NULL, winCanvasSetDYAttrib, NULL, NULL, IUPAF_NO_INHERIT);  /* force new default value */
   iupClassRegisterAttribute(ic, "POSX", iupCanvasGetPosXAttrib, winCanvasSetPosXAttrib, "0", NULL, IUPAF_NO_INHERIT);  /* force new default value */
   iupClassRegisterAttribute(ic, "POSY", iupCanvasGetPosYAttrib, winCanvasSetPosYAttrib, "0", NULL, IUPAF_NO_INHERIT);  /* force new default value */
   iupClassRegisterAttribute(ic, "XAUTOHIDE", NULL, NULL, "YES", NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);

@@ -335,7 +335,7 @@ static int motTabsSetTabVisibleAttrib(Ihandle* ih, int pos, const char* value)
   }
   else
   {
-    iupTabsCheckCurrentTab(ih, pos);
+    iupTabsCheckCurrentTab(ih, pos, 0);
 
     XtVaSetValues(child_manager, XmNpageNumber, XmUNSPECIFIED_PAGE_NUMBER, NULL);
     XtVaSetValues(tab_button, XmNpageNumber, XmUNSPECIFIED_PAGE_NUMBER, NULL);
@@ -346,11 +346,12 @@ static int motTabsSetTabVisibleAttrib(Ihandle* ih, int pos, const char* value)
   return 0;
 }
 
-int iupdrvTabsIsTabVisible(Ihandle* child)
+int iupdrvTabsIsTabVisible(Ihandle* child, int pos)
 {
   Widget tab_button = (Widget)iupAttribGet(child, "_IUPMOT_TABBUTTON");
   XWindowAttributes wa;
   XGetWindowAttributes(iupmot_display, XtWindow(tab_button), &wa);
+  (void)pos;
   return (wa.map_state == IsViewable);
 }
 
@@ -386,7 +387,7 @@ void motTabsPageChangedCallback(Widget w, Ihandle* ih, XmNotebookCallbackStruct 
   (void)w; 
 }
 
-static void motTabButtonPressEvent(Widget w, Ihandle* child, XButtonEvent* evt, Boolean* cont)
+static void motTabsButtonPressEvent(Widget w, Ihandle* child, XButtonEvent* evt, Boolean* cont)
 {
   Ihandle* ih = IupGetParent(child);
   IFni cb = (IFni)IupGetCallback(ih, "RIGHTCLICK_CB");
@@ -500,7 +501,7 @@ static void motTabsChildAddedMethod(Ihandle* ih, Ihandle* child)
     XtAddEventHandler(tab_button, FocusChangeMask, False, (XtEventHandler)iupmotFocusChangeEvent, (XtPointer)ih);
     XtAddEventHandler(tab_button, KeyPressMask,    False, (XtEventHandler)iupmotKeyPressEvent, (XtPointer)ih);
 
-    XtAddEventHandler(tab_button, ButtonPressMask, False, (XtEventHandler)motTabButtonPressEvent, (XtPointer)child);
+    XtAddEventHandler(tab_button, ButtonPressMask, False, (XtEventHandler)motTabsButtonPressEvent, (XtPointer)child);
 
     if (iupStrBoolean(IupGetGlobal("INPUTCALLBACKS")))
     {
@@ -560,7 +561,7 @@ static void motTabsChildRemovedMethod(Ihandle* ih, Ihandle* child)
       Widget tab_button = (Widget)iupAttribGet(child, "_IUPMOT_TABBUTTON");
       int pos = iupAttribGetInt(child, "_IUPMOT_TABNUMBER");  /* did not work when using XtVaGetValues(child_manager, XmNpageNumber) */
 
-      iupTabsCheckCurrentTab(ih, pos);
+      iupTabsCheckCurrentTab(ih, pos, 1);
 
       XtDestroyWidget(tab_button);
       XtDestroyWidget(child_manager);

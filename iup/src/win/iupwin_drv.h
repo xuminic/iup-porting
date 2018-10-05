@@ -99,6 +99,7 @@ void iupwinChangeWndProc(Ihandle *ih, WNDPROC newProc);
 int iupwinButtonUp(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp);
 int iupwinButtonDown(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp);
 int iupwinMouseMove(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp);
+void iupwinTrackMouseLeave(Ihandle* ih);
 
 int iupwinListDND(Ihandle *ih, UINT uNotification, POINT pt);
 
@@ -126,6 +127,8 @@ int iupwinClassExist(const TCHAR* name);
 
 int iupwinSetTitleAttrib(Ihandle* ih, const char* value);
 TCHAR* iupwinGetWindowText(HWND hWnd);
+
+HCURSOR iupwinGetCursor(Ihandle* ih, const char* name);
 
 int iupwinGetColorRef(Ihandle *ih, char *name, COLORREF *color);
 int iupwinGetParentBgColor(Ihandle* ih, COLORREF* cr);

@@ -34,7 +34,6 @@
 #define IDIAL_SPACE 3
 #define IDIAL_NCOLORS 10
 #define IDIAL_DEFAULT_DENSITY 0.2
-#define IDIAL_DEFAULT_DENSITY_STR "0.2"
 #define IDIAL_DEFAULT_FGCOLOR "64 64 64"
 #define IDIAL_DEFAULT_FGCOLOR_COMP 64
 
@@ -72,7 +71,6 @@ struct _IcontrolData
 
   /* drawing canvas */
   cdCanvas *cddbuffer;
-  cdCanvas *cdcanvas;
 };
 
 
@@ -143,7 +141,7 @@ static void iDialDrawVertical(Ihandle* ih)
   cdIupDrawRaiseRect(ih->data->cddbuffer, IDIAL_SPACE, ymin, ih->data->w-1-IDIAL_SPACE, ymax,
                       ih->data->light_shadow, ih->data->mid_shadow, ih->data->dark_shadow);
 
-  for ( ; a < amax; a += delta)    /* graduation */
+  for (; a < amax; a += delta)    /* graduation */
   {
     int y;
     if (a < 0.5 * M_PI) y = (int)(ih->data->h / 2.0 - ih->data->radius * cos(a));
@@ -190,19 +188,22 @@ static void iDialDrawHorizontalBackground(Ihandle* ih,double amin,double amax, i
 static void iDialDrawHorizontal(Ihandle* ih)
 {
   double delta = 2 * M_PI / ih->data->num_div;
-  int x;
   double a, amin, amax;
   int xmin, xmax;
+
   ih->data->radius = (ih->data->w - 2 * IDIAL_SPACE - 2) / 2.0;
+
   amin = 0.0;
   amax = M_PI;
   if(ih->data->angle < amin)
   {
-    for (a = ih->data->angle; a < amin; a += delta) ;
+    for (a = ih->data->angle; a < amin; a += delta) 
+      ;
   }
   else
   {
-    for (a = ih->data->angle; a > amin; a-= delta) ;
+    for (a = ih->data->angle; a > amin; a-= delta) 
+      ;
     a += delta;
   }
 
@@ -213,6 +214,7 @@ static void iDialDrawHorizontal(Ihandle* ih)
 
   for ( ; a < amax; a += delta)
   {
+    int x;
     if (a < 0.5 * M_PI) x = (int)(ih->data->w / 2.0 - ih->data->radius * cos(a));
     else              x = (int)(ih->data->w / 2.0 + ih->data->radius * fabs(cos(a)));
 
@@ -290,7 +292,10 @@ static void iDialRepaint(Ihandle* ih)
   /* update display */
   cdCanvasFlush(ih->data->cddbuffer);
   if (ih->data->has_focus)
-    IupCdDrawFocusRect(ih, ih->data->cdcanvas, 0, 0, ih->data->w-1, ih->data->h-1);
+  {
+    cdCanvas* cdcanvas = (cdCanvas*)IupGetAttribute(ih, "_CD_CANVAS");
+    IupCdDrawFocusRect(ih, cdcanvas, 0, 0, ih->data->w - 1, ih->data->h - 1);
+  }
 }
 
 static void iDialUpdateFgColors(Ihandle* ih, unsigned char r, unsigned char g, unsigned char b)
@@ -477,18 +482,6 @@ static int iDialButton_CB(Ihandle* ih, int button, int pressed, int x, int y)
 
 static int iDialResize_CB(Ihandle* ih)
 {
-  if (!ih->data->cddbuffer)
-  {
-    /* update canvas size */
-    cdCanvasActivate(ih->data->cdcanvas);
-
-    /* this can fail if canvas size is zero */
-    ih->data->cddbuffer = cdCreateCanvas(CD_DBUFFER, ih->data->cdcanvas);
-  }
-
-  if (!ih->data->cddbuffer)
-    return IUP_DEFAULT;
-
   /* update size */
   cdCanvasActivate(ih->data->cddbuffer);
   cdCanvasGetSize(ih->data->cddbuffer, &ih->data->w, &ih->data->h, NULL, NULL);
@@ -527,7 +520,10 @@ static int iDialRedraw_CB(Ihandle* ih)
   /* update display */
   cdCanvasFlush(ih->data->cddbuffer);
   if (ih->data->has_focus)
-    IupCdDrawFocusRect(ih, ih->data->cdcanvas, 0, 0, ih->data->w-1, ih->data->h-1);
+  {
+    cdCanvas* cdcanvas = (cdCanvas*)IupGetAttribute(ih, "_CD_CANVAS");
+    IupCdDrawFocusRect(ih, cdcanvas, 0, 0, ih->data->w - 1, ih->data->h - 1);
+  }
 
   return IUP_DEFAULT;
 }
@@ -642,30 +638,26 @@ static int iDialWheel_CB(Ihandle* ih, float delta)
 
 static char* iDialGetValueAttrib(Ihandle* ih)
 {
-  return iupStrReturnFloat((float)ih->data->angle);
+  return iupStrReturnDouble(ih->data->angle);
 }
 
 static int iDialSetValueAttrib(Ihandle* ih, const char* value)
 {
-  if (!value) /* reset to default */
-    ih->data->angle = 0;
-  else
-    ih->data->angle = atof(value);
-
-  iDialRepaint(ih);
+  if (iupStrToDoubleDef(value, &(ih->data->angle), 0.0))
+    iDialRepaint(ih);
   return 0; /* do not store value in hash table */
 }
 
 static int iDialSetDensityAttrib(Ihandle* ih, const char* value)
 {
-  ih->data->density = atof(value);
-  iDialRepaint(ih);
+  if (iupStrToDoubleDef(value, &(ih->data->density), 0.2))
+    iDialRepaint(ih);
   return 0;   /* do not store value in hash table */
 }
 
 static char* iDialGetDensityAttrib(Ihandle* ih)
 {
-  return iupStrReturnFloat((float)ih->data->density);
+  return iupStrReturnDouble(ih->data->density);
 }
 
 static int iDialSetBgColorAttrib(Ihandle* ih, const char* value)
@@ -766,12 +758,9 @@ static char* iDialGetOrientationAttrib(Ihandle* ih)
 
 static int iDialMapMethod(Ihandle* ih)
 {
-  ih->data->cdcanvas = cdCreateCanvas(CD_IUP, ih);
-  if (!ih->data->cdcanvas)
+  ih->data->cddbuffer = cdCreateCanvas(CD_IUPDBUFFER, ih);
+  if (!ih->data->cddbuffer)
     return IUP_ERROR;
-
-  /* this can fail if canvas size is zero */
-  ih->data->cddbuffer = cdCreateCanvas(CD_DBUFFER, ih->data->cdcanvas);
 
   return IUP_NOERROR;
 }
@@ -782,12 +771,6 @@ static void iDialUnMapMethod(Ihandle* ih)
   {
     cdKillCanvas(ih->data->cddbuffer);
     ih->data->cddbuffer = NULL;
-  }
-
-  if (ih->data->cdcanvas)
-  {
-    cdKillCanvas(ih->data->cdcanvas);
-    ih->data->cdcanvas = NULL;
   }
 }
 
@@ -852,7 +835,7 @@ Iclass* iupDialNewClass(void)
   iupClassRegisterAttribute(ic, "TYPE", iDialGetOrientationAttrib, iDialSetOrientationAttrib, IUPAF_SAMEASSYSTEM, "HORIZONTAL", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "ORIENTATION", iDialGetOrientationAttrib, iDialSetOrientationAttrib, IUPAF_SAMEASSYSTEM, "HORIZONTAL", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 
-  iupClassRegisterAttribute(ic, "DENSITY", iDialGetDensityAttrib, iDialSetDensityAttrib, IDIAL_DEFAULT_DENSITY_STR, NULL, IUPAF_NOT_MAPPED);
+  iupClassRegisterAttribute(ic, "DENSITY", iDialGetDensityAttrib, iDialSetDensityAttrib, NULL, NULL, IUPAF_NOT_MAPPED);
   iupClassRegisterAttribute(ic, "FGCOLOR", NULL, iDialSetFgColorAttrib, IDIAL_DEFAULT_FGCOLOR, NULL, IUPAF_NOT_MAPPED);
   iupClassRegisterAttribute(ic, "UNIT", NULL, iDialSetUnitAttrib, IUPAF_SAMEASSYSTEM, "RADIANS", IUPAF_NOT_MAPPED);
 

@@ -209,11 +209,13 @@ class Painter {
  public:
    virtual void DrawLine (float inX1, float inY1, float inX2, float inY2)=0;
    virtual void FillRect (int inX, int inY, int inW, int inH)=0;
-   virtual void InvertRect (int inX, int inY, int inW, int inH)=0;
    virtual void SetClipRect (int inX, int inY, int inW, int inH)=0;
    virtual long GetWidth () const=0;
    virtual long GetHeight () const=0;
-   virtual void SetLineColor (int inR, int inG, int inB)=0;
+   virtual void BeginArea() = 0;
+   virtual void AddVertex(float inX, float inY) = 0;
+   virtual void EndArea() = 0;
+   virtual void SetLineColor(int inR, int inG, int inB) = 0;
    virtual void SetFillColor (int inR, int inG, int inB)=0;
    virtual long CalculateTextDrawSize (const char *inString)=0;
    virtual long GetFontHeight () const =0;
@@ -229,39 +231,15 @@ class Painter {
    virtual void SetStyle (const PStyle &inStyle){};
 };
 
-class DummyPainter: public Painter {
- public:
-   virtual void DrawLine (float inX1, float inY1, float inX2, float inY2){};
-   virtual void FillRect (int inX, int inY, int inW, int inH){};
-   virtual void InvertRect (int inX, int inY, int inW, int inH){};
-   virtual void SetClipRect (int inX, int inY, int inW, int inH){};
-   virtual long GetWidth () const {return 100;};
-   virtual long GetHeight () const {return 100;};
-   virtual void SetLineColor (int inR, int inG, int inB){};
-   virtual void SetFillColor (int inR, int inG, int inB){};
-   virtual long CalculateTextDrawSize (const char *inString){return 0;};
-   virtual long GetFontHeight () const {return 10;};
-#ifdef _IUP_PPLOT_
-   virtual void FillArrow (int inX1, int inY1, int inX2, int inY2, int inX3, int inY3){};
-   virtual void DrawText (int inX, int inY, short align, const char *inString){};
-   virtual void DrawRotatedText (int inX, int inY, float inDegrees,
-                                 short align, const char *inString){};
-#else
-   virtual void DrawText (int inX, int inY, const char *inString){};
-   virtual void DrawRotatedText (int inX, int inY, float inDegrees, const char *inString){};
-#endif
-};
-
 class Trafo;
 class AxisSetup;
 
 class DataDrawerBase {
  public:
-   DataDrawerBase (): mXTrafo (0), mYTrafo (0), mDrawFast (false), mPlotCount (1), mPlotIndex (0), mHasMarks(false), mShowValues(false), mMode(0) {};
+   DataDrawerBase (): mXTrafo (0), mYTrafo (0), mPlotCount (1), mPlotIndex (0), mHasMarks(false), mShowValues(false), mMode(0) {};
    virtual ~DataDrawerBase (){};
    void SetXTrafo (Trafo *inTrafo) {mXTrafo = inTrafo;};
    void SetYTrafo (Trafo *inTrafo) {mYTrafo = inTrafo;};
-   void SetDrawFast (bool inDrawFast) {mDrawFast = inDrawFast;}
    void SetPlotCount (int inPlotCount) {mPlotCount = inPlotCount;}
    void SetPlotIndex (int inPlotIndex) {mPlotIndex = inPlotIndex;}
    virtual bool DrawData (const PlotDataBase &inXData, const PlotDataBase &inYData, const PlotDataSelection &inPlotDataSelection, const AxisSetup &inXAxisSetup, const PRect &inRect, Painter &inPainter) const =0;
@@ -273,7 +251,6 @@ class DataDrawerBase {
  protected:
    Trafo *mXTrafo;
    Trafo *mYTrafo;
-   bool  mDrawFast;
    int   mPlotCount;
    int   mPlotIndex;
 };
@@ -310,6 +287,15 @@ class BarDataDrawer: public DataDrawerBase {
    virtual bool DrawOnlyLastPoint (const PlotDataBase &inXData, const PlotDataBase &inYData, const PlotDataSelection &inPlotDataSelection, const AxisSetup &inXAxisSetup, const PRect &inRect, Painter &inPainter) const;
 };
 
+class AreaDataDrawer : public DataDrawerBase
+{
+public:
+  AreaDataDrawer() { mMode = "AREA"; };
+  virtual bool DrawData(const PlotDataBase &inXData, const PlotDataBase &inYData, const PlotDataSelection &inPlotDataSelection, const AxisSetup &inXAxisSetup, const PRect &inRect, Painter &inPainter) const;
+
+  virtual DataDrawerBase* Clone() const;
+};
+
 
 class PlotDataContainer {
  public:
@@ -323,7 +309,7 @@ class PlotDataContainer {
   int AddXYPlot (PlotDataBase *inXData, PlotDataBase *inYData, LegendData *inLegendData=0, DataDrawerBase *inDataDrawer=0, PlotDataSelection *inPlotDataSelection=0);//takes ownership
   void SetXYPlot (int inIndex, PlotDataBase *inXData, PlotDataBase *inYData, LegendData *inLegendData=0, DataDrawerBase *inDataDrawer=0, PlotDataSelection *inPlotDataSelection=0);//takes ownership
 
-  int GetPlotCount () const {return mYDataList.size ();};
+  int GetPlotCount () const {return (int)mYDataList.size ();};
 
   int GetCount (int inIndex);
   PlotDataBase * GetXData (int inIndex);
@@ -537,12 +523,6 @@ class PCalculator {// base class to do additional calculations on a PPlot
    virtual bool Calculate (Painter &inPainter, PPlot& inPPlot) {return true;};
 };
 
-
-class PainterTester: public PDrawer {
- public:
-   virtual bool Draw (Painter &inPainter);
-};
-
 class PPlot: public PDrawer {
  public:
    PPlot ();
@@ -558,9 +538,6 @@ class PPlot: public PDrawer {
    PlotBackground mPlotBackground;
    bool mShowLegend; // M.T. - hide|show legend
    PLegendPos mLegendPos;
-
-   void SetPPlotDrawer (PDrawer *inPDrawer);// taker ownership. Used to bypass normal Draw function, i.e., set Draw function by composition.
-   void SetPPlotDrawer (PDrawer &inPDrawer);// same as above: does not take ownership
 
    bool mHasAnyModifyingCalculatorBeenActive;
    PCalculator::tList mModifyingCalculatorList;
@@ -618,9 +595,6 @@ class PPlot: public PDrawer {
    LogTickIterator mXLogTickIterator;
    LogTickIterator mYLogTickIterator;
    NamedTickIterator mXNamedTickIterator;
-
-   PDrawer * mPPlotDrawer;
-   bool mOwnsPPlotDrawer;
 };
 
 #ifndef _IUP_PPLOT_

@@ -58,25 +58,12 @@ static void iGridBoxCalcLinCol(Ihandle* ih, int i, int *lin, int *col)
 
 static char* iGridBoxGetClientSizeAttrib(Ihandle* ih)
 {
-  int width, height;
-
-  if (ih->handle)
-  {
-    width = ih->currentwidth;
-    height = ih->currentheight;
-  }
-  else
-  {
-    width = ih->userwidth;
-    height = ih->userheight;
-  }
-
-  if (!width && !height)
-    return NULL;
-
-  width -= 2*ih->data->margin_x;
+  int width = ih->currentwidth;
+  int height = ih->currentheight;
+  width -= 2 * ih->data->margin_x;
   height -= 2*ih->data->margin_y;
-
+  if (width < 0) width = 0;
+  if (height < 0) height = 0;
   return iupStrReturnIntInt(width, height, 'x');
 }
 
@@ -226,6 +213,9 @@ static void iGridBoxFitColChildren(Ihandle* ih, int fit_col)
   int max_width = 0, max, i;
   Ihandle* child, *ref_child = NULL;
 
+  if (ih->data->num_col == 0 || ih->data->num_lin == 0)
+    return;
+
   i = 0;
   for (child = ih->firstchild; child; child = child->brother)
   {
@@ -242,6 +232,8 @@ static void iGridBoxFitColChildren(Ihandle* ih, int fit_col)
         if (lin == ih->data->size_lin)
           ref_child = child;
       }
+
+      i++;
     }
   }
 
@@ -259,6 +251,9 @@ static void iGridBoxFitLineChildren(Ihandle* ih, int fit_lin)
   int max_height = 0, max, i;
   Ihandle* child, *ref_child = NULL;
 
+  if (ih->data->num_col == 0 || ih->data->num_lin == 0)
+    return;
+
   i = 0;
   for (child = ih->firstchild; child; child = child->brother)
   {
@@ -275,6 +270,8 @@ static void iGridBoxFitLineChildren(Ihandle* ih, int fit_lin)
         if (col == ih->data->size_col)
           ref_child = child;
       }
+
+      i++;
     }
   }
 
@@ -1018,7 +1015,7 @@ Iclass* iupGridBoxNewClass(void)
   iupClassRegisterAttribute(ic, "NGAPCOL", iGridBoxGetGapColAttrib, iGridBoxSetGapColAttrib, IUPAF_SAMEASSYSTEM, "0", IUPAF_NO_SAVE|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "NCGAPCOL", iGridBoxGetCGapColAttrib, iGridBoxSetCGapColAttrib, IUPAF_SAMEASSYSTEM, "0", IUPAF_NO_SAVE|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 
-  iupClassRegisterAttribute(ic, "ALIGNMENTLIN", iGridBoxGetAlignmentLinAttrib, iGridBoxSetAlignmentLinAttrib, IUPAF_SAMEASSYSTEM, "ALEFT", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "ALIGNMENTLIN", iGridBoxGetAlignmentLinAttrib, iGridBoxSetAlignmentLinAttrib, IUPAF_SAMEASSYSTEM, "ATOP", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "ALIGNMENTCOL", iGridBoxGetAlignmentColAttrib, iGridBoxSetAlignmentColAttrib, IUPAF_SAMEASSYSTEM, "ALEFT", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "ORIENTATION", iGridBoxGetOrientationAttrib, iGridBoxSetOrientationAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "NUMDIV", iGridBoxGetNumDivAttrib, iGridBoxSetNumDivAttrib, IUPAF_SAMEASSYSTEM, "AUTO", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);

@@ -459,7 +459,7 @@ static int iMatrixListSetCountAttrib(Ihandle* ih, const char* value)
     if (iupStrToInt(value, &count))
     {
       char str[50];
-      sprintf(str, "%d%", count+1);
+      sprintf(str, "%d", count+1);
       iMatrixListSetNumLinAttrib(ih, str);
     }
   }
@@ -467,6 +467,7 @@ static int iMatrixListSetCountAttrib(Ihandle* ih, const char* value)
     iMatrixListSetNumLinAttrib(ih, value);
   return 0;
 }
+
 static char* iMatrixListGetColumnOrderAttrib(Ihandle *ih)
 {
   ImatrixListData* mtxList = (ImatrixListData*)iupAttribGet(ih, "_IUPMTXLIST_DATA");
@@ -1148,11 +1149,31 @@ static int iMatrixListRelease_CB(Ihandle *ih, int lin, int col, char *status)
   {
     /* click on IMAGEDEL */
     IFni listremove_cb = (IFni)IupGetCallback(ih, "LISTREMOVE_CB");
-    /* notify the application that a line will be removed */
-    if (!listremove_cb || listremove_cb(ih, lin) != IUP_IGNORE)
+    if (lin == 0)
     {
-      /* Remove the line */
-      IupSetInt(ih, "DELLIN", lin);
+      if (mtxList->editable)
+        lines_num--;
+
+      for (lin = lines_num-1; lin>0; lin--)
+      {
+        itemactive = IupGetIntId(ih, "ITEMACTIVE", lin);
+        imageactive = IupGetIntId(ih, "IMAGEACTIVE", lin);
+
+        if (!itemactive || !imageactive)
+          continue;
+
+        if (!listremove_cb || listremove_cb(ih, lin) != IUP_IGNORE)
+          IupSetInt(ih, "DELLIN", lin);
+      }
+    }
+    else
+    {
+      /* notify the application that a line will be removed */
+      if (!listremove_cb || listremove_cb(ih, lin) != IUP_IGNORE)
+      {
+        /* Remove the line */
+        IupSetInt(ih, "DELLIN", lin);
+      }
     }
   }
   else
@@ -1210,7 +1231,7 @@ static int iMatrixListLeaveItem_CB(Ihandle *ih, int lin, int col)
   iMatrixListUpdateItemBgColor(ih, lin, iupAttribGetId(ih, "ITEMBGCOLOR", lin), itemactive);
   ih->data->lines.focus_cell = lin;
   IupSetfAttribute(ih, "REDRAW", "L%d", lin);
-  if (cb) cb(ih, lin, 1);
+  if (cb) cb(ih, lin, 0);
   (void)col;
   return IUP_DEFAULT;
 }
@@ -1291,14 +1312,14 @@ static int iMatrixListKeyAny_CB(Ihandle *ih, int key)
     {
       int lin = ih->data->lines.focus_cell;
       iMatrixListSetFocusItem(ih, mtxList, lin);  /* this will position focus at the right cell */
-      IupSetAttribute(ih, "EDIT_MODE", "Yes");
 
+      IupSetAttribute(ih, "EDIT_MODE", "Yes");
       if (IupGetInt(ih, "EDIT_MODE"))
       {
         char value[2] = {0,0};
         value[0] = (char)key;
-        IupStoreAttribute(ih, "VALUE", value);
-        IupSetAttribute(ih, "CARET", "2");
+        IupStoreAttribute(ih->data->datah, "VALUEMASKED", value);
+        IupSetAttribute(ih->data->datah, "CARET", "2");
         return IUP_IGNORE;
       }
     }

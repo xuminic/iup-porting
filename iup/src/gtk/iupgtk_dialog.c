@@ -407,8 +407,8 @@ static gboolean gtkDialogChildDestroyEvent(GtkWidget *widget, Ihandle *ih)
   if (iupObjectCheck(ih))
     IupDestroy(ih);
 
-  /* this callback is usefull to destroy children dialogs when the parent is destroyed. */
-  /* The application is responsable for destroying the children before this happen. */
+  /* this callback is useful to destroy children dialogs when the parent is destroyed. */
+  /* The application is responsible for destroying the children before this happen. */
 
   return FALSE;
 }
@@ -424,11 +424,12 @@ static gboolean gtkDialogChildDestroyEvent(GtkWidget *widget, Ihandle *ih)
 static void gtkDialogSetChildrenPositionMethod(Ihandle* ih, int x, int y)
 {
   int menu_h = gtkDialogGetMenuSize(ih);
-  (void)x;
-  (void)y;
 
   /* Child coordinates are relative to client left-top corner. */
   iupBaseSetPosition(ih->firstchild, 0, menu_h);
+
+  (void)x;  /* Native container, position is reset */
+  (void)y;
 }
 
 static void* gtkDialogGetInnerNativeContainerHandleMethod(Ihandle* ih, Ihandle* child)
@@ -797,7 +798,11 @@ static int gtkDialogSetOpacityAttrib(Ihandle *ih, const char *value)
   if (!iupStrToInt(value, &opacity))
     return 0;
 
+#if GTK_CHECK_VERSION(3, 8, 0)
+  gtk_widget_set_opacity(ih->handle, (double)opacity/255.0);
+#else
   gtk_window_set_opacity((GtkWindow*)ih->handle, (double)opacity/255.0);
+#endif
   return 1;
 }
 #endif

@@ -421,7 +421,7 @@ void SampleTest(void)
   _frm_2 = IupFrame(
     IupVbox(
       IupSetAttributes(IupLabel("Label Text"), "TIP=\"Label TIP\""),
-      IupSetAttributes(IupLabel(NULL), "SEPARATOR=HORIZONTAL, MAXSIZE=150, NAME=SAMP_SEP"),
+      IupSetAttributes(IupLabel(NULL), "SEPARATOR=HORIZONTAL, NAME=SAMP_SEP"),
       IupSetAttributes(IupLabel(NULL), "IMAGE=img1"),
       NULL));
   IupSetAttribute(_frm_2,"TITLE","IupLabel");
@@ -501,7 +501,7 @@ void SampleTest(void)
   set_callbacks(val);
   
   pbar = IupProgressBar();
-  IupSetAttribute(pbar, "VALUE", "0.5");
+  IupSetFloat(pbar, "VALUE", 0.5);
   IupSetAttribute(pbar,"TIP","ProgressBar TIP");
   set_callbacks(pbar);
 

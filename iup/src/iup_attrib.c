@@ -54,6 +54,7 @@ int IupGetAllAttributes(Ihandle* ih, char** names, int n)
     {
       names[i] = name;
       i++;
+
       if (i == n)
         break;
     }
@@ -196,29 +197,32 @@ void iupAttribUpdate(Ihandle* ih)
   name = iupTableFirst(ih->attrib);
   while (name)
   {
-    name_array[i] = name;
+    if (!iupATTRIB_ISINTERNAL(name))
+    {
+      name_array[i] = name;
+      i++;
+    }
+
     name = iupTableNext(ih->attrib);
-    i++;
   }
+  count = i;
 
   /* for all defined attributes updates the native system */
   for (i = 0; i < count; i++)
   {
     name = name_array[i];
-    if (!iupATTRIB_ISINTERNAL(name))
-    {
-      /* retrieve from the table */
-      value = iupTableGet(ih->attrib, name);
 
-      /* set on the class */
-      store = iupClassObjectSetAttribute(ih, name, value, &inherit);
+    /* retrieve from the table */
+    value = iupTableGet(ih->attrib, name);
 
-      if (inherit)
-        iAttribNotifyChildren(ih, name, value);
+    /* set on the class */
+    store = iupClassObjectSetAttribute(ih, name, value, &inherit);
 
-      if (store == 0)
-        iupTableRemove(ih->attrib, name); /* remove from the table acording to the class SetAttribute */
-    }
+    if (inherit)
+      iAttribNotifyChildren(ih, name, value);
+
+    if (store == 0)
+      iupTableRemove(ih->attrib, name); /* remove from the table acording to the class SetAttribute */
   }
 
   free(name_array);
@@ -370,6 +374,13 @@ float IupGetFloatId(Ihandle *ih, const char* name, int id)
   return f;
 }
 
+double IupGetDoubleId(Ihandle *ih, const char* name, int id)
+{
+  double f = 0;
+  iupStrToDouble(IupGetAttributeId(ih, name, id), &f);
+  return f;
+}
+
 void IupGetRGBId(Ihandle *ih, const char* name, int id, unsigned char *r, unsigned char *g, unsigned char *b)
 {
   iupStrToRGB(IupGetAttributeId(ih, name, id), r, g, b);
@@ -407,7 +418,14 @@ void IupSetIntId(Ihandle* ih, const char* name, int id, int num)
 void IupSetFloatId(Ihandle* ih, const char* name, int id, float num)
 {
   char value[80];
-  sprintf(value, "%.9f", (double)num);  /* maximum float precision */
+  sprintf(value, IUP_FLOAT2STR, num);
+  IupStoreAttributeId(ih, name, id, value);
+}
+
+void IupSetDoubleId(Ihandle* ih, const char* name, int id, double num)
+{
+  char value[80];
+  sprintf(value, IUP_DOUBLE2STR, num);
   IupStoreAttributeId(ih, name, id, value);
 }
 
@@ -437,6 +455,13 @@ float IupGetFloatId2(Ihandle* ih, const char* name, int lin, int col)
 {
   float f = 0;
   iupStrToFloat(IupGetAttributeId2(ih, name, lin, col), &f);
+  return f;
+}
+
+double IupGetDoubleId2(Ihandle* ih, const char* name, int lin, int col)
+{
+  double f = 0;
+  iupStrToDouble(IupGetAttributeId2(ih, name, lin, col), &f);
   return f;
 }
 
@@ -477,7 +502,14 @@ void IupSetIntId2(Ihandle* ih, const char* name, int lin, int col, int num)
 void IupSetFloatId2(Ihandle* ih, const char* name, int lin, int col, float num)
 {
   char value[80];
-  sprintf(value, "%.9f", (double)num);   /* maximum float precision */
+  sprintf(value, IUP_FLOAT2STR, num);
+  IupStoreAttributeId2(ih, name, lin, col, value);
+}
+
+void IupSetDoubleId2(Ihandle* ih, const char* name, int lin, int col, double num)
+{
+  char value[80];
+  sprintf(value, IUP_DOUBLE2STR, num);
   IupStoreAttributeId2(ih, name, lin, col, value);
 }
 
@@ -646,6 +678,13 @@ float IupGetFloat(Ihandle *ih, const char* name)
   return f;
 }
 
+double IupGetDouble(Ihandle *ih, const char* name)
+{
+  double f = 0;
+  iupStrToDouble(IupGetAttribute(ih, name), &f);
+  return f;
+}
+
 int IupGetInt(Ihandle *ih, const char* name)
 {
   int i = 0;
@@ -737,7 +776,14 @@ void IupSetInt(Ihandle* ih, const char* name, int num)
 void IupSetFloat(Ihandle* ih, const char* name, float num)
 {
   char value[80];
-  sprintf(value, "%.9f", (double)num);  /* maximum float precision */
+  sprintf(value, IUP_FLOAT2STR, num);
+  IupStoreAttribute(ih, name, value);
+}
+
+void IupSetDouble(Ihandle* ih, const char* name, double num)
+{
+  char value[80];
+  sprintf(value, IUP_DOUBLE2STR, num);
   IupStoreAttribute(ih, name, value);
 }
 
@@ -895,7 +941,14 @@ void iupAttribSetInt(Ihandle *ih, const char* name, int num)
 void iupAttribSetFloat(Ihandle *ih, const char* name, float num)
 {
   char value[80];
-  sprintf(value, "%.9f", (double)num);  /* maximum float precision */
+  sprintf(value, IUP_FLOAT2STR, num);
+  iupAttribSetStr(ih, name, value);
+}
+
+void iupAttribSetDouble(Ihandle *ih, const char* name, double num)
+{
+  char value[80];
+  sprintf(value, IUP_DOUBLE2STR, num);
   iupAttribSetStr(ih, name, value);
 }
 
@@ -958,11 +1011,25 @@ void iupAttribSetFloatId(Ihandle *ih, const char* name, int id, float num)
   iupAttribSetFloat(ih, nameid, num);
 }
 
+void iupAttribSetDoubleId(Ihandle *ih, const char* name, int id, double num)
+{
+  char nameid[100];
+  sprintf(nameid, "%s%d", name, id);
+  iupAttribSetDouble(ih, nameid, num);
+}
+
 void iupAttribSetFloatId2(Ihandle *ih, const char* name, int lin, int col, float num)
 {
   char nameid[100];
   iAttribSetNameId2(nameid, name, lin, col);
   iupAttribSetFloat(ih, nameid, num);
+}
+
+void iupAttribSetDoubleId2(Ihandle *ih, const char* name, int lin, int col, double num)
+{
+  char nameid[100];
+  iAttribSetNameId2(nameid, name, lin, col);
+  iupAttribSetDouble(ih, nameid, num);
 }
 
 char* iupAttribGetId(Ihandle* ih, const char* name, int id)
@@ -993,6 +1060,13 @@ float iupAttribGetFloatId(Ihandle* ih, const char* name, int id)
   return iupAttribGetFloat(ih, nameid);
 }
 
+double iupAttribGetDoubleId(Ihandle* ih, const char* name, int id)
+{
+  char nameid[100];
+  sprintf(nameid, "%s%d", name, id);
+  return iupAttribGetDouble(ih, nameid);
+}
+
 char* iupAttribGetId2(Ihandle* ih, const char* name, int lin, int col)
 {
   char nameid[100];
@@ -1019,6 +1093,13 @@ float iupAttribGetFloatId2(Ihandle* ih, const char* name, int lin, int col)
   char nameid[100];
   iAttribSetNameId2(nameid, name, lin, col);
   return iupAttribGetFloat(ih, nameid);
+}
+
+double iupAttribGetDoubleId2(Ihandle* ih, const char* name, int lin, int col)
+{
+  char nameid[100];
+  iAttribSetNameId2(nameid, name, lin, col);
+  return iupAttribGetDouble(ih, nameid);
 }
 
 int iupAttribGetBoolean(Ihandle* ih, const char* name)
@@ -1053,6 +1134,15 @@ float iupAttribGetFloat(Ihandle* ih, const char* name)
   char *value = iupAttribGetStr(ih, name);
   if (value)
     iupStrToFloat(value, &f);
+  return f;
+}
+
+double iupAttribGetDouble(Ihandle* ih, const char* name)
+{
+  double f = 0;
+  char *value = iupAttribGetStr(ih, name);
+  if (value)
+    iupStrToDouble(value, &f);
   return f;
 }
 
@@ -1277,6 +1367,11 @@ Ihandle* IupSetAttributes(Ihandle *ih, const char* str)
 int iupAttribIsNotString(Ihandle* ih, const char* name)
 {
   return iupClassObjectAttribIsNotString(ih, name);
+}
+
+int iupAttribIsIhandle(Ihandle* ih, const char* name)
+{
+  return iupClassObjectAttribIsIhandle(ih, name);
 }
 
 typedef int (*Iconvertxytopos)(Ihandle* ih, int x, int y);

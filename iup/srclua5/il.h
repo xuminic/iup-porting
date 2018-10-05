@@ -84,6 +84,9 @@ void iuplua_register(lua_State *L, lua_CFunction func, const char* name);
  */
 void iuplua_regstring(lua_State *L, const char* str, const char* name);
 
+/** Returns the global table name */
+const char* iuplua_getglobaltable(void);
+
 
           /*              Callbacks             */
 
@@ -146,6 +149,10 @@ int* iuplua_checkint_array(lua_State *L, int pos, int count);
 /** Returns an array of float stored in a Lua table.
  If count is 0, table size is used. Else table size must match count. */
 float* iuplua_checkfloat_array(lua_State *L, int pos, int count);
+
+/** Returns an array of double stored in a Lua table.
+If count is 0, table size is used. Else table size must match count. */
+double* iuplua_checkdouble_array(lua_State *L, int pos, int count);
 
 /** Returns an array of unsigned char stored in a Lua table.
  If count is 0, table size is used. Else table size must match count. */

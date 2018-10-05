@@ -144,6 +144,10 @@ int iupStrHasSpace(const char* str);
  * \ingroup str */
 #define iup_tolower(_c)  ((_c >= 'A' && _c <= 'Z')? (_c - 'A') + 'a': _c)
 
+/** Checks if the string has only ASCII codes.
+ * \ingroup str */
+int iupStrIsAscii(const char* str);
+
 
 
 /** Returns combined values in a formated string using \ref iupStrGetMemory.
@@ -168,13 +172,29 @@ char* iupStrReturnChecked(int i);
  * \ingroup str */
 char* iupStrReturnInt(int i);
 
+/** maximum float precision
+* \ingroup str */
+#define IUP_FLOAT2STR "%.9f"
+
 /** Returns a float value in a string using \ref iupStrGetMemory.
  * \ingroup str */
 char* iupStrReturnFloat(float f);
 
+/** maximum double precision
+ * \ingroup str */
+#define IUP_DOUBLE2STR "%.18f"
+
+/** Returns a double value in a string using \ref iupStrGetMemory.
+ * \ingroup str */
+char* iupStrReturnDouble(double d);
+
 /** Returns a RGB value in a string using \ref iupStrGetMemory.
  * \ingroup str */
 char* iupStrReturnRGB(unsigned char r, unsigned char g, unsigned char b);
+
+/** Returns a RGBA value in a string using \ref iupStrGetMemory.
+ * \ingroup str */
+char* iupStrReturnRGBA(unsigned char r, unsigned char g, unsigned char b, unsigned char a);
 
 /** Returns two string values in a string using \ref iupStrGetMemory.
  * \ingroup str */
@@ -186,9 +206,13 @@ char* iupStrReturnIntInt(int i1, int i2, char sep);
 
 
 
-/** Extract a RGB triple from the string. Returns 0 or 1.
+/** Extract RGB components from the string. Returns 0 or 1.
  * \ingroup str */
 int iupStrToRGB(const char *str, unsigned char *r, unsigned char *g, unsigned char *b);
+
+/** Extract RGBA components from the string. Returns 0 or 1.
+ * \ingroup str */
+int iupStrToRGBA(const char *str, unsigned char *r, unsigned char *g, unsigned char *b, unsigned char *a);
 
 /** Converts the string to an int. The string must contains only the integer value.
  * Returns a a non zero value if sucessfull.
@@ -202,18 +226,33 @@ int iupStrToInt(const char *str, int *i);
  * \ingroup str */
 int iupStrToIntInt(const char *str, int *i1, int *i2, char sep);
 
-/** Converts the string to an float. The string must contains only the real value.
+/** Converts the string to a float. The string must contains only the real value.
  * Returns a a non zero value if sucessfull.
  * \ingroup str */
 int iupStrToFloat(const char *str, float *f);
+int iupStrToFloatDef(const char *str, float *f, float def);
 
-/** Converts the string to two float. The string must contains two real values in sequence, 
+/** Converts the string to a double. The string must contains only the real value.
+ * Returns a a non zero value if sucessfull.
+ * \ingroup str */
+int iupStrToDouble(const char *str, double *d);
+int iupStrToDoubleDef(const char *str, double *d, double def);
+
+/** Converts the string to two float. The string must contains two real values in sequence,
  * separated by the given character (usually 'x' or ':').
  * Returns the number of converted values.
  * Values not extracted are not changed.
  * ATENTION: AVOID DEFINING THIS TYPE OF ATTRIBUTE VALUE.
  * \ingroup str */
 int iupStrToFloatFloat(const char *str, float *f1, float *f2, char sep);
+
+/** Converts the string to two double. The string must contains two real values in sequence,
+ * separated by the given character (usually 'x' or ':').
+ * Returns the number of converted values.
+ * Values not extracted are not changed.
+ * ATENTION: AVOID DEFINING THIS TYPE OF ATTRIBUTE VALUE.
+ * \ingroup str */
+int iupStrToDoubleDouble(const char *str, double *f1, double *f2, char sep);
 
 /** Extract two strings from the string.
  * separated by the given character (usually 'x' or ':').
@@ -313,7 +352,7 @@ int iupStrCompare(const char* str1, const char* str2, int casesensitive, int utf
 int iupStrCompareEqual(const char *str1, const char *str2, int casesensitive, int utf8, int partial);
 
 /** Returns a non zero value if the second string is found inside the first string.  \n
-    Uses \ref iupStrCompareEqual.
+ *  Uses \ref iupStrCompareEqual.
  * \ingroup str */
 int iupStrCompareFind(const char *str1, const char *str2, int casesensitive, int utf8);
 

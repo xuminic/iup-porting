@@ -55,6 +55,12 @@ else
   ifneq ($(findstring dllg, $(TEC_UNAME)), )
     DEFINES += _WIN32 DISABLE_D2D
   endif
+  ifneq ($(findstring mingw, $(TEC_UNAME)), )
+    DEFINES += _WIN32 DISABLE_D2D
+  endif
+  ifneq ($(findstring dllw, $(TEC_UNAME)), )
+    DEFINES += _WIN32 DISABLE_D2D
+  endif
 endif
 
 SRCSCINTILLA = src/AutoComplete.cxx src/CallTip.cxx src/Catalogue.cxx src/CellBuffer.cxx src/CharClassify.cxx \
@@ -83,7 +89,8 @@ SRCSCINTILLA += lexers/LexA68k.cxx lexers/LexAbaqus.cxx lexers/LexAda.cxx lexers
 				lexers/LexSpice.cxx lexers/LexSQL.cxx lexers/LexTACL.cxx lexers/LexTADS3.cxx lexers/LexTAL.cxx \
 				lexers/LexTCL.cxx lexers/LexTCMD.cxx lexers/LexTeX.cxx lexers/LexTxt2tags.cxx lexers/LexVB.cxx \
 				lexers/LexVerilog.cxx lexers/LexVHDL.cxx lexers/LexVisualProlog.cxx lexers/LexYAML.cxx \
-        lexers/LexKVIrc.cxx lexers/LexLaTeX.cxx lexers/LexSTTXT.cxx lexers/LexRust.cxx
+        lexers/LexKVIrc.cxx lexers/LexLaTeX.cxx lexers/LexSTTXT.cxx lexers/LexRust.cxx \
+        lexers/LexDMAP.cxx lexers/LexDMIS.cxx
 				
 SRCSCINTILLA += lexlib/Accessor.cxx lexlib/CharacterSet.cxx lexlib/LexerBase.cxx lexlib/LexerModule.cxx \
                 lexlib/LexerNoExceptions.cxx lexlib/LexerSimple.cxx lexlib/PropSetSimple.cxx \
@@ -93,13 +100,6 @@ ifdef USE_GTK
   SRCSCINTILLA += gtk/PlatGTK.cxx gtk/ScintillaGTK.cxx gtk/scintilla-marshal.c
 else
   SRCSCINTILLA += win32/PlatWin.cxx win32/ScintillaWin.cxx
-  
-  ifneq ($(findstring mingw, $(TEC_UNAME)), )
-    DEFINES += DISABLE_D2D
-  endif
-  ifneq ($(findstring dllw, $(TEC_UNAME)), )
-    DEFINES += DISABLE_D2D
-  endif
 endif
 
 SRC = $(SRCSCINTILLA) iupsci_clipboard.c iupsci_folding.c iupsci_lexer.c iupsci_margin.c \

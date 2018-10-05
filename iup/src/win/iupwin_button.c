@@ -618,7 +618,11 @@ static int winButtonMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT
     {
       if (!iupAttribGet(ih, "_IUPWINBUT_ENTERWIN"))
       {
+        /* must be called so WM_MOUSELEAVE can also be called */
+        iupwinTrackMouseLeave(ih);
+
         iupAttribSet(ih, "_IUPWINBUT_ENTERWIN", "1");
+
         iupdrvRedrawNow(ih);
       }
     }
@@ -659,7 +663,8 @@ static int winButtonWmCommand(Ihandle* ih, WPARAM wp, LPARAM lp)
       Icallback cb = IupGetCallback(ih, "ACTION");
       if (cb)
       {
-        if (!iupAttribGet(ih, "_IUPBUT_INSIDE_ACTION"))  /* to avoid double calls when pressing enter and a dialog is displayed */
+        /* to avoid double calls when pressing enter and a dialog is displayed */
+        if (!iupAttribGet(ih, "_IUPBUT_INSIDE_ACTION"))  
         {
           int ret;
           iupAttribSet(ih, "_IUPBUT_INSIDE_ACTION", "1");

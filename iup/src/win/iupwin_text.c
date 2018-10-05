@@ -510,6 +510,22 @@ static int winTextSetLinColToPosition(Ihandle *ih, int lin, int col)
   return wpos;
 }
 
+static int winTextGetLastPosition(Ihandle *ih)
+{
+  int lincount = SendMessage(ih->handle, EM_GETLINECOUNT, 0, 0L);
+  int lineindex = SendMessage(ih->handle, EM_LINEINDEX, (WPARAM)(lincount-1), 0L);
+  int colmax = SendMessage(ih->handle, EM_LINELENGTH, (WPARAM)lineindex, 0L);
+  int wpos;
+
+  /* when formatting or single line text uses only one char per line end */
+  if (ih->data->is_multiline && !ih->data->has_formatting)
+    lineindex -= lincount - 1;  /* remove \r characters from count */
+
+  /* pos here includes the line breaks in 1 or 2 configuration */
+  wpos = lineindex + colmax;
+  return wpos;
+}
+
 static void winTextGetLinColFromPosition(Ihandle* ih, int wpos, int* lin, int* col)
 {
   /* here "pos" must contains the extra chars if the case */
@@ -727,7 +743,14 @@ static TCHAR* winTextStrConvertToSystem(Ihandle* ih, const char* str)
     {
       TCHAR* wstr;
       char* dos_str = iupStrToDos(str);
+#ifdef UNICODE
       wstr = iupwinStrToSystem(dos_str);
+#else
+      if (dos_str != str) 
+        wstr = iupStrReturnStr(dos_str);
+      else
+        wstr = dos_str;
+#endif
       if (dos_str != str) free(dos_str);
       return wstr;
     }
@@ -856,12 +879,7 @@ static int winTextSetNCAttrib(Ihandle* ih, const char* value)
 
 static char* winTextGetCountAttrib(Ihandle* ih)
 {
-  int count = GetWindowTextLength(ih->handle);
-  if (ih->data->is_multiline && !ih->data->has_formatting)  /* when formatting or single line text uses only one char per line end */
-  {
-    int linecount = SendMessage(ih->handle, EM_GETLINECOUNT, 0, 0L);
-    count -= linecount-1;  /* ignore 1 '\r' character at each line */
-  }
+  int count = winTextGetLastPosition(ih);
   return iupStrReturnInt(count);
 }
 
@@ -1643,12 +1661,15 @@ static int winTextSpinWmNotify(Ihandle* ih, NMHDR* msg_info, int *result)
 {
   if (msg_info->code == UDN_DELTAPOS)
   {
+    int min, max;
     NMUPDOWN *updown = (NMUPDOWN*)msg_info;
     HWND hSpin = (HWND)iupAttribGet(ih, "_IUPWIN_SPIN");
-    int pos = updown->iPos+updown->iDelta;
-    int min, max;
+    int old_pos = SendMessage(hSpin, UDM_GETPOS32, 0, 0);
+    int pos = updown->iPos + updown->iDelta;
     SendMessage(hSpin, UDM_GETRANGE32, (WPARAM)&min, (LPARAM)&max);
-    if (pos>=min && pos<=max)
+    if (pos < min) pos = min;
+    if (pos > max) pos = max;
+    if (pos != old_pos)
     {
       IFni cb = (IFni) IupGetCallback(ih, "SPIN_CB");
       if (cb) 
@@ -1701,7 +1722,7 @@ static int winTextMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *
 
       if (c == TEXT('\b'))
       {              
-        if (!winTextCallActionCb(ih, NULL, -1))
+        if (!winTextCallActionCb(ih, NULL, -1))  /* backspace */
           ret = 1;
       }
       else if (c == TEXT('\n') || c == TEXT('\r'))
@@ -1713,21 +1734,26 @@ static int winTextMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *
           insert_value[0] = '\n';
           insert_value[1] = 0;
 
-          if (!winTextCallActionCb(ih, insert_value, 0))
+          if (!winTextCallActionCb(ih, insert_value, 0))  /* insert new line */
             ret = 1;
         }
       }
-      else if (!(GetKeyState(VK_CONTROL) & 0x8000 ||
-                 GetKeyState(VK_MENU) & 0x8000 ||
-                 GetKeyState(VK_LWIN) & 0x8000 || 
-                 GetKeyState(VK_RWIN) & 0x8000))
+      else 
       {
-        TCHAR insert_value[2];
-        insert_value[0] = c;
-        insert_value[1] = 0;
+        int has_ctrl = GetKeyState(VK_CONTROL) & 0x8000;
+        int has_alt = GetKeyState(VK_MENU) & 0x8000;
+        int has_sys = (GetKeyState(VK_LWIN) & 0x8000) || (GetKeyState(VK_RWIN) & 0x8000);
 
-        if (!winTextCallActionCb(ih, iupwinStrFromSystem(insert_value), 0))
-          ret = 1;
+        if ((!has_ctrl && !has_alt && !has_sys) ||  /* only process when no modifiers are used */
+            (has_ctrl && has_alt && !has_sys))      /* except when Ctrl and Alt are pressed at the same time */
+        {
+          TCHAR insert_value[2];
+          insert_value[0] = c;
+          insert_value[1] = 0;
+
+          if (!winTextCallActionCb(ih, iupwinStrFromSystem(insert_value), 0))  /* insert */
+            ret = 1;
+        }
       }
 
       PostMessage(ih->handle, WM_IUPCARET, 0, 0L);
@@ -1746,7 +1772,7 @@ static int winTextMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *
     {
       if (wp == VK_DELETE) /* Del does not generates a WM_CHAR */
       {
-        if (!winTextCallActionCb(ih, NULL, 1))
+        if (!winTextCallActionCb(ih, NULL, 1))  /* delete */
           ret = 1;
       }
       else if (wp == VK_INSERT && ih->data->has_formatting)
@@ -1756,7 +1782,7 @@ static int winTextMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *
         else
           iupAttribSet(ih, "OVERWRITE", "ON");  /* toggle from OFF to ON */
       }
-      else if (wp == 'A' && GetKeyState(VK_CONTROL) & 0x8000)   /* Ctrl+A = Select All */
+      else if (wp == 'A' && GetKeyState(VK_CONTROL) & 0x8000 && !(GetKeyState(VK_MENU) & 0x8000))   /* Ctrl+A = Select All (no Alt key) */
       {
         SendMessage(ih->handle, EM_SETSEL, (WPARAM)0, (LPARAM)-1);
       }
@@ -1766,7 +1792,7 @@ static int winTextMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *
         insert_value[0] = '\n';
         insert_value[1] = 0;
 
-        if (!winTextCallActionCb(ih, insert_value, 0))
+        if (!winTextCallActionCb(ih, insert_value, 0))  /* insert new line */
           ret = 1;
       }
 
@@ -1787,7 +1813,7 @@ static int winTextMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *
     }
   case WM_CLEAR:
     {
-      if (!winTextCallActionCb(ih, NULL, 1))
+      if (!winTextCallActionCb(ih, NULL, 1))  /* same as delete */
         ret = 1;
 
       PostMessage(ih->handle, WM_IUPCARET, 0, 0L);
@@ -1795,7 +1821,7 @@ static int winTextMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *
     }
   case WM_CUT:
     {
-      if (!winTextCallActionCb(ih, NULL, 1))
+      if (!winTextCallActionCb(ih, NULL, 1))  /* same as delete */
         ret = 1;
 
       PostMessage(ih->handle, WM_IUPCARET, 0, 0L);
@@ -1810,7 +1836,7 @@ static int winTextMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *
         IupDestroy(clipboard);
         if (insert_value)
         {
-          if (!winTextCallActionCb(ih, insert_value, 0))
+          if (!winTextCallActionCb(ih, insert_value, 0))  /* insert */
             ret = 1;
         }
       }

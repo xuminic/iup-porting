@@ -11,7 +11,8 @@ USE_BIN2C_LUA = Yes
 USE_IUP3 = Yes
 USE_IUPLUA = Yes
 
-DEF_FILE = iuplua_mglplot.def
+INCLUDES = ../srclua5
+DEF_FILE = ctrl/iuplua_mglplot.def
 LIBS = iup_mglplot
 
 ifdef USE_LUA52
@@ -33,15 +34,15 @@ else
   LOHDIR = loh$(LUASFX)
 endif
 
-SRCLUA = mglplot.lua
+SRCLUA = mglplot.lua mgllabel.lua
 
 GC := $(addsuffix .c, $(basename $(SRCLUA)))
-GC := $(addprefix il_, $(GC))
+GC := $(addprefix ctrl/il_, $(GC))
 
-$(GC) : il_%.c : %.lua generator.lua
+$(GC) : ctrl/il_%.c : ctrl/%.lua generator.lua
 	$(LUABIN) generator.lua $<
 
-SRC := iuplua_mglplot.c $(GC)
+SRC := ctrl/iuplua_mglplot.c $(GC)
 
 ifneq ($(findstring MacOS, $(TEC_UNAME)), )
   USE_IUPLUA:=

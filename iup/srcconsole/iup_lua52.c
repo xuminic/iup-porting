@@ -1,5 +1,5 @@
 /*
-** $Id: iup_lua52.c,v 1.5 2011/12/22 01:31:56 scuri Exp $
+** $Id: iup_lua52.c,v 1.5 2011-12-22 01:31:56 scuri Exp $
 ** Lua stand-alone interpreter
 ** See Copyright Notice in lua.h
 */
@@ -24,8 +24,12 @@
 
 #ifndef IUPLUA_NO_GL
 #include "iupgl.h"
+#include "iupglcontrols.h"
 #include "iupluagl.h"
-/* #include "luagl.h" */
+#include "iupluaglcontrols.h"
+#ifdef USE_LUAGL
+#include "luagl.h"
+#endif
 #endif
 
 #ifndef IUPLUA_NO_CD
@@ -506,7 +510,10 @@ static void iuplua_openlibs (lua_State *L) {
 
 #ifndef IUPLUA_NO_GL
   iupgllua_open(L);
-/*  luaopen_luagl(L); */
+  iupglcontrolslua_open(L);
+#ifdef USE_LUAGL
+  luaopen_luagl(L);
+#endif
 #endif
 #ifndef IUPLUA_NO_CD
   iupcontrolslua_open(L);
