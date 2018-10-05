@@ -466,7 +466,7 @@ static IglFont* iGLFindFont(Ihandle* ih, Ihandle* gl_parent, const char *font)
 static IglFont* iGLFontCreateNativeFont(Ihandle *ih, const char* value)
 {
   IglFont* glfont;
-  Ihandle* gl_parent = (Ihandle*)iupAttribGet(ih, "GL_CANVAS");
+  Ihandle* gl_parent = (Ihandle*)iupAttribGet(ih, "_IUP_GLCANVAS_PARENT");
   IupGLMakeCurrent(gl_parent);
 
   glfont = iGLFindFont(ih, gl_parent, value);
@@ -601,13 +601,13 @@ int iupGLFontSetFontAttrib(Ihandle* ih, const char* value)
   {
     /* If FONT is changed, must update the SIZE attribute */
     char* value = iupAttribGet(ih, "SIZE");
-    if (!value)
-      return 1;
+    if (value)
+      IupSetStrAttribute(ih, "SIZE", value);
 
-    IupSetStrAttribute(ih, "SIZE", value);
+    return 1;
   }
 
-  return 1;
+  return 0;
 }
 
 void iupGLFontGetCharSize(Ihandle* ih, int *charwidth, int *charheight)

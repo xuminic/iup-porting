@@ -1056,6 +1056,17 @@ static int iPlotProperties_CB(Ihandle* ih_item)
   return IUP_DEFAULT;
 }
 
+static int setparent_param_cb(Ihandle* param_dialog, int param_index, void* user_data)
+{
+  if (param_index == IUP_GETPARAM_MAP)
+  {
+    Ihandle* ih = (Ihandle*)user_data;
+    IupSetAttributeHandle(param_dialog, "PARENTDIALOG", ih);
+  }
+
+  return 1;
+}
+
 static int iPlotDataSetProperties_CB(Ihandle* ih_item)
 {
   Ihandle* ih = (Ihandle*)IupGetAttribute(ih_item, "PLOT");
@@ -1126,7 +1137,7 @@ static int iPlotDataSetProperties_CB(Ihandle* ih_item)
     "_@IUP_PIESLICELABEL%l|_@IUP_NONE|X|Y|_@IUP_PERCENT|\n"
     "_@IUP_PIESLICELABELPOS%R[0,1,]\n";
 
-  if (!IupGetParam("_@IUP_DATASETPROPERTIESDLG", NULL, NULL, format,
+  if (!IupGetParam("_@IUP_DATASETPROPERTIESDLG", setparent_param_cb, IupGetDialog(ih), format,
     name, color, &mode, &linestyle, &linewidth, &markstyle, &marksize,
     &barSpacing, &barOutline, barOutlineColor,
     &areaTransparency,
@@ -3135,10 +3146,10 @@ static void iPlotSetClassUpdate(Iclass* ic)
     IupSetLanguageString("IUP_STAR", "Estrella");
     IupSetLanguageString("IUP_CIRCLE", "Circulo");
     IupSetLanguageString("IUP_X", "X");
-    IupSetLanguageString("IUP_BOX", "Cuadro");
+    IupSetLanguageString("IUP_BOX", "Caja");
     IupSetLanguageString("IUP_DIAMOND", "Diamante");
     IupSetLanguageString("IUP_HOLLOW_CIRCLE", "Circulo VacÌo");
-    IupSetLanguageString("IUP_HOLLOW_BOX", "Cuadro VacÌo");
+    IupSetLanguageString("IUP_HOLLOW_BOX", "Caja VacÌa");
     IupSetLanguageString("IUP_HOLLOW_DIAMOND", "Diamante VacÌo");
     IupSetLanguageString("IUP_MARKSIZE", "TamaÒo de Marca:");
     IupSetLanguageString("IUP_AREATRANSPARENCY", "Transparencia de ¡rea:");
@@ -3230,7 +3241,7 @@ static void iPlotSetClassUpdate(Iclass* ic)
       IupSetLanguageString("IUP_AREA", "√Årea");
       IupSetLanguageString("IUP_MULTIBARS", "Barras M√∫ltiples");
       IupSetLanguageString("IUP_HOLLOW_CIRCLE", "Circulo Vac√≠o");
-      IupSetLanguageString("IUP_HOLLOW_BOX", "Cuadro Vac√≠o");
+      IupSetLanguageString("IUP_HOLLOW_BOX", "Caja Vac√a");
       IupSetLanguageString("IUP_HOLLOW_DIAMOND", "Diamante Vac√≠o");
       IupSetLanguageString("IUP_MARKSIZE", "Tama√±o de Marca:");
       IupSetLanguageString("IUP_AREATRANSPARENCY", "Transparencia de √Årea:");
@@ -3304,7 +3315,9 @@ Ihandle* IupPlot(void)
 void IupPlotOpen(void)
 {
   IupGLCanvasOpen();
+#ifdef USE_CONTEXTPLUS
   cdInitContextPlus();
+#endif
 
   if (!IupGetGlobal("_IUP_PLOT_OPEN"))
   {

@@ -454,7 +454,8 @@ static int iPlotSetFGColorAttrib(Ihandle* ih, const char* value)
 
 static int iPlotSetFontAttrib(Ihandle* ih, const char* value)
 {
-  iupdrvSetFontAttrib(ih, value);
+  if (!iupdrvSetFontAttrib(ih, value))
+    return 0;
 
   int size = 0;
   int is_bold = 0,
@@ -462,9 +463,6 @@ static int iPlotSetFontAttrib(Ihandle* ih, const char* value)
     is_underline = 0,
     is_strikeout = 0;
   char typeface[1024];
-
-  if (!value)
-    return 0;
 
   if (!iupGetFontInfo(value, typeface, &size, &is_bold, &is_italic, &is_underline, &is_strikeout))
     return 0;
@@ -1780,7 +1778,7 @@ static int iPlotSetDSBarOutlineAttrib(Ihandle* ih, const char* value)
 {
   if (ih->data->current_plot->mCurrentDataSet < 0 ||
       ih->data->current_plot->mCurrentDataSet >= ih->data->current_plot->mDataSetListCount)
-      return NULL;
+      return 0;
 
   iupPlotDataSet* dataset = ih->data->current_plot->mDataSetList[ih->data->current_plot->mCurrentDataSet];
   dataset->mBarShowOutline = iupStrBoolean(value) ? true : false;
@@ -1802,7 +1800,7 @@ static int iPlotSetDSBarMulticolorAttrib(Ihandle* ih, const char* value)
 {
   if (ih->data->current_plot->mCurrentDataSet < 0 ||
       ih->data->current_plot->mCurrentDataSet >= ih->data->current_plot->mDataSetListCount)
-      return NULL;
+      return 0;
 
   iupPlotDataSet* dataset = ih->data->current_plot->mDataSetList[ih->data->current_plot->mCurrentDataSet];
   dataset->mBarMulticolor = iupStrBoolean(value) ? true : false;

@@ -22,9 +22,11 @@
 #include <unistd.h>
 #include <errno.h>
 #include <langinfo.h>
+#include <syslog.h>
 
 #include "iup_str.h"
 #include "iup_drvinfo.h"
+#include "iup_varg.h"
 
 
 char* iupdrvLocaleInfo(void)
@@ -251,6 +253,34 @@ char *iupdrvGetUserName(void)
   return (char*)getlogin();
 }
 
+int iupdrvSetCurrentDirectory(const char* dir)
+{
+  return chdir(dir) == 0 ? 1 : 0;
+}
+
+char* iupdrvGetCurrentDirectory(void)
+{
+  size_t size = 256;
+  char *buffer = (char *)iupStrGetMemory(size);
+
+  for (;;)
+  {
+    if (getcwd(buffer, size) != NULL)
+      return buffer;
+
+    if (errno != ERANGE)
+    {
+      free(buffer);
+      return NULL;
+    }
+
+    size += size;
+    buffer = (char *)iupStrGetMemory(size);
+  }
+
+  return NULL;
+}
+
 
 /**************************************************************************/
 
@@ -275,34 +305,6 @@ int iupUnixIsDirectory(const char* name)
   return 0;
 }            
 
-int iupUnixSetCurrentDirectory(const char* dir)
-{
-  return chdir(dir) == 0? 1: 0;
-}
-
-char* iupUnixGetCurrentDirectory(void)
-{
-  size_t size = 256;
-  char *buffer = (char *)malloc(size);
-
-  for (;;)
-  {
-    if (getcwd(buffer, size) != NULL)
-      return buffer;
-
-    if (errno != ERANGE)
-    {
-      free(buffer);
-      return NULL;
-    }
-
-    size += size;
-    buffer = (char *)realloc(buffer, size);
-  }
-
-  return NULL;
-}
-
 int iupUnixMakeDirectory(const char* name) 
 {
   mode_t oldmask = umask((mode_t)0);
@@ -314,3 +316,40 @@ int iupUnixMakeDirectory(const char* name)
   return 1;
 }
 
+
+/**************************************************************************/
+
+
+void IupLogV(const char* type, const char* format, va_list arglist)
+{
+  int options = LOG_CONS | LOG_PID;
+  int priority = 0;
+
+  if (iupStrEqualNoCase(type, "DEBUG"))
+  {
+    priority = LOG_DEBUG;
+#ifdef LOG_PERROR
+    options |= LOG_PERROR;
+#endif
+  }
+  else if (iupStrEqualNoCase(type, "ERROR"))
+    priority = LOG_ERR;
+  else if (iupStrEqualNoCase(type, "WARNING"))
+    priority = LOG_WARNING;
+  else if (iupStrEqualNoCase(type, "INFO"))
+    priority = LOG_INFO;
+
+  openlog(NULL, options, LOG_USER);
+
+  vsyslog(priority, format, arglist);
+
+  closelog();
+}
+
+void IupLog(const char* type, const char* format, ...)
+{
+  va_list arglist;
+  va_start(arglist, format);
+  IupLogV(type, format, arglist);
+  va_end(arglist);
+}

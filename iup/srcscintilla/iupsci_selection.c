@@ -23,48 +23,64 @@
 
 
 /***** SELECTION AND INFORMATION *****
-Attributes not implement yet:
+SCI_GETTEXTLENGTH
+--SCI_GETLENGTH
+SCI_GETLINECOUNT
 SCI_SETFIRSTVISIBLELINE(int lineDisplay)
 SCI_GETFIRSTVISIBLELINE
-SCI_GOTOLINE(int line)
-SCI_SETCURRENTPOS(int position)
+SCI_LINESONSCREEN
+--SCI_GETMODIFY
+SCI_SETSEL(int anchorPos, int currentPos)
+SCI_GOTOPOS(int position)
+--SCI_GOTOLINE(int line)
+--SCI_SETCURRENTPOS(int position)
 SCI_GETCURRENTPOS
-SCI_SETANCHOR(int position)
-SCI_GETANCHOR
-SCI_SETSELECTIONSTART(int position)
+--SCI_SETANCHOR(int position)
+--SCI_GETANCHOR
+--SCI_SETSELECTIONSTART(int position)
 SCI_GETSELECTIONSTART
-SCI_SETSELECTIONEND(int position)
+--SCI_SETSELECTIONEND(int position)
 SCI_GETSELECTIONEND
 SCI_SETEMPTYSELECTION(int pos)
+SCI_SELECTALL
 SCI_LINEFROMPOSITION(int position)
 SCI_POSITIONFROMLINE(int line)
-SCI_GETLINEENDPOSITION(int line)
+--SCI_GETLINEENDPOSITION(int line)
 SCI_LINELENGTH(int line)
 SCI_GETCOLUMN(int position)
-SCI_FINDCOLUMN(int line, int column)
-SCI_POSITIONFROMPOINT(int x, int y)
-SCI_POSITIONFROMPOINTCLOSE(int x, int y)
-SCI_CHARPOSITIONFROMPOINT(int x, int y)
-SCI_CHARPOSITIONFROMPOINTCLOSE(int x, int y)
-SCI_POINTXFROMPOSITION(<unused>, int position)
-SCI_POINTYFROMPOSITION(<unused>, int position)
-SCI_HIDESELECTION(bool hide)
-SCI_SELECTIONISRECTANGLE
-SCI_SETSELECTIONMODE(int mode)
-SCI_GETSELECTIONMODE
-SCI_GETLINESELSTARTPOSITION(int line)
-SCI_GETLINESELENDPOSITION(int line)
+--SCI_FINDCOLUMN(int line, int column)
+--SCI_POSITIONFROMPOINT(int x, int y)
+--SCI_POSITIONFROMPOINTCLOSE(int x, int y)
+--SCI_CHARPOSITIONFROMPOINT(int x, int y)
+--SCI_CHARPOSITIONFROMPOINTCLOSE(int x, int y)
+--SCI_POINTXFROMPOSITION(<unused>, int position)
+--SCI_POINTYFROMPOSITION(<unused>, int position)
+--SCI_HIDESELECTION(bool hide)
+SCI_GETSELTEXT(<unused>, char *text)
+SCI_GETCURLINE(int textLen, char *text)
+--SCI_SELECTIONISRECTANGLE
+--SCI_SETSELECTIONMODE(int mode)
+--SCI_GETSELECTIONMODE
+--SCI_GETLINESELSTARTPOSITION(int line)
+--SCI_GETLINESELENDPOSITION(int line)
+SCI_MOVECARETINSIDEVIEW
 SCI_WORDENDPOSITION(int position, bool onlyWordCharacters)
 SCI_WORDSTARTPOSITION(int position, bool onlyWordCharacters)
-SCI_POSITIONBEFORE(int position)
-SCI_POSITIONAFTER(int position)
-SCI_COUNTCHARACTERS(int startPos, int endPos)
-SCI_TEXTWIDTH(int styleNumber, const char *text)
-SCI_TEXTHEIGHT(int line)
-SCI_CHOOSECARETX
-SCI_MOVESELECTEDLINESUP
-SCI_MOVESELECTEDLINESDOWN
-
+SCI_ISRANGEWORD(int start, int end)
+--SCI_POSITIONBEFORE(int position)
+--SCI_POSITIONAFTER(int position)
+--SCI_POSITIONRELATIVE(int position, int relative)
+--SCI_COUNTCHARACTERS(int startPos, int endPos)
+--SCI_TEXTWIDTH(int styleNumber, const char *text)
+--SCI_TEXTHEIGHT(int line)
+--SCI_CHOOSECARETX
+--SCI_MOVESELECTEDLINESUP
+--SCI_MOVESELECTEDLINESDOWN
+--SCI_SETMOUSESELECTIONRECTANGULARSWITCH(bool mouseSelectionRectangularSwitch)
+--SCI_GETMOUSESELECTIONRECTANGULARSWITCH
+SCI_SETSELFORE
+SCI_SETSELBACK
+SCI_GETSELALPHA
 */
 
 static char* iScintillaGetCaretStyleAttrib(Ihandle* ih)
@@ -271,8 +287,8 @@ static int iScintillaSetSelectionAttrib(Ihandle* ih, const char* value)
 
   if (col_start >= len_start)
     col_start = len_start - 1;
-  if (col_end >= len_end)
-    col_end = len_end - 1;
+  if (col_end > len_end) /* col_end correspond to the character after the last selected character */
+    col_end = len_end;
 
   anchorPos  = (int)IupScintillaSendMessage(ih, SCI_POSITIONFROMLINE, lin_start, 0) + col_start;
   currentPos = (int)IupScintillaSendMessage(ih, SCI_POSITIONFROMLINE, lin_end, 0)   + col_end;
@@ -319,6 +335,34 @@ static int iScintillaSetSelectionPosAttrib(Ihandle* ih, const char* value)
 
   return 0;
 }
+
+static char* iScintillaGetWordPosAttrib(Ihandle* ih, int pos)
+{
+  int start = (int)IupScintillaSendMessage(ih, SCI_WORDSTARTPOSITION, pos, 1);
+  int end = (int)IupScintillaSendMessage(ih, SCI_WORDENDPOSITION, pos, 1);
+
+  if (start == end)
+    return NULL;
+
+  return iupStrReturnIntInt(start, end, ':');
+}
+
+#ifdef SCI_ISRANGEWORD
+static char* iScintillaGetIsWordAttrib(Ihandle* ih)
+{
+  int start, end, wordEnd;
+  const char *range = IupGetAttribute(ih, "WORDRANGE");
+
+  iupStrToIntInt(range, &start, &end, ':');
+
+  if (start == end)
+    return 0;
+
+  wordEnd = (int)IupScintillaSendMessage(ih, SCI_WORDENDPOSITION, start, 1);
+
+  return iupStrReturnBoolean((int)IupScintillaSendMessage(ih, SCI_ISRANGEWORD, start, end) && wordEnd == end);
+}
+#endif
 
 static int iScintillaSetFirstVisibleLineAttrib(Ihandle* ih, const char* value)
 {
@@ -388,11 +432,59 @@ static char* iScintillaGetCaretLineBackAlphaAttrib(Ihandle* ih)
   return iupStrReturnInt(alpha);
 }
 
+static int iScintillaSetSelectionForeColorAttrib(Ihandle* ih, const char* value)
+{
+  if (!value)
+    IupScintillaSendMessage(ih, SCI_SETSELFORE, 0, 0);
+  else
+  {
+    unsigned char r, g, b;
+
+    if (!iupStrToRGB(value, &r, &g, &b))
+      return 0;
+
+    IupScintillaSendMessage(ih, SCI_SETSELFORE, 1, iupScintillaEncodeColor(r, g, b));
+  }
+  return 1;
+}
+
+static int iScintillaSetSelectionBackColorAttrib(Ihandle* ih, const char* value)
+{
+  if (!value)
+    IupScintillaSendMessage(ih, SCI_SETSELBACK, 0, 0);
+  else
+  {
+    unsigned char r, g, b;
+
+    if (!iupStrToRGB(value, &r, &g, &b))
+      return 0;
+
+    IupScintillaSendMessage(ih, SCI_SETSELBACK, 1, iupScintillaEncodeColor(r, g, b));
+  }
+  return 1;
+}
+
+static int iScintillaSetSelectionAlphaAttrib(Ihandle* ih, const char* value)
+{
+  int alpha;
+  if (iupStrToInt(value, &alpha))
+    IupScintillaSendMessage(ih, SCI_SETSELALPHA, alpha, 0);
+  return 0;
+}
+
+static char* iScintillaGetSelectionAlphaAttrib(Ihandle* ih)
+{
+  int alpha = (int)IupScintillaSendMessage(ih, SCI_GETSELALPHA, 0, 0);
+  return iupStrReturnInt(alpha);
+}
+
+
 void iupScintillaRegisterSelection(Iclass* ic)
 {
   iupClassRegisterAttribute(ic, "CARETLINEVISIBLE",   iScintillaGetCaretLineVisibleAttrib,   iScintillaSetCaretLineVisibleAttrib,   NULL, NULL, IUPAF_NO_SAVE | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "CARETLINEBACKCOLOR", iScintillaGetCaretLineBackColorAttrib, iScintillaSetCaretLineBackColorAttrib, NULL, NULL, IUPAF_NO_SAVE | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "CARETLINEBACKALPHA", iScintillaGetCaretLineBackAlphaAttrib, iScintillaSetCaretLineBackAlphaAttrib, NULL, NULL, IUPAF_NO_SAVE | IUPAF_NO_INHERIT);
+
   iupClassRegisterAttribute(ic, "CARETSTYLE", iScintillaGetCaretStyleAttrib, iScintillaSetCaretStyleAttrib, NULL, NULL, IUPAF_NO_SAVE | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "CARETWIDTH", iScintillaGetCaretWidthAttrib, iScintillaSetCaretWidthAttrib, NULL, NULL, IUPAF_NO_SAVE | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "CARETCOLOR", iScintillaGetCaretColorAttrib, iScintillaSetCaretColorAttrib, NULL, NULL, IUPAF_NO_SAVE | IUPAF_NO_INHERIT);
@@ -406,6 +498,14 @@ void iupScintillaRegisterSelection(Iclass* ic)
   iupClassRegisterAttribute(ic, "SELECTEDTEXT", iScintillaGetSelectedTextAttrib, iScintillaSetSelectedTextAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SELECTION", iScintillaGetSelectionAttrib, iScintillaSetSelectionAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SELECTIONPOS", iScintillaGetSelectionPosAttrib, iScintillaSetSelectionPosAttrib, NULL, NULL, IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "VISIBLELINESCOUNT", iScintillaGetVisibleLinesCountAttrib, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "SELECTIONFGCOLOR", NULL, iScintillaSetSelectionForeColorAttrib, NULL, NULL, IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "SELECTIONBGCOLOR", NULL, iScintillaSetSelectionBackColorAttrib, NULL, NULL, IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "SELECTIONALPHA", iScintillaGetSelectionAlphaAttrib, iScintillaSetSelectionAlphaAttrib,  NULL, NULL, IUPAF_NO_SAVE | IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "WORDPOS", iScintillaGetWordPosAttrib, NULL, IUPAF_READONLY | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "WORDRANGE", NULL, NULL, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+#ifdef SCI_ISRANGEWORD
+  iupClassRegisterAttribute(ic, "ISWORD", iScintillaGetIsWordAttrib, NULL, NULL, NULL, IUPAF_READONLY);
+#endif  
+  iupClassRegisterAttribute(ic, "VISIBLELINESCOUNT", iScintillaGetVisibleLinesCountAttrib, NULL, NULL, NULL, IUPAF_READONLY | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "FIRSTVISIBLELINE", iScintillaGetFirstVisibleLineAttrib, iScintillaSetFirstVisibleLineAttrib, NULL, NULL, IUPAF_NO_INHERIT);
 }

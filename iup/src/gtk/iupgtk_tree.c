@@ -945,7 +945,7 @@ static int gtkTreeSetTopItemAttrib(Ihandle* ih, const char* value)
     if (!expanded) gtk_tree_view_collapse_row(GTK_TREE_VIEW(ih->handle), path);
   }
 
-  gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(ih->handle), path, NULL, FALSE, 0, 0);  /* scroll to visible */
+  gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(ih->handle), path, NULL, TRUE, 0, 0);  /* scroll to visible, top */
 
   gtk_tree_path_free(path);
  
@@ -1109,6 +1109,101 @@ static char* gtkTreeGetParentAttrib(Ihandle* ih, int id)
   return iupStrReturnInt(gtkTreeFindNodeId(ih, &iterParent));
 }
 
+static char* gtkTreeGetNextAttrib(Ihandle* ih, int id)
+{
+  GtkTreeModel* model = gtk_tree_view_get_model(GTK_TREE_VIEW(ih->handle));
+  GtkTreeIter iterItem;
+
+  if (!gtkTreeFindNode(ih, id, &iterItem))
+    return NULL;
+
+  if (!gtk_tree_model_iter_next(model, &iterItem))
+    return NULL;
+
+  return iupStrReturnInt(gtkTreeFindNodeId(ih, &iterItem));
+}
+
+static char* gtkTreeGetLastAttrib(Ihandle* ih, int id)
+{
+  GtkTreeModel* model = gtk_tree_view_get_model(GTK_TREE_VIEW(ih->handle));
+  GtkTreeIter iterItem;
+  GtkTreeIter iterItemLast;
+  int found = 1;
+
+  if (!gtkTreeFindNode(ih, id, &iterItem))
+    return NULL;
+
+  while (found)
+  {
+    iterItemLast = iterItem;
+    found = gtk_tree_model_iter_next(model, &iterItem);
+  }
+
+  return iupStrReturnInt(gtkTreeFindNodeId(ih, &iterItemLast));
+}
+
+static char* gtkTreeGetPreviousAttrib(Ihandle* ih, int id)
+{
+  GtkTreeModel* model = gtk_tree_view_get_model(GTK_TREE_VIEW(ih->handle));
+  GtkTreeIter iterItem;
+
+  if (!gtkTreeFindNode(ih, id, &iterItem))
+    return NULL;
+
+#if GTK_CHECK_VERSION(3, 0, 0)
+  if (!gtk_tree_model_iter_previous(model, &iterItem))
+    return NULL;
+#else
+  {
+    GtkTreeIter iterItemPrevious;
+    GtkTreeIter iterItemNext;
+    GtkTreeIter iterParent;
+    int found = 1;
+
+    /* get first */
+    if (gtk_tree_model_iter_parent(model, &iterParent, &iterItem))
+      gtk_tree_model_iter_children(model, &iterItemPrevious, &iterParent);
+    else
+      gtk_tree_model_get_iter_first(model, &iterItemPrevious);
+
+    if (iterItemPrevious.user_data == iterItem.user_data)
+      return NULL;
+
+    do
+    {
+      iterItemNext = iterItemPrevious;
+      found = gtk_tree_model_iter_next(model, &iterItemNext);
+      if (found && iterItemNext.user_data == iterItem.user_data)
+        break;
+    } while (found);
+
+    iterItem = iterItemPrevious;
+  }
+#endif
+
+  return iupStrReturnInt(gtkTreeFindNodeId(ih, &iterItem));
+}
+
+
+static char* gtkTreeGetFirstAttrib(Ihandle* ih, int id)
+{
+  GtkTreeModel* model = gtk_tree_view_get_model(GTK_TREE_VIEW(ih->handle));
+  GtkTreeIter iterItem;
+  GtkTreeIter iterItemFirst;
+  GtkTreeIter iterParent;
+
+  if (!gtkTreeFindNode(ih, id, &iterItem))
+    return NULL;
+
+  if (!gtk_tree_model_iter_parent(model, &iterParent, &iterItem))
+    return "0";
+
+  if (!gtk_tree_model_iter_children(model, &iterItemFirst, &iterParent))
+    return NULL;
+
+  return iupStrReturnInt(gtkTreeFindNodeId(ih, &iterItemFirst));
+}
+
 static char* gtkTreeGetChildCountAttrib(Ihandle* ih, int id)
 {
   GtkTreeModel* model = gtk_tree_view_get_model(GTK_TREE_VIEW(ih->handle));
@@ -1118,6 +1213,12 @@ static char* gtkTreeGetChildCountAttrib(Ihandle* ih, int id)
     return NULL;
 
   return iupStrReturnInt(gtk_tree_model_iter_n_children(model, &iterItem));
+}
+
+static char* gtkTreeGetRootCountAttrib(Ihandle* ih)
+{
+  GtkTreeModel* model = gtk_tree_view_get_model(GTK_TREE_VIEW(ih->handle));
+  return iupStrReturnInt(gtk_tree_model_iter_n_children(model, NULL));
 }
 
 static char* gtkTreeGetKindAttrib(Ihandle* ih, int id)
@@ -1149,7 +1250,7 @@ static char* gtkTreeGetStateAttrib(Ihandle* ih, int id)
   {
     GtkTreePath* path = gtk_tree_model_get_path(model, &iterItem);
     int expanded = gtk_tree_view_row_expanded(GTK_TREE_VIEW(ih->handle), path);
-    gtk_tree_path_free(path);
+   gtk_tree_path_free(path);
 
     if (expanded)
       return "EXPANDED";
@@ -1438,7 +1539,7 @@ static int gtkTreeSetValueAttrib(Ihandle* ih, const char* value)
     if (!expanded) gtk_tree_view_collapse_row(GTK_TREE_VIEW(ih->handle), path);
   }
 
-  gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(ih->handle), path, NULL, FALSE, 0, 0); /* scroll to visible */
+  gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(ih->handle), path, NULL, FALSE, 0, 0);  /* scroll to visible, minimum change */
 
   gtkTreeSetFocus(ih, path, &iterItem, FALSE);
 
@@ -2022,7 +2123,7 @@ static void gtkTreeDragDataReceived(GtkWidget *widget, GdkDragContext *context, 
         pathNew = gtk_tree_model_get_path(model, &iterNewItem);
         gtkTreeSelectNode(model, selection, &iterNewItem, 1);
 
-        gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(ih->handle), pathNew, NULL, FALSE, 0, 0);
+        gtk_tree_view_scroll_to_cell(GTK_TREE_VIEW(ih->handle), pathNew, NULL, FALSE, 0, 0);  /* scroll to visible, minimum change */
 
         /* unselect all, select new node and focus */
         iupAttribSet(ih, "_IUPTREE_IGNORE_SELECTION_CB", "1");
@@ -2910,7 +3011,11 @@ void iupdrvTreeInitClass(Iclass* ic)
   iupClassRegisterAttributeId(ic, "DEPTH",  gtkTreeGetDepthAttrib,  NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "KIND",   gtkTreeGetKindAttrib,   NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "PARENT", gtkTreeGetParentAttrib, NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
-  iupClassRegisterAttributeId(ic, "COLOR",  gtkTreeGetColorAttrib,  gtkTreeSetColorAttrib, IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "NEXT", gtkTreeGetNextAttrib, NULL, IUPAF_READONLY | IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "LAST", gtkTreeGetLastAttrib, NULL, IUPAF_READONLY | IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "PREVIOUS", gtkTreeGetPreviousAttrib, NULL, IUPAF_READONLY | IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "FIRST", gtkTreeGetFirstAttrib, NULL, IUPAF_READONLY | IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "COLOR", gtkTreeGetColorAttrib, gtkTreeSetColorAttrib, IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "TITLE",  gtkTreeGetTitleAttrib,  gtkTreeSetTitleAttrib, IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "TOGGLEVALUE", gtkTreeGetToggleValueAttrib, gtkTreeSetToggleValueAttrib, IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "TOGGLEVISIBLE", gtkTreeGetToggleVisibleAttrib, gtkTreeSetToggleVisibleAttrib, IUPAF_NO_INHERIT);
@@ -2920,6 +3025,7 @@ void iupdrvTreeInitClass(Iclass* ic)
 
   iupClassRegisterAttributeId(ic, "CHILDCOUNT", gtkTreeGetChildCountAttrib, NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "TITLEFONT",  gtkTreeGetTitleFontAttrib,  gtkTreeSetTitleFontAttrib, IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "ROOTCOUNT", gtkTreeGetRootCountAttrib, NULL, NULL, NULL, IUPAF_READONLY | IUPAF_NO_INHERIT);
 
   /* IupTree Attributes - MARKS */
   iupClassRegisterAttributeId(ic, "MARKED", gtkTreeGetMarkedAttrib, gtkTreeSetMarkedAttrib, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);

@@ -60,6 +60,8 @@ public:
 #endif
     SINK_ENTRY_EX(0, DIID_DWebBrowserEvents2, DISPID_NAVIGATEERROR, NavigateError)
     SINK_ENTRY_EX(0, DIID_DWebBrowserEvents2, DISPID_DOCUMENTCOMPLETE, DocumentComplete)
+    SINK_ENTRY_EX(0, DIID_DWebBrowserEvents2, DISPID_COMMANDSTATECHANGE, CommandStateChange)
+    
   END_SINK_MAP()
 
   void STDMETHODCALLTYPE BeforeNavigate2(IDispatch *pDisp, VARIANT *url, VARIANT *Flags, VARIANT *TargetFrameName,
@@ -133,6 +135,24 @@ public:
       free(urlString);
     }
     (void)pDisp;
+  }
+
+  void STDMETHODCALLTYPE CommandStateChange(LONG Command, VARIANT_BOOL Enable)
+  {
+    if (Command == CSC_NAVIGATEFORWARD)
+    {
+      if (Enable == VARIANT_TRUE)
+        iupAttribSet(ih, "CANGOFORWARD", "YES");
+      else
+        iupAttribSet(ih, "CANGOFORWARD", "NO");
+    }
+    else if (Command == CSC_NAVIGATEBACK)
+    {
+      if (Enable == VARIANT_TRUE)
+        iupAttribSet(ih, "CANGOBACK", "YES");
+      else
+        iupAttribSet(ih, "CANGOBACK", "NO");
+    }
   }
 };
 
@@ -313,6 +333,22 @@ static int winWebBrowserSetBackForwardAttrib(Ihandle* ih, const char* value)
   return 0; /* do not store value in hash table */
 }
 
+static int winWebBrowserSetGoBackAttrib(Ihandle* ih, const char* value)
+{
+  IWebBrowser2 *pweb = (IWebBrowser2*)iupAttribGet(ih, "_IUPWEB_BROWSER");
+  pweb->GoBack();
+  (void)value;
+  return 0; /* do not store value in hash table */
+}
+
+static int winWebBrowserSetGoForwardAttrib(Ihandle* ih, const char* value)
+{
+  IWebBrowser2 *pweb = (IWebBrowser2*)iupAttribGet(ih, "_IUPWEB_BROWSER");
+  pweb->GoForward();
+  (void)value;
+  return 0; /* do not store value in hash table */
+}
+
 static int winWebBrowserSetReloadAttrib(Ihandle* ih, const char* value)
 {
   IWebBrowser2 *pweb = (IWebBrowser2*)iupAttribGet(ih, "_IUPWEB_BROWSER");
@@ -460,8 +496,10 @@ Iclass* iupWebBrowserNewClass(void)
 
   /* Attributes */
   iupClassRegisterAttribute(ic, "VALUE", winWebBrowserGetValueAttrib, winWebBrowserSetValueAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "BACKFORWARD", NULL, winWebBrowserSetBackForwardAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "STOP", NULL, winWebBrowserSetStopAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "BACKFORWARD", NULL, winWebBrowserSetBackForwardAttrib, NULL, NULL, IUPAF_WRITEONLY | IUPAF_NO_DEFAULTVALUE | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "GOBACK", NULL, winWebBrowserSetGoBackAttrib, NULL, NULL, IUPAF_WRITEONLY | IUPAF_NO_DEFAULTVALUE | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "GOFORWARD", NULL, winWebBrowserSetGoForwardAttrib, NULL, NULL, IUPAF_WRITEONLY | IUPAF_NO_DEFAULTVALUE | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "STOP", NULL, winWebBrowserSetStopAttrib, NULL, NULL, IUPAF_WRITEONLY | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "RELOAD", NULL, winWebBrowserSetReloadAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "HTML", NULL, winWebBrowserSetHTMLAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "STATUS", winWebBrowserGetStatusAttrib, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_READONLY|IUPAF_NO_INHERIT);
@@ -469,6 +507,8 @@ Iclass* iupWebBrowserNewClass(void)
   iupClassRegisterAttribute(ic, "SELECTALL", NULL, winWebBrowserSetSelectAllAttrib, NULL, NULL, IUPAF_WRITEONLY | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "ZOOM", winWebBrowserGetZoomAttrib, winWebBrowserSetZoomAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "PRINT", NULL, winWebBrowserSetPrintAttrib, NULL, NULL, IUPAF_WRITEONLY | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "CANGOBACK", NULL, NULL, NULL, NULL, IUPAF_READONLY | IUPAF_NO_DEFAULTVALUE | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "CANGOFORWARD", NULL, NULL, NULL, NULL, IUPAF_READONLY | IUPAF_NO_DEFAULTVALUE | IUPAF_NO_INHERIT);
 
   if (!iweb_module)
   {
