@@ -21,6 +21,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "iuptest", "iuptest.vcxproj"
 		{972D1765-90E0-4ABD-93D7-88CB0ADCE9DB} = {972D1765-90E0-4ABD-93D7-88CB0ADCE9DB}
 		{5EABE977-C56D-13FA-45DD-12A8972EA8CC} = {5EABE977-C56D-13FA-45DD-12A8972EA8CC}
 		{C146018B-9ADC-A745-A7E4-532192649FCA} = {C146018B-9ADC-A745-A7E4-532192649FCA}
+		{22AD4898-1301-4EE3-A505-1F17F12638B2} = {22AD4898-1301-4EE3-A505-1F17F12638B2}
 	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "iuptestgtk", "iuptestgtk.vcxproj", "{2F92EC58-1234-40BF-5678-77607C72E1E3}"
@@ -41,7 +42,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "iupim", "iupim.vcxproj", "{
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "iuplua", "iuplua\iuplua.vcxproj", "{1EBC7A53-4677-4C3A-8D4A-49D301F17D85}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "iupluaexe", "iuplua\iupluaexe.vcxproj", "{A60D658D-766C-40DB-BAE4-59AB884D86FB}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "iupluaconsole", "iuplua\iupluaconsole.vcxproj", "{A60D658D-766C-40DB-BAE4-59AB884D86FB}"
 	ProjectSection(ProjectDependencies) = postProject
 		{8B2E140D-E759-441F-B2BC-B9FE61CDF741} = {8B2E140D-E759-441F-B2BC-B9FE61CDF741}
 		{01FC1249-3B24-4DA4-87BA-BF6EA8ED6731} = {01FC1249-3B24-4DA4-87BA-BF6EA8ED6731}
@@ -91,7 +92,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "iupsamplegtk", "iupsamplegt
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "iupviewgtk", "iupviewgtk.vcxproj", "{E7D19356-B0AB-44AD-ACCB-5FFFCC4837BE}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "iupluagtk_exe", "iuplua\iupluaexegtk.vcxproj", "{389DF3C9-A628-4F6D-8C52-8924FA01DE66}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "iupluagtk_exe", "iuplua\iupluaconsolegtk.vcxproj", "{389DF3C9-A628-4F6D-8C52-8924FA01DE66}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "iuptuio", "iuptuio.vcxproj", "{E251B414-01CA-482B-12F6-DD34ADAAB6AA}"
 EndProject
@@ -156,13 +157,27 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "iup_plot", "iup_plot.vcxpro
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "iuplua_plot", "iuplua\iuplua_plot.vcxproj", "{8B2E140D-E759-441F-B2BC-B9FE61CDF741}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "iupluagtk3_exe", "iuplua\iupluaexegtk3.vcxproj", "{C063C5F8-3688-4EC3-B7CC-78D58533B6BC}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "iupluagtk3_exe", "iuplua\iupluaconsolegtk3.vcxproj", "{C063C5F8-3688-4EC3-B7CC-78D58533B6BC}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "iupviewgtk3", "iupviewgtk3.vcxproj", "{710DA52B-3657-467E-A619-BE40A7D1B7A9}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "simple_paint", "..\html\examples\tutorial\simple_paint2\simple_paint.vcxproj", "{C0E4757A-8A78-48C1-B507-E2A95AA18B25}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "scintilla_notepad", "..\html\examples\tutorial\scintilla_notepad\scintilla_notepad.vcxproj", "{E1563874-0732-46F5-BC4F-F373CF0652BA}"
+	ProjectSection(ProjectDependencies) = postProject
+		{22AD4898-1301-4EE3-A505-1F17F12638B2} = {22AD4898-1301-4EE3-A505-1F17F12638B2}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "iupluascripter", "iuplua\iupluascripter.vcxproj", "{4094BDD7-82B1-4754-A86B-C7D893F8CEE3}"
+	ProjectSection(ProjectDependencies) = postProject
+		{1EB17A53-1945-AB56-DD11-A3FB01F18985} = {1EB17A53-1945-AB56-DD11-A3FB01F18985}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "iupluascripterdlg", "iuplua\iupluascripterdlg.vcxproj", "{1EB17A53-1945-AB56-DD11-A3FB01F18985}"
+	ProjectSection(ProjectDependencies) = postProject
+		{1EBC7A53-4677-4C3A-8D4A-49D301F17D85} = {1EBC7A53-4677-4C3A-8D4A-49D301F17D85}
+		{22AD4898-1301-4EE3-A505-1F17F12638B2} = {22AD4898-1301-4EE3-A505-1F17F12638B2}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -540,6 +555,22 @@ Global
 		{E1563874-0732-46F5-BC4F-F373CF0652BA}.Release|Win32.Build.0 = Release|Win32
 		{E1563874-0732-46F5-BC4F-F373CF0652BA}.Release|x64.ActiveCfg = Release|x64
 		{E1563874-0732-46F5-BC4F-F373CF0652BA}.Release|x64.Build.0 = Release|x64
+		{4094BDD7-82B1-4754-A86B-C7D893F8CEE3}.Debug|Win32.ActiveCfg = Debug|Win32
+		{4094BDD7-82B1-4754-A86B-C7D893F8CEE3}.Debug|Win32.Build.0 = Debug|Win32
+		{4094BDD7-82B1-4754-A86B-C7D893F8CEE3}.Debug|x64.ActiveCfg = Debug|x64
+		{4094BDD7-82B1-4754-A86B-C7D893F8CEE3}.Debug|x64.Build.0 = Debug|x64
+		{4094BDD7-82B1-4754-A86B-C7D893F8CEE3}.Release|Win32.ActiveCfg = Debug|Win32
+		{4094BDD7-82B1-4754-A86B-C7D893F8CEE3}.Release|Win32.Build.0 = Debug|Win32
+		{4094BDD7-82B1-4754-A86B-C7D893F8CEE3}.Release|x64.ActiveCfg = Debug|x64
+		{4094BDD7-82B1-4754-A86B-C7D893F8CEE3}.Release|x64.Build.0 = Debug|x64
+		{1EB17A53-1945-AB56-DD11-A3FB01F18985}.Debug|Win32.ActiveCfg = Debug|Win32
+		{1EB17A53-1945-AB56-DD11-A3FB01F18985}.Debug|Win32.Build.0 = Debug|Win32
+		{1EB17A53-1945-AB56-DD11-A3FB01F18985}.Debug|x64.ActiveCfg = Debug|x64
+		{1EB17A53-1945-AB56-DD11-A3FB01F18985}.Debug|x64.Build.0 = Debug|x64
+		{1EB17A53-1945-AB56-DD11-A3FB01F18985}.Release|Win32.ActiveCfg = Debug|Win32
+		{1EB17A53-1945-AB56-DD11-A3FB01F18985}.Release|Win32.Build.0 = Debug|Win32
+		{1EB17A53-1945-AB56-DD11-A3FB01F18985}.Release|x64.ActiveCfg = Debug|x64
+		{1EB17A53-1945-AB56-DD11-A3FB01F18985}.Release|x64.Build.0 = Debug|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -584,6 +615,8 @@ Global
 		{710DA52B-3657-467E-A619-BE40A7D1B7A9} = {B24D8E0A-2EB5-4C49-A146-C0AABEF81788}
 		{C0E4757A-8A78-48C1-B507-E2A95AA18B25} = {FC52B7B5-744E-45D6-815C-3502F9D965E7}
 		{E1563874-0732-46F5-BC4F-F373CF0652BA} = {FC52B7B5-744E-45D6-815C-3502F9D965E7}
+		{4094BDD7-82B1-4754-A86B-C7D893F8CEE3} = {B24D8E0A-2EB5-4C49-A146-C0AABEF81788}
+		{1EB17A53-1945-AB56-DD11-A3FB01F18985} = {1CBEAA34-BA34-497D-A775-B9AF6F905696}
 	EndGlobalSection
 	GlobalSection(DevPartner) = postSolution
 	EndGlobalSection

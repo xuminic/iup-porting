@@ -1099,6 +1099,10 @@ struct Sci_NotifyHeader {
 
 #define NotifyHeader Sci_NotifyHeader
 
+#ifndef __cplusplus
+typedef struct SCNotification SCNotification;
+#endif
+
 struct SCNotification {
 	struct Sci_NotifyHeader nmhdr;
 	int position;

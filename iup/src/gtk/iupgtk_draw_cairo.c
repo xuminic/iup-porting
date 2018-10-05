@@ -114,14 +114,6 @@ void iupdrvDrawGetSize(IdrawCanvas* dc, int *w, int *h)
   if (h) *h = dc->h;
 }
 
-void iupdrvDrawParentBackground(IdrawCanvas* dc)
-{
-  unsigned char r=0, g=0, b=0;
-  char* color = iupBaseNativeParentGetBgColorAttrib(dc->ih);
-  iupStrToRGB(color, &r, &g, &b);
-  iupdrvDrawRectangle(dc, 0, 0, dc->w-1, dc->h-1, r, g, b, IUP_DRAW_FILL);
-}
-
 static void iDrawSetLineStyle(IdrawCanvas* dc, int style)
 {
   cairo_set_line_width(dc->image_cr, 1);
@@ -253,12 +245,22 @@ void iupdrvDrawResetClip(IdrawCanvas* dc)
   cairo_reset_clip(dc->image_cr);
 }
 
-void iupdrvDrawText(IdrawCanvas* dc, const char* text, int len, int x, int y, unsigned char r, unsigned char g, unsigned char b, const char* font)
+void iupdrvDrawText(IdrawCanvas* dc, const char* text, int len, int x, int y, int w, int h, unsigned char r, unsigned char g, unsigned char b, const char* font, int align)
 {
   PangoLayout* fontlayout = (PangoLayout*)iupgtkGetPangoLayout(font);
+  PangoAlignment alignment = PANGO_ALIGN_LEFT;
+  (void)w; /* unused */
+  (void)h; /* unused */
 
   text = iupgtkStrConvertToSystemLen(text, &len);
   pango_layout_set_text(fontlayout, text, len);
+
+  if (align == IUP_ALIGN_ARIGHT)
+    alignment = PANGO_ALIGN_RIGHT;
+  else if (align == IUP_ALIGN_ACENTER)
+    alignment = PANGO_ALIGN_CENTER;
+
+  pango_layout_set_alignment(fontlayout, alignment);
 
   cairo_set_source_rgba(dc->image_cr, iupCOLOR8ToDouble(r),
                                        iupCOLOR8ToDouble(g),

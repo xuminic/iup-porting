@@ -374,7 +374,7 @@ static int saveallimagesone_cb(void)
   if (!imgtype)
     return IUP_DEFAULT;
 
-  strcat(file_name, imgtype);
+  strcat(file_name, StrLower(imgtype));
   if (GetSaveAsFile(file_name, imgtype) == -1)
     return IUP_DEFAULT;
 
@@ -1079,6 +1079,9 @@ int main (int argc, char **argv)
 #ifdef STOCK_TEST
     IupSetGlobal("IMAGESTOCKSIZE", STOCK_TEST);
 #endif
+
+    IupSetGlobal("GLOBALLAYOUTDLGKEY", "Yes");
+/*    IupSetGlobal("UTF8MODE", "YES"); */
 
     mainUpdateInternals();
 

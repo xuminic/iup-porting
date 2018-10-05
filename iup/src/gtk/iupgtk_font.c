@@ -113,7 +113,7 @@ static IgtkFont* gtkFindFont(const char *font)
         double res = ((double)gdk_screen_get_width(gdk_screen_get_default()) / (double)gdk_screen_get_width_mm(gdk_screen_get_default())); /* pixels/mm */
         /* 1 point = 1/72 inch     1 inch = 25.4 mm */
         /* pixel = ((point/72)*25.4)*pixel/mm */
-        size = (int)((-size/res)*2.83464567 + 0.5); /* from pixels to points */
+        size = iupRound((-size / res)*2.83464567); /* from pixels to points */
       }
 
       sprintf(new_font, "%s, %s%s%d", typeface, is_bold?"Bold ":"", is_italic?"Italic ":"", size);
@@ -343,11 +343,10 @@ int iupdrvSetFontAttrib(Ihandle* ih, const char* value)
   return 1;
 }
 
-void iupdrvFontGetMultiLineStringSize(Ihandle* ih, const char* str, int *w, int *h)
+static void gtkFontGetTextSize(Ihandle* ih, IgtkFont* gtkfont, const char* str, int *w, int *h)
 {
   int max_w = 0;
 
-  IgtkFont* gtkfont = gtkFontGet(ih);
   if (!gtkfont)
   {
     if (w) *w = 0;
@@ -379,6 +378,18 @@ void iupdrvFontGetMultiLineStringSize(Ihandle* ih, const char* str, int *w, int 
 
   if (w) *w = max_w;
   if (h) *h = gtkfont->charheight * iupStrLineCount(str);
+}
+
+void iupdrvFontGetMultiLineStringSize(Ihandle* ih, const char* str, int *w, int *h)
+{
+  IgtkFont* gtkfont = gtkFontGet(ih);
+  gtkFontGetTextSize(ih, gtkfont, str, w, h);
+}
+
+void iupdrvFontGetTextSize(const char* font, const char* str, int *w, int *h)
+{
+  IgtkFont *gtkfont = gtkFindFont(font);
+  gtkFontGetTextSize(NULL, gtkfont, str, w, h);
 }
 
 int iupdrvFontGetStringWidth(Ihandle* ih, const char* str)
