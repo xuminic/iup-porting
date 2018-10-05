@@ -237,7 +237,7 @@ static void gtkSetGlobalAttrib(void)
   GdkDisplay* display = gdk_display_get_default();
   Display* xdisplay = GDK_DISPLAY_XDISPLAY(display);
   IupSetGlobal("XDISPLAY", (char*)xdisplay);
-  IupSetGlobal("XSCREEN", (char*)XDefaultScreen(xdisplay));
+  IupSetGlobal("XSCREEN", (char*)((long)XDefaultScreen(xdisplay)));
   IupSetGlobal("XSERVERVENDOR", ServerVendor(xdisplay));
   IupSetInt(NULL, "XVENDORRELEASE", VendorRelease(xdisplay));
 }
