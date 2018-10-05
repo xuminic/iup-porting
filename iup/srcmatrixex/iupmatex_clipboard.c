@@ -163,7 +163,7 @@ static void iMatrixExCopyGetDataMarkedCol(ImatExData* matex_data, Iarray* data, 
   int lin, col;
   int add_sep;
 
-  for(lin = 1; lin <= num_lin; ++lin)  /* all lines */
+  for(lin = 1; lin <= num_lin; ++lin)  /* always organize data in lines */
   {
     add_sep = 0;
 
@@ -614,7 +614,7 @@ static int iMatrixExSetPasteAttrib(Ihandle *ih, const char* value)
   IupDestroy(clipboard);
 
   if (iupStrEqualNoCase(value, "FOCUS"))
-    IupGetIntInt(ih, "FOCUS_CELL", &lin, &col);
+    IupGetIntInt(ih, "FOCUSCELL", &lin, &col);
   else if (iupStrEqualNoCase(value, "MARKED"))
   {
     char *marked = IupGetAttribute(ih,"MARKED");
@@ -638,7 +638,7 @@ static int iMatrixExSetPasteAttrib(Ihandle *ih, const char* value)
 static int iMatrixExSetPasteDataAttrib(Ihandle *ih, const char* data)
 {
   int lin=0, col=0;
-  IupGetIntInt(ih, "FOCUS_CELL", &lin, &col);
+  IupGetIntInt(ih, "FOCUSCELL", &lin, &col);
   iMatrixExPasteData(ih, data, lin, col, "PASTEDATA");
   return 0;
 }

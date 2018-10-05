@@ -11,7 +11,6 @@
 #include "iupPlot.h"
 
 #include "iup_plot.h"
-#include "iupgl.h"
 
 #include "iup_class.h"
 #include "iup_register.h"
@@ -239,8 +238,6 @@ static int iPlotSetRedrawAttrib(Ihandle* ih, const char* value)
 
   if (ih->data->graphics_mode == IUP_PLOT_OPENGL)
   {
-    IupGLMakeCurrent(ih);
-
     // in OpenGL mode must:
     flush = 1;  // always flush
     only_current = 0;  // redraw all plots
@@ -1578,8 +1575,6 @@ static int iPlotSetDSModeAttrib(Ihandle* ih, const char* value)
   
   iupPlotDataSet* dataset = ih->data->current_plot->mDataSetList[ih->data->current_plot->mCurrentDataSet];
 
-  ih->data->current_plot->mAxisX.mDiscrete = false;
-
   if(iupStrEqualNoCase(value, "BAR"))
   {
     dataset->mMode = IUP_PLOT_BAR;
@@ -1641,6 +1636,34 @@ static char* iPlotGetDSCountAttrib(Ihandle* ih)
 /* ========== */
 /* axis props */
 /* ========== */
+
+static int iPlotSetAxisXDiscreteAttrib(Ihandle* ih, const char* value)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
+  axis->mDiscrete = iupStrBoolean(value)? true: false;
+  ih->data->current_plot->mRedraw = true;
+  return 0;
+}
+
+static char* iPlotGetAxisXDiscreteAttrib(Ihandle* ih)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
+  return iupStrReturnBoolean(axis->mDiscrete? 1: 0);
+}
+
+static int iPlotSetAxisYDiscreteAttrib(Ihandle* ih, const char* value)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
+  axis->mDiscrete = iupStrBoolean(value) ? true : false;
+  ih->data->current_plot->mRedraw = true;
+  return 0;
+}
+
+static char* iPlotGetAxisYDiscreteAttrib(Ihandle* ih)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
+  return iupStrReturnBoolean(axis->mDiscrete ? 1 : 0);
+}
 
 static int iPlotSetAxisXLabelAttrib(Ihandle* ih, const char* value)
 {
@@ -1843,34 +1866,19 @@ static char* iPlotGetViewportSquareAttrib(Ihandle* ih)
   return iupStrReturnBoolean(ih->data->current_plot->mViewportSquare);
 }
 
-static int iPlotSetAxisAutoScaleEqualAttrib(Ihandle* ih, const char* value)
+static int iPlotSetAxisScaleEqualAttrib(Ihandle* ih, const char* value)
 {
-  iupPlotAxis* axisX = &ih->data->current_plot->mAxisX;
-  iupPlotAxis* axisY = &ih->data->current_plot->mAxisY;
-
   iupPlotResetZoom(ih, 0);
 
-  if (iupStrBoolean(value))
-  {
-    axisX->mAutoScaleEqual = true;
-    axisY->mAutoScaleEqual = true;
-  }
-  else
-  {
-    axisX->mAutoScaleEqual = false;
-    axisY->mAutoScaleEqual = false;
-  }
+  ih->data->current_plot->mScaleEqual = iupStrBoolean(value)? true: false;
 
   ih->data->current_plot->mRedraw = true;
   return 0;
 }
 
-static char* iPlotGetAxisAutoScaleEqualAttrib(Ihandle* ih)
+static char* iPlotGetAxisScaleEqualAttrib(Ihandle* ih)
 {
-  iupPlotAxis* axisX = &ih->data->current_plot->mAxisX;
-  iupPlotAxis* axisY = &ih->data->current_plot->mAxisY;
-
-  return iupStrReturnBoolean(axisX->mAutoScaleEqual && axisY->mAutoScaleEqual);
+  return iupStrReturnBoolean(ih->data->current_plot->mScaleEqual);
 }
 
 static int iPlotSetAxisXAutoMinAttrib(Ihandle* ih, const char* value)
@@ -3025,7 +3033,8 @@ void iupPlotRegisterAttributes(Iclass* ic)
   iupClassRegisterAttribute(ic, "DS_USERDATA", iPlotGetDSUserDataAttrib, iPlotSetDSUserDataAttrib, NULL, NULL, IUPAF_NO_STRING | IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
 
   iupClassRegisterAttribute(ic, "VIEWPORTSQUARE", iPlotGetViewportSquareAttrib, iPlotSetViewportSquareAttrib, IUPAF_SAMEASSYSTEM, "NO", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "AXS_AUTOSCALEEQUAL", iPlotGetAxisAutoScaleEqualAttrib, iPlotSetAxisAutoScaleEqualAttrib, IUPAF_SAMEASSYSTEM, "NO", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_SCALEEQUAL", iPlotGetAxisScaleEqualAttrib, iPlotSetAxisScaleEqualAttrib, IUPAF_SAMEASSYSTEM, "NO", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  /*OLD*/iupClassRegisterAttribute(ic, "AXS_AUTOSCALEEQUAL", iPlotGetAxisScaleEqualAttrib, iPlotSetAxisScaleEqualAttrib, IUPAF_SAMEASSYSTEM, "NO", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
 
   iupClassRegisterAttribute(ic, "AXS_X", iPlotGetAxisXAttrib, iPlotSetAxisXAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_Y", iPlotGetAxisYAttrib, iPlotSetAxisYAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
@@ -3038,6 +3047,8 @@ void iupPlotRegisterAttributes(Iclass* ic)
   iupClassRegisterAttribute(ic, "AXS_YFONTSIZE", iPlotGetAxisYFontSizeAttrib, iPlotSetAxisYFontSizeAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_XFONTSTYLE", iPlotGetAxisXFontStyleAttrib, iPlotSetAxisXFontStyleAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_YFONTSTYLE", iPlotGetAxisYFontStyleAttrib, iPlotSetAxisYFontStyleAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_XDISCRETE", iPlotGetAxisXDiscreteAttrib, iPlotSetAxisXDiscreteAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_YDISCRETE", iPlotGetAxisYDiscreteAttrib, iPlotSetAxisYDiscreteAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
 
   iupClassRegisterAttribute(ic, "AXS_XLINEWIDTH", iPlotGetAxisXLineWidthAttrib, iPlotSetAxisXLineWidthAttrib, IUPAF_SAMEASSYSTEM, "1", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_YLINEWIDTH", iPlotGetAxisYLineWidthAttrib, iPlotSetAxisYLineWidthAttrib, IUPAF_SAMEASSYSTEM, "1", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);

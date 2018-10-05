@@ -55,9 +55,11 @@ static GtkWidget* gtk_button_get_image(GtkButton *button)
 
 void iupdrvToggleAddCheckBox(int *x, int *y, const char* str)
 {
+  int check_box = IUP_TOGGLE_BOX;
+
   /* has margins too */
-  (*x) += 2+IUP_TOGGLE_BOX+2;
-  if ((*y) < 2+IUP_TOGGLE_BOX+2) (*y) = 2+IUP_TOGGLE_BOX+2; /* minimum height */
+  (*x) += 2 + check_box + 2;
+  if ((*y) < 2 + check_box + 2) (*y) = 2 + check_box + 2; /* minimum height */
   else (*y) += 2+2;
 
   if (str && str[0]) /* add spacing between check box and text */
@@ -105,7 +107,7 @@ static void gtkToggleUpdateImage(Ihandle* ih, int active, int check)
       gtkToggleSetPixbuf(ih, name, 0);
     else
     {
-      /* if not defined then automaticaly create one based on IMAGE */
+      /* if not defined then automatically create one based on IMAGE */
       name = iupAttribGet(ih, "IMAGE");
       gtkToggleSetPixbuf(ih, name, 1); /* make_inactive */
     }
@@ -120,7 +122,7 @@ static void gtkToggleUpdateImage(Ihandle* ih, int active, int check)
         gtkToggleSetPixbuf(ih, name, 0);
       else
       {
-        /* if not defined then automaticaly create one based on IMAGE */
+        /* if not defined then automatically create one based on IMAGE */
         name = iupAttribGet(ih, "IMAGE");
         gtkToggleSetPixbuf(ih, name, 0);
       }
@@ -461,7 +463,7 @@ static int gtkToggleMapMethod(Ihandle* ih)
     return IUP_ERROR;
 
   if (radio)
-    ih->data->radio = 1;
+    ih->data->is_radio = 1;
 
   value = iupAttribGet(ih, "IMAGE");
   if (value)
@@ -469,7 +471,7 @@ static int gtkToggleMapMethod(Ihandle* ih)
   else
     ih->data->type = IUP_TOGGLE_TEXT;
 
-  if (radio)
+  if (ih->data->is_radio)
   {
     GtkRadioButton* last_tg = (GtkRadioButton*)iupAttribGet(radio, "_IUPGTK_LASTRADIOBUTTON");
     if (last_tg)
@@ -477,6 +479,10 @@ static int gtkToggleMapMethod(Ihandle* ih)
     else
       ih->handle = gtk_radio_button_new(NULL);
     iupAttribSet(radio, "_IUPGTK_LASTRADIOBUTTON", (char*)ih->handle);
+
+    /* make sure it has at least one name */
+    if (!iupAttribGetHandleName(ih))
+      iupAttribSetHandleName(ih);
   }
   else
   {

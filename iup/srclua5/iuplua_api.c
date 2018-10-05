@@ -505,9 +505,9 @@ static int ListDialog(lua_State *L)
   int i, ret;
 
   if (!marks && type==2)
-    luaL_argerror(L, 9, "invalid marks, must not be nil.");
+    luaL_argerror(L, 9, "Invalid marks, must not be nil.");
   if (marks && type==2 && size != iuplua_getn(L, 8))
-    luaL_argerror(L, 9, "invalid number of elements in the marks.");
+    luaL_argerror(L, 9, "Invalid number of elements in the marks.");
 
   ret = IupListDialog(type, luaL_checkstring(L, 2), 
                             size, 
@@ -560,7 +560,7 @@ static int NextField(lua_State *L)
 static int PreviousField(lua_State *L)
 {
   Ihandle *h1 = iuplua_checkihandle(L,1);
-  Ihandle *h2 = IupNextField(h1);
+  Ihandle *h2 = IupPreviousField(h1);
   iuplua_pushihandle(L,h2);
   return 1;
 }
@@ -577,7 +577,7 @@ static int Popup(lua_State *L)
 static int cf_isprint(lua_State *L)
 {
   int value = (int)luaL_checkinteger(L, 1);
-  lua_pushinteger(L, iup_isprint(value));
+  lua_pushboolean(L, iup_isprint(value));
   return 1;
 }
 
@@ -1134,7 +1134,6 @@ void iupluaapi_open(lua_State * L)
     {NULL, NULL},
   };
 
-  /* "iup" table is already at the top of the stack */
-  luaL_register(L, NULL, funcs);
+  /* iup table is already at the top of the stack */
+  iuplua_register_funcs(L, funcs);
 }
-

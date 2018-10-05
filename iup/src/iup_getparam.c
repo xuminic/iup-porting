@@ -649,10 +649,17 @@ static Ihandle* iParamCreateCtrlBox(Ihandle* param, const char *type)
     }
     else
     {
+      char *visiblecolumns;
+
       ctrl = IupText(NULL);
       IupSetAttribute(ctrl, "VISIBLECOLUMNS", "8");
-      IupSetAttribute(ctrl, "EXPAND", "HORIZONTAL");
       IupAppend(box, ctrl);
+
+      visiblecolumns = iupAttribGet(param, "VISIBLECOLUMNS");
+      if (visiblecolumns)
+        IupSetStrAttribute(ctrl, "VISIBLECOLUMNS", visiblecolumns);
+      else
+        IupSetAttribute(ctrl, "EXPAND", "HORIZONTAL");
     }
     IupSetCallback(ctrl, "ACTION", (Icallback)iParamTextAction_CB);
     IupStoreAttribute(ctrl, "VALUE", iupAttribGet(param, "VALUE"));
@@ -858,6 +865,7 @@ static Ihandle* iParamCreateCtrlBox(Ihandle* param, const char *type)
       else
       {
         char* step;
+
         aux = IupVal("HORIZONTAL");
         IupStoreAttribute(aux, "MIN", iupAttribGet(param, "MIN"));
         IupStoreAttribute(aux, "MAX", iupAttribGet(param, "MAX"));
@@ -956,11 +964,11 @@ Ihandle* IupParamBox(Ihandle* parent, Ihandle** params, int count)
   int i, p, text_expand;
 
   button_1 = IupButton(parent? "_@IUP_APPLY": "_@IUP_OK", NULL);  /* default is OK */
-  IupSetAttribute(button_1, "PADDING", "20x0");
+  IupSetAttribute(button_1, "PADDING", IupGetGlobal("DEFAULTBUTTONPADDING"));
   IupSetCallback(button_1, "ACTION", (Icallback)iParamButton1_CB);
 
   button_2 = IupButton(parent? "_@IUP_RESET": "_@IUP_CANCEL", NULL);  /* default is Cancel */
-  IupSetAttribute(button_2, "PADDING", "20x0");
+  IupSetAttribute(button_2, "PADDING", IupGetGlobal("DEFAULTBUTTONPADDING"));
   IupSetCallback(button_2, "ACTION", (Icallback)iParamButton2_CB);
   
   ctrl_box = IupVbox(NULL);
@@ -980,7 +988,7 @@ Ihandle* IupParamBox(Ihandle* parent, Ihandle** params, int count)
       if (value && *value) 
       {
         button_3 = IupButton(value, NULL);
-        IupSetAttribute(button_3, "PADDING", "20x0");
+        IupSetAttribute(button_3, "PADDING", IupGetGlobal("DEFAULTBUTTONPADDING"));
         IupSetCallback(button_3, "ACTION", (Icallback)iParamButton3_CB);
       }
 

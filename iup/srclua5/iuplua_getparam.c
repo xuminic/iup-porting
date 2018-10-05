@@ -36,7 +36,6 @@ static int param_action(Ihandle* dialog, int param_index, void* user_data)
   {
     lua_State *L = gp->L;
     lua_rawgeti(L, LUA_REGISTRYINDEX, gp->func_ref);
-    iuplua_plugstate(L, dialog);
     iuplua_pushihandle(L, dialog);
     lua_pushinteger(L, param_index);
     if (iuplua_call_raw(L, 2, 1) == LUA_OK)    /* 2 args, 1 return */
@@ -98,7 +97,7 @@ static int GetParam(lua_State *L)
     case 'o':
     case 'l':
       param_data[i] = malloc(sizeof(int));
-      *(int*)(param_data[i]) = luaL_checkinteger(L, lua_param_start); lua_param_start++;
+      *(int*)(param_data[i]) = (int)luaL_checkinteger(L, lua_param_start); lua_param_start++;
       break;
     case 'a':
     case 'r':
@@ -193,18 +192,24 @@ static int GetParam(lua_State *L)
 static int GetParamParam(lua_State *L)
 {
   Ihandle *dialog = iuplua_checkihandle(L, 1);
-  int param_index = luaL_checkinteger(L, 2);
+  int param_index = (int)luaL_checkinteger(L, 2);
   Ihandle* param = (Ihandle*)IupGetAttributeId(dialog, "PARAM", param_index);
-  if (!iuplua_getstate(param))
-    iuplua_plugstate(L, param);
   iuplua_pushihandle(L, param);
+  return 1;
+}
+
+static int GetParamHandle(lua_State *L)
+{
+  Ihandle *param = iuplua_checkihandle(L, 1);
+  const char* name = luaL_checkstring(L, 2);
+  Ihandle* control = (Ihandle*)IupGetAttribute(param, name);
+  iuplua_pushihandle(L, control);
   return 1;
 }
 
 static int Param(lua_State *L)
 {
   Ihandle* param = IupParamf(luaL_checkstring(L, 1));
-  iuplua_plugstate(L, param);
   iuplua_pushihandle(L, param);
   return 1;
 }
@@ -215,15 +220,26 @@ static int ParamBox(lua_State *L)
   int count = iuplua_getn(L, 2);
   Ihandle** params = iuplua_checkihandle_array(L, 2, count);
   Ihandle* param_box = IupParamBox(parent, params, count);
-  iuplua_plugstate(L, param_box);
   iuplua_pushihandle(L, param_box);
   return 1;
+}
+
+static int param_cb(Ihandle* self, int param_index, void* user_data)
+{
+  lua_State *L = iuplua_call_start(self, "param_cb");
+  lua_pushinteger(L, param_index);
+  lua_pushlightuserdata(L, user_data);
+  return iuplua_call(L, 2);
 }
 
 void iupgetparamlua_open(lua_State * L)
 {
   iuplua_register(L, GetParam, "GetParam");
   iuplua_register(L, GetParamParam, "GetParamParam");
+  iuplua_register(L, GetParamHandle, "GetParamHandle");
+
   iuplua_register(L, Param, "Paramf");
   iuplua_register(L, ParamBox, "ParamBox");
+
+  iuplua_register_cb(L, "PARAM_CB", (lua_CFunction)param_cb, NULL);
 }

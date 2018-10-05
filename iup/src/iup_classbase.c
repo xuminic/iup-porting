@@ -95,6 +95,8 @@ char* iupBaseGetSizeAttrib(Ihandle* ih)
   if (charwidth == 0 || charheight == 0)
     return NULL;  /* if font failed get from the hash table */
 
+  if (width == 0 && height == 0)
+    return NULL;
   return iupStrReturnIntInt(iupRASTER2WIDTH(width, charwidth), iupRASTER2HEIGHT(height, charheight), 'x');
 }
 
@@ -165,7 +167,7 @@ char* iupBaseGetCharSizeAttrib(Ihandle* ih)
   int charwidth, charheight;
 
   iupdrvFontGetCharSize(ih, &charwidth, &charheight);
-  if (charwidth == 0 || charheight == 0)
+  if (charwidth == 0 || charheight == 0)  /* if font failed get from the hash table */
     return NULL;
 
   return iupStrReturnIntInt(charwidth, charheight, 'x');
@@ -173,11 +175,15 @@ char* iupBaseGetCharSizeAttrib(Ihandle* ih)
 
 static char* iBaseGetNaturalSizeAttrib(Ihandle* ih)
 {
+  if (ih->naturalwidth == 0 && ih->naturalheight == 0)
+    return NULL;
   return iupStrReturnIntInt(ih->naturalwidth, ih->naturalheight, 'x');
 }
 
 static char* iBaseGetUserSizeAttrib(Ihandle* ih)
 {
+  if (ih->userwidth == 0 && ih->userheight == 0)
+    return NULL;
   return iupStrReturnIntInt(ih->userwidth, ih->userheight, 'x');
 }
 
@@ -223,13 +229,15 @@ char* iupBaseGetActiveAttrib(Ihandle *ih)
 
 static int iBaseNativeParentIsActive(Ihandle* ih)
 {
-  if (!ih->parent)
+  Ihandle* parent = ih->parent;
+
+  if (!parent || parent->iclass->nativetype == IUP_TYPEDIALOG)
     return 1;
 
-  if (ih->parent->iclass->nativetype == IUP_TYPEVOID)
-    return iBaseNativeParentIsActive(ih->parent);
+  if (parent->iclass->nativetype == IUP_TYPEVOID)
+    return iBaseNativeParentIsActive(parent);
   else 
-    return iupdrvIsActive(ih->parent);
+    return iupdrvIsActive(parent);
 }
 
 int iupBaseSetActiveAttrib(Ihandle* ih, const char* value)

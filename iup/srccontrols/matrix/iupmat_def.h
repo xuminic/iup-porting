@@ -129,8 +129,7 @@ struct _IcontrolData
   int undo_redo, show_fill_value;
 
   /* Mouse and Keyboard AUX */
-  int leftpressed;  /* left mouse button is pressed */
-  int dclick;       /* left mouse button was double clicked */
+  int button1edit;
   int homekeycount, endkeycount;  /* numbers of times that key was pressed */
 
   /* ColRes AUX */
@@ -144,6 +143,7 @@ struct _IcontrolData
       mark_lin2, mark_col2,  /* used to store the end cell when a block was marked */
       mark_full1,            /* indicate if full lines or columns is being selected */
       mark_full2;
+  int mark_block;            /* inside MarkBlockBegin/MarkBlockEnd */
 
   /* Draw AUX, valid only after iupMatrixPrepareDrawData */
   sIFnii font_cb, type_cb;

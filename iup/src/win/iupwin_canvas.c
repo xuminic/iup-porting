@@ -443,7 +443,7 @@ static int winCanvasMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT
       if (cb && !(ih->data->inside_resize))
       {
         /* w=LOWORD (lp), h=HIWORD(lp) can not be used because an invalid size 
-           at the first time of WM_SIZE with scroolbars. */
+           at the first time of WM_SIZE with scrollbars. */
         int w, h;
         RECT rect;
         GetClientRect(ih->handle, &rect);
@@ -475,7 +475,9 @@ static int winCanvasMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT
       {
         char status[IUPKEY_STATUS_SIZE] = IUPKEY_STATUS_INIT;
         POINT p; 
-        p.x = LOWORD(lp); p.y = HIWORD(lp);
+        p.x = GET_X_LPARAM(lp);   
+        p.y = GET_Y_LPARAM(lp);   
+
         ScreenToClient(ih->handle, &p);
 
         iupwinButtonKeySetStatus(LOWORD(wp), status, 0);
@@ -514,7 +516,7 @@ static int winCanvasMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT
       if (iupwinButtonDown(ih, msg, wp, lp))
       {
         /* refresh the cursor, it could have been changed in BUTTON_CB */
-        SendMessage(ih->handle, WM_SETCURSOR, (WPARAM)ih->handle, MAKELPARAM(1,WM_MOUSEMOVE));
+        iupwinRefreshCursor(ih);
       }
 
       if (msg==WM_XBUTTONDOWN || msg==WM_XBUTTONDBLCLK)
@@ -528,7 +530,7 @@ static int winCanvasMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT
       if (iupwinMouseMove(ih, msg, wp, lp))
       {
         /* refresh the cursor, it could have been changed in MOTION_CB */
-        SendMessage(ih->handle, WM_SETCURSOR, (WPARAM)ih->handle, MAKELPARAM(1,WM_MOUSEMOVE));
+        iupwinRefreshCursor(ih);
       }
 
       break; /* let iupwinBaseMsgProc process enter/leavewin */
@@ -543,7 +545,7 @@ static int winCanvasMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT
       if (iupwinButtonUp(ih, msg, wp, lp))
       {
         /* refresh the cursor, it could have been changed in BUTTON_CB */
-        SendMessage(ih->handle, WM_SETCURSOR, (WPARAM)ih->handle, MAKELPARAM(1,WM_MOUSEMOVE));
+        iupwinRefreshCursor(ih);
       }
 
       *result = 0;
@@ -715,7 +717,7 @@ static void winCanvasRegisterClass(void)
   wndclass.lpszClassName  = TEXT("IupCanvas");
   wndclass.lpfnWndProc    = (WNDPROC)DefWindowProc;
   wndclass.hCursor        = LoadCursor(NULL, IDC_ARROW);
-  wndclass.style          = CS_DBLCLKS | CS_OWNDC | CS_HREDRAW | CS_VREDRAW; /* using CS_OWNDC will minimize the work of cdActivate in the CD library */
+  wndclass.style          = CS_DBLCLKS | CS_OWNDC | CS_HREDRAW | CS_VREDRAW; /* using CS_OWNDC will minimize the work of Activate in the CD library */
   wndclass.hbrBackground  = NULL;  /* remove the background to optimize redraw */
    
   RegisterClass(&wndclass);

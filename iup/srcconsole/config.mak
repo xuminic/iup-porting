@@ -1,12 +1,14 @@
 PROJNAME = iup
 APPNAME := iuplua
-APPTYPE = console
+APPTYPE = windows
 
 STRIP = 
 OPT = YES      
 NO_SCRIPTS = Yes
 # IM and IupPlot uses C++
 LINKER = $(CPPC)
+# To use a subfolder with the Lua version for binaries
+LUAMOD_DIR = Yes
 
 NO_LUAOBJECT = Yes
 USE_BIN2C_LUA = Yes
@@ -29,7 +31,7 @@ endif
 endif
 
 APPNAME := $(APPNAME)$(LUASFX)
-SRC = iup_lua$(LIBLUASFX).c
+SRC = iup_lua$(LUASFX).c
 
 ifdef NO_LUAOBJECT
   DEFINES += IUPLUA_USELH
@@ -38,7 +40,7 @@ ifdef NO_LUAOBJECT
 else
   DEFINES += IUPLUA_USELOH
   USE_LOH_SUBDIR = Yes
-  LOHDIR = loh$(LIBLUASFX)
+  LOHDIR = loh$(LUASFX)
 endif
 
 ifdef GTK_DEFAULT
@@ -53,7 +55,12 @@ else
   endif
 endif
 
-SRCLUA = console5.lua indent.lua
+SRCLUA = console5.lua 
+#SRCLUA += indent.lua
+
+IUP := ..
+USE_IUPLUA = Yes
+USE_IUP3 = Yes
 
 ifdef DBG
   ALL_STATIC=Yes
@@ -61,9 +68,6 @@ endif
 
 ifdef ALL_STATIC
   # Statically link everything only when debugging
-  IUP := ..
-  USE_IUPLUA = Yes
-  USE_IUP3 = Yes
   USE_STATIC = Yes
   
   ifdef DBG_DIR
@@ -97,18 +101,18 @@ ifdef ALL_STATIC
     USE_CDLUA = Yes
     USE_IUPCONTROLS = Yes
     ifneq ($(findstring Win, $(TEC_SYSNAME)), )
-      LIBS += iuplua_plot$(LIBLUASFX) iup_plot cdgl
-      LIBS += iupluamatrixex$(LIBLUASFX) iupmatrixex
+      LIBS += iuplua_plot$(LUASFX) iup_plot cdgl cdcontextplus
+      LIBS += iupluamatrixex$(LUASFX) iupmatrixex
     else
-      SLIB += $(IUP_LIB)/libiuplua_plot$(LIBLUASFX).a $(IUP_LIB)/libiup_plot.a $(CD_LIB)/libcdgl.a
-      SLIB += $(IUP_LIB)/libiupluamatrixex$(LIBLUASFX).a $(IUP_LIB)/libiupmatrixex.a
+      SLIB += $(IUP_LIB)/Lua$(LUASFX)/libiuplua_plot$(LUASFX).a $(IUP_LIB)/libiup_plot.a $(CD_LIB)/libcdgl.a $(CD_LIB)/libcdcontextplus.a
+      SLIB += $(IUP_LIB)/Lua$(LUASFX)/libiupluamatrixex$(LUASFX).a $(IUP_LIB)/libiupmatrixex.a
     endif
       
     ifndef IUPLUA_NO_IM
       ifneq ($(findstring Win, $(TEC_SYSNAME)), )
-        LIBS += cdluaim$(LIBLUASFX)
+        LIBS += cdluaim$(LUASFX)
       else
-        SLIB += $(CD_LIB)/libcdluaim$(LIBLUASFX).a
+        SLIB += $(CD_LIB)/Lua$(LUASFX)/libcdluaim$(LUASFX).a
       endif
     endif
     ifneq ($(findstring Win, $(TEC_SYSNAME)), )
@@ -129,9 +133,9 @@ ifdef ALL_STATIC
     USE_IMLUA = Yes
     
     ifneq ($(findstring Win, $(TEC_SYSNAME)), )
-      LIBS += imlua_process$(LIBLUASFX) iupluaim$(LIBLUASFX) im_process iupim
+      LIBS += imlua_process$(LUASFX) iupluaim$(LUASFX) im_process iupim
     else
-      SLIB += $(IM_LIB)/libimlua_process$(LIBLUASFX).a $(IUP_LIB)/libiupluaim$(LIBLUASFX).a $(IM_LIB)/libim_process.a $(IUP_LIB)/libiupim.a
+      SLIB += $(IM_LIB)/Lua$(LUASFX)/libimlua_process$(LUASFX).a $(IUP_LIB)/Lua$(LUASFX)/libiupluaim$(LUASFX).a $(IM_LIB)/libim_process.a $(IUP_LIB)/libiupim.a
     endif
     
   else
@@ -142,9 +146,9 @@ ifdef ALL_STATIC
   ifdef IUPLUA_IMGLIB
     DEFINES += IUPLUA_IMGLIB
     ifneq ($(findstring Win, $(TEC_SYSNAME)), )
-      LIBS += iupluaimglib$(LIBLUASFX) iupimglib
+      LIBS += iupluaimglib$(LUASFX) iupimglib
     else
-      SLIB += $(IUP_LIB)/libiupluaimglib$(LIBLUASFX).a $(IUP_LIB)/libiupimglib.a
+      SLIB += $(IUP_LIB)/Lua$(LUASFX)/libiupluaimglib$(LUASFX).a $(IUP_LIB)/libiupimglib.a
     endif
   endif
   
@@ -152,16 +156,16 @@ ifdef ALL_STATIC
   ifdef IUPLUA_TUIO
     DEFINES += IUPLUA_TUIO
     ifneq ($(findstring Win, $(TEC_SYSNAME)), )
-      LIBS += iupluatuio$(LIBLUASFX) iuptuio
+      LIBS += iupluatuio$(LUASFX) iuptuio
       LIBS += ws2_32 winmm
     else
-      SLIB += $(IUP_LIB)/libiupluatuio$(LIBLUASFX).a $(IUP_LIB)/libiuptuio.a
+      SLIB += $(IUP_LIB)/Lua$(LUASFX)/libiupluatuio$(LUASFX).a $(IUP_LIB)/libiuptuio.a
     endif
   endif
 else
   ifneq ($(findstring Win, $(TEC_SYSNAME)), )
     # Dinamically link in Windows, when not debugging
-    # Must call "tecmake dll8" so USE_* will use the correct TEC_UNAME
+    # Must call "tecmake dll10" so USE_* will use the correct TEC_UNAME
     USE_DLL = Yes
     GEN_MANIFEST = No
   else
@@ -180,6 +184,7 @@ ifneq ($(findstring Win, $(TEC_SYSNAME)), )
   #Comment the following line to build under MingW
   SLIB += setargv.obj
   SRC += iuplua5.rc
+  INCLUDES = ../etc
 endif
 
 ifneq ($(findstring cygw, $(TEC_UNAME)), )

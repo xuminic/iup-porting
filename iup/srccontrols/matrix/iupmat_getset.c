@@ -196,7 +196,7 @@ char* iupMatrixGetValue(Ihandle* ih, int lin, int col)
     dIFnii getvalue_cb = (dIFnii)IupGetCallback(ih, "NUMERICGETVALUE_CB");
     if (getvalue_cb)
     {
-      /* no formating and no convertion here */
+      /* no formatting and no conversion here */
       double number = getvalue_cb(ih, lin, col);
       sprintf(ih->data->numeric_buffer_get, IUP_DOUBLE2STR, number);  /* maximum precision */
       return ih->data->numeric_buffer_get;
@@ -493,11 +493,7 @@ void iupMatrixGetFgRGB(Ihandle* ih, int lin, int col, unsigned char *r, unsigned
   }
 
   if (marked)
-  {
-    *r = IMAT_ATENUATION(*r);
-    *g = IMAT_ATENUATION(*g);
-    *b = IMAT_ATENUATION(*b);
-  }
+    iupMatrixAddMarkedAttenuation(ih, r, g, b);
 
   if (!active)
   {
@@ -513,11 +509,7 @@ void iupMatrixGetTypeRGB(Ihandle* ih, const char* color, unsigned char *r, unsig
   iupStrToRGB(color, r, g, b);
 
   if (marked)
-  {
-    *r = IMAT_ATENUATION(*r);
-    *g = IMAT_ATENUATION(*g);
-    *b = IMAT_ATENUATION(*b);
-  }
+    iupMatrixAddMarkedAttenuation(ih, r, g, b);
 
   if (!active)
   {
@@ -566,11 +558,7 @@ void iupMatrixGetBgRGB(Ihandle* ih, int lin, int col, unsigned char *r, unsigned
   }
 
   if (marked)
-  {
-    *r = IMAT_ATENUATION(*r);
-    *g = IMAT_ATENUATION(*g);
-    *b = IMAT_ATENUATION(*b);
-  }
+    iupMatrixAddMarkedAttenuation(ih, r, g, b);
 
   if (!active)
   {

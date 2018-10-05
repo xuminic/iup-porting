@@ -6,7 +6,9 @@
 
 #define lua_c
 
-#include "lprefix53.h"
+/******************* IUP *********************/
+/* #include "lprefix.h" */
+/******************* IUP *********************/
 
 
 #include <signal.h>
@@ -20,9 +22,10 @@
 #include "lualib.h"
 
 /******************* IUP *********************/
-#ifdef USE_STATIC
 #include "iup.h"
 #include "iuplua.h"
+
+#ifdef USE_STATIC
 
 #ifndef IUPLUA_NO_GL
 #include "iupgl.h"
@@ -206,8 +209,11 @@ static void print_usage (const char *badoption) {
 ** (if present)
 */
 static void l_message (const char *pname, const char *msg) {
-  if (pname) lua_writestringerror("%s: ", pname);
-  lua_writestringerror("%s\n", msg);
+  /******************* IUP *********************/
+  iuplua_show_error_message(pname, msg);
+  /* if (pname) lua_writestringerror("%s: ", pname); */
+  /* lua_writestringerror("%s\n", msg); */
+  /******************* IUP *********************/
 }
 
 
@@ -610,12 +616,15 @@ static void iuplua_openlibs (lua_State *L) {
   lua_pushliteral(L, LUA_COPYRIGHT);
   lua_setglobal(L, "_COPYRIGHT");  /* set global _COPYRIGHT */
 
-#ifdef USE_STATIC
-  /* disable require */
-  dostring(L, "function require() end ", "static_require");
+  lua_pushstring(L, progname);
+  lua_setglobal(L, "_PROGNAME");
 
   /* iuplua initialization */
   iuplua_open(L);
+
+#ifdef USE_STATIC
+  /* disable require */
+  dostring(L, "function require() end ", "static_require");
 
 #ifdef IUPLUA_IMGLIB
   luaopen_iupluaimglib(L);
@@ -663,15 +672,15 @@ static void iuplua_openlibs (lua_State *L) {
 static void iuplua_input (lua_State *L) 
 {
 #ifdef IUPLUA_USELOH
-#include "indent.loh"
+  /* #include "indent.loh" */
 #include "console5.loh"
 #else
 #ifdef IUPLUA_USELH
-#include "indent.lh"
+  /* #include "indent.lh" */
 #include "console5.lh"
 #else
-  luaL_dofile(L, "indent.lua");
-  luaL_dofile(L, "console5.lua");
+  /*  iuplua_dofile(L, "indent.lua"); */
+  iuplua_dofile(L, "console5.lua");
 #endif
 #endif
 }
@@ -716,14 +725,14 @@ static int pmain (lua_State *L) {
   if (args & has_i)  /* -i option? */
     doREPL(L);  /* do read-eval-print loop */
   else if (script == argc && !(args & (has_e | has_v))) {  /* no arguments? */
-    if (lua_stdin_is_tty()) {  /* running in interactive mode? */
-      print_version();
 /******************* IUP *********************/
+/*    if (lua_stdin_is_tty()) {  */ /* running in interactive mode? */
+/*    print_version(); */
 /*      doREPL(L); */ /* do read-eval-print loop */
       iuplua_input(L);
+/*    } */
+/*    else dofile(L, NULL);  */ /* executes stdin as a file */
 /******************* IUP *********************/
-    }
-    else dofile(L, NULL);  /* executes stdin as a file */
   }
   lua_pushboolean(L, 1);  /* signal no errors */
   return 1;
@@ -732,9 +741,16 @@ static int pmain (lua_State *L) {
 
 int main (int argc, char **argv) {
   int status, result;
-  lua_State *L = luaL_newstate();  /* create state */
+  lua_State *L;
+  L = luaL_newstate();  /* create state */
   if (L == NULL) {
+    /******************* IUP *********************/
+    IupOpen(&argc, &argv);
+    /******************* IUP *********************/
     l_message(argv[0], "cannot create state: not enough memory");
+    /******************* IUP *********************/
+    IupClose();
+    /******************* IUP *********************/
     return EXIT_FAILURE;
   }
   lua_pushcfunction(L, &pmain);  /* to call 'pmain' in protected mode */

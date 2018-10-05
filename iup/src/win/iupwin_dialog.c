@@ -39,6 +39,11 @@
 #define SM_CXPADDEDBORDER     92
 #endif
 
+#ifndef WM_DPICHANGED
+#define WM_DPICHANGED       0x02E0
+#endif
+
+
 #define IUPWIN_TRAY_NOTIFICATION 102
 
 static int WM_HELPMSG;
@@ -158,7 +163,7 @@ static void winDialogGetWindowDecor(Ihandle* ih, int *border, int *caption, int 
   }
   else
   {
-    /* caption = window height - borderes - client height - menu */
+    /* caption = window height - borders - client height - menu */
     *caption = (wi.rcWindow.bottom-wi.rcWindow.top) - 2*wi.cyWindowBorders - (wi.rcClient.bottom-wi.rcClient.top) - menu; 
   }
 }
@@ -605,8 +610,13 @@ static int winDialogBaseProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESUL
       /* WM_DESTROY is NOT received by IupDialogs                                         */
       /* Except when they are children of other IupDialogs and the parent is destroyed.   */
       /* So we have to destroy the child dialog.                                          */
-      /* The application is responsable for destroying the children before this happen.   */
+      /* The application is responsible for destroying the children before this happen.   */
       IupDestroy(ih);
+      break;
+    }
+  case WM_DPICHANGED:
+    {
+      IupRefresh(ih);
       break;
     }
   }
@@ -861,7 +871,8 @@ static int winDialogMapMethod(Ihandle* ih)
     else if (has_border)
       dwStyle |= WS_BORDER;
 
-    if (!IupGetName(ih))
+    /* make sure it has at least one name */
+    if (!iupAttribGetHandleName(ih))
       iupAttribSetHandleName(ih);
   }
   else
@@ -910,6 +921,9 @@ static int winDialogMapMethod(Ihandle* ih)
   if (iupAttribGetBoolean(ih, "DIALOGFRAME") && native_parent)
     dwExStyle |= WS_EX_DLGMODALFRAME;  /* this will hide the MENUBOX but not the close button */
 
+  if (iupAttribGet(ih, "OPACITY") || iupAttribGet(ih, "OPACITYIMAGE"))
+    dwExStyle |= WS_EX_LAYERED;
+
   iupwinGetNativeParentStyle(ih, &dwExStyle, &dwStyle);
 
   if (iupAttribGetBoolean(ih, "HELPBUTTON"))
@@ -917,7 +931,7 @@ static int winDialogMapMethod(Ihandle* ih)
 
   if (iupAttribGetBoolean(ih, "CONTROL") && native_parent) 
   {
-    /* TODO: this were used by LuaCom to create embeded controls, 
+    /* TODO: this were used by LuaCom to create embedded controls, 
        don't know if it is still working */
     dwStyle = WS_CHILD | WS_TABSTOP | WS_CLIPCHILDREN;
     classname = TEXT("IupDialogControl");
@@ -1152,60 +1166,9 @@ static char* winDialogGetMdiNextAttrib(Ihandle *ih)
   return NULL;
 }
 
-static void winDialogSetLayered(Ihandle *ih, int enable)
-{
-  DWORD dwExStyle = GetWindowLong(ih->handle, GWL_EXSTYLE);
-  if (!enable)
-  {
-    if (dwExStyle & WS_EX_LAYERED)
-    {
-      dwExStyle &= ~WS_EX_LAYERED;   /* remove the style */
-      SetWindowLong(ih->handle, GWL_EXSTYLE, dwExStyle);
-      RedrawWindow(ih->handle, NULL, NULL, RDW_ERASE | RDW_INVALIDATE | RDW_FRAME | RDW_ALLCHILDREN); /* invalidate everything and all children */
-    }
-    return;
-  }
-
-  if (!(dwExStyle & WS_EX_LAYERED))
-  {
-    dwExStyle |= WS_EX_LAYERED;   /* add the style */
-    SetWindowLong(ih->handle, GWL_EXSTYLE, dwExStyle);
-  }
-}
-
-#ifdef _OLD_CODE
-  {
-    typedef BOOL(WINAPI*winSetLayeredWindowAttributes)(
-      HWND hwnd,
-      COLORREF crKey,
-      BYTE bAlpha,
-      DWORD dwFlags);
-
-    static winSetLayeredWindowAttributes mySetLayeredWindowAttributes = NULL;
-    if (!mySetLayeredWindowAttributes)
-    {
-      HMODULE hinstDll = LoadLibrary(TEXT("user32.dll"));
-      if (hinstDll)
-        mySetLayeredWindowAttributes = (winSetLayeredWindowAttributes)GetProcAddress(hinstDll, "SetLayeredWindowAttributes");
-    }
-
-    if (mySetLayeredWindowAttributes)
-      mySetLayeredWindowAttributes(ih->handle, 0, (BYTE)opacity, LWA_ALPHA);
-  }
-#endif
-
 static int winDialogSetOpacityAttrib(Ihandle *ih, const char *value)
 {
   int opacity;
-
-  if (!value)
-  {
-    winDialogSetLayered(ih, 0);
-    return 0;
-  }
-  else
-    winDialogSetLayered(ih, 1);
-
   if (!iupStrToInt(value, &opacity))
     return 0;
 
@@ -1216,17 +1179,7 @@ static int winDialogSetOpacityAttrib(Ihandle *ih, const char *value)
 
 static int winDialogSetOpacityImageAttrib(Ihandle *ih, const char *value)
 {
-  HBITMAP hBitmap;
-
-  if (!value)
-  {
-    winDialogSetLayered(ih, 0);
-    return 0;
-  }
-  else
-    winDialogSetLayered(ih, 1);
-
-  hBitmap = (HBITMAP)iupImageGetImage(value, ih, 0);
+  HBITMAP hBitmap = (HBITMAP)iupImageGetImage(value, ih, 0);
   if (!hBitmap)
     return 0;
   else
@@ -1470,6 +1423,7 @@ static HICON winDialogLoadIcon(const char* name, int size)
 {
   int w = (size == ICON_SMALL) ? GetSystemMetrics(SM_CXSMICON) : GetSystemMetrics(SM_CXICON);
   int h = (size == ICON_SMALL) ? GetSystemMetrics(SM_CYSMICON) : GetSystemMetrics(SM_CYICON);
+  /* same as iupdrvImageLoad but using w and h to control icon size */
   HICON hIcon = LoadImage(iupwin_hinstance, iupwinStrToSystem(name), IMAGE_ICON, w, h, 0);
   if (!hIcon && iupwin_dll_hinstance)
     hIcon = LoadImage(iupwin_dll_hinstance, iupwinStrToSystem(name), IMAGE_ICON, w, h, 0);
@@ -1477,7 +1431,6 @@ static HICON winDialogLoadIcon(const char* name, int size)
     hIcon = LoadImage(NULL, iupwinStrToSystemFilename(name), IMAGE_ICON, w, h, LR_LOADFROMFILE);
   return hIcon;
 }
-
 
 static int winDialogSetIconAttrib(Ihandle* ih, const char *value)
 {
@@ -1488,17 +1441,14 @@ static int winDialogSetIconAttrib(Ihandle* ih, const char *value)
   }
   else
   {
-    HICON icon;
-    if (!IupGetHandle(value))
-    {
-      icon = winDialogLoadIcon(value, ICON_SMALL);
-      if (icon)
-        SendMessage(ih->handle, WM_SETICON, (WPARAM)ICON_SMALL, (LPARAM)icon);
+    /* check first in the resources using size hits */
+    HICON icon = winDialogLoadIcon(value, ICON_SMALL);
+    if (icon)
+      SendMessage(ih->handle, WM_SETICON, (WPARAM)ICON_SMALL, (LPARAM)icon);
 
-      icon = winDialogLoadIcon(value, ICON_BIG);
-      if (icon)
-        SendMessage(ih->handle, WM_SETICON, (WPARAM)ICON_BIG, (LPARAM)icon);
-    }
+    icon = winDialogLoadIcon(value, ICON_BIG);
+    if (icon)
+      SendMessage(ih->handle, WM_SETICON, (WPARAM)ICON_BIG, (LPARAM)icon);
     else
     {
       icon = iupImageGetIcon(value);
@@ -1594,7 +1544,7 @@ static int winDialogSetFullScreenAttrib(Ihandle* ih, const char* value)
       if (visible)
         ShowWindow(ih->handle, SW_SHOW);
 
-      /* remove auxiliar attributes */
+      /* remove auxiliary attributes */
       iupAttribSet(ih, "_IUPWIN_FS_MAXBOX", NULL);
       iupAttribSet(ih, "_IUPWIN_FS_MINBOX", NULL);
       iupAttribSet(ih, "_IUPWIN_FS_MENUBOX",NULL);

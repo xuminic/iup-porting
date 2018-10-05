@@ -19,11 +19,11 @@ extern "C" {
 
 
 #define IUP_NAME "IUP - Portable User Interface"
-#define IUP_COPYRIGHT  "Copyright (C) 1994-2015 Tecgraf, PUC-Rio."
-#define IUP_DESCRIPTION	"Multi-platform toolkit for building graphical user interfaces."
-#define IUP_VERSION "3.15"         /* bug fixes are reported only by IupVersion functions */
-#define IUP_VERSION_NUMBER 315000
-#define IUP_VERSION_DATE "2015/07/06"  /* does not include bug fix releases */
+#define IUP_DESCRIPTION	"Multi-platform Toolkit for Building Graphical User Interfaces"
+#define IUP_COPYRIGHT "Copyright (C) 1994-2015 Tecgraf/PUC-Rio"
+#define IUP_VERSION "3.16"         /* bug fixes are reported only by IupVersion functions */
+#define IUP_VERSION_NUMBER 316000
+#define IUP_VERSION_DATE "2015/09/15"  /* does not include bug fix releases */
 
 typedef struct Ihandle_ Ihandle;
 typedef int (*Icallback)(Ihandle*);
@@ -286,7 +286,7 @@ char*     IupUnMapFont     (const char *driverfont);
 
 
 /************************************************************************/
-/*                      Pre-definided dialogs                           */
+/*                      Pre-defined dialogs                           */
 /************************************************************************/
 
 Ihandle* IupFileDlg(void);
@@ -446,7 +446,7 @@ int IupMain (int argc, char** argv); /* In C++ we have to declare the prototype 
 #endif
 
 /******************************************************************************
-* Copyright (C) 1994-2015 Tecgraf, PUC-Rio.
+* Copyright (C) 1994-2015 Tecgraf/PUC-Rio.
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the
