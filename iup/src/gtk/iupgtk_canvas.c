@@ -322,7 +322,8 @@ static void gtkCanvasLayoutUpdateMethod(Ihandle *ih)
   if (!iupdrvIsVisible(ih))
   {
     GdkWindow* window = iupgtkGetWindow(ih->handle);
-    gdk_window_resize(window, ih->currentwidth, ih->currentheight);
+    if (window)
+      gdk_window_resize(window, ih->currentwidth, ih->currentheight);
   }
 
   gtkCanvasUpdateChildLayout(ih);
@@ -622,22 +623,20 @@ static int gtkCanvasSetBgColorAttrib(Ihandle* ih, const char* value)
 
 static char* gtkCanvasGetDrawSizeAttrib(Ihandle *ih)
 {
-  int w, h;
   GdkWindow* window = iupgtkGetWindow(ih->handle);
-
   if (window)
   {
+    int w, h;
 #if GTK_CHECK_VERSION(2, 24, 0)
     w = gdk_window_get_width(window);
     h = gdk_window_get_height(window);
 #else
     gdk_drawable_get_size(window, &w, &h);
 #endif
+    return iupStrReturnIntInt(w, h, 'x');
   }
   else
     return NULL;
-
-  return iupStrReturnIntInt(w, h, 'x');
 }
 
 static char* gtkCanvasGetDrawableAttrib(Ihandle* ih)

@@ -161,8 +161,9 @@ static void iScintillaNotify(Ihandle *ih, struct SCNotification* pMsg)
       IFni cb = (IFni)IupGetCallback(ih, "SAVEPOINT_CB");
       if (cb)
         cb(ih, pMsg->nmhdr.code==SCN_SAVEPOINTREACHED? 1: 0);
+
+      break;
     }
-    break;
   case SCN_MARGINCLICK:
     {
       IFniis cb = (IFniis)IupGetCallback(ih, "MARGINCLICK_CB");
@@ -172,8 +173,9 @@ static void iScintillaNotify(Ihandle *ih, struct SCNotification* pMsg)
         iScintillaKeySetStatus(pMsg->modifiers, status, 0);
         cb(ih, pMsg->margin, lin, status);
       }
+
+      break;
     }
-    break;
   case SCN_HOTSPOTDOUBLECLICK:
   case SCN_HOTSPOTCLICK:
     {
@@ -184,8 +186,9 @@ static void iScintillaNotify(Ihandle *ih, struct SCNotification* pMsg)
         iScintillaKeySetStatus(pMsg->modifiers, status, pMsg->nmhdr.code==SCN_HOTSPOTDOUBLECLICK? 1: 0);
         cb(ih, pMsg->position, lin, col, status);
       }
+
+      break;
     }
-    break;
   case SCN_ZOOM:
     {
       IFni cb = (IFni)IupGetCallback(ih, "ZOOM_CB");
@@ -194,46 +197,70 @@ static void iScintillaNotify(Ihandle *ih, struct SCNotification* pMsg)
         int points = iupScintillaSendMessage(ih, SCI_GETZOOM, 0, 0);
         cb(ih, points);
       }
+
+      break;
     }
-    break;
   case SCN_MODIFIED:
+    if (ih->data->ignore_change)
     {
-      if (ih->data->ignore_change)
+#ifndef GTK
+      PostMessage(ih->handle, WM_IUPCARET, 0, 0L);
+#endif
+      break;
+    }
+
+    if (pMsg->modificationType&SC_PERFORMED_USER ||
+        pMsg->modificationType&SC_PERFORMED_UNDO || 
+        pMsg->modificationType&SC_PERFORMED_REDO)
+    {
+      if (pMsg->modificationType&SC_MOD_BEFOREINSERT ||
+          pMsg->modificationType&SC_MOD_BEFOREDELETE)
       {
+        IFn value_cb = (IFn)IupGetCallback(ih, "VALUECHANGED_CB");
+        IFniiis cb = (IFniiis)IupGetCallback(ih, "ACTION");
+        if (cb)
+        {
+          int insert = 1;
+          if (pMsg->modificationType&SC_MOD_BEFOREDELETE)
+            insert = 0;
+
+          cb(ih, insert, pMsg->position, pMsg->length, (char*)pMsg->text);
+        }
+
+        if (value_cb)
+          value_cb(ih);
+
 #ifndef GTK
         PostMessage(ih->handle, WM_IUPCARET, 0, 0L);
 #endif
-        break;
-      }
-
-      if (pMsg->modificationType&SC_PERFORMED_USER ||
-          pMsg->modificationType&SC_PERFORMED_UNDO || 
-          pMsg->modificationType&SC_PERFORMED_REDO)
-      {
-        if (pMsg->modificationType&SC_MOD_BEFOREINSERT ||
-            pMsg->modificationType&SC_MOD_BEFOREDELETE)
-        {
-          IFn value_cb = (IFn)IupGetCallback(ih, "VALUECHANGED_CB");
-          IFniiis cb = (IFniiis)IupGetCallback(ih, "ACTION");
-          if (cb)
-          {
-            int insert = 1;
-            if (pMsg->modificationType&SC_MOD_BEFOREDELETE)
-              insert = 0;
-
-            cb(ih, insert, pMsg->position, pMsg->length, (char*)pMsg->text);
-          }
-
-          if (value_cb)
-            value_cb(ih);
-
-#ifndef GTK
-          PostMessage(ih->handle, WM_IUPCARET, 0, 0L);
-#endif
-        }
       }
     }
+
     break;
+  case SCN_AUTOCSELECTION:
+    {
+      IFnis cb = (IFnis)IupGetCallback(ih, "AUTOCSELECTION_CB");
+      if (cb)
+        cb(ih, pMsg->position, (char*)pMsg->text);
+
+      break;
+    }
+  case SCN_AUTOCCANCELLED:
+    {
+      IFn cb = (IFn)IupGetCallback(ih, "AUTOCCANCELLED_CB");
+      if (cb)
+        cb(ih);
+
+      break;
+    }
+  case SCN_AUTOCCHARDELETED:
+    {
+      IFn cb = (IFn)IupGetCallback(ih, "AUTOCCHARDELETED_CB");
+      if (cb)
+        cb(ih);
+
+      break;
+    }
   }
 }
 
@@ -567,22 +594,24 @@ static Iclass* iupScintillaNewClass(void)
   /* Drag&Drop */
   iupdrvRegisterDragDropAttrib(ic);
   
-  iupScintillaRegisterText(ic);        /* Text retrieval and modification */
-  iupScintillaRegisterSelection(ic);   /* Selection and information */
-  iupScintillaRegisterClipboard(ic);   /* Clipboard: Cut, Copy, Paste, Undo and Redo */
-  iupScintillaRegisterOvertype(ic);    /* Overtype */
-  iupScintillaRegisterTab(ic);         /* Tabs and Indentation Guides */
-  iupScintillaRegisterWordWrap(ic);    /* Line wrapping */
-  iupScintillaRegisterStyle(ic);       /* Style Definition Attributes */
-  iupScintillaRegisterLexer(ic);       /* Lexer Attributes */
-  iupScintillaRegisterFolding(ic);     /* Folding Attributes */
-  iupScintillaRegisterMargin(ic);      /* Margin Attributes */
-  iupScintillaRegisterMarker(ic);      /* Marker Attributes */
-  iupScintillaRegisterWhiteSpace(ic);  /* White space Attributes */
-  iupScintillaRegisterBraceLight(ic);  /* Brace highlighting Attributes */
-  iupScintillaRegisterCursor(ic);      /* Cursor and Zooming Attributes */
-  iupScintillaRegisterAnnotation(ic);  /* Annotation Attributes */
-  iupScintillaRegisterScrolling(ic);   /* Scrolling and automatic scrolling */
+  iupScintillaRegisterText(ic);            /* Text retrieval and modification */
+  iupScintillaRegisterSelection(ic);       /* Selection and information */
+  iupScintillaRegisterClipboard(ic);       /* Clipboard: Cut, Copy, Paste, Undo and Redo */
+  iupScintillaRegisterOvertype(ic);        /* Overtype */
+  iupScintillaRegisterTab(ic);             /* Tabs and Indentation Guides */
+  iupScintillaRegisterWordWrap(ic);        /* Line wrapping */
+  iupScintillaRegisterStyle(ic);           /* Style Definition Attributes */
+  iupScintillaRegisterLexer(ic);           /* Lexer Attributes */
+  iupScintillaRegisterFolding(ic);         /* Folding Attributes */
+  iupScintillaRegisterMargin(ic);          /* Margin Attributes */
+  iupScintillaRegisterMarker(ic);          /* Marker Attributes */
+  iupScintillaRegisterWhiteSpace(ic);      /* White space Attributes */
+  iupScintillaRegisterBraceLight(ic);      /* Brace highlighting Attributes */
+  iupScintillaRegisterCursor(ic);          /* Cursor and Zooming Attributes */
+  iupScintillaRegisterAnnotation(ic);      /* Annotation Attributes */
+  iupScintillaRegisterScrolling(ic);       /* Scrolling and automatic scrolling */
+  iupScintillaRegisterAutocompletion(ic);  /* Autocompletion */
+  iupScintillaRegisterSearching(ic);       /* Search & Replace */
 
   /* General */
   iupClassRegisterAttribute(ic, "VISIBLECOLUMNS", NULL, NULL, IUPAF_SAMEASSYSTEM, "30", IUPAF_NO_INHERIT);
@@ -617,7 +646,6 @@ Ihandle *IupScintilla(void)
 
 
 /*****  TODO  (by-demand)
-- Search & Replace
 - Multiple Selection and Virtual Space
 - Macro recording
 - Printing
@@ -626,9 +654,8 @@ Ihandle *IupScintilla(void)
 - Caret, selection, and hotspot styles
 - Indicators
 - Brace Highlighting with Indicators
-BRACEHLINDICATOR (non inheritable, write only): defines a specified indicator to highlight matching braces instead of changing their style (See Indicator Styles).
-BRACEBLINDICATOR (non inheritable, write only): defines a specified indicator to highlight non matching brace instead of changing its style (See Indicator Styles).
-USEBRACEHLINDICATOR (non inheritable): enable or disable the indicator to highlight matching braces. Can be YES or NO. Default: YES.
-USEBRACEBLINDICATOR (non inheritable): enable or disable the indicator to highlight non matching brace. Can be YES or NO. Default: YES.
-- Autocompletion
+  BRACEHLINDICATOR (non inheritable, write only): defines a specified indicator to highlight matching braces instead of changing their style (See Indicator Styles).
+  BRACEBLINDICATOR (non inheritable, write only): defines a specified indicator to highlight non matching brace instead of changing its style (See Indicator Styles).
+  USEBRACEHLINDICATOR (non inheritable): enable or disable the indicator to highlight matching braces. Can be YES or NO. Default: YES.
+  USEBRACEBLINDICATOR (non inheritable): enable or disable the indicator to highlight non matching brace. Can be YES or NO. Default: YES.
 */

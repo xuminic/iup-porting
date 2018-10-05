@@ -57,11 +57,11 @@ void iupDialogGetDecorSize(Ihandle* ih, int *decorwidth, int *decorheight);
 struct _IcontrolData 
 {
   int show_state,     /* save the state to be used used in SHOW_CB */
-      first_show,     /* boolean flag to indicate that the dialog was shown for the first time */
-      ignore_resize,  /* flag to ignore the next resize */
-      popup_level,    /* popup level of the dialog if IupPopup used */
-      child_id,       /* serial number used by child controls */
-      cmd_show;       /* parameters for ShowWindow in Windows driver */
+    first_show,     /* boolean flag to indicate that the dialog was shown for the first time */
+    ignore_resize,  /* flag to ignore the next resize */
+    popup_level,    /* popup level of the dialog if IupPopup used */
+    child_id,       /* serial number used by child controls */
+    cmd_show;       /* parameters for ShowWindow in Windows driver */
   Ihandle* menu;
 };
 

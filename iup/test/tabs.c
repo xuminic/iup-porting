@@ -65,6 +65,48 @@ static Ihandle* load_image_TestImage(void)
   return image;
 }
 
+static int cbUnHideAllTabs(Ihandle* ih)
+{
+  Ihandle* tabs = (Ihandle*)IupGetAttribute(ih, "APP_TABS");
+  int i, count = IupGetInt(tabs, "COUNT");
+
+  for (i = 0; i < count; i++)
+  {
+    if (!IupGetIntId(tabs, "TABVISIBLE", i))
+    {
+      IupSetAttributeId(tabs, "TABVISIBLE", i, "Yes");
+      printf("tab %d = hidden\n", i);
+    }
+    else
+      printf("tab %d = visible\n", i);
+  }
+
+  return IUP_DEFAULT;
+}
+
+static int cbRemoveThisTab(Ihandle* ih)
+{
+  Ihandle* tabs = (Ihandle*)IupGetAttribute(ih, "APP_TABS");
+  int pos = IupGetInt(ih, "APP_THISTAB");
+  Ihandle* child = IupGetChild(tabs, pos);
+
+  if (child)
+  {
+    IupDestroy(child);
+    IupRefreshChildren(tabs);  /* update children layout */
+  }
+
+  return IUP_DEFAULT;
+}
+
+static int cbHideThisTab(Ihandle* ih)
+{
+  Ihandle* tabs = (Ihandle*)IupGetAttribute(ih, "APP_TABS");
+  int pos = IupGetInt(ih, "APP_THISTAB");
+  IupSetAttributeId(tabs, "TABVISIBLE", pos, "No");
+  return IUP_DEFAULT;
+}
+
 static int cbChildButton(Ihandle* ih)
 {
   printf("button(%s)\n", IupGetAttribute(ih, "TITLE"));
@@ -74,13 +116,29 @@ static int cbChildButton(Ihandle* ih)
 static int cbTest(Ihandle* ih)
 {
   Ihandle* tabs = (Ihandle*)IupGetAttribute(ih, "APP_TABS");
+
+  char att[50];
+  int m_handle_id = 1;
+  char* title;
+  sprintf(att, "TABTITLE%d", m_handle_id);
+
+  {
+    Ihandle* child = IupGetChild(tabs, 1);
+    title = iupAttribGet(child, "TABTITLE");
+    title = IupGetAttribute(child, "TABTITLE");
+    printf("%s=%s\n", att, title);
+  }
+
+  title = IupGetAttribute(tabs, att);
+  printf("%s=%s\n", att, title);
+
 //  IupSetAttribute(tabs, "VALUEPOS", "0");
 //  IupSetAttribute(tabs, "TABTITLE0", "1asdasd");
 //  printf("VALUE=%s\n", IupGetAttribute(tabs, "VALUE"));
-  if (IupGetInt(tabs, "TABVISIBLE2"))
-    IupSetAttribute(tabs, "TABVISIBLE2", "No");
-  else
-    IupSetAttribute(tabs, "TABVISIBLE2", "Yes");
+//  if (IupGetInt(tabs, "TABVISIBLE2"))
+//    IupSetAttribute(tabs, "TABVISIBLE2", "No");
+//  else
+//    IupSetAttribute(tabs, "TABVISIBLE2", "Yes");
   return IUP_DEFAULT;
 }
 
@@ -187,12 +245,14 @@ static void TestFocusInChild(Ihandle* ih, int pos)
   if(pos==0)
   {
     Ihandle* text = IupGetDialogChild(ih, "ATEXT");
-    IupSetFocus(text);  
+    if (text)
+      IupSetFocus(text);  
   }
   else if(pos==4)
   {
     Ihandle* button = IupGetDialogChild(ih, "EEEEEBUTTON");
-    IupSetFocus(button);
+    if (button)
+      IupSetFocus(button);
   }
 }
 
@@ -206,6 +266,24 @@ static int cbTabChangePos(Ihandle* ih, int new_tab, int old_tab)
 {
   printf("new Tab: %d, old Tab: %d\n", new_tab, old_tab);
   TestFocusInChild(ih, new_tab);
+  return IUP_DEFAULT;
+}
+
+static int cbTabRightButton(Ihandle* ih, int pos)
+{
+  Ihandle* menu = IupMenu(IupItem("Add Tab", "cbAddTab"),
+                          IupItem("Insert Tab", "cbInsertTab"),
+                          IupItem("Remove Current Tab", "cbRemoveTab"),
+                          IupItem("Remove This", "cbRemoveThisTab"), 
+                          IupItem("Hide This", "cbHideThisTab"),
+                          NULL);
+  
+  IupSetAttribute(menu, "APP_TABS", IupGetAttribute(ih, "APP_TABS"));
+  IupSetInt(menu, "APP_THISTAB", pos);
+
+  IupPopup(menu, IUP_MOUSEPOS, IUP_MOUSEPOS);
+  IupDestroy(menu);
+
   return IUP_DEFAULT;
 }
 
@@ -289,8 +367,8 @@ static Ihandle* CreateTabs(int tab)
 
   IupSetAttribute(vboxA, "TABTITLE", "A");
   IupSetAttributeHandle(vboxA, "TABIMAGE", load_image_LogoTecgraf());
-  IupSetAttribute(vboxB, "TABTITLE", "&BB");
-//  IupSetAttribute(vboxC, "TABTITLE", "CCC");
+//  IupSetAttribute(vboxB, "TABTITLE", "&BB");
+  //  IupSetAttribute(vboxC, "TABTITLE", "CCC");
   IupStoreAttribute(vboxC, "TABIMAGE", IupGetAttribute(vboxA, "TABIMAGE"));
   IupSetAttribute(vboxD, "TABTITLE", "DDDD");
   IupSetAttribute(vboxE, "TABTITLE", "&EEEEE");
@@ -307,8 +385,11 @@ static Ihandle* CreateTabs(int tab)
 
   tabs = IupTabs(vboxA, vboxB, vboxC, vboxD, vboxE, vboxF, vboxG, vboxH, vboxI, NULL);
 
+  IupSetAttribute(tabs, "TABTITLE1", "&BB");
+
   //IupSetCallback(tabs, "TABCHANGE_CB", (Icallback)cbTabChange);
   IupSetCallback(tabs, "TABCHANGEPOS_CB", (Icallback)cbTabChangePos);
+  IupSetCallback(tabs, "RIGHTCLICK_CB", (Icallback)cbTabRightButton);
 
   //IupSetAttributeHandle(tabs, "TABIMAGE1", load_image_LogoTecgraf());
   IupSetAttributeHandle(tabs, "TABIMAGE1", load_image_TestImage());
@@ -322,9 +403,8 @@ static Ihandle* CreateTabs(int tab)
 //  IupSetAttribute(tabs, "TABTYPE", "BOTTOM");
 //  IupSetAttribute(tabs, "TABORIENTATION", "VERTICAL");
 
-  IupSetAttribute(tabs, "MARGIN", "0x0");  /* for children */
-//  IupSetAttribute(tabs, "EXPAND", "YES");
-  IupSetAttribute(tabs, "RASTERSIZE", "300x200");  /* initial size */
+  IupSetAttribute(tabs, "SHOWCLOSE", "YES");
+  
 //  IupSetAttribute(tabs, "ALIGNMENT", "NW");
 //  IupSetAttribute(tabs, "ALIGNMENT", "NORTH");
 //  IupSetAttribute(tabs, "ALIGNMENT", "WEST");
@@ -342,6 +422,10 @@ static Ihandle* CreateTabs(int tab)
 //  IupSetAttribute(tabs, "TIPBGCOLOR", "255 128 128");
 //  IupSetAttribute(tabs, "TIPFGCOLOR", "0 92 255");
 
+//  IupSetAttribute(tabs, "EXPAND", "YES");
+  IupSetAttribute(tabs, "MARGIN", "0x0");  /* for children */
+  IupSetAttribute(tabs, "RASTERSIZE", "300x200");  /* initial size */
+  
   // Windows Only  
   //IupSetAttribute(tabs, "TIPBALLOON", "YES");
   //IupSetAttribute(tabs, "TIPBALLOONTITLE", "Tip Title");
@@ -359,7 +443,7 @@ static Ihandle* CreateTabs(int tab)
   return tabs;
 }
 
-void TabsTest(void)
+void TabsTest1(void)
 {
   Ihandle *box, *frm1, *frm2, *dlg, *tabs;
 
@@ -377,6 +461,7 @@ void TabsTest(void)
                 IupVbox(IupSetAttributes(IupButton("Add Tab", "cbAddTab"), "TIP=\"Button Tip\""),
                         IupButton("Insert Tab", "cbInsertTab"),
                         IupButton("Remove Tab", "cbRemoveTab"),
+                        IupButton("UnHide All Tabs", "cbUnHideAllTabs"),
                         IupToggle("Inactive", "cbInactive"),
                         IupButton("Test", "cbTest"),
                         NULL), 
@@ -415,6 +500,9 @@ void TabsTest(void)
   IupSetFunction("cbInactive", (Icallback)cbInactive);
   IupSetFunction("cbChildButton", (Icallback)cbChildButton);
   IupSetFunction("cbTest", (Icallback)cbTest);
+  IupSetFunction("cbRemoveThisTab", (Icallback)cbRemoveThisTab);
+  IupSetFunction("cbUnHideAllTabs", (Icallback)cbUnHideAllTabs);
+  IupSetFunction("cbHideThisTab", (Icallback)cbHideThisTab);
 }
 
 #ifndef BIG_TEST

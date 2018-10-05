@@ -717,15 +717,22 @@ static TCHAR* winTextStrConvertToSystem(Ihandle* ih, const char* str)
   {
     if (ih->data->has_formatting)
     {
-      if (strchr(str, '\n')!=NULL)
+      if (strchr(str, '\n') != NULL)
       {
         str = iupStrReturnStr(str);
-        iupStrToMac((char*)str);
+        iupStrToMac((char*)str);  /* replace inline */
       }
     }
     else
-      str = iupStrToDos(str);
+    {
+      TCHAR* wstr;
+      char* dos_str = iupStrToDos(str);
+      wstr = iupwinStrToSystem(dos_str);
+      if (dos_str != str) free(dos_str);
+      return wstr;
+    }
   }
+
   return iupwinStrToSystem(str);
 }
 
@@ -1009,6 +1016,7 @@ static int winTextSetAppendAttrib(Ihandle* ih, const char* value)
   
   wpos = GetWindowTextLength(ih->handle)+1;
   SendMessage(ih->handle, EM_SETSEL, (WPARAM)wpos, (LPARAM)wpos);
+
   if (ih->data->is_multiline && ih->data->append_newline && wpos!=1)
   {
     if (ih->data->has_formatting)
@@ -1118,7 +1126,10 @@ static void winTextScrollTo(Ihandle* ih, int lin, int col)
 {
   DWORD old_lin = SendMessage(ih->handle, EM_GETFIRSTVISIBLELINE, 0, 0);
   if (ih->data->has_formatting)
-    SendMessage(ih->handle, EM_LINESCROLL, (WPARAM)0, (LPARAM)(lin-old_lin));
+  {
+    SendMessage(ih->handle, EM_LINESCROLL, 0, (LPARAM)(lin - old_lin - 1));
+    SendMessage(ih->handle, EM_SCROLL, (WPARAM)SB_LINEDOWN, 0);  /* to force an update of the scrollbars */
+  }
   else  /* How to get the current horizontal position?????  */
     SendMessage(ih->handle, EM_LINESCROLL, (WPARAM)col, (LPARAM)(lin-old_lin));
 }

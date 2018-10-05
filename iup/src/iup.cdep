@@ -90,10 +90,6 @@ $(OBJDIR)/iup_zbox.o: iup_zbox.c ../include/iup.h ../include/iupkey.h \
  ../include/iupdef.h ../include/iupcbs.h iup_object.h iup_class.h \
  iup_table.h iup_classbase.h iup_attrib.h iup_str.h iup_drv.h \
  iup_drvfont.h iup_stdcontrols.h iup_layout.h
-$(OBJDIR)/iup_gridbox.o: iup_gridbox.c ../include/iup.h ../include/iupkey.h \
- ../include/iupdef.h ../include/iupcbs.h iup_object.h iup_class.h \
- iup_table.h iup_classbase.h iup_attrib.h iup_str.h iup_drv.h \
- iup_drvfont.h iup_stdcontrols.h iup_layout.h iup_normalizer.h
 $(OBJDIR)/iup_colordlg.o: iup_colordlg.c ../include/iup.h ../include/iupkey.h \
  ../include/iupdef.h iup_object.h iup_class.h iup_table.h iup_classbase.h \
  iup_attrib.h iup_str.h iup_stdcontrols.h iup_register.h
@@ -203,7 +199,8 @@ $(OBJDIR)/iup_normalizer.o: iup_normalizer.c ../include/iup.h ../include/iupkey.
 $(OBJDIR)/iup_tree.o: iup_tree.c ../include/iup.h ../include/iupkey.h \
  ../include/iupdef.h ../include/iupcbs.h iup_object.h iup_class.h \
  iup_table.h iup_classbase.h iup_attrib.h iup_str.h iup_drv.h \
- iup_drvfont.h iup_stdcontrols.h iup_layout.h iup_tree.h iup_assert.h
+ iup_drvfont.h iup_drvinfo.h iup_stdcontrols.h iup_layout.h iup_tree.h \
+ iup_assert.h
 $(OBJDIR)/iup_split.o: iup_split.c ../include/iup.h ../include/iupkey.h \
  ../include/iupdef.h ../include/iupcbs.h ../include/iupkey.h iup_object.h \
  iup_class.h iup_table.h iup_classbase.h iup_attrib.h iup_str.h iup_drv.h \
@@ -233,6 +230,19 @@ $(OBJDIR)/iup_canvas.o: iup_canvas.c ../include/iup.h ../include/iupkey.h \
  ../include/iupdef.h ../include/iupcbs.h iup_object.h iup_class.h \
  iup_table.h iup_classbase.h iup_attrib.h iup_str.h iup_drv.h \
  iup_drvfont.h iup_stdcontrols.h iup_layout.h iup_canvas.h
+$(OBJDIR)/iup_gridbox.o: iup_gridbox.c ../include/iup.h ../include/iupkey.h \
+ ../include/iupdef.h ../include/iupcbs.h iup_object.h iup_class.h \
+ iup_table.h iup_classbase.h iup_attrib.h iup_str.h iup_drv.h \
+ iup_drvfont.h iup_stdcontrols.h iup_layout.h iup_normalizer.h
+$(OBJDIR)/iup_detachbox.o: iup_detachbox.c ../include/iup.h ../include/iupkey.h \
+ ../include/iupdef.h ../include/iupcbs.h ../include/iupkey.h iup_object.h \
+ iup_class.h iup_table.h iup_classbase.h iup_attrib.h iup_str.h iup_drv.h \
+ iup_stdcontrols.h iup_layout.h iup_childtree.h iup_draw.h
+$(OBJDIR)/iup_backgroundbox.o: iup_backgroundbox.c ../include/iup.h \
+ ../include/iupkey.h ../include/iupdef.h ../include/iupcbs.h \
+ ../include/iupkey.h iup_object.h iup_class.h iup_table.h iup_classbase.h \
+ iup_register.h iup_attrib.h iup_str.h iup_stdcontrols.h iup_layout.h \
+ iup_drv.h
 $(OBJDIR)/iupgtk_globalattrib.o: gtk/iupgtk_globalattrib.c ../include/iup.h \
  ../include/iupkey.h ../include/iupdef.h ../include/iupcbs.h iup_object.h \
  iup_class.h iup_table.h iup_classbase.h iup_str.h iup_drv.h \

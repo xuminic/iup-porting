@@ -47,9 +47,53 @@ static int winDialogSetBgColorAttrib(Ihandle* ih, const char* value);
 static int winDialogSetTrayAttrib(Ihandle *ih, const char *value);
 
 /****************************************************************
+                     ITaskbarList3 resources
+****************************************************************/
+#include "Shobjidl.h"
+
+#ifdef __ITaskbarList3_FWD_DEFINED__  /* Only available since VC10 */
+
+static int winDialogSetTaskBarProgressValueAttrib(Ihandle *ih, const char *value)
+{
+  ITaskbarList3* tbl = (ITaskbarList3*)iupAttribGet(ih, "_IUPWIN_TASKBARLIST");
+  if(tbl)
+  {
+    int perc;
+    iupStrToInt(value, &perc);
+    tbl->lpVtbl->SetProgressValue(tbl, ih->handle, perc, 100);
+
+    if (perc == 100)
+      tbl->lpVtbl->SetProgressState(tbl, ih->handle, TBPF_NOPROGRESS);
+  }
+
+  return 0;
+}
+
+static int winDialogSetTaskBarProgressStateAttrib(Ihandle *ih, const char *value)
+{
+  ITaskbarList3* tbl = (ITaskbarList3*)iupAttribGet(ih, "_IUPWIN_TASKBARLIST");
+  if(tbl)
+  {
+    if(iupStrEqualNoCase(value, "NOPROGRESS"))
+      tbl->lpVtbl->SetProgressState(tbl, ih->handle, TBPF_NOPROGRESS);
+    else if(iupStrEqualNoCase(value, "INDETERMINATE"))
+      tbl->lpVtbl->SetProgressState(tbl, ih->handle, TBPF_INDETERMINATE);
+    else if(iupStrEqualNoCase(value, "ERROR"))
+      tbl->lpVtbl->SetProgressState(tbl, ih->handle, TBPF_ERROR);
+    else if(iupStrEqualNoCase(value, "PAUSED"))
+      tbl->lpVtbl->SetProgressState(tbl, ih->handle, TBPF_PAUSED);
+    else  /* NORMAL */
+      tbl->lpVtbl->SetProgressState(tbl, ih->handle, TBPF_NORMAL);
+  }
+
+  return 0;
+}
+
+#endif  /* __ITaskbarList3_FWD_DEFINED__ */
+
+/****************************************************************
                      Utilities
 ****************************************************************/
-
 int iupdrvDialogIsVisible(Ihandle* ih)
 {
   return iupdrvIsVisible(ih);
@@ -665,27 +709,31 @@ static LRESULT CALLBACK winDialogMDIFrameWndProc(HWND hwnd, UINT msg, WPARAM wp,
   return DefFrameProc(hwnd, hWndClient, msg, wp, lp);
 }
 
-static void winDialogRegisterClass(int mdi)
+enum { IUPWIN_DIALOG, IUPWIN_DIALOGCONTROL, IUPWIN_MDIFRAME, IUPWIN_MDICHILD, IUPWIN_DIALOG_NOSAVEBITS };
+
+static void winDialogRegisterClass(int type)
 {
   TCHAR* name;
   WNDCLASS wndclass;
   WNDPROC wndProc;
   ZeroMemory(&wndclass, sizeof(WNDCLASS));
   
-  if (mdi == 2)
+  if (type == IUPWIN_MDICHILD)
   {
     name = TEXT("IupDialogMDIChild");
     wndProc = (WNDPROC)winDialogMDIChildWndProc;
   }
-  else if (mdi == 1)
+  else if (type == IUPWIN_MDIFRAME)
   {
     name = TEXT("IupDialogMDIFrame");
     wndProc = (WNDPROC)winDialogMDIFrameWndProc;
   }
   else
   {
-    if (mdi == -1)
+    if (type == IUPWIN_DIALOGCONTROL)
       name = TEXT("IupDialogControl");
+    else if (type == IUPWIN_DIALOG_NOSAVEBITS)
+      name = TEXT("IupDialogNoSaveBits");
     else
       name = TEXT("IupDialog");
     wndProc = (WNDPROC)winDialogWndProc;
@@ -697,15 +745,15 @@ static void winDialogRegisterClass(int mdi)
   wndclass.hCursor        = LoadCursor(NULL, IDC_ARROW);
 
   /* To use a standard system color, must increase the background-color value by one */
-  if (mdi == 1)
+  if (type == IUPWIN_MDIFRAME)
     wndclass.hbrBackground  = (HBRUSH)(COLOR_APPWORKSPACE+1);  
   else
     wndclass.hbrBackground  = (HBRUSH)(COLOR_BTNFACE+1);
 
-  if (mdi == 0)
+  if (type == IUPWIN_DIALOG)
     wndclass.style |= CS_SAVEBITS;
 
-  if (mdi == -1)
+  if (type == IUPWIN_DIALOGCONTROL)
     wndclass.style |=  CS_HREDRAW | CS_VREDRAW;
     
   RegisterClass(&wndclass); 
@@ -727,6 +775,9 @@ static int winDialogMapMethod(Ihandle* ih)
   char* title = iupAttribGet(ih, "TITLE"); 
   if (title)
     has_titlebar = 1;
+
+  if (!iupAttribGetBoolean(ih, "SAVEUNDER"))
+    classname = TEXT("IupDialogNoSaveBits");
 
   if (iupAttribGetBoolean(ih, "RESIZE"))
   {
@@ -847,6 +898,16 @@ static int winDialogMapMethod(Ihandle* ih)
   if (iupAttribGet(ih, "MINSIZE") || iupAttribGet(ih, "MAXSIZE"))
     winMinMaxHandle = ih;
 
+  /* Windows 7 Taskbar */
+#ifdef __ITaskbarList3_FWD_DEFINED__
+  if (iupAttribGetInt(ih, "TASKBARPROGRESS"))
+  {
+    ITaskbarList3* tbl;
+    CoCreateInstance(&CLSID_TaskbarList, NULL, CLSCTX_INPROC_SERVER, &IID_ITaskbarList3, &tbl);
+    iupAttribSet(ih, "_IUPWIN_TASKBARLIST", (char*)((ITaskbarList3*)tbl));
+  }
+#endif
+
   /* size will be updated in IupRefresh -> winDialogLayoutUpdate */
   /* position will be updated in iupDialogShowXY              */
 
@@ -910,6 +971,15 @@ static void winDialogUnMapMethod(Ihandle* ih)
     ih->data->menu->handle = NULL; /* the dialog will destroy the native menu */
     IupDestroy(ih->data->menu);  
   }
+
+#ifdef __ITaskbarList3_FWD_DEFINED__
+  if ((ITaskbarList3*)iupAttribGet(ih, "_IUPWIN_TASKBARLIST"))
+  {
+    ITaskbarList3* tbl = (ITaskbarList3*)iupAttribGet(ih, "_IUPWIN_TASKBARLIST");
+    tbl->lpVtbl->Release(tbl);
+    iupAttribSet(ih, "_IUPWIN_TASKBARLIST", NULL);
+  }
+#endif
 
   if (iupAttribGet(ih, "_IUPDLG_HASTRAY"))
     winDialogSetTrayAttrib(ih, NULL);
@@ -1423,10 +1493,11 @@ void iupdrvDialogInitClass(Iclass* ic)
 {
   if (!iupwinClassExist(TEXT("IupDialog")))
   {
-    winDialogRegisterClass(0);
-    winDialogRegisterClass(1);
-    winDialogRegisterClass(2);
-    winDialogRegisterClass(-1);
+    winDialogRegisterClass(IUPWIN_DIALOG);
+    winDialogRegisterClass(IUPWIN_DIALOGCONTROL);
+    winDialogRegisterClass(IUPWIN_MDIFRAME);
+    winDialogRegisterClass(IUPWIN_MDICHILD);
+    winDialogRegisterClass(IUPWIN_DIALOG_NOSAVEBITS);
 
     WM_HELPMSG = RegisterWindowMessage(HELPMSGSTRING);
   }
@@ -1458,7 +1529,7 @@ void iupdrvDialogInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "BACKGROUND", NULL, winDialogSetBackgroundAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "ICON", NULL, winDialogSetIconAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "FULLSCREEN", NULL, winDialogSetFullScreenAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "SAVEUNDER", NULL, NULL, IUPAF_SAMEASSYSTEM, "YES", IUPAF_READONLY|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "SAVEUNDER", NULL, NULL, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "MINSIZE", NULL, iupBaseSetMinSizeAttrib, IUPAF_SAMEASSYSTEM, "1x1", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "MAXSIZE", NULL, iupBaseSetMaxSizeAttrib, IUPAF_SAMEASSYSTEM, "65535x65535", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 
@@ -1495,6 +1566,12 @@ void iupdrvDialogInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "TRAYTIPBALLOON", NULL, NULL, IUPAF_SAMEASSYSTEM, NULL, IUPAF_NOT_MAPPED);
   iupClassRegisterAttribute(ic, "TRAYTIPBALLOONTITLE", NULL, NULL, IUPAF_SAMEASSYSTEM, NULL, IUPAF_NOT_MAPPED);
   iupClassRegisterAttribute(ic, "TRAYTIPBALLOONTITLEICON", NULL, NULL, IUPAF_SAMEASSYSTEM, NULL, IUPAF_NOT_MAPPED);
+
+#ifdef __ITaskbarList3_FWD_DEFINED__
+  iupClassRegisterAttribute(ic, "TASKBARPROGRESS", NULL, NULL, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "TASKBARPROGRESSSTATE", NULL, winDialogSetTaskBarProgressStateAttrib, IUPAF_SAMEASSYSTEM, "NORMAL", IUPAF_WRITEONLY|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "TASKBARPROGRESSVALUE", NULL, winDialogSetTaskBarProgressValueAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+#endif
 
   /* Not Supported */
   iupClassRegisterAttribute(ic, "DIALOGHINT", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_NO_INHERIT);

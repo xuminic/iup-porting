@@ -205,7 +205,7 @@ static int iMatrixDrawGetFrameVertColor(Ihandle* ih, int lin, int col, long *fra
   {
     char* color;
     unsigned char r,g,b;
-    color = iupAttribGetId2(ih, "FRAMEVERTCOLOR%d:%d", lin, col);
+    color = iupAttribGetId2(ih, "FRAMEVERTCOLOR", lin, col);
     if (!color)
       color = iupAttribGetId2(ih, "FRAMEVERTCOLOR", IUP_INVALID_ID, col);
     if (iupStrEqual(color, "BGCOLOR"))
@@ -236,7 +236,7 @@ static int iMatrixDrawFrameHorizLineHighlight(Ihandle* ih, int lin, int col, int
 {
   if (lin > 0)
   {
-    int transp = iMatrixDrawGetFrameVertColor(ih, lin-1, col, &framecolor);
+    int transp = iMatrixDrawGetFrameHorizColor(ih, lin-1, col, &framecolor);
     if (transp)
       return 1;
   }

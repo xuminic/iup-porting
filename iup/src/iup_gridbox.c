@@ -37,6 +37,25 @@ struct _IcontrolData
       homogeneous_width, homogeneous_height;       /* calculated in SetChildrenCurrentSize, used in SetChildrenPosition */
 };
 
+
+static void iGridBoxCalcLinCol(Ihandle* ih, int i, int *lin, int *col)
+{
+  if (ih->data->orientation == IGBOX_HORIZONTAL)
+  {
+    *lin = i / ih->data->num_col;
+    *col = i % ih->data->num_col;
+  }
+  else
+  {
+    *col = i / ih->data->num_lin;
+    *lin = i % ih->data->num_lin;
+  }
+}
+
+
+/**********************************************************************************************/
+
+
 static char* iGridBoxGetClientSizeAttrib(Ihandle* ih)
 {
   int width, height;
@@ -201,6 +220,99 @@ static char* iGridBoxGetNormalizeSizeAttrib(Ihandle* ih)
   return iupNormalizeGetNormalizeSizeStr(ih->data->normalize_size);
 }
 
+static void iGridBoxFitColChildren(Ihandle* ih, int fit_col)
+{
+  /* find the largest cel in the col */
+  int max_width = 0, max, i;
+  Ihandle* child, *ref_child = NULL;
+
+  i = 0;
+  for (child = ih->firstchild; child; child = child->brother)
+  {
+    if (!(child->flags & IUP_FLOATING))
+    {
+      int lin, col;
+      iGridBoxCalcLinCol(ih, i, &lin, &col);
+
+      if (col == fit_col)
+      {
+        if (child->naturalwidth > max_width)
+          max_width = child->naturalwidth;
+
+        if (lin == ih->data->size_lin)
+          ref_child = child;
+      }
+    }
+  }
+
+  max = iupAttribGetIntId(ih, "FITMAXWIDTH", fit_col);
+  if (max && max > max_width)
+    max_width = max;
+
+  if (ref_child)
+    ref_child->userwidth = max_width;
+}
+
+static void iGridBoxFitLineChildren(Ihandle* ih, int fit_lin)
+{
+  /* find the highest cel in the line */
+  int max_height = 0, max, i;
+  Ihandle* child, *ref_child = NULL;
+
+  i = 0;
+  for (child = ih->firstchild; child; child = child->brother)
+  {
+    if (!(child->flags & IUP_FLOATING))
+    {
+      int lin, col;
+      iGridBoxCalcLinCol(ih, i, &lin, &col);
+
+      if (lin == fit_lin)
+      {
+        if (child->naturalheight > max_height)
+          max_height = child->naturalheight;
+
+        if (col == ih->data->size_col)
+          ref_child = child;
+      }
+    }
+  }
+
+  max = iupAttribGetIntId(ih, "FITMAXHEIGHT", fit_lin);
+  if (max && max > max_height)
+    max_height = max;
+
+  if (ref_child)
+    ref_child->userheight = max_height;
+}
+
+static int iGridBoxSetFitToChildrenAttrib(Ihandle* ih, const char* value)
+{
+  if (!value || value[0] == 0)
+    return 0;
+
+  if (value[0] == 'C')
+  {
+    int col;
+    if (iupStrToInt(value + 1, &col))
+    {
+      iGridBoxFitColChildren(ih, col);
+      IupRefreshChildren(ih);
+    }
+  }
+  else if (value[0] == 'L')
+  {
+    int line;
+    if (iupStrToInt(value + 1, &line))
+    {
+      iGridBoxFitLineChildren(ih, line);
+      IupRefreshChildren(ih);
+    }
+  }
+
+  return 0;
+}
+
 static int iGridBoxSetCMarginAttrib(Ihandle* ih, const char* value)
 {
   int cmargin_x=-1, cmargin_y=-1;
@@ -355,20 +467,6 @@ static char* iGridBoxGetAlignmentColAttrib(Ihandle* ih)
 /**********************************************************************************/
 
 
-static void iGridBoxCalcLinCol(Ihandle* ih, int i, int *lin, int *col)
-{
-  if (ih->data->orientation==IGBOX_HORIZONTAL)
-  {
-    *lin = i / ih->data->num_col;
-    *col = i % ih->data->num_col;
-  }
-  else
-  {
-    *col = i / ih->data->num_lin;
-    *lin = i % ih->data->num_lin;
-  }
-}
-
 static int iGridBoxCalcNumDiv(Ihandle* ih)
 {
   int num_div;
@@ -425,6 +523,9 @@ static void iGridBoxComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *c
 
   for (child = ih->firstchild; child; child = child->brother)
   {
+    if (ih->data->expand_children)
+      child->expand = ih->data->expand_children;
+
     /* update child natural size first */
     if (!(child->flags & IUP_FLOATING_IGNORE))
       iupBaseComputeNaturalSize(child);
@@ -461,8 +562,8 @@ static void iGridBoxComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *c
   ih->data->num_lin = num_lin;
   ih->data->num_col = num_col;
 
-  /* IMPORTANT: the first line defines the width of each column,
-     and the first column defines the height of each line */
+  /* IMPORTANT: the reference line defines the width of each column,
+     and the reference column defines the height of each line */
 
   i = 0;
   for (child = ih->firstchild; child; child = child->brother)
@@ -488,7 +589,7 @@ static void iGridBoxComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *c
   }
 
   /* reset to max natural width and/or height if NORMALIZESIZE is defined */
-  if (ih->data->normalize_size)  /* this directly affects the vhild natural size */
+  if (ih->data->normalize_size)  /* this directly affects the child natural size */
   {
     iupNormalizeSizeBoxChild(ih, ih->data->normalize_size, children_natural_maxwidth, children_natural_maxheight);
 
@@ -546,8 +647,8 @@ static int iGridBoxCalcEmptyWidth(Ihandle *ih, int expand)
       int lin, col;
       iGridBoxCalcLinCol(ih, i, &lin, &col);
 
-      /* only for the first line,
-         the first line defines the width of each column */
+      /* only for the reference line,
+         the reference line defines the width of each column */
       if (lin==ih->data->size_lin &&
           child->expand & expand)
         expand_count++;
@@ -578,8 +679,8 @@ static int iGridBoxCalcEmptyHeight(Ihandle *ih, int expand)
       int lin, col;
       iGridBoxCalcLinCol(ih, i, &lin, &col);
 
-      /* only for the first column,
-         the first column defines the height of each line */
+      /* only for the reference column,
+         the reference column defines the height of each line */
       if (col==ih->data->size_col &&
          child->expand & expand)
         expand_count++;
@@ -608,21 +709,12 @@ static void iGridBoxCalcColWidth(Ihandle* ih, int *col_width, int empty_w0, int 
       int lin, col;
       iGridBoxCalcLinCol(ih, i, &lin, &col);
 
-      /* only for the first line,
-         the first line defines the width of each column */
+      /* only for the reference line,
+         the reference line defines the width of each column */
       if (lin==ih->data->size_lin)
       {
-        int empty_width;
-
-        int old_expand = child->expand;
-        if (ih->data->expand_children)
-          child->expand |= ih->data->expand_children;
-
-        empty_width = (child->expand & IUP_EXPAND_W1)? empty_w1: ((child->expand & IUP_EXPAND_W0)? empty_w0: 0);
+        int empty_width = (child->expand & IUP_EXPAND_W1)? empty_w1: ((child->expand & IUP_EXPAND_W0)? empty_w0: 0);
         col_width[col] = child->naturalwidth+empty_width;
-
-        if (ih->data->expand_children)
-          child->expand = old_expand;
       }
 
       i++;
@@ -642,21 +734,12 @@ static void iGridBoxCalcLineHeight(Ihandle* ih, int *line_height, int empty_h0, 
       int lin, col;
       iGridBoxCalcLinCol(ih, i, &lin, &col);
 
-      /* only for the first column,
-         the first column defines the height of each line */
+      /* only for the reference column,
+         the reference column defines the height of each line */
       if (col==ih->data->size_col)
       {
-        int empty_height;
-
-        int old_expand = child->expand;
-        if (ih->data->expand_children)
-          child->expand |= ih->data->expand_children;
-
-        empty_height = (child->expand & IUP_EXPAND_H1)? empty_h1: ((child->expand & IUP_EXPAND_H0)? empty_h0: 0);
+        int empty_height = (child->expand & IUP_EXPAND_H1)? empty_h1: ((child->expand & IUP_EXPAND_H0)? empty_h0: 0);
         line_height[lin] = child->naturalheight+empty_height;
-
-        if (ih->data->expand_children)
-          child->expand = old_expand;
       }
 
       i++;
@@ -668,9 +751,6 @@ static void iGridBoxSetChildrenCurrentSizeMethod(Ihandle* ih, int shrink)
 {
   Ihandle* child;
   int *line_height=NULL, *col_width=NULL, i;
-
-  if (ih->data->expand_children)
-    ih->expand |= ih->data->expand_children;
 
   if (ih->data->is_homogeneous_lin)
     ih->data->homogeneous_height = iGridBoxCalcHomogeneousHeight(ih);
@@ -718,10 +798,6 @@ static void iGridBoxSetChildrenCurrentSizeMethod(Ihandle* ih, int shrink)
     if (!(child->flags & IUP_FLOATING))
     {
       int lin, col;
-      int old_expand = child->expand;
-      if (ih->data->expand_children)
-        child->expand |= ih->data->expand_children;
-
       iGridBoxCalcLinCol(ih, i, &lin, &col);
 
       if (ih->data->homogeneous_width && ih->data->homogeneous_height)
@@ -732,9 +808,6 @@ static void iGridBoxSetChildrenCurrentSizeMethod(Ihandle* ih, int shrink)
         iupBaseSetCurrentSize(child, col_width[col], ih->data->homogeneous_height, shrink);
       else
         iupBaseSetCurrentSize(child, col_width[col], line_height[lin], shrink);
-
-      if (ih->data->expand_children)
-        child->expand = old_expand;
 
       i++;
     }
@@ -772,8 +845,8 @@ static void iGridBoxSetChildrenPositionMethod(Ihandle* ih, int x, int y)
     {
       iGridBoxCalcLinCol(ih, i, &lin, &col);
 
-      /* only for the first line,
-         the first line defines the width of each column */
+      /* only for the reference line,
+         the reference line defines the width of each column */
       if (lin==ih->data->size_lin)
       {
         if (ih->data->homogeneous_width)
@@ -784,8 +857,8 @@ static void iGridBoxSetChildrenPositionMethod(Ihandle* ih, int x, int y)
         alignment_col[col] = iGridBoxGetAlignmentCol(ih, col);
       }
 
-      /* only for the first column,
-         the first column defines the height of each line */
+      /* only for the reference column,
+         the reference column defines the height of each line */
       if (col==ih->data->size_col)
       {
         if (ih->data->homogeneous_height)
@@ -953,6 +1026,7 @@ Iclass* iupGridBoxNewClass(void)
   iupClassRegisterAttribute(ic, "NUMLIN", iGridBoxGetNumLinAttrib, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SIZELIN", iGridBoxGetSizeLinAttrib, iGridBoxSetSizeLinAttrib, IUPAF_SAMEASSYSTEM, "0", IUPAF_NOT_MAPPED);
   iupClassRegisterAttribute(ic, "SIZECOL", iGridBoxGetSizeColAttrib, iGridBoxSetSizeColAttrib, IUPAF_SAMEASSYSTEM, "0", IUPAF_NOT_MAPPED);
+  iupClassRegisterAttribute(ic, "FITTOCHILDREN", NULL, iGridBoxSetFitToChildrenAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_WRITEONLY | IUPAF_NO_INHERIT);
 
   return ic;
 }

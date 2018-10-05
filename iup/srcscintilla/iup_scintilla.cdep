@@ -754,3 +754,13 @@ $(OBJDIR)/iup_scintilla.o: iup_scintilla.cpp ../srcscintilla/include/Scintilla.h
  ../src/iup_class.h ../src/iup_attrib.h ../src/iup_str.h ../src/iup_drv.h \
  ../src/iup_drvfont.h ../src/iup_register.h ../src/iup_layout.h \
  ../src/iup_assert.h ../src/gtk/iupgtk_drv.h iupsci.h
+$(OBJDIR)/iupsci_autocompletion.o: iupsci_autocompletion.c \
+ ../srcscintilla/include/Scintilla.h ../include/iup.h ../include/iupkey.h \
+ ../include/iupdef.h ../src/iup_object.h ../src/iup_class.h \
+ ../src/iup_table.h ../src/iup_classbase.h ../src/iup_attrib.h \
+ ../src/iup_str.h iupsci.h
+$(OBJDIR)/iupsci_searching.o: iupsci_searching.c \
+ ../srcscintilla/include/Scintilla.h ../include/iup.h ../include/iupkey.h \
+ ../include/iupdef.h ../src/iup_object.h ../src/iup_class.h \
+ ../src/iup_table.h ../src/iup_classbase.h ../src/iup_attrib.h \
+ ../src/iup_str.h iupsci.h

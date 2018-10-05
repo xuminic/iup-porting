@@ -215,6 +215,12 @@ $(OBJDIR)/il_timer.o: il_timer.c /cygdrive/d/tecgraf/lua52/include/lua.h \
  /cygdrive/d/tecgraf/lua52/include/lua.h ../include/iup.h \
  ../include/iupkey.h ../include/iupdef.h ../include/iuplua.h il.h \
  lh/timer.lh
+$(OBJDIR)/il_detachbox.o: il_detachbox.c /cygdrive/d/tecgraf/lua52/include/lua.h \
+ /cygdrive/d/tecgraf/lua52/include/luaconf.h \
+ /cygdrive/d/tecgraf/lua52/include/lauxlib.h \
+ /cygdrive/d/tecgraf/lua52/include/lua.h ../include/iup.h \
+ ../include/iupkey.h ../include/iupdef.h ../include/iuplua.h il.h \
+ lh/detachbox.lh
 $(OBJDIR)/il_sbox.o: il_sbox.c /cygdrive/d/tecgraf/lua52/include/lua.h \
  /cygdrive/d/tecgraf/lua52/include/luaconf.h \
  /cygdrive/d/tecgraf/lua52/include/lauxlib.h \
@@ -301,3 +307,10 @@ $(OBJDIR)/il_progressdlg.o: il_progressdlg.c \
  /cygdrive/d/tecgraf/lua52/include/lua.h ../include/iup.h \
  ../include/iupkey.h ../include/iupdef.h ../include/iuplua.h il.h \
  lh/progressdlg.lh
+$(OBJDIR)/il_backgroundbox.o: il_backgroundbox.c \
+ /cygdrive/d/tecgraf/lua52/include/lua.h \
+ /cygdrive/d/tecgraf/lua52/include/luaconf.h \
+ /cygdrive/d/tecgraf/lua52/include/lauxlib.h \
+ /cygdrive/d/tecgraf/lua52/include/lua.h ../include/iup.h \
+ ../include/iupkey.h ../include/iupdef.h ../include/iuplua.h il.h \
+ lh/backgroundbox.lh

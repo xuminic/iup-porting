@@ -42,6 +42,9 @@ using namespace ATL;
 // derived from CAtlModule in a project.
 static CComModule* iweb_module = NULL;
 
+#if _MSC_VER < 1500  // VC9: VC8 does not defines this
+#define OLECMDID_OPTICAL_ZOOM (OLECMDID)63
+#endif
 
 interface CSink:public IDispEventImpl<0, CSink, &DIID_DWebBrowserEvents2, &LIBID_SHDocVw, 1, 0>
 {
@@ -60,6 +63,9 @@ public:
   void STDMETHODCALLTYPE BeforeNavigate2(IDispatch *pDisp, VARIANT *url, VARIANT *Flags, VARIANT *TargetFrameName,
                                          VARIANT *PostData, VARIANT *Headers, VARIANT_BOOL *Cancel)
   {
+    if (iupAttribGet(ih, "_IUPWEB_IGNORE_NAVIGATE"))
+      return;
+
     IFns cb = (IFns)IupGetCallback(ih, "NAVIGATE_CB");
     if (cb)
     {
@@ -194,9 +200,10 @@ static int winWebBrowserSetHTMLAttrib(Ihandle* ih, const char* value)
   if (!lpDispatch)
   {
     iupAttribSet(ih, "_IUPWEB_FAILED", NULL);
-
+    iupAttribSet(ih, "_IUPWEB_IGNORE_NAVIGATE", "1");
     pweb->Navigate(L"about:blank", NULL, NULL, NULL, NULL);
     IupFlush();
+    iupAttribSet(ih, "_IUPWEB_IGNORE_NAVIGATE", NULL);
 
     pweb->get_Document(&lpDispatch);
   }
@@ -226,6 +233,60 @@ static int winWebBrowserSetHTMLAttrib(Ihandle* ih, const char* value)
   return 0; /* do not store value in hash table */
 }
 #endif
+
+static int winWebBrowserSetCopyAttrib(Ihandle* ih, const char* value)
+{
+  IWebBrowser2 *pweb = (IWebBrowser2*)iupAttribGet(ih, "_IUPWEB_BROWSER");
+  pweb->ExecWB(OLECMDID_COPY, OLECMDEXECOPT_DONTPROMPTUSER, NULL, NULL);
+  (void)value;
+  return 0;
+}
+
+static int winWebBrowserSetSelectAllAttrib(Ihandle* ih, const char* value)
+{
+  IWebBrowser2 *pweb = (IWebBrowser2*)iupAttribGet(ih, "_IUPWEB_BROWSER");
+  pweb->ExecWB(OLECMDID_SELECTALL, OLECMDEXECOPT_DONTPROMPTUSER, NULL, NULL);
+  (void)value;
+  return 0;
+}
+
+static int winWebBrowserSetPrintAttrib(Ihandle* ih, const char* value)
+{
+  IWebBrowser2 *pweb = (IWebBrowser2*)iupAttribGet(ih, "_IUPWEB_BROWSER");
+  pweb->ExecWB(OLECMDID_PRINT2, OLECMDEXECOPT_PROMPTUSER, NULL, NULL);
+  (void)value;
+  return 0;
+}
+
+static int winWebBrowserSetZoomAttrib(Ihandle* ih, const char* value)
+{
+  int zoom;
+  if (iupStrToInt(value, &zoom))
+  {
+    IWebBrowser2 *pweb = (IWebBrowser2*)iupAttribGet(ih, "_IUPWEB_BROWSER");
+
+    VARIANT var;
+    VariantInit(&var);  /* Initialize our variant */
+    var.vt = VT_I4;
+    var.ulVal = zoom;
+
+    pweb->ExecWB(OLECMDID_OPTICAL_ZOOM, OLECMDEXECOPT_DONTPROMPTUSER, &var, NULL);
+  }
+  return 0;
+}
+
+static char* winWebBrowserGetZoomAttrib(Ihandle* ih)
+{
+  IWebBrowser2 *pweb = (IWebBrowser2*)iupAttribGet(ih, "_IUPWEB_BROWSER");
+
+  VARIANT var;
+  VariantInit(&var);  /* Initialize our variant */
+  var.vt = VT_I4;
+
+  pweb->ExecWB(OLECMDID_OPTICAL_ZOOM, OLECMDEXECOPT_DONTPROMPTUSER, NULL, &var);
+  int zoom = var.ulVal;
+  return iupStrReturnInt(zoom);
+}
 
 static int winWebBrowserSetBackForwardAttrib(Ihandle* ih, const char* value)
 {
@@ -399,6 +460,10 @@ Iclass* iupWebBrowserNewClass(void)
   iupClassRegisterAttribute(ic, "RELOAD", NULL, winWebBrowserSetReloadAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "HTML", NULL, winWebBrowserSetHTMLAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "STATUS", winWebBrowserGetStatusAttrib, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_READONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "COPY", NULL, winWebBrowserSetCopyAttrib, NULL, NULL, IUPAF_WRITEONLY | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "SELECTALL", NULL, winWebBrowserSetSelectAllAttrib, NULL, NULL, IUPAF_WRITEONLY | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "ZOOM", winWebBrowserGetZoomAttrib, winWebBrowserSetZoomAttrib, NULL, NULL, IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "PRINT", NULL, winWebBrowserSetPrintAttrib, NULL, NULL, IUPAF_WRITEONLY | IUPAF_NO_INHERIT);
 
   /* CComModule implements a COM server module, 
      allowing a client to access the module's components  */
@@ -409,17 +474,3 @@ Iclass* iupWebBrowserNewClass(void)
 
   return ic;
 }
-
-/*
-IWebBrowser2::ExecWB
-WebBrowser1.ExecWB OLECMDID_PRINT, OLECMDEXECOPT_PROMPTUSER, 2, vbNull
-
-    '' Another way for printing...
-    Me.WebBrowser1.Navigate2 "javascript:window.print()"
-
-WebBrowser1.ExecWB OLECMDID_SELECTALL, OLECMDEXECOPT_DONTPROMPTUSER, vbNull, vbNull
-WebBrowser1.ExecWB OLECMDID_COPY, OLECMDEXECOPT_DONTPROMPTUSER, vbNull, vbNull
-
-WebBrowser1.ExecWB OLECMDID_ZOOM, OLECMDEXECOPT_DONTPROMPTUSER, Z, Null
-WebBrowser1.ExecWB OLECMDID_OPTICAL_ZOOM, OLECMDEXECOPT_DONTPROMPTUSER, CLng(zoom), vbNull
-*/

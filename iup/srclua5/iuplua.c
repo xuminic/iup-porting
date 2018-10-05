@@ -1031,8 +1031,10 @@ int iuplua_open(lua_State * L)
 
   /* register if IupOpen was called here or from outside IupLua */
   /* iup._IUPOPEN_CALL = EXTERNAL|INTERNAL                      */
-  if (ret == IUP_OPENED) lua_pushliteral (L, "EXTERNAL");
-  else                   lua_pushliteral (L, "INTERNAL");
+  if (ret == IUP_OPENED) 
+    lua_pushliteral (L, "EXTERNAL");
+  else                   
+    lua_pushliteral (L, "INTERNAL");
   lua_setfield(L, -2, "_IUPOPEN_CALL");
 
   /* used by Idle in Lua */
@@ -1099,6 +1101,8 @@ int iuplua_open(lua_State * L)
   iupexpanderlua_open(L);
   iuplinklua_open(L);
   iupcboxlua_open(L);
+  iupdetachboxlua_open(L);
+  iupbackgroundboxlua_open(L);
   iupgclua_open(L);
   iupgetparamlua_open(L);
   iupvallua_open(L);

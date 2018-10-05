@@ -316,7 +316,14 @@ void iupwinDrawButtonBorder(HWND hWnd, HDC hDC, RECT *rect, UINT itemState)
 void iupwinDraw3StateButton(HWND hWnd, HDC hDC, RECT *rect)
 {
   if (!winDrawTheme3StateButton(hWnd, hDC, rect))
-    DrawFrameControl(hDC, rect, DFC_BUTTON, DFCS_BUTTON3STATE|DFCS_CHECKED|DFCS_FLAT);
+  {
+    /* only used from TreeView where the 3state images are 3px smaller than icon size */
+    rect->left += 2;
+    rect->top += 2;
+    rect->right -= 1;
+    rect->bottom -= 1;
+    DrawFrameControl(hDC, rect, DFC_BUTTON, DFCS_BUTTON3STATE | DFCS_CHECKED | DFCS_FLAT);
+  }
 }
 
 void iupdrvDrawFocusRect(Ihandle* ih, void* gc, int x, int y, int w, int h)
@@ -364,10 +371,47 @@ void iupwinDrawDestroyBitmapDC(iupwinBitmapDC *bmpDC)
   DeleteDC(bmpDC->hBitmapDC);
 }
 
+int iupwinCustomDrawToDrawItem(Ihandle* ih, NMHDR* msg_info, int *result, IFdrawItem drawitem_cb)
+{
+  NMCUSTOMDRAW *customdraw = (NMCUSTOMDRAW*)msg_info;
+
+  if (customdraw->dwDrawStage == CDDS_PREERASE)
+  {
+    DRAWITEMSTRUCT drawitem;
+    drawitem.itemState = 0;
+
+    if (customdraw->uItemState & CDIS_DISABLED)
+      drawitem.itemState |= ODS_DISABLED;
+    else if (customdraw->uItemState & CDIS_SELECTED)
+      drawitem.itemState |= ODS_SELECTED;
+    else if (customdraw->uItemState & CDIS_HOT)
+      drawitem.itemState |= ODS_HOTLIGHT;
+    else if (customdraw->uItemState & CDIS_DEFAULT)
+      drawitem.itemState |= ODS_DEFAULT;
+
+    if (customdraw->uItemState & CDIS_FOCUS)
+      drawitem.itemState |= ODS_FOCUS;
+
+    if (!(customdraw->uItemState & CDIS_SHOWKEYBOARDCUES))
+      drawitem.itemState |= ODS_NOFOCUSRECT | ODS_NOACCEL;
+
+    drawitem.hDC = customdraw->hdc;
+    drawitem.rcItem = customdraw->rc;
+
+    drawitem_cb(ih, (void*)&drawitem);
+
+    *result = CDRF_SKIPDEFAULT;
+    return 1;
+  }
+  else
+    return 0;
+}
+
 
 /******************************************************************************
                              Simple Draw
 *******************************************************************************/
+
 
 struct _IdrawCanvas{
   Ihandle* ih;

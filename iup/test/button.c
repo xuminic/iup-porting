@@ -436,6 +436,7 @@ void ButtonTest(void)
 //  IupSetAttribute(dlg, "BACKGROUND", "255 128 128");
 //  IupSetAttributeHandle(dlg, "BACKGROUND", image2);
 //  IupSetAttribute(dlg, "BGCOLOR", "173 177 194");  // Motif BGCOLOR for documentation
+//  IupSetAttribute(dlg, "SAVEUNDER", "NO");
 
   IupSetAttributeHandle(dlg, "STARTFOCUS", button);
 
@@ -443,6 +444,7 @@ void ButtonTest(void)
 //  IupSetGlobal("HOTTRACKING", "No");
 
   IupShow(dlg);
+
 //  IupShowXY(dlg,IUP_LEFT,IUP_TOP);
 //  IupShowXY(dlg,0,0);
 }

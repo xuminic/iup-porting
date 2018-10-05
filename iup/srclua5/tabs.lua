@@ -8,6 +8,8 @@ local ctrl = {
   callback = {
     tabchange_cb = "ii",
     tabchangepos_cb = "nn",
+    tabclose_cb = "n",
+    --rightclick_cb = "n", -- already implemented in IupTree, same definition
   },
 }
 

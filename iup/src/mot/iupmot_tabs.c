@@ -285,6 +285,10 @@ static int motTabsSetStandardFontAttrib(Ihandle* ih, const char* value)
 
 static int motTabsSetTabTitleAttrib(Ihandle* ih, int pos, const char* value)
 {
+  Ihandle* child = IupGetChild(ih, pos);
+  if (child)
+    iupAttribSetStr(child, "TABTITLE", value);
+
   if (value)
   {
     Ihandle* child = IupGetChild(ih, pos);
@@ -292,11 +296,16 @@ static int motTabsSetTabTitleAttrib(Ihandle* ih, int pos, const char* value)
     if (tab_button)
       iupmotSetMnemonicTitle(ih, tab_button, pos, value);
   }
-  return 1;
+
+  return 0;
 }
 
 static int motTabsSetTabImageAttrib(Ihandle* ih, int pos, const char* value)
 {
+  Ihandle* child = IupGetChild(ih, pos);
+  if (child)
+    iupAttribSetStr(child, "TABIMAGE", value);
+
   if (value)
   {
     Ihandle* child = IupGetChild(ih, pos);
@@ -337,13 +346,12 @@ static int motTabsSetTabVisibleAttrib(Ihandle* ih, int pos, const char* value)
   return 0;
 }
 
-static char* motTabsGetTabVisibleAttrib(Ihandle* ih, int pos)
+int iupdrvTabsIsTabVisible(Ihandle* child)
 {
-  Ihandle* child = IupGetChild(ih, pos);
   Widget tab_button = (Widget)iupAttribGet(child, "_IUPMOT_TABBUTTON");
   XWindowAttributes wa;
   XGetWindowAttributes(iupmot_display, XtWindow(tab_button), &wa);
-  return iupStrReturnBoolean (wa.map_state == IsViewable); 
+  return (wa.map_state == IsViewable);
 }
 
 
@@ -376,6 +384,20 @@ void motTabsPageChangedCallback(Widget w, Ihandle* ih, XmNotebookCallbackStruct 
     }
   }
   (void)w; 
+}
+
+static void motTabButtonPressEvent(Widget w, Ihandle* child, XButtonEvent* evt, Boolean* cont)
+{
+  Ihandle* ih = IupGetParent(child);
+  IFni cb = (IFni)IupGetCallback(ih, "RIGHTCLICK_CB");
+  (void)w;
+  (void)cont;
+
+  if (evt->type==ButtonPress && evt->button==Button3 && cb)  /* right button clicked on tab */
+  {
+    int pos = iupAttribGetInt(child, "_IUPMOT_TABNUMBER");
+    cb(ih, pos);
+  }
 }
 
 static void motTabsConfigureNotify(Widget w, XEvent *evt, String* s, Cardinal *card)
@@ -443,19 +465,19 @@ static void motTabsChildAddedMethod(Ihandle* ih, Ihandle* child)
 
     XtOverrideTranslations(child_manager, XtParseTranslationTable("<Configure>: iupTabsConfigure()"));
 
-    tabtitle = iupAttribGetId(ih, "TABTITLE", pos);
-    if (!tabtitle) 
+    tabtitle = iupAttribGet(child, "TABTITLE");
+    if (!tabtitle)
     {
-      tabtitle = iupAttribGet(child, "TABTITLE");
+      tabtitle = iupAttribGetId(ih, "TABTITLE", pos);
       if (tabtitle)
-        iupAttribSetStrId(ih, "TABTITLE", pos, tabtitle);
+        iupAttribSetStr(child, "TABTITLE", tabtitle);
     }
-    tabimage = iupAttribGetId(ih, "TABIMAGE", pos);
-    if (!tabimage) 
+    tabimage = iupAttribGet(child, "TABIMAGE");
+    if (!tabimage)
     {
-      tabimage = iupAttribGet(child, "TABIMAGE");
+      tabimage = iupAttribGetId(ih, "TABIMAGE", pos);
       if (tabimage)
-        iupAttribSetStrId(ih, "TABIMAGE", pos, tabimage);
+        iupAttribSetStr(child, "TABIMAGE", tabimage);
     }
     if (!tabtitle && !tabimage)
       tabtitle = "     ";
@@ -477,6 +499,8 @@ static void motTabsChildAddedMethod(Ihandle* ih, Ihandle* child)
     XtAddEventHandler(tab_button, LeaveWindowMask, False, (XtEventHandler)iupmotEnterLeaveWindowEvent, (XtPointer)ih);
     XtAddEventHandler(tab_button, FocusChangeMask, False, (XtEventHandler)iupmotFocusChangeEvent, (XtPointer)ih);
     XtAddEventHandler(tab_button, KeyPressMask,    False, (XtEventHandler)iupmotKeyPressEvent, (XtPointer)ih);
+
+    XtAddEventHandler(tab_button, ButtonPressMask, False, (XtEventHandler)motTabButtonPressEvent, (XtPointer)child);
 
     if (iupStrBoolean(IupGetGlobal("INPUTCALLBACKS")))
     {
@@ -515,7 +539,7 @@ static void motTabsChildAddedMethod(Ihandle* ih, Ihandle* child)
     XtVaSetValues(tab_button, XmNforeground, color, NULL);
 
     XtRealizeWidget(child_manager);
-    XtRealizeWidget(tab_button);
+    XtRealizeWidget(tab_button);   
 
     iupAttribSet(child, "_IUPTAB_CONTAINER", (char*)child_manager);
     iupAttribSet(child, "_IUPMOT_TABBUTTON", (char*)tab_button);
@@ -533,10 +557,8 @@ static void motTabsChildRemovedMethod(Ihandle* ih, Ihandle* child)
     Widget child_manager = (Widget)iupAttribGet(child, "_IUPTAB_CONTAINER");
     if (child_manager)
     {
-      int pos;
       Widget tab_button = (Widget)iupAttribGet(child, "_IUPMOT_TABBUTTON");
-
-      pos = iupAttribGetInt(child, "_IUPMOT_TABNUMBER");  /* did not work when using XtVaGetValues(child_manager, XmNpageNumber) */
+      int pos = iupAttribGetInt(child, "_IUPMOT_TABNUMBER");  /* did not work when using XtVaGetValues(child_manager, XmNpageNumber) */
 
       iupTabsCheckCurrentTab(ih, pos);
 
@@ -648,9 +670,9 @@ void iupdrvTabsInitClass(Iclass* ic)
   /* IupTabs only */
   iupClassRegisterAttribute(ic, "TABTYPE", iupTabsGetTabTypeAttrib, motTabsSetTabTypeAttrib, IUPAF_SAMEASSYSTEM, "TOP", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);  
   iupClassRegisterAttribute(ic, "TABORIENTATION", iupTabsGetTabOrientationAttrib, NULL, IUPAF_SAMEASSYSTEM, "HORIZONTAL", IUPAF_READONLY|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);  /* can not be set, always HORIZONTAL in Motif */
-  iupClassRegisterAttributeId(ic, "TABTITLE", NULL, motTabsSetTabTitleAttrib, IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "TABTITLE", iupTabsGetTitleAttrib, motTabsSetTabTitleAttrib, IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "TABIMAGE", NULL, motTabsSetTabImageAttrib, IUPAF_IHANDLENAME|IUPAF_NO_INHERIT);
-  iupClassRegisterAttributeId(ic, "TABVISIBLE", motTabsGetTabVisibleAttrib, motTabsSetTabVisibleAttrib, IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "TABVISIBLE", iupTabsGetTabVisibleAttrib, motTabsSetTabVisibleAttrib, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "PADDING", iupTabsGetPaddingAttrib, motTabsSetPaddingAttrib, IUPAF_SAMEASSYSTEM, "0x0", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 
   /* NOT supported */
