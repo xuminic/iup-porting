@@ -35,6 +35,11 @@ static int iScrollBoxScroll_CB(Ihandle *ih, int op, float posx, float posy)
 {
   if (ih->firstchild)
   {
+    if (IupGetInt(ih, "DX") > IupGetInt(ih, "XMAX")-iupdrvGetScrollbarSize())
+      posx = 0;
+    if (IupGetInt(ih, "DY") > IupGetInt(ih, "YMAX")-iupdrvGetScrollbarSize())
+      posy = 0;
+
     iScrollBoxUpdatePosition(ih, posx, posy);
     iupLayoutUpdate(ih->firstchild);
   }
@@ -50,10 +55,10 @@ static int iScrollBoxButton_CB(Ihandle *ih, int but, int pressed, int x, int y, 
     iupAttribSetInt(ih, "_IUP_START_Y", y);
     iupAttribSetInt(ih, "_IUP_START_POSX", (int)IupGetFloat(ih, "POSX"));
     iupAttribSetInt(ih, "_IUP_START_POSY", (int)IupGetFloat(ih, "POSY"));
-    iupAttribSetStr(ih, "_IUP_DRAG_SB", "1");
+    iupAttribSet(ih, "_IUP_DRAG_SB", "1");
   }
   if (but==IUP_BUTTON1 && !pressed)
-    iupAttribSetStr(ih, "_IUP_DRAG_SB", NULL);
+    iupAttribSet(ih, "_IUP_DRAG_SB", NULL);
   (void)status;
   return IUP_DEFAULT;
 }
@@ -69,8 +74,8 @@ static int iScrollBoxMotion_CB(Ihandle *ih, int x, int y, char* status)
     int dy = y - start_y;
     int posx = iupAttribGetInt(ih, "_IUP_START_POSX");
     int posy = iupAttribGetInt(ih, "_IUP_START_POSY");
-    IupSetfAttribute(ih, "POSX", "%d", posx-dx);  /* drag direction is oposite to scrollbar */
-    IupSetfAttribute(ih, "POSY", "%d", posy-dy);
+    IupSetInt(ih, "POSX", posx-dx);  /* drag direction is oposite to scrollbar */
+    IupSetInt(ih, "POSY", posy-dy);
     iScrollBoxScroll_CB(ih, 0, IupGetFloat(ih, "POSX"), IupGetFloat(ih, "POSY"));
   }
   return IUP_DEFAULT;
@@ -82,20 +87,21 @@ static int iScrollBoxMotion_CB(Ihandle *ih, int x, int y, char* status)
 \*****************************************************************************/
 
 
-static void iScrollBoxComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *expand)
+static void iScrollBoxComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *children_expand)
 {
   if (ih->firstchild)
   {
     /* update child natural size first */
     iupBaseComputeNaturalSize(ih->firstchild);
-
-    *expand = ih->firstchild->expand;
   }
 
   /* ScrollBox size does not depends on the child size,
      its natural size must be 0 to be free of restrictions. */
   (void)w;
   (void)h;
+
+  /* Also set expand to its own expand so it will not depend on children */
+  *children_expand = ih->expand;
 }
 
 static void iScrollBoxSetChildrenCurrentSizeMethod(Ihandle* ih, int shrink)
@@ -132,8 +138,8 @@ static void iScrollBoxSetChildrenCurrentSizeMethod(Ihandle* ih, int shrink)
 
     iupBaseSetCurrentSize(ih->firstchild, w, h, shrink);
 
-    IupSetfAttribute(ih, "XMAX", "%d", ih->firstchild->currentwidth);
-    IupSetfAttribute(ih, "YMAX", "%d", ih->firstchild->currentheight);
+    IupSetInt(ih, "XMAX", ih->firstchild->currentwidth);
+    IupSetInt(ih, "YMAX", ih->firstchild->currentheight);
   }
   else
   {
@@ -172,8 +178,8 @@ static void iScrollBoxLayoutUpdate(Ihandle* ih)
   if (ih->firstchild->currentheight > ih->currentheight)
     dx -= iupdrvGetScrollbarSize();
 
-  IupSetfAttribute(ih, "DX", "%d", dx);
-  IupSetfAttribute(ih, "DY", "%d", dy);
+  IupSetInt(ih, "DX", dx);
+  IupSetInt(ih, "DY", dy);
 
   if (ih->firstchild)
   {
@@ -188,6 +194,8 @@ static int iScrollBoxCreateMethod(Ihandle* ih, void** params)
   IupSetCallback(ih, "SCROLL_CB",    (Icallback)iScrollBoxScroll_CB);
   IupSetCallback(ih, "BUTTON_CB",    (Icallback)iScrollBoxButton_CB);
   IupSetCallback(ih, "MOTION_CB",    (Icallback)iScrollBoxMotion_CB);
+
+  IupSetAttribute(ih, "CANFOCUS", "NO");
 
   if (params)
   {

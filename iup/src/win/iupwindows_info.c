@@ -18,63 +18,33 @@
 
 char* iupdrvLocaleInfo(void)
 {
-  CPINFOEX info;
-  GetCPInfoEx(CP_ACP, 0, &info);
-  return iupStrGetMemoryCopy(info.CodePageName);
-}
-
-int iupdrvMakeDirectory(const char* name) 
-{
-  if (CreateDirectory(name, NULL))
-    return 1;
-  else
-    return 0;
-}
-
-int iupdrvIsFile(const char* name)
-{
-  DWORD attrib = GetFileAttributes(name);
-  if (attrib == INVALID_FILE_ATTRIBUTES)
-    return 0;
-  if (attrib & FILE_ATTRIBUTE_DIRECTORY)
-    return 0;
-  return 1;
-}
-
-int iupdrvIsDirectory(const char* name)
-{
-  DWORD attrib = GetFileAttributes(name);
-  if (attrib == INVALID_FILE_ATTRIBUTES)
-    return 0;
-  if (attrib & FILE_ATTRIBUTE_DIRECTORY)
-    return 1;
-  return 0;
-}            
-
-char* iupdrvGetCurrentDirectory(void)
-{
-  char* cur_dir;
-  int len = GetCurrentDirectory(0, NULL);
-  if (len == 0) return NULL;
-
-  cur_dir = malloc(len+2);
-  GetCurrentDirectory(len+1, cur_dir);
-  cur_dir[len] = '\\';
-  cur_dir[len+1] = 0;
-  return cur_dir;
-}
-
-int iupdrvSetCurrentDirectory(const char* dir)
-{
-  return SetCurrentDirectory(dir);
+  CPINFOEXA info;
+  GetCPInfoExA(CP_ACP, 0, &info);
+  return iupStrReturnStr(info.CodePageName);
 }
 
 void iupdrvGetScreenSize(int *width, int *height)
 {
   RECT area;
-  SystemParametersInfo(SPI_GETWORKAREA, 0, &area, 0);
+  SystemParametersInfoA(SPI_GETWORKAREA, 0, &area, 0);
   *width = (int)(area.right - area.left);
   *height =  (int)(area.bottom - area.top);
+}
+
+void iupdrvAddScreenOffset(int *x, int *y, int add)
+{
+  RECT area;
+  SystemParametersInfoA(SPI_GETWORKAREA, 0, &area, 0);
+  if (add==1)
+  {
+    if (x) *x += area.left;
+    if (y) *y += area.top;
+  }
+  else
+  {
+    if (x) *x -= area.left;
+    if (y) *y -= area.top;
+  }
 }
 
 void iupdrvGetFullSize(int *width, int *height)
@@ -129,15 +99,18 @@ void iupdrvGetKeyState(char* key)
     key[3] = 'Y';
   else
     key[3] = ' ';
-
+  
   key[4] = 0;
 }
 
+/* TODO: Since Windows 8.1/Visual Studio 2013 GetVersionEx is deprecated. 
+         We can replace it using GetProductInfo. But for now leave it. */
+
 char *iupdrvGetSystemName(void)
 {
-  OSVERSIONINFO osvi;
+  OSVERSIONINFOA osvi;
   osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-  GetVersionEx(&osvi);
+  GetVersionExA(&osvi);
 
   if (osvi.dwPlatformId == VER_PLATFORM_WIN32_NT)
   {
@@ -156,8 +129,13 @@ char *iupdrvGetSystemName(void)
     if (osvi.dwMajorVersion == 6 && osvi.dwMinorVersion == 1)
       return "Win7";
 
-    if (osvi.dwMajorVersion == 6 && osvi.dwMinorVersion > 1)
+    if (osvi.dwMajorVersion == 6 && osvi.dwMinorVersion == 2)
       return "Win8";
+
+    /* IMPORTANT: this will work only if the Manifest has been changed 
+       to include Windows 8.1 support. Otherwise GetVersionEx will report 6.2 */
+    if (osvi.dwMajorVersion == 6 && osvi.dwMinorVersion > 2)
+      return "Win81";
   }
 
   return "Windows";
@@ -166,15 +144,15 @@ char *iupdrvGetSystemName(void)
 char *iupdrvGetSystemVersion(void)
 {
   char *str = iupStrGetMemory(256);
-  OSVERSIONINFOEX osvi;
+  OSVERSIONINFOEXA osvi;
   SYSTEM_INFO si;
 
   ZeroMemory(&si, sizeof(SYSTEM_INFO));
   GetSystemInfo(&si);
 
-  ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
-  osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-  GetVersionEx((OSVERSIONINFO*)&osvi);
+  ZeroMemory(&osvi, sizeof(OSVERSIONINFOEXA));
+  osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEXA);
+  GetVersionExA((OSVERSIONINFOA*)&osvi);
 
   sprintf(str, "%d.%d.%d", (int)osvi.dwMajorVersion, (int)osvi.dwMinorVersion, (int)osvi.dwBuildNumber);
 
@@ -199,7 +177,7 @@ char *iupdrvGetComputerName(void)
 {
   DWORD size = MAX_COMPUTERNAME_LENGTH + 1;
   char* str = iupStrGetMemory(size);
-  GetComputerName((LPTSTR)str, &size);
+  GetComputerNameA((LPSTR)str, &size);
   return str;
 }
 
@@ -207,6 +185,6 @@ char *iupdrvGetUserName(void)
 {
   DWORD size = 256;
   char* str = iupStrGetMemory(size);
-  GetUserName((LPTSTR)str, &size);
+  GetUserNameA((LPSTR)str, &size);
   return (char*)str;
 }

@@ -307,8 +307,8 @@ static void iCellsSetFullVisible(Ihandle* ih, int i, int j)
   posy += dy;
 
   /* Setting iup scrollbars' attributes */
-  IupSetfAttribute(ih, "POSX", "%d", posx); 
-  IupSetfAttribute(ih, "POSY", "%d", posy); 
+  IupSetInt(ih, "POSX", posx); 
+  IupSetInt(ih, "POSY", posy); 
 }
 
 /* Function used to make a cell the first visible one */
@@ -327,7 +327,7 @@ static void iCellsAdjustOrigin(Ihandle* ih, int lin, int col)
   else if (lin <= iCellsGetNLines(ih))
   { 
      ymin_sum = iCellsGetRangedHeight(ih, ih->data->non_scrollable_lins+1, lin-1);
-     IupSetfAttribute(ih, "POSY", "%d", ymin_sum); 
+     IupSetInt(ih, "POSY", ymin_sum); 
   }
 
   /* As said before... */
@@ -338,25 +338,25 @@ static void iCellsAdjustOrigin(Ihandle* ih, int lin, int col)
   else if (col <= iCellsGetNCols(ih))
   { 
      xmin_sum = iCellsGetRangedWidth(ih, ih->data->non_scrollable_cols+1, col-1);
-     IupSetfAttribute(ih, "POSX", "%d", xmin_sum); 
+     IupSetInt(ih, "POSX", xmin_sum); 
   }
 }
 
 /* Function used for the scrollbar's update; usually needed when the
  * object has modified its size or the cells sizes has changed.   */
-static void iCellsAdjustScrolls(Ihandle* ih, int w, int h)
+static void iCellsAdjustScroll(Ihandle* ih, int canvas_w, int canvas_h)
 { 
   int virtual_height, virtual_width;
 
   /* Getting the virtual size */
   iCellsGetVirtualSize(ih, &virtual_width, &virtual_height); 
 
-  IupSetfAttribute(ih, "YMAX", "%d", virtual_height-1);
-  IupSetfAttribute(ih, "XMAX", "%d", virtual_width-1);
+  IupSetInt(ih, "XMAX", virtual_width);
+  IupSetInt(ih, "YMAX", virtual_height);
 
   /* Setting the object scrollbar position */
-  IupSetfAttribute(ih, "DY",   "%d", h);
-  IupSetfAttribute(ih, "DX",   "%d", w);
+  IupSetInt(ih, "DX", canvas_w);
+  IupSetInt(ih, "DY", canvas_h);
 }
 
 /* Function used to call the client; is used when a cell must be repainted. */
@@ -655,7 +655,13 @@ static int iCellsMotion_CB(Ihandle* ih, int x, int y, char* r)
 static int iCellsResize_CB(Ihandle* ih, int w, int h)
 {
   /* recalculate scrollbars limits */
-  iCellsAdjustScrolls(ih, w, h);  
+  iCellsAdjustScroll(ih, w, h);  
+
+  /* This could have changed the scrollbar visibility, 
+     so the canvas client size can change, so updated it twice. */
+  IupGetIntInt(ih, "DRAWSIZE", &w, &h);
+  IupSetInt(ih, "DX", w);
+  IupSetInt(ih, "DY", h);
 
   if (!ih->data->cddbuffer)
   {
@@ -708,54 +714,45 @@ static char* iCellsGetCanvasAttrib(Ihandle* ih)
 
 static char* iCellsGetFirstLineAttrib(Ihandle* ih)
 {
-  char* buffer = iupStrGetMemory(80);
-  sprintf( buffer, "%d", iCellsGetFirstLine(ih) );
-  return buffer;
+  return iupStrReturnInt(iCellsGetFirstLine(ih));
 }
 
 static char* iCellsGetFirstColAttrib(Ihandle* ih)
 {
-  char* buffer = iupStrGetMemory(80);
-  sprintf(buffer, "%d", iCellsGetFirstCol(ih) );
-  return buffer;
+  return iupStrReturnInt(iCellsGetFirstCol(ih));
 }
 
 static char* iCellsGetLimitsAttrib(Ihandle* ih, int i, int j)
 {
-  char* buffer = iupStrGetMemory(80);
   int xmin, xmax, ymin, ymax;
   iCellsGetLimits(ih, i, j, &xmin, &xmax, &ymin, &ymax);
-  sprintf(buffer, "%d:%d:%d:%d", xmin, xmax, ymin, ymax);
-  return buffer;
+  return iupStrReturnStrf("%d:%d:%d:%d", xmin, xmax, ymin, ymax);
 }
 
 static int iCellsSetBufferizeAttrib(Ihandle* ih, const char* value)
 {
-  if (value == NULL || iupStrEqualNoCase(value, "NO"))
+  if (iupStrBoolean(value))
+    ih->data->bufferize = 1;
+  else
   { 
     ih->data->bufferize = 0;
-    iCellsAdjustScrolls(ih, ih->data->w, ih->data->h);
+    iCellsAdjustScroll(ih, ih->data->w, ih->data->h);
     iCellsRepaint(ih);
   }
-  else
-    ih->data->bufferize = 1;
 
   return 0;
 }
 
 static char* iCellsGetBufferizeAttrib(Ihandle* ih)
 {
-  if (ih->data->bufferize)
-    return "YES";
-  else
-    return "NO";
+  return iupStrReturnBoolean (ih->data->bufferize); 
 }
 
 static int iCellsSetRepaintAttrib(Ihandle* ih, const char* value)
 {
   (void)value;  /* not used */
   ih->data->bufferize = 0;
-  iCellsAdjustScrolls(ih, ih->data->w, ih->data->h);
+  iCellsAdjustScroll(ih, ih->data->w, ih->data->h);
   iCellsRepaint(ih);
   return 0;  /* do not store value in hash table */
 }
@@ -790,9 +787,7 @@ static int iCellsSetNonScrollableColsAttrib(Ihandle* ih, const char* value)
 
 static char* iCellsGetNonScrollableColsAttrib(Ihandle* ih)
 {
-  char* buffer = iupStrGetMemory(80);
-  sprintf(buffer, "%d", ih->data->non_scrollable_cols);
-  return buffer;
+  return iupStrReturnInt(ih->data->non_scrollable_cols);
 }
 
 static int iCellsSetNonScrollableLinesAttrib(Ihandle* ih, const char* value)
@@ -804,47 +799,31 @@ static int iCellsSetNonScrollableLinesAttrib(Ihandle* ih, const char* value)
 
 static char* iCellsGetNonScrollableLinesAttrib(Ihandle* ih)
 {
-  char* buffer = iupStrGetMemory(80);
-  sprintf(buffer, "%d", ih->data->non_scrollable_lins);
-  return buffer;
+  return iupStrReturnInt(ih->data->non_scrollable_lins);
 }
 
 static int iCellsSetBoxedAttrib(Ihandle* ih, const char* value)
 {
-  if (iupStrEqualNoCase(value, "NO"))
-    ih->data->boxed = 0;
-  else
-    ih->data->boxed = 1;
-
+  ih->data->boxed = iupStrBoolean(value);
   iCellsRepaint(ih);
   return 0;
 }
 
 static char* iCellsGetBoxedAttrib(Ihandle* ih)
 {
-  if (ih->data->boxed) 
-    return "YES";
-  else 
-    return "NO";
+  return iupStrReturnBoolean(ih->data->boxed);
 }
 
 static int iCellsSetClippedAttrib(Ihandle* ih, const char* value)
 {
-  if (iupStrEqualNoCase(value, "NO"))
-    ih->data->clipped = 0;
-  else
-    ih->data->clipped = 1;
-
+  ih->data->clipped = iupStrBoolean(value);
   iCellsRepaint(ih);
   return 0;
 }
 
 static char* iCellsGetClippedAttrib(Ihandle* ih)
 {
-  if (ih->data->clipped) 
-    return "YES";
-  else 
-    return "NO";
+  return iupStrReturnBoolean(ih->data->clipped);
 }
 
 static int iCellsSetFullVisibleAttrib(Ihandle* ih, const char* value)
@@ -898,8 +877,8 @@ static int iCellsCreateMethod(Ihandle* ih, void **params)
   ih->data = iupALLOCCTRLDATA();
 
   /* change the IupCanvas default values */
-  iupAttribSetStr(ih, "SCROLLBAR", "YES");
-  iupAttribSetStr(ih, "BORDER", "NO");
+  iupAttribSet(ih, "SCROLLBAR", "YES");
+  iupAttribSet(ih, "BORDER", "NO");
 
   /* default values */
   ih->data->boxed = 1;
@@ -938,7 +917,7 @@ Iclass* iupCellsNewClass(void)
   iupClassRegisterCallback(ic, "SCROLLING_CB", "ii");
   iupClassRegisterCallback(ic, "MOUSEMOTION_CB", "iiiis");
   iupClassRegisterCallback(ic, "MOUSECLICK_CB", "iiiiiis");
-  iupClassRegisterCallback(ic, "DRAW_CB", "iiiiiiv");
+  iupClassRegisterCallback(ic, "DRAW_CB", "iiiiiiC");
   iupClassRegisterCallback(ic, "VSPAN_CB", "ii");
   iupClassRegisterCallback(ic, "HSPAN_CB", "ii");
   iupClassRegisterCallback(ic, "NCOLS_CB", "");

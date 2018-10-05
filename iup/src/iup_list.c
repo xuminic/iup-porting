@@ -25,16 +25,14 @@
 #include "iup_list.h"
 
 
-void iupListSingleCallDblClickCallback(Ihandle* ih, IFnis cb, int pos)
+void iupListSingleCallDblClickCb(Ihandle* ih, IFnis cb, int pos)
 {
   char *text;
-  char str[30];
 
   if (pos<=0)
     return;
 
-  sprintf(str, "%d", pos);
-  text = IupGetAttribute(ih, str);
+  text = IupGetAttributeId(ih, "", pos);
 
   if (cb(ih, pos, text) == IUP_CLOSE)
     IupExitLoop();
@@ -43,13 +41,11 @@ void iupListSingleCallDblClickCallback(Ihandle* ih, IFnis cb, int pos)
 static void iListCallActionCallback(Ihandle* ih, IFnsii cb, int pos, int state)
 {
   char *text;
-  char str[30];
 
   if (pos<=0)
     return;
 
-  sprintf(str, "%d", pos);
-  text = IupGetAttribute(ih, str);
+  text = IupGetAttributeId(ih, "", pos);
 
   if (cb(ih, text, pos, state) == IUP_CLOSE)
     IupExitLoop();
@@ -70,7 +66,7 @@ void iupListUpdateOldValue(Ihandle* ih, int pos, int removed)
           if (removed && old_pos == pos)
           {
             /* when the current item is removed nothing remains selected */
-            iupAttribSetStr(ih, "_IUPLIST_OLDVALUE", NULL);
+            iupAttribSet(ih, "_IUPLIST_OLDVALUE", NULL);
           }
           else
             iupAttribSetInt(ih, "_IUPLIST_OLDVALUE", removed? old_pos-1: old_pos+1);
@@ -80,13 +76,13 @@ void iupListUpdateOldValue(Ihandle* ih, int pos, int removed)
       {
         /* multiple selection on a non drop-down list. */
         char* value = IupGetAttribute(ih, "VALUE");
-        iupAttribStoreStr(ih, "_IUPLIST_OLDVALUE", value);
+        iupAttribSetStr(ih, "_IUPLIST_OLDVALUE", value);
       }
     }
   }
 }
 
-void iupListSingleCallActionCallback(Ihandle* ih, IFnsii cb, int pos)
+void iupListSingleCallActionCb(Ihandle* ih, IFnsii cb, int pos)
 {
   char* old_str = iupAttribGet(ih, "_IUPLIST_OLDVALUE");
   if (old_str)
@@ -103,7 +99,7 @@ void iupListSingleCallActionCallback(Ihandle* ih, IFnsii cb, int pos)
   iupAttribSetInt(ih, "_IUPLIST_OLDVALUE", pos);
 }
 
-void iupListMultipleCallActionCallback(Ihandle* ih, IFnsii cb, IFns multi_cb, int* pos, int sel_count)
+void iupListMultipleCallActionCb(Ihandle* ih, IFnsii cb, IFns multi_cb, int* pos, int sel_count)
 {
   int i, count = iupdrvListGetCount(ih);
 
@@ -169,7 +165,7 @@ void iupListMultipleCallActionCallback(Ihandle* ih, IFnsii cb, IFns multi_cb, in
     }
   }
 
-  iupAttribStoreStr(ih, "_IUPLIST_OLDVALUE", str);
+  iupAttribSetStr(ih, "_IUPLIST_OLDVALUE", str);
   free(str);
 }
 
@@ -192,27 +188,21 @@ int iupListGetPosAttrib(Ihandle* ih, int pos)
 
 void iupListSetInitialItems(Ihandle* ih)
 {
-  char str[20], *value;
+  char *value;
   int i = 1;
-  sprintf(str, "%d", i);
-  while ((value = iupAttribGet(ih, str))!=NULL)
+  while ((value = iupAttribGetId(ih, "", i))!=NULL)
   {
     iupdrvListAppendItem(ih, value);
-    iupAttribSetStr(ih, str, NULL);
+    iupAttribSetId(ih, "", i, NULL);
 
     i++;
-    sprintf(str, "%d", i);
   }
 }
 
 char* iupListGetSpacingAttrib(Ihandle* ih)
 {
   if (!ih->data->is_dropdown)
-  {
-    char *str = iupStrGetMemory(50);
-    sprintf(str, "%d", ih->data->spacing);
-    return str;
-  }
+    return iupStrReturnInt(ih->data->spacing);
   else
     return NULL;
 }
@@ -220,11 +210,7 @@ char* iupListGetSpacingAttrib(Ihandle* ih)
 char* iupListGetPaddingAttrib(Ihandle* ih)
 {
   if (ih->data->has_editbox)
-  {
-    char *str = iupStrGetMemory(50);
-    sprintf(str, "%dx%d", ih->data->horiz_padding, ih->data->vert_padding);
-    return str;
-  }
+    return iupStrReturnIntInt(ih->data->horiz_padding, ih->data->vert_padding, 'x');
   else
     return NULL;
 }
@@ -232,11 +218,7 @@ char* iupListGetPaddingAttrib(Ihandle* ih)
 char* iupListGetNCAttrib(Ihandle* ih)
 {
   if (ih->data->has_editbox)
-  {
-    char* str = iupStrGetMemory(100);
-    sprintf(str, "%d", ih->data->nc);
-    return str;
-  }
+    return iupStrReturnInt(ih->data->nc);
   else
     return NULL;
 }
@@ -254,7 +236,7 @@ int iupListSetIdValueAttrib(Ihandle* ih, int pos, const char* value)
       if (pos == 0)
       {
         iupdrvListRemoveAllItems(ih);
-        iupAttribSetStr(ih, "_IUPLIST_OLDVALUE", NULL);
+        iupAttribSet(ih, "_IUPLIST_OLDVALUE", NULL);
       }
       else
       {
@@ -311,7 +293,7 @@ static int iListSetRemoveItemAttrib(Ihandle* ih, const char* value)
   if (!value || iupStrEqualNoCase(value, "ALL"))
   {
     iupdrvListRemoveAllItems(ih);
-    iupAttribSetStr(ih, "_IUPLIST_OLDVALUE", NULL);
+    iupAttribSet(ih, "_IUPLIST_OLDVALUE", NULL);
   }
   else
   {
@@ -333,23 +315,16 @@ static int iListGetCount(Ihandle* ih)
     count = iupdrvListGetCount(ih);
   else
   {
-    char str[20];
     count = 0;
-    sprintf(str, "%d", count+1);
-    while (iupAttribGet(ih, str))
-    {
+    while (iupAttribGetId(ih, "", count+1))
       count++;
-      sprintf(str, "%d", count+1);
-    }
   }
   return count;
 }
 
 static char* iListGetCountAttrib(Ihandle* ih)
 {
-  char* str = iupStrGetMemory(50);
-  sprintf(str, "%d", iListGetCount(ih));
-  return str;
+  return iupStrReturnInt(iListGetCount(ih));
 }
 
 static int iListSetDropdownAttrib(Ihandle* ih, const char* value)
@@ -371,10 +346,7 @@ static int iListSetDropdownAttrib(Ihandle* ih, const char* value)
 
 static char* iListGetDropdownAttrib(Ihandle* ih)
 {
-  if (ih->data->is_dropdown)
-    return "YES";
-  else
-    return "NO";
+  return iupStrReturnBoolean (ih->data->is_dropdown); 
 }
 
 static int iListSetMultipleAttrib(Ihandle* ih, const char* value)
@@ -397,10 +369,7 @@ static int iListSetMultipleAttrib(Ihandle* ih, const char* value)
 
 static char* iListGetMultipleAttrib(Ihandle* ih)
 {
-  if (ih->data->is_multiple)
-    return "YES";
-  else
-    return "NO";
+  return iupStrReturnBoolean (ih->data->is_multiple); 
 }
 
 static int iListSetEditboxAttrib(Ihandle* ih, const char* value)
@@ -422,10 +391,7 @@ static int iListSetEditboxAttrib(Ihandle* ih, const char* value)
 
 static char* iListGetEditboxAttrib(Ihandle* ih)
 {
-  if (ih->data->has_editbox)
-    return "YES";
-  else
-    return "NO";
+  return iupStrReturnBoolean (ih->data->has_editbox); 
 }
 
 static int iListSetScrollbarAttrib(Ihandle* ih, const char* value)
@@ -444,10 +410,7 @@ static int iListSetScrollbarAttrib(Ihandle* ih, const char* value)
 
 static char* iListGetScrollbarAttrib(Ihandle* ih)
 {
-  if (ih->data->sb)
-    return "YES";
-  else
-    return "NO";
+  return iupStrReturnBoolean (ih->data->sb); 
 }
 
 static char* iListGetMaskDataAttrib(Ihandle* ih)
@@ -496,7 +459,7 @@ static int iListSetMaskIntAttrib(Ihandle* ih, const char* value)
     if (ih->data->mask)
       iupMaskDestroy(ih->data->mask);
 
-    iupAttribSetStr(ih, "MASK", NULL);
+    iupAttribSet(ih, "MASK", NULL);
   }
   else
   {
@@ -514,9 +477,9 @@ static int iListSetMaskIntAttrib(Ihandle* ih, const char* value)
     ih->data->mask = mask;
 
     if (min < 0)
-      iupAttribSetStr(ih, "MASK", IUP_MASK_INT);
+      iupAttribSet(ih, "MASK", IUP_MASK_INT);
     else
-      iupAttribSetStr(ih, "MASK", IUP_MASK_UINT);
+      iupAttribSet(ih, "MASK", IUP_MASK_UINT);
   }
 
   return 0;
@@ -532,7 +495,7 @@ static int iListSetMaskFloatAttrib(Ihandle* ih, const char* value)
     if (ih->data->mask)
       iupMaskDestroy(ih->data->mask);
 
-    iupAttribSetStr(ih, "MASK", NULL);
+    iupAttribSet(ih, "MASK", NULL);
   }
   else
   {
@@ -550,9 +513,9 @@ static int iListSetMaskFloatAttrib(Ihandle* ih, const char* value)
     ih->data->mask = mask;
 
     if (min < 0)
-      iupAttribSetStr(ih, "MASK", IUP_MASK_FLOAT);
+      iupAttribSet(ih, "MASK", IUP_MASK_FLOAT);
     else
-      iupAttribSetStr(ih, "MASK", IUP_MASK_UFLOAT);
+      iupAttribSet(ih, "MASK", IUP_MASK_UFLOAT);
   }
 
   return 0;
@@ -574,10 +537,7 @@ static int iListSetShowImageAttrib(Ihandle* ih, const char* value)
 
 static char* iListGetShowImageAttrib(Ihandle* ih)
 {
-  if (ih->data->show_image)
-    return "YES";
-  else
-    return "NO";
+  return iupStrReturnBoolean (ih->data->show_image); 
 }
 
 int iupListCallDragDropCb(Ihandle* ih, int drag_id, int drop_id, int *is_ctrl)
@@ -613,10 +573,7 @@ int iupListCallDragDropCb(Ihandle* ih, int drag_id, int drop_id, int *is_ctrl)
 
 static char* iListGetShowDragDropAttrib(Ihandle* ih)
 {
-  if (ih->data->show_dragdrop)
-    return "YES";
-  else
-    return "NO";
+  return iupStrReturnBoolean (ih->data->show_dragdrop); 
 }
 
 static int iListSetShowDragDropAttrib(Ihandle* ih, const char* value)
@@ -633,14 +590,159 @@ static int iListSetShowDragDropAttrib(Ihandle* ih, const char* value)
   return 0;
 }
 
-
 /*****************************************************************************************/
 
+static int iupListDropData_CB(Ihandle *ih, char* type, void* data, int len, int x, int y)
+{
+  int pos = IupConvertXYToPos(ih, x, y);
+  int is_ctrl = 0;
+  char key[5];
+
+  /* Data is not the pointer, it contains the pointer */
+  Ihandle* ih_source;
+  memcpy((void*)&ih_source, data, len);
+
+  /* A copy operation is enabled with the CTRL key pressed.
+     A move operation is enabled with the SHIFT key pressed.
+     A move operation will be possible only if the attribute DRAGSOURCEMOVE is Yes.
+     When no key is pressed the default operation is copy when DRAGSOURCEMOVE=No and move when DRAGSOURCEMOVE=Yes. */
+  iupdrvGetKeyState(key);
+  if (key[1] == 'C')
+    is_ctrl = 1;
+
+  if (ih_source->data->is_multiple)
+  {
+    char *buffer = IupGetAttribute(ih_source, "VALUE");
+
+    /* Copy all selected items */
+    int i = 1;  /* IUP starts at 1 */
+    while(buffer[i-1] != '\0')
+    {
+      if(buffer[i-1] == '+')
+      {
+        iupdrvListInsertItem(ih, pos, IupGetAttribute(ih_source, iupStrReturnInt(i)));
+        iupdrvListSetImageHandle(ih, ++pos, iupdrvListGetImageHandle(ih_source, i));
+      }
+
+      i++;
+    }
+
+    if (IupGetInt(ih_source, "DRAGSOURCEMOVE") && !is_ctrl)
+    {
+      /* Remove all item from source if MOVE */
+      i = 1;  /* IUP starts at 1 */
+      while(*buffer != '\0')
+      {
+        if (*buffer == '+')
+          iupdrvListRemoveItem(ih_source, --i);  /* update index in the source */
+
+        i++;
+        buffer++;
+      }
+    }
+  }
+  else
+  {
+    iupdrvListInsertItem(ih, pos, IupGetAttribute(ih_source, IupGetAttribute(ih_source, "VALUE")));
+    iupdrvListSetImageHandle(ih, ++pos, iupdrvListGetImageHandle(ih_source, IupGetInt(ih_source, "VALUE")));
+
+    if(IupGetInt(ih_source, "DRAGSOURCEMOVE") && !is_ctrl)
+    {
+      int srcPos = iupAttribGetInt(ih_source, "_IUP_LIST_SOURCEPOS");
+      iupdrvListRemoveItem(ih_source, --srcPos);  /* IUP starts at 1 */
+    }
+  }
+
+  (void)type;
+  return IUP_DEFAULT;
+}
+
+static int iupListDragData_CB(Ihandle *ih, char* type, void *data, int len)
+{
+  int pos = iupAttribGetInt(ih, "_IUP_LIST_SOURCEPOS");
+  if (pos < 1)
+    return IUP_DEFAULT;
+
+  if (ih->data->is_multiple)
+  {
+    char *buffer = IupGetAttribute(ih, "VALUE");
+
+    /* It will not drag all selected items only
+       when the user begins to drag an item not selected.
+       In this case, unmark all and mark only this item.  */
+    if(buffer[pos-1] == '-')
+    {
+      int len = strlen(buffer);
+      IupSetAttribute(ih, "SELECTION", "NONE");
+      memset(buffer, '-', len);
+      buffer[pos-1] = '+';
+      IupSetAttribute(ih, "VALUE", buffer);
+    }
+  }
+  else
+  {
+    /* Single selection */
+    IupSetInt(ih, "VALUE", pos);
+  }
+
+  /* Copy source handle */
+  memcpy(data, (void*)&ih, len);
+ 
+  (void)type;
+  return IUP_DEFAULT;
+}
+
+static int iupListDragDataSize_CB(Ihandle* ih, char* type)
+{
+  (void)ih;
+  (void)type;
+  return sizeof(Ihandle*);
+}
+
+static int iupListDragEnd_CB(Ihandle *ih, int del)
+{
+  iupAttribSetInt(ih, "_IUP_LIST_SOURCEPOS", 0);
+  (void)del;
+  return IUP_DEFAULT;
+}
+
+static int iupListDragBegin_CB(Ihandle* ih, int x, int y)
+{
+  int pos = IupConvertXYToPos(ih, x, y);
+  iupAttribSetInt(ih, "_IUP_LIST_SOURCEPOS", pos);
+  return IUP_DEFAULT;
+}
+
+static int iListSetDragDropListAttrib(Ihandle* ih, const char* value)
+{
+  if (iupStrBoolean(value))
+  {
+    /* Register callbacks to enable drag and drop between lists */
+    IupSetCallback(ih, "DRAGBEGIN_CB",    (Icallback)iupListDragBegin_CB);
+    IupSetCallback(ih, "DRAGDATASIZE_CB", (Icallback)iupListDragDataSize_CB);
+    IupSetCallback(ih, "DRAGDATA_CB",     (Icallback)iupListDragData_CB);
+    IupSetCallback(ih, "DRAGEND_CB",      (Icallback)iupListDragEnd_CB);
+    IupSetCallback(ih, "DROPDATA_CB",     (Icallback)iupListDropData_CB);
+  }
+  else
+  {
+    /* Unregister callbacks */
+    IupSetCallback(ih, "DRAGBEGIN_CB",    NULL);
+    IupSetCallback(ih, "DRAGDATASIZE_CB", NULL);
+    IupSetCallback(ih, "DRAGDATA_CB",     NULL);
+    IupSetCallback(ih, "DRAGEND_CB",      NULL);
+    IupSetCallback(ih, "DROPDATA_CB",     NULL);
+  }
+
+  return 1;
+}
+
+/*****************************************************************************************/
 
 static int iListCreateMethod(Ihandle* ih, void** params)
 {
   if (params && params[0])
-    iupAttribStoreStr(ih, "ACTION", (char*)(params[0]));
+    iupAttribSetStr(ih, "ACTION", (char*)(params[0]));
 
   ih->data = iupALLOCCTRLDATA();
   ih->data->sb = 1;
@@ -655,10 +757,7 @@ static void iListGetItemImageInfo(Ihandle *ih, int id, int *img_w, int *img_h)
 
   if (!ih->handle)
   {
-    char *value;
-    char str[20];
-    sprintf(str, "IMAGE%d", id);
-    value = iupAttribGet(ih, str);
+    char *value = iupAttribGetId(ih, "IMAGE", id);
     if (value)
       iupImageGetInfo(value, img_w, img_h, NULL);
   }
@@ -766,11 +865,11 @@ static void iListGetNaturalItemsSize(Ihandle *ih, int *w, int *h)
   }
 }
 
-static void iListComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *expand)
+static void iListComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *children_expand)
 {
   int natural_w, natural_h;
   int sb_size = iupdrvGetScrollbarSize();
-  (void)expand; /* unset if not a container */
+  (void)children_expand; /* unset if not a container */
 
   iListGetNaturalItemsSize(ih, &natural_w, &natural_h);
 
@@ -890,6 +989,7 @@ Iclass* iupListNewClass(void)
 
   iupClassRegisterAttribute(ic, "SHOWIMAGE", iListGetShowImageAttrib, iListSetShowImageAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SHOWDRAGDROP", iListGetShowDragDropAttrib, iListSetShowDragDropAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "DRAGDROPLIST", NULL, iListSetDragDropListAttrib, NULL, NULL, IUPAF_NO_INHERIT);
 
   iupdrvListInitClass(ic);
 

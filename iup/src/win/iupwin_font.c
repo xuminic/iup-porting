@@ -22,6 +22,7 @@
 
 #include "iupwin_drv.h"
 #include "iupwin_info.h"
+#include "iupwin_str.h"
 
 
 typedef struct IwinFont_
@@ -72,16 +73,14 @@ static IwinFont* winFindFont(const char *standardfont)
   if (height_pixels == 0)
     return NULL;
 
-  hFont = CreateFont(height_pixels,
-                        0,0,0,
-                        (is_bold) ? FW_BOLD : FW_NORMAL,
-                        is_italic,
-                        is_underline,
-                        is_strikeout,
-                        DEFAULT_CHARSET,OUT_TT_PRECIS,
-                        CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,
-                        FF_DONTCARE|DEFAULT_PITCH,
-                        typeface);
+  hFont = CreateFont(height_pixels, 0,0,0,
+                    (is_bold) ? FW_BOLD : FW_NORMAL,
+                    is_italic, is_underline, is_strikeout,
+                    DEFAULT_CHARSET,OUT_TT_PRECIS,
+                    CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,
+                    FF_DONTCARE|DEFAULT_PITCH,
+                    iupwinStrToSystem(typeface));
+
   if (!hFont)
     return NULL;
 
@@ -92,23 +91,24 @@ static IwinFont* winFindFont(const char *standardfont)
   fonts[i].hFont = hFont;
 
   {
-    TEXTMETRIC tm;
     HDC hdc = GetDC(NULL);
-    HFONT oldfont = SelectObject(hdc, hFont);
+    HFONT oldfont = (HFONT)SelectObject(hdc, hFont);
 
-    GetTextMetrics(hdc, &tm);
+    {
+      TEXTMETRIC tm;
+      GetTextMetrics(hdc, &tm);
+      fonts[i].charwidth = tm.tmAveCharWidth; 
+      fonts[i].charheight = tm.tmHeight;
+    }
 
     SelectObject(hdc, oldfont);
     ReleaseDC(NULL, hdc);
-    
-    fonts[i].charwidth = tm.tmAveCharWidth; 
-    fonts[i].charheight = tm.tmHeight;
   }
 
   return &fonts[i];
 }
 
-static void winFontFromLogFont(LOGFONT* logfont, char * font)
+static void winFontFromLogFontA(LOGFONTA* logfont, char* font)
 {
   int is_bold = (logfont->lfWeight == FW_NORMAL)? 0: 1;
   int is_italic = logfont->lfItalic;
@@ -129,12 +129,18 @@ static void winFontFromLogFont(LOGFONT* logfont, char * font)
 char* iupdrvGetSystemFont(void)
 {
   static char str[200]; /* must return a static string, because it will be used as the default value for the FONT attribute */
-  NONCLIENTMETRICS ncm;
-  ncm.cbSize = sizeof(NONCLIENTMETRICS);
-  if (SystemParametersInfo(SPI_GETNONCLIENTMETRICS, ncm.cbSize, &ncm, FALSE))
-    winFontFromLogFont(&ncm.lfMessageFont, str);
+  NONCLIENTMETRICSA ncm;
+  ncm.cbSize = sizeof(NONCLIENTMETRICSA);
+  /* this is before setting utf8mode, so use the ANSI version */
+  if (SystemParametersInfoA(SPI_GETNONCLIENTMETRICS, ncm.cbSize, &ncm, FALSE))
+    winFontFromLogFontA(&ncm.lfMessageFont, str);
   else
-    strcpy(str, "Tahoma, 10");
+  {
+    if (iupwinIsVistaOrNew())
+      strcpy(str, "Segoe UI, 9");
+    else
+      strcpy(str, "Tahoma, 10");
+  }
   return str;
 }
 
@@ -171,7 +177,7 @@ static IwinFont* winFontCreateNativeFont(Ihandle *ih, const char* value)
     return NULL;
   }
 
-  iupAttribSetStr(ih, "_IUP_WINFONT", (char*)winfont);
+  iupAttribSet(ih, "_IUP_WINFONT", (char*)winfont);
   return winfont;
 }
 
@@ -252,7 +258,8 @@ void iupdrvFontGetMultiLineStringSize(Ihandle* ih, const char* str, int *w, int 
     const char *curstr = str;
 
     HDC hdc = winFontGetDC(ih);
-    HFONT oldhfont = SelectObject(hdc, winfont->hFont);
+    HFONT oldhfont = (HFONT)SelectObject(hdc, winfont->hFont);
+    TCHAR* wstr = iupwinStrToSystem(str);
 
     do
     {
@@ -260,8 +267,10 @@ void iupdrvFontGetMultiLineStringSize(Ihandle* ih, const char* str, int *w, int 
       if (len)
       {
         size.cx = 0;
-        GetTextExtentPoint32(hdc, curstr, len, &size);
+        GetTextExtentPoint32(hdc, wstr, len, &size);
         max_w = iupMAX(max_w, size.cx);
+
+        wstr += len+1;
       }
 
       curstr = nextstr;
@@ -281,8 +290,8 @@ int iupdrvFontGetStringWidth(Ihandle* ih, const char* str)
   HFONT oldhfont, hFont;
   SIZE size;
   int len;
-  char* line_end;
-
+  char* line_end;  
+  TCHAR* wstr;
   if (!str || str[0]==0)
     return 0;
 
@@ -299,7 +308,8 @@ int iupdrvFontGetStringWidth(Ihandle* ih, const char* str)
   else
     len = strlen(str);
 
-  GetTextExtentPoint32(hdc, str, len, &size);
+  wstr = iupwinStrToSystemLen(str, &len);
+  GetTextExtentPoint32(hdc, wstr, len, &size);
 
   SelectObject(hdc, oldhfont);
   winFontReleaseDC(ih, hdc);

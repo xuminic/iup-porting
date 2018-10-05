@@ -74,8 +74,8 @@ static void motDropTransferProc(Widget dropTransfer, Ihandle* ih, Atom *selType,
     
     cbDropData(ih, type, (void*)targetData, (int)*length, x, y);
 
-    iupAttribSetStr(ih, "_IUPMOT_DROP_X", NULL);
-    iupAttribSetStr(ih, "_IUPMOT_DROP_Y", NULL);
+    iupAttribSet(ih, "_IUPMOT_DROP_X", NULL);
+    iupAttribSet(ih, "_IUPMOT_DROP_Y", NULL);
   }
 
   (void)dropTransfer;
@@ -85,6 +85,7 @@ static void motDropTransferProc(Widget dropTransfer, Ihandle* ih, Atom *selType,
 
 static void motDragProc(Widget dropTarget, XtPointer clientData, XmDragProcCallbackStruct* cbs)
 {
+  (void)clientData;
   if(cbs->reason == XmCR_DROP_SITE_MOTION_MESSAGE)
   {
     Ihandle* ih = NULL;
@@ -306,7 +307,7 @@ static Atom* motCreateTargetList(const char *value, int *count)
 
   *count = 0;
 
-  sprintf(valueCopy, "%s", value);
+  strcpy(valueCopy, value);
   while(iupStrToStrStr(valueCopy, valueTemp, valueCopy, ',') > 0)
   {
     targetlist[*count] = XInternAtom(iupmot_display, (char*)valueTemp, False);
@@ -342,8 +343,8 @@ static int motSetDropTypesAttrib(Ihandle* ih, const char* value)
   if (targetlist)
   {
     XtFree((char*)targetlist);
-    iupAttribSetStr(ih, "_IUPMOT_DROP_TARGETLIST", NULL);
-    iupAttribSetStr(ih, "_IUPMOT_DROP_TARGETLIST_COUNT", NULL);
+    iupAttribSet(ih, "_IUPMOT_DROP_TARGETLIST", NULL);
+    iupAttribSet(ih, "_IUPMOT_DROP_TARGETLIST_COUNT", NULL);
   }
 
   if(!value)
@@ -352,7 +353,7 @@ static int motSetDropTypesAttrib(Ihandle* ih, const char* value)
   targetlist = motCreateTargetList(value, &count);
   if (targetlist)
   {
-    iupAttribSetStr(ih, "_IUPMOT_DROP_TARGETLIST", (char*)targetlist);
+    iupAttribSet(ih, "_IUPMOT_DROP_TARGETLIST", (char*)targetlist);
     iupAttribSetInt(ih, "_IUPMOT_DROP_TARGETLIST_COUNT", count);
   }
 
@@ -396,8 +397,8 @@ static int motSetDragTypesAttrib(Ihandle* ih, const char* value)
   if (targetlist)
   {
     XtFree((char*)targetlist);
-    iupAttribSetStr(ih, "_IUPMOT_DRAG_TARGETLIST", NULL);
-    iupAttribSetStr(ih, "_IUPMOT_DRAG_TARGETLIST_COUNT", NULL);
+    iupAttribSet(ih, "_IUPMOT_DRAG_TARGETLIST", NULL);
+    iupAttribSet(ih, "_IUPMOT_DRAG_TARGETLIST_COUNT", NULL);
   }
 
   if(!value)
@@ -406,7 +407,7 @@ static int motSetDragTypesAttrib(Ihandle* ih, const char* value)
   targetlist = motCreateTargetList(value, &count);
   if (targetlist)
   {
-    iupAttribSetStr(ih, "_IUPMOT_DRAG_TARGETLIST", (char*)targetlist);
+    iupAttribSet(ih, "_IUPMOT_DRAG_TARGETLIST", (char*)targetlist);
     iupAttribSetInt(ih, "_IUPMOT_DRAG_TARGETLIST_COUNT", count);
   }
 

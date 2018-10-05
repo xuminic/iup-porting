@@ -25,12 +25,75 @@
 #include "iup_assert.h"
 
 
+/* Used by List and Text, implemented in Text
+   Can NOT use ih->data 
+*/
+int iupEditCallActionCb(Ihandle* ih, IFnis cb, const char* insert_value, int start, int end, void *mask, int nc, int remove_dir, int utf8)
+{
+  char *new_value, *value;
+  int ret = -1, /* normal processing */
+      key = 0;
+
+  if (!cb && !mask)
+    return ret;
+
+  value = IupGetAttribute(ih, "VALUE");  /* it will return a non NULL internal buffer */
+
+  if (!insert_value)
+  {
+    new_value = value;
+    iupStrRemove(new_value, start, end, remove_dir, utf8);
+  }
+  else
+  {
+    if (value[0]==0)
+      new_value = iupStrDup(insert_value);
+    else
+      new_value = iupStrInsert(value, insert_value, start, end, utf8);
+  }
+
+  if (insert_value && insert_value[0]!=0 && insert_value[1]==0)
+    key = insert_value[0];
+
+  if (!new_value)
+    return ret;
+
+  if (nc && (int)strlen(new_value) > nc)
+  {
+    if (new_value != value) free(new_value);
+    return 0; /* abort */
+  }
+
+  if (mask && iupMaskCheck((Imask*)mask, new_value)==0)
+  {
+    IFns cb = (IFns)IupGetCallback(ih, "MASKFAIL_CB");
+    if (cb) cb(ih, new_value);
+    if (new_value != value) free(new_value);
+    return 0; /* abort */
+  }
+
+  if (cb)
+  {
+    int cb_ret = cb(ih, key, (char*)new_value);
+    if (cb_ret==IUP_IGNORE)
+      ret = 0; /* abort */
+    else if (cb_ret==IUP_CLOSE)
+    {
+      IupExitLoop();
+      ret = 0; /* abort */
+    }
+    else if (cb_ret!=0 && key!=0 && 
+             cb_ret != IUP_DEFAULT && cb_ret != IUP_CONTINUE)  
+      ret = cb_ret; /* replace key */
+  }
+
+  if (new_value != value) free(new_value);
+  return ret;
+}
+
 char* iupTextGetFormattingAttrib(Ihandle* ih)
 {
-  if (ih->data->has_formatting)
-    return "YES";
-  else
-    return "NO";
+  return iupStrReturnBoolean (ih->data->has_formatting); 
 }
 
 int iupTextSetFormattingAttrib(Ihandle* ih, const char* value)
@@ -59,18 +122,15 @@ static void iTextUpdateValueAttrib(Ihandle* ih)
   char* value = iupAttribGet(ih, "VALUE");
   if (value)
   {
-    int inherit;
-    iupClassObjectSetAttribute(ih, "VALUE", value, &inherit);
+    iupAttribSetClassObject(ih, "VALUE", value);
 
-    iupAttribSetStr(ih, "VALUE", NULL); /* clear hash table */
+    iupAttribSet(ih, "VALUE", NULL); /* clear hash table */
   }
 }
 
 char* iupTextGetNCAttrib(Ihandle* ih)
 {
-  char* str = iupStrGetMemory(100);
-  sprintf(str, "%d", ih->data->nc);
-  return str;
+  return iupStrReturnInt(ih->data->nc);
 }
 
 static void iTextAddFormatTag(Ihandle* ih, Ihandle* formattag)
@@ -265,12 +325,12 @@ static int iTextSetMultilineAttrib(Ihandle* ih, const char* value)
   {
     ih->data->is_multiline = 1;
     ih->data->sb = IUP_SB_HORIZ | IUP_SB_VERT;  /* reset SCROLLBAR to YES */
-    iupAttribSetStr(ih, "_IUP_MULTILINE_TEXT", "1");
+    iupAttribSet(ih, "_IUP_MULTILINE_TEXT", "1");
   }
   else
   {
     ih->data->is_multiline = 0;
-    iupAttribSetStr(ih, "_IUP_MULTILINE_TEXT", NULL);
+    iupAttribSet(ih, "_IUP_MULTILINE_TEXT", NULL);
   }
 
   return 0;
@@ -278,10 +338,7 @@ static int iTextSetMultilineAttrib(Ihandle* ih, const char* value)
 
 static char* iTextGetMultilineAttrib(Ihandle* ih)
 {
-  if (ih->data->is_multiline)
-    return "YES";
-  else
-    return "NO";
+  return iupStrReturnBoolean (ih->data->is_multiline); 
 }
 
 static int iTextSetAppendNewlineAttrib(Ihandle* ih, const char* value)
@@ -295,10 +352,7 @@ static int iTextSetAppendNewlineAttrib(Ihandle* ih, const char* value)
 
 static char* iTextGetAppendNewlineAttrib(Ihandle* ih)
 {
-  if (ih->data->append_newline)
-    return "YES";
-  else
-    return "NO";
+  return iupStrReturnBoolean (ih->data->append_newline); 
 }
 
 static int iTextSetScrollbarAttrib(Ihandle* ih, const char* value)
@@ -337,9 +391,7 @@ static char* iTextGetScrollbarAttrib(Ihandle* ih)
 
 char* iupTextGetPaddingAttrib(Ihandle* ih)
 {
-  char *str = iupStrGetMemory(50);
-  sprintf(str, "%dx%d", ih->data->horiz_padding, ih->data->vert_padding);
-  return str;
+  return iupStrReturnIntInt(ih->data->horiz_padding, ih->data->vert_padding, 'x');
 }
 
 
@@ -350,7 +402,7 @@ static int iTextCreateMethod(Ihandle* ih, void** params)
 {
   if (params)
   {
-    if (params[0]) iupAttribStoreStr(ih, "ACTION", (char*)(params[0]));
+    if (params[0]) iupAttribSetStr(ih, "ACTION", (char*)(params[0]));
   }
   ih->data = iupALLOCCTRLDATA();
   ih->data->append_newline = 1;
@@ -362,32 +414,24 @@ static int iMultilineCreateMethod(Ihandle* ih, void** params)
   (void)params;
   ih->data->is_multiline = 1;
   ih->data->sb = IUP_SB_HORIZ | IUP_SB_VERT;  /* default is YES */
-  iupAttribSetStr(ih, "_IUP_MULTILINE_TEXT", "1");
+  iupAttribSet(ih, "_IUP_MULTILINE_TEXT", "1");
   return IUP_NOERROR;
 }
 
-static void iTextComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *expand)
+static void iTextComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *children_expand)
 {
   int natural_w = 0, 
       natural_h = 0,
       visiblecolumns = iupAttribGetInt(ih, "VISIBLECOLUMNS"),
       visiblelines = iupAttribGetInt(ih, "VISIBLELINES");
-  (void)expand; /* unset if not a container */
+  (void)children_expand; /* unset if not a container */
 
   /* Since the contents can be changed by the user, the size can not be dependent on it. */
+  iupdrvFontGetCharSize(ih, NULL, &natural_h);  /* one line height */
+  natural_w = iupdrvFontGetStringWidth(ih, "WWWWWWWWWW");
+  natural_w = (visiblecolumns*natural_w)/10;
   if (ih->data->is_multiline)
-  {
-    iupdrvFontGetCharSize(ih, NULL, &natural_h);  /* one line height */
-    natural_w = iupdrvFontGetStringWidth(ih, "WWWWWWWWWW");
-    natural_w = (visiblecolumns*natural_w)/10;
     natural_h = visiblelines*natural_h;
-  }
-  else
-  {
-    iupdrvFontGetCharSize(ih, NULL, &natural_h);  /* one line height */
-    natural_w = iupdrvFontGetStringWidth(ih, "WWWWWWWWWW");
-    natural_w = (visiblecolumns*natural_w)/10;
-  }
 
   /* compute the borders space */
   if (iupAttribGetBoolean(ih, "BORDER"))

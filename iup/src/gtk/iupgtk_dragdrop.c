@@ -97,17 +97,13 @@ static void gtkDragDataGet(GtkWidget *widget, GdkDragContext *drag_context, GtkS
     if (size <= 0)
       return;
 
-    sourceData = malloc(size+1);
+    sourceData = malloc(size);
 
     /* fill data */
     cbDragData(ih, type, sourceData, size);
 
-    /* Zero-terminates the stored data. */
-    ((guchar*)sourceData)[size] = 0;
+    gtk_selection_data_set(seldata, gdk_atom_intern(type, FALSE), 8, (guchar*)sourceData, size);
 
-    gtk_selection_data_set(seldata, gdk_atom_intern(type, FALSE), 8, (guchar*)sourceData, size+1);
-
-    /* gtk_selection_data_set will copy the data */
     free(sourceData);
   }
 
@@ -201,7 +197,7 @@ static GtkTargetList* gtkCreateTargetList(const char* value)
   char valueTemp[256];
   int info = 0;
 
-  sprintf(valueCopy, "%s", value);
+  strcpy(valueCopy, value);
   while(iupStrToStrStr(valueCopy, valueTemp, valueCopy, ',') > 0)
   {
     gtk_target_list_add(targetlist, gdk_atom_intern(valueTemp, FALSE), 0, info++);
@@ -229,14 +225,14 @@ static int gtkSetDropTypesAttrib(Ihandle* ih, const char* value)
   if (targetlist)
   {
     gtk_target_list_unref(targetlist);
-    iupAttribSetStr(ih, "_IUPGTK_DROP_TARGETLIST", NULL);
+    iupAttribSet(ih, "_IUPGTK_DROP_TARGETLIST", NULL);
   }
 
   if(!value)
     return 0;
 
   targetlist = gtkCreateTargetList(value);
-  iupAttribSetStr(ih, "_IUPGTK_DROP_TARGETLIST", (char*)targetlist);
+  iupAttribSet(ih, "_IUPGTK_DROP_TARGETLIST", (char*)targetlist);
   return 1;
 }
 
@@ -272,14 +268,14 @@ static int gtkSetDragTypesAttrib(Ihandle* ih, const char* value)
   if (targetlist)
   {
     gtk_target_list_unref(targetlist);
-    iupAttribSetStr(ih, "_IUPGTK_DRAG_TARGETLIST", NULL);
+    iupAttribSet(ih, "_IUPGTK_DRAG_TARGETLIST", NULL);
   }
 
   if (!value)
     return 0;
 
   targetlist = gtkCreateTargetList(value);
-  iupAttribSetStr(ih, "_IUPGTK_DRAG_TARGETLIST", (char*)targetlist);
+  iupAttribSet(ih, "_IUPGTK_DRAG_TARGETLIST", (char*)targetlist);
   return 1;
 }
 

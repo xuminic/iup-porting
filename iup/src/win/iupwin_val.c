@@ -27,6 +27,7 @@
 #include "iupwin_drv.h"
 #include "iupwin_handle.h"
 #include "iupwin_draw.h"
+#include "iupwin_str.h"
 
 
 void iupdrvValGetMinSize(Ihandle* ih, int *w, int *h)
@@ -195,12 +196,26 @@ static int winValCtlColor(Ihandle* ih, HDC hdc, LRESULT *result)
   return 0;
 }
 
-static int winValProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result)
+static int winValMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result)
 {
   (void)lp;
 
   switch (msg)
   {
+  case WM_SETFOCUS:
+    {
+      if (!iupAttribGetBoolean(ih, "CANFOCUS"))
+      {
+        HWND previous = (HWND)wp;
+        if (previous && previous != ih->handle)
+        {
+          SetFocus(previous);
+          *result = 0;
+          return 1;
+        }
+      }
+      break;
+    }
   case WM_ERASEBKGND:
     {
       RECT rect;
@@ -214,7 +229,7 @@ static int winValProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *resu
   case WM_KEYDOWN:
   case WM_SYSKEYDOWN:
     {
-      if (iupwinBaseProc(ih, msg, wp, lp, result)==1)
+      if (iupwinBaseMsgProc(ih, msg, wp, lp, result)==1)
         return 1;
 
       if (GetKeyState(VK_CONTROL) & 0x8000)  /* handle Ctrl+Arrows */
@@ -236,7 +251,7 @@ static int winValProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *resu
     }
   }
 
-  return iupwinBaseProc(ih, msg, wp, lp, result);
+  return iupwinBaseMsgProc(ih, msg, wp, lp, result);
 }
 
 static int winValBaseSetTipAttrib(Ihandle* ih, const char* value)
@@ -294,11 +309,11 @@ static int winValMapMethod(Ihandle* ih)
       dwStyle |= TBS_TOP;     /* same as TBS_LEFT  */
   }
 
-  if (!iupwinCreateWindowEx(ih, TRACKBAR_CLASS, 0, dwStyle))
+  if (!iupwinCreateWindow(ih, TRACKBAR_CLASS, 0, dwStyle, NULL))
     return IUP_ERROR;
 
   /* Process Keyboard */
-  IupSetCallback(ih, "_IUPWIN_CTRLPROC_CB", (Icallback)winValProc);
+  IupSetCallback(ih, "_IUPWIN_CTRLMSGPROC_CB", (Icallback)winValMsgProc);
 
   /* Process Val Scroll commands */
   IupSetCallback(ih, "_IUPWIN_CUSTOMSCROLL_CB", (Icallback)winValCustomScroll);

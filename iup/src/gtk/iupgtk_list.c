@@ -116,7 +116,7 @@ void iupdrvListAppendItem(Ihandle* ih, const char* value)
   GtkTreeIter iter;
   gtk_list_store_append(GTK_LIST_STORE(model), &iter);
 
-  gtk_list_store_set(GTK_LIST_STORE(model), &iter, IUPGTK_LIST_TEXT, iupgtkStrConvertToUTF8(value), -1);
+  gtk_list_store_set(GTK_LIST_STORE(model), &iter, IUPGTK_LIST_TEXT, iupgtkStrConvertToSystem(value), -1);
   gtk_list_store_set(GTK_LIST_STORE(model), &iter, IUPGTK_LIST_IMAGE, NULL, -1);
 }
 
@@ -126,7 +126,7 @@ void iupdrvListInsertItem(Ihandle* ih, int pos, const char* value)
   GtkTreeIter iter;
   gtk_list_store_insert(GTK_LIST_STORE(model), &iter, pos);
 
-  gtk_list_store_set(GTK_LIST_STORE(model), &iter, IUPGTK_LIST_TEXT, iupgtkStrConvertToUTF8(value), -1);
+  gtk_list_store_set(GTK_LIST_STORE(model), &iter, IUPGTK_LIST_TEXT, iupgtkStrConvertToSystem(value), -1);
   gtk_list_store_set(GTK_LIST_STORE(model), &iter, IUPGTK_LIST_IMAGE, NULL, -1);
 
   iupListUpdateOldValue(ih, pos, 0);
@@ -213,7 +213,7 @@ static char* gtkListGetIdValueAttrib(Ihandle* ih, int id)
       gtk_tree_model_get(model, &iter, IUPGTK_LIST_TEXT, &text, -1);
       if (text)
       {
-        char* ret_str = iupStrGetMemoryCopy(iupgtkStrConvertFromUTF8(text));
+        char* ret_str = iupStrReturnStr(iupgtkStrConvertFromSystem(text));
         g_free(text);
         return ret_str;
       }
@@ -341,16 +341,14 @@ static char* gtkListGetValueAttrib(Ihandle* ih)
   if (ih->data->has_editbox)
   {
     GtkEntry* entry = (GtkEntry*)iupAttribGet(ih, "_IUPGTK_ENTRY");
-    return iupStrGetMemoryCopy(iupgtkStrConvertFromUTF8(gtk_entry_get_text(entry)));
+    return iupStrReturnStr(iupgtkStrConvertFromSystem(gtk_entry_get_text(entry)));
   }
   else 
   {
     if (ih->data->is_dropdown)
     {
       int pos = gtk_combo_box_get_active((GtkComboBox*)ih->handle);
-      char* str = iupStrGetMemory(50);
-      sprintf(str, "%d", pos+1);  /* IUP starts at 1 */
-      return str;
+      return iupStrReturnInt(pos+1);  /* IUP starts at 1 */
     }
     else
     {
@@ -361,13 +359,11 @@ static char* gtkListGetValueAttrib(Ihandle* ih)
         GtkTreeModel* tree_model;
         if (gtk_tree_selection_get_selected(selection, &tree_model, &iter))
         {
-          char* str;
           GtkTreePath *path = gtk_tree_model_get_path(tree_model, &iter);
           int* indices = gtk_tree_path_get_indices(path);
-          str = iupStrGetMemory(50);
-          sprintf(str, "%d", indices[0]+1);  /* IUP starts at 1 */
+          int ret = indices[0]+1;  /* IUP starts at 1 */
           gtk_tree_path_free (path);
-          return str;
+          return iupStrReturnInt(ret);  
         }
       }
       else
@@ -399,9 +395,9 @@ static int gtkListSetValueAttrib(Ihandle* ih, const char* value)
   {
     GtkEntry* entry = (GtkEntry*)iupAttribGet(ih, "_IUPGTK_ENTRY");
     if (!value) value = "";
-    iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", "1");
-    gtk_entry_set_text(entry, iupgtkStrConvertToUTF8(value));
-    iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", NULL);
+    iupAttribSet(ih, "_IUPGTK_DISABLE_TEXT_CB", "1");
+    gtk_entry_set_text(entry, iupgtkStrConvertToSystem(value));
+    iupAttribSet(ih, "_IUPGTK_DISABLE_TEXT_CB", NULL);
   }
   else 
   {
@@ -419,7 +415,7 @@ static int gtkListSetValueAttrib(Ihandle* ih, const char* value)
       else
       {
         gtk_combo_box_set_active((GtkComboBox*)ih->handle, -1);    /* none */
-        iupAttribSetStr(ih, "_IUPLIST_OLDVALUE", NULL);
+        iupAttribSet(ih, "_IUPLIST_OLDVALUE", NULL);
       }
       g_signal_handlers_unblock_by_func(G_OBJECT(ih->handle), G_CALLBACK(gtkListComboBoxChanged), ih);
     }
@@ -440,7 +436,7 @@ static int gtkListSetValueAttrib(Ihandle* ih, const char* value)
         else
         {
           gtk_tree_selection_unselect_all(selection);
-          iupAttribSetStr(ih, "_IUPLIST_OLDVALUE", NULL);
+          iupAttribSet(ih, "_IUPLIST_OLDVALUE", NULL);
         }
         g_signal_handlers_unblock_by_func(G_OBJECT(selection), G_CALLBACK(gtkListSelectionChanged), ih);
       }
@@ -456,7 +452,7 @@ static int gtkListSetValueAttrib(Ihandle* ih, const char* value)
 
         if (!value)
         {
-          iupAttribSetStr(ih, "_IUPLIST_OLDVALUE", NULL);
+          iupAttribSet(ih, "_IUPLIST_OLDVALUE", NULL);
           return 0;
         }
 
@@ -475,7 +471,7 @@ static int gtkListSetValueAttrib(Ihandle* ih, const char* value)
             gtk_tree_path_free(path);
           }
         }
-        iupAttribStoreStr(ih, "_IUPLIST_OLDVALUE", value);
+        iupAttribSetStr(ih, "_IUPLIST_OLDVALUE", value);
         g_signal_handlers_unblock_by_func(G_OBJECT(selection), G_CALLBACK(gtkListSelectionChanged), ih);
       }
     }
@@ -592,7 +588,6 @@ static int gtkListSetSelectionAttrib(Ihandle* ih, const char* value)
 
 static char* gtkListGetSelectionAttrib(Ihandle* ih)
 {
-  char *str;
   int start, end;
   GtkEntry* entry;
   if (!ih->data->has_editbox)
@@ -603,9 +598,7 @@ static char* gtkListGetSelectionAttrib(Ihandle* ih)
   {
     start++; /* IUP starts at 1 */
     end++;
-    str = iupStrGetMemory(100);
-    sprintf(str, "%d:%d", (int)start, (int)end);
-    return str;
+    return iupStrReturnIntInt((int)start, (int)end, ':');
   }
 
   return NULL;
@@ -647,18 +640,13 @@ static int gtkListSetSelectionPosAttrib(Ihandle* ih, const char* value)
 static char* gtkListGetSelectionPosAttrib(Ihandle* ih)
 {
   int start, end;
-  char *str;
   GtkEntry* entry;
   if (!ih->data->has_editbox)
     return NULL;
 
   entry = (GtkEntry*)iupAttribGet(ih, "_IUPGTK_ENTRY");
   if (gtk_editable_get_selection_bounds(GTK_EDITABLE(entry), &start, &end))
-  {
-    str = iupStrGetMemory(100);
-    sprintf(str, "%d:%d", (int)start, (int)end);
-    return str;
-  }
+    return iupStrReturnIntInt((int)start, (int)end, ':');
 
   return NULL;
 }
@@ -676,10 +664,10 @@ static int gtkListSetSelectedTextAttrib(Ihandle* ih, const char* value)
   if (gtk_editable_get_selection_bounds(GTK_EDITABLE(entry), &start, &end))
   {
     /* disable callbacks */
-    iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", "1");
+    iupAttribSet(ih, "_IUPGTK_DISABLE_TEXT_CB", "1");
     gtk_editable_delete_selection(GTK_EDITABLE(entry));
-    gtk_editable_insert_text(GTK_EDITABLE(entry), iupgtkStrConvertToUTF8(value), -1, &start);
-    iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", NULL);
+    gtk_editable_insert_text(GTK_EDITABLE(entry), iupgtkStrConvertToSystem(value), -1, &start);
+    iupAttribSet(ih, "_IUPGTK_DISABLE_TEXT_CB", NULL);
   }
 
   return 0;
@@ -696,7 +684,7 @@ static char* gtkListGetSelectedTextAttrib(Ihandle* ih)
   if (gtk_editable_get_selection_bounds(GTK_EDITABLE(entry), &start, &end))
   {
     char* selectedtext = gtk_editable_get_chars(GTK_EDITABLE(entry), start, end);
-    char* str = iupStrGetMemoryCopy(iupgtkStrConvertFromUTF8(selectedtext));
+    char* str = iupStrReturnStr(iupgtkStrConvertFromSystem(selectedtext));
     g_free(selectedtext);
     return str;
   }
@@ -713,7 +701,7 @@ static int gtkListSetCaretAttrib(Ihandle* ih, const char* value)
   if (!value)
     return 0;
 
-  sscanf(value,"%i",&pos);
+  iupStrToInt(value, &pos);
   pos--; /* IUP starts at 1 */
   if (pos < 0) pos = 0;
 
@@ -727,12 +715,10 @@ static char* gtkListGetCaretAttrib(Ihandle* ih)
 {
   if (ih->data->has_editbox)
   {
-    char* str = iupStrGetMemory(50);
     GtkEntry* entry = (GtkEntry*)iupAttribGet(ih, "_IUPGTK_ENTRY");
     int pos = gtk_editable_get_position(GTK_EDITABLE(entry));
     pos++; /* IUP starts at 1 */
-    sprintf(str, "%d", (int)pos);
-    return str;
+    return iupStrReturnInt((int)pos);
   }
   else
     return NULL;
@@ -747,7 +733,7 @@ static int gtkListSetCaretPosAttrib(Ihandle* ih, const char* value)
   if (!value)
     return 0;
 
-  sscanf(value,"%i",&pos);
+  iupStrToInt(value, &pos);
   if (pos < 0) pos = 0;
 
   entry = (GtkEntry*)iupAttribGet(ih, "_IUPGTK_ENTRY");
@@ -760,11 +746,9 @@ static char* gtkListGetCaretPosAttrib(Ihandle* ih)
 {
   if (ih->data->has_editbox)
   {
-    char* str = iupStrGetMemory(50);
     GtkEntry* entry = (GtkEntry*)iupAttribGet(ih, "_IUPGTK_ENTRY");
     int pos = gtk_editable_get_position(GTK_EDITABLE(entry));
-    sprintf(str, "%d", (int)pos);
-    return str;
+    return iupStrReturnInt((int)pos);
   }
   else
     return NULL;
@@ -779,7 +763,7 @@ static int gtkListSetScrollToAttrib(Ihandle* ih, const char* value)
   if (!value)
     return 0;
 
-  sscanf(value,"%i",&pos);
+  iupStrToInt(value, &pos);
   if (pos < 1) pos = 1;
   pos--;  /* return to GTK reference */
 
@@ -798,7 +782,7 @@ static int gtkListSetScrollToPosAttrib(Ihandle* ih, const char* value)
   if (!value)
     return 0;
 
-  sscanf(value,"%i",&pos);
+  iupStrToInt(value, &pos);
   if (pos < 0) pos = 0;
 
   entry = (GtkEntry*)iupAttribGet(ih, "_IUPGTK_ENTRY");
@@ -816,11 +800,11 @@ static int gtkListSetInsertAttrib(Ihandle* ih, const char* value)
   if (!value)
     return 0;
 
-  iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", "1");  /* disable callbacks */
+  iupAttribSet(ih, "_IUPGTK_DISABLE_TEXT_CB", "1");  /* disable callbacks */
   entry = (GtkEntry*)iupAttribGet(ih, "_IUPGTK_ENTRY");
   pos = gtk_editable_get_position(GTK_EDITABLE(entry));
-  gtk_editable_insert_text(GTK_EDITABLE(entry), iupgtkStrConvertToUTF8(value), -1, &pos);
-  iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", NULL);
+  gtk_editable_insert_text(GTK_EDITABLE(entry), iupgtkStrConvertToSystem(value), -1, &pos);
+  iupAttribSet(ih, "_IUPGTK_DISABLE_TEXT_CB", NULL);
 
   return 0;
 }
@@ -831,9 +815,9 @@ static int gtkListSetAppendAttrib(Ihandle* ih, const char* value)
   {
     GtkEntry* entry = (GtkEntry*)iupAttribGet(ih, "_IUPGTK_ENTRY");
     gint pos = strlen(gtk_entry_get_text(entry))+1;
-    iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", "1"); /* disable callbacks */
-    gtk_editable_insert_text(GTK_EDITABLE(entry), iupgtkStrConvertToUTF8(value), -1, &pos);
-    iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", NULL);
+    iupAttribSet(ih, "_IUPGTK_DISABLE_TEXT_CB", "1"); /* disable callbacks */
+    gtk_editable_insert_text(GTK_EDITABLE(entry), iupgtkStrConvertToSystem(value), -1, &pos);
+    iupAttribSet(ih, "_IUPGTK_DISABLE_TEXT_CB", NULL);
   }
   return 0;
 }
@@ -863,7 +847,7 @@ static int gtkListSetClipboardAttrib(Ihandle *ih, const char *value)
     return 0;
 
   /* disable callbacks */
-  iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", "1");
+  iupAttribSet(ih, "_IUPGTK_DISABLE_TEXT_CB", "1");
   entry = (GtkEntry*)iupAttribGet(ih, "_IUPGTK_ENTRY");
   if (iupStrEqualNoCase(value, "COPY"))
     gtk_editable_copy_clipboard(GTK_EDITABLE(entry));
@@ -873,7 +857,7 @@ static int gtkListSetClipboardAttrib(Ihandle *ih, const char *value)
     gtk_editable_paste_clipboard(GTK_EDITABLE(entry));
   else if (iupStrEqualNoCase(value, "CLEAR"))
     gtk_editable_delete_selection(GTK_EDITABLE(entry));
-  iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", NULL);
+  iupAttribSet(ih, "_IUPGTK_DISABLE_TEXT_CB", NULL);
   return 0;
 }
 
@@ -893,10 +877,7 @@ static char* gtkListGetReadOnlyAttrib(Ihandle* ih)
   if (!ih->data->has_editbox)
     return NULL;
   entry = (GtkEntry*)iupAttribGet(ih, "_IUPGTK_ENTRY");
-  if (!gtk_editable_get_editable(GTK_EDITABLE(entry)))
-    return "YES";
-  else
-    return "NO";
+  return iupStrReturnBoolean (!gtk_editable_get_editable(GTK_EDITABLE(entry))); 
 }
 
 static int gtkListSetImageAttrib(Ihandle* ih, int id, const char* value)
@@ -925,6 +906,17 @@ void* iupdrvListGetImageHandle(Ihandle* ih, int id)
   gtk_tree_model_get(model, &iter, IUPGTK_LIST_IMAGE, &pixImage, -1);
 
   return pixImage;
+}
+
+int iupdrvListSetImageHandle(Ihandle* ih, int id, void* hImage)
+{
+  GtkTreeModel* model = gtkListGetModel(ih);
+  GtkTreeIter iter;
+
+  gtk_tree_model_iter_nth_child(model, &iter, NULL, id-1);
+  gtk_list_store_set(GTK_LIST_STORE(model), &iter, IUPGTK_LIST_IMAGE, (GdkPixbuf*)hImage, -1);
+
+  return 0;
 }
 
 /*********************************************************************************/
@@ -985,7 +977,7 @@ static void gtkListDragDataReceived(GtkWidget *widget, GdkDragContext *context, 
       iupdrvListRemoveItem(ih, idDrag);   /* starts at 0 */
   }
 
-  iupAttribSetStr(ih, "_IUPLIST_DRAGITEM", NULL);
+  iupAttribSet(ih, "_IUPLIST_DRAGITEM", NULL);
 
   (void)widget;
   (void)info;
@@ -1183,93 +1175,26 @@ static gboolean gtkListEditButtonEvent(GtkWidget *widget, GdkEventButton *evt, I
   return FALSE;
 }
 
-static int gtkListCallEditCb(Ihandle* ih, GtkEditable *editable, const char* insert_value, int len, int start, int end)
-{
-  char *new_value, *value;
-  int ret = -1, key = 0;
-
-  IFnis cb = (IFnis)IupGetCallback(ih, "EDIT_CB");
-  if (!cb && !ih->data->mask)
-    return -1; /* continue */
-
-  value = iupStrGetMemoryCopy(iupgtkStrConvertFromUTF8(gtk_entry_get_text(GTK_ENTRY(editable))));
-
-  if (!insert_value)
-  {
-    new_value = iupStrDup(value);
-    if (end<0) end = strlen(value)+1;
-    iupStrRemove(new_value, start, end, 1);
-  }
-  else
-  {
-    if (!value)
-      new_value = iupStrDup(insert_value);
-    else
-    {
-      if (len < end-start)
-      {
-        new_value = iupStrDup(value);
-        new_value = iupStrInsert(new_value, insert_value, start, end);
-      }
-      else
-        new_value = iupStrInsert(value, insert_value, start, end);
-    }
-  }
-
-  if (insert_value && insert_value[0]!=0 && insert_value[1]==0)
-    key = insert_value[0];
-
-  if (!new_value)
-    return -1; /* continue */
-
-  if (ih->data->nc && (int)strlen(new_value) > ih->data->nc)
-  {
-    if (new_value != value) free(new_value);
-    return 0; /* abort */
-  }
-
-  if (ih->data->mask && iupMaskCheck(ih->data->mask, new_value)==0)
-  {
-    if (new_value != value) free(new_value);
-    return 0; /* abort */
-  }
-
-  if (cb)
-  {
-    int cb_ret = cb(ih, key, (char*)new_value);
-    if (cb_ret==IUP_IGNORE)
-      ret = 0; /* abort */
-    else if (cb_ret==IUP_CLOSE)
-    {
-      IupExitLoop();
-      ret = 0; /* abort */
-    }
-    else if (cb_ret!=0 && key!=0 && 
-             cb_ret != IUP_DEFAULT && cb_ret != IUP_CONTINUE)  
-      ret = cb_ret; /* abort and replace */
-  }
-
-  if (new_value != value) free(new_value);
-  return ret; /* continue */
-}
-
 static void gtkListEditDeleteText(GtkEditable *editable, int start, int end, Ihandle* ih)
 {
+  IFnis cb = (IFnis)IupGetCallback(ih, "EDIT_CB");
+
   if (iupAttribGet(ih, "_IUPGTK_DISABLE_TEXT_CB"))
     return;
 
-  if (gtkListCallEditCb(ih, editable, NULL, 0, start, end)==0)
+  if (iupEditCallActionCb(ih, cb, NULL, start, end, ih->data->mask, ih->data->nc, 1, iupgtkStrGetUTF8Mode())==0)
     g_signal_stop_emission_by_name(editable, "delete_text");
 }
 
 static void gtkListEditInsertText(GtkEditable *editable, char *insert_value, int len, int *pos, Ihandle* ih)
 {
+  IFnis cb = (IFnis)IupGetCallback(ih, "EDIT_CB");
   int ret;
 
   if (iupAttribGet(ih, "_IUPGTK_DISABLE_TEXT_CB"))
     return;
 
-  ret = gtkListCallEditCb(ih, editable, iupStrGetMemoryCopy(iupgtkStrConvertFromUTF8(insert_value)), len, *pos, *pos);
+  ret = iupEditCallActionCb(ih, cb, iupgtkStrConvertFromSystem(insert_value), *pos, *pos, ih->data->mask, ih->data->nc, 0, iupgtkStrGetUTF8Mode());
   if (ret == 0)
     g_signal_stop_emission_by_name(editable, "insert_text");
   else if (ret != -1)
@@ -1277,12 +1202,14 @@ static void gtkListEditInsertText(GtkEditable *editable, char *insert_value, int
     insert_value[0] = (char)ret;  /* replace key */
 
     /* disable callbacks */
-    iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", "1");
+    iupAttribSet(ih, "_IUPGTK_DISABLE_TEXT_CB", "1");
     gtk_editable_insert_text(editable, insert_value, 1, pos);
-    iupAttribSetStr(ih, "_IUPGTK_DISABLE_TEXT_CB", NULL);
+    iupAttribSet(ih, "_IUPGTK_DISABLE_TEXT_CB", NULL);
 
     g_signal_stop_emission_by_name(editable, "insert_text"); 
   }
+
+  (void)len;
 }
 
 static void gtkListEditChanged(void* dummy, Ihandle* ih)
@@ -1297,7 +1224,7 @@ static void gtkListEditChanged(void* dummy, Ihandle* ih)
 static void gtkListComboBoxPopupShown(GtkComboBox* widget, GParamSpec *pspec, Ihandle* ih)
 {
   IFni cb = (IFni)IupGetCallback(ih, "DROPDOWN_CB");
-  iupAttribSetStr(ih, "_IUPDROPDOWN_POPUP", "1");
+  iupAttribSet(ih, "_IUPDROPDOWN_POPUP", "1");
   if (cb)
   {
     gboolean popup_shown;
@@ -1314,7 +1241,7 @@ static void gtkListComboBoxChanged(GtkComboBox* widget, Ihandle* ih)
   {
     int pos = gtk_combo_box_get_active((GtkComboBox*)ih->handle);
     pos++;  /* IUP starts at 1 */
-    iupListSingleCallActionCallback(ih, cb, pos);
+    iupListSingleCallActionCb(ih, cb, pos);
   }
 
   if (!ih->data->has_editbox)
@@ -1339,7 +1266,7 @@ static void gtkListRowActivated(GtkTreeView *tree_view, GtkTreePath *path, GtkTr
   if (cb)
   {
     int* indices = gtk_tree_path_get_indices(path);
-    iupListSingleCallDblClickCallback(ih, cb, indices[0]+1);  /* IUP starts at 1 */
+    iupListSingleCallDblClickCb(ih, cb, indices[0]+1);  /* IUP starts at 1 */
   }
   (void)column;
   (void)tree_view;
@@ -1381,7 +1308,7 @@ static void gtkListSelectionChanged(GtkTreeSelection* selection, Ihandle* ih)
       {
         GtkTreePath *path = gtk_tree_model_get_path(tree_model, &iter);
         int* indices = gtk_tree_path_get_indices(path);
-        iupListSingleCallActionCallback(ih, cb, indices[0]+1);  /* IUP starts at 1 */
+        iupListSingleCallActionCb(ih, cb, indices[0]+1);  /* IUP starts at 1 */
         gtk_tree_path_free (path);
       }
     }
@@ -1404,7 +1331,7 @@ static void gtkListSelectionChanged(GtkTreeSelection* selection, Ihandle* ih)
       }
       g_list_free(list);
 
-      iupListMultipleCallActionCallback(ih, cb, multi_cb, pos, sel_count);
+      iupListMultipleCallActionCb(ih, cb, multi_cb, pos, sel_count);
       free(pos);
     }
   }
@@ -1421,7 +1348,7 @@ static gboolean gtkListComboFocusInOutEvent(GtkWidget *widget, GdkEventFocus *ev
     /* A dropdrop will generate leavewindow+killfocus, then enterwindow+getfocus,
        so on a get focus we reset the flag. */
     if (evt->in)
-      iupAttribSetStr(ih, "_IUPDROPDOWN_POPUP", NULL);
+      iupAttribSet(ih, "_IUPDROPDOWN_POPUP", NULL);
     return FALSE;
   }
 
@@ -1474,7 +1401,7 @@ static int gtkListMapMethod(Ihandle* ih)
       renderer_img = gtk_cell_renderer_pixbuf_new();
       gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(ih->handle), renderer_img, FALSE);
       gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(ih->handle), renderer_img, "pixbuf", IUPGTK_LIST_IMAGE, NULL);
-      iupAttribSetStr(ih, "_IUPGTK_RENDERER_IMG", (char*)renderer_img);
+      iupAttribSet(ih, "_IUPGTK_RENDERER_IMG", (char*)renderer_img);
     }
 
     if (ih->data->has_editbox)
@@ -1486,7 +1413,7 @@ static int gtkListMapMethod(Ihandle* ih)
       g_list_free(list);
 #endif
       entry = gtk_bin_get_child(GTK_BIN(ih->handle));
-      iupAttribSetStr(ih, "_IUPGTK_ENTRY", (char*)entry);
+      iupAttribSet(ih, "_IUPGTK_ENTRY", (char*)entry);
 
       g_signal_connect(G_OBJECT(entry), "focus-in-event",     G_CALLBACK(iupgtkFocusInOutEvent), ih);
       g_signal_connect(G_OBJECT(entry), "focus-out-event",    G_CALLBACK(iupgtkFocusInOutEvent), ih);
@@ -1518,7 +1445,7 @@ static int gtkListMapMethod(Ihandle* ih)
       {
         GtkWidget *box = gtk_event_box_new();
         gtk_container_add((GtkContainer*)box, ih->handle);
-        iupAttribSetStr(ih, "_IUP_EXTRAPARENT", (char*)box);
+        iupAttribSet(ih, "_IUP_EXTRAPARENT", (char*)box);
       }
 
       /* use the internal toggle for keyboard, focus and enter/leave */
@@ -1558,7 +1485,7 @@ static int gtkListMapMethod(Ihandle* ih)
       renderer->xpad = 0;
       renderer->ypad = 0;
 #endif
-      iupAttribSetStr(ih, "_IUPGTK_RENDERER", (char*)renderer);
+      iupAttribSet(ih, "_IUPGTK_RENDERER", (char*)renderer);
     }
   }
   else
@@ -1586,12 +1513,12 @@ static int gtkListMapMethod(Ihandle* ih)
       GtkWidget *entry = gtk_entry_new();
       gtk_widget_show(entry);
       gtk_box_pack_start(vbox, entry, FALSE, FALSE, 0);
-      iupAttribSetStr(ih, "_IUPGTK_ENTRY", (char*)entry);
+      iupAttribSet(ih, "_IUPGTK_ENTRY", (char*)entry);
 
       gtk_widget_show((GtkWidget*)vbox);
       gtk_box_pack_end(vbox, (GtkWidget*)scrolled_window, TRUE, TRUE, 0);
-      iupAttribSetStr(ih, "_IUP_EXTRAPARENT", (char*)vbox);
-      iupAttribSetStr(ih, "_IUPGTK_SCROLLED_WINDOW", (char*)scrolled_window);
+      iupAttribSet(ih, "_IUP_EXTRAPARENT", (char*)vbox);
+      iupAttribSet(ih, "_IUPGTK_SCROLLED_WINDOW", (char*)scrolled_window);
 
       iupgtkSetCanFocus(ih->handle, 0);  /* focus goes only to the edit box */
       if (!iupAttribGetBoolean(ih, "CANFOCUS"))
@@ -1614,7 +1541,7 @@ static int gtkListMapMethod(Ihandle* ih)
     }
     else
     {
-      iupAttribSetStr(ih, "_IUP_EXTRAPARENT", (char*)scrolled_window);
+      iupAttribSet(ih, "_IUP_EXTRAPARENT", (char*)scrolled_window);
 
       if (!iupAttribGetBoolean(ih, "CANFOCUS"))
         iupgtkSetCanFocus(ih->handle, 0);
@@ -1634,13 +1561,13 @@ static int gtkListMapMethod(Ihandle* ih)
       renderer_img = gtk_cell_renderer_pixbuf_new();
       gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(column), renderer_img, FALSE);
       gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(column), renderer_img, "pixbuf", IUPGTK_LIST_IMAGE, NULL);
-      iupAttribSetStr(ih, "_IUPGTK_RENDERER_IMG", (char*)renderer_img);
+      iupAttribSet(ih, "_IUPGTK_RENDERER_IMG", (char*)renderer_img);
     }
 
     renderer = gtk_cell_renderer_text_new();
     gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(column), renderer, TRUE);
     gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(column), renderer, "text", IUPGTK_LIST_TEXT, NULL);
-    iupAttribSetStr(ih, "_IUPGTK_RENDERER", (char*)renderer);
+    iupAttribSet(ih, "_IUPGTK_RENDERER", (char*)renderer);
     g_object_set(G_OBJECT(renderer), "xpad", 0, NULL);
     g_object_set(G_OBJECT(renderer), "ypad", 0, NULL);
 
@@ -1698,7 +1625,7 @@ static int gtkListMapMethod(Ihandle* ih)
 
   /* configure for DRAG&DROP */
   if (IupGetCallback(ih, "DROPFILES_CB"))
-    iupAttribSetStr(ih, "DROPFILESTARGET", "YES");
+    iupAttribSet(ih, "DROPFILESTARGET", "YES");
 
   IupSetCallback(ih, "_IUP_XY2POS_CB", (Icallback)gtkListConvertXYToPos);
 

@@ -9,6 +9,7 @@
 #include <im_counter.h>
 #include <im_util.h>
 #include <im_image.h>
+#include <im_raw.h>
 
 #include "iup.h"
 #include "iupim.h"
@@ -34,25 +35,25 @@ static void iSaveErrorMsg(int error)
     case IM_ERR_NONE:
       msg = NULL;
     case IM_ERR_OPEN:
-      msg = "Error Opening Image File.\n";
+      msg = "Error Opening Image File.";
       break;
     case IM_ERR_MEM:
-      msg = "Insuficient memory.\n";
+      msg = "Insuficient memory.";
       break;
     case IM_ERR_ACCESS:
-      msg = "Error Accessing Image File.\n";
+      msg = "Error Accessing Image File.";
       break;
     case IM_ERR_DATA:
-      msg = "Image type not Suported.\n";
+      msg = "Image type not Suported.";
       break;
     case IM_ERR_FORMAT:
-      msg = "Invalid Image File Format.\n";
+      msg = "Invalid Image File Format.";
       break;
     case IM_ERR_COMPRESS:
-      msg = "Invalid or unsupported compression.\n";
+      msg = "Invalid or unsupported compression.";
       break;
     default:
-      msg = "Unknown Error.\n";
+      msg = "Unknown Error.";
     }
   }
   else
@@ -62,25 +63,25 @@ static void iSaveErrorMsg(int error)
     case IM_ERR_NONE:
       msg = NULL;
     case IM_ERR_OPEN:
-      msg = "Erro Abrindo Arquivo de Imagem.\n";
+      msg = "Erro Abrindo Arquivo de Imagem.";
       break;
     case IM_ERR_MEM:
-      msg = "Memória Insuficiente.\n";
+      msg = "Memória Insuficiente.";
       break;
     case IM_ERR_ACCESS:
-      msg = "Erro Acessando Arquivo de Imagem.\n";
+      msg = "Erro Acessando Arquivo de Imagem.";
       break;
     case IM_ERR_DATA:
-      msg = "Tipo de Imagem não Suportado.\n";
+      msg = "Tipo de Imagem não Suportado.";
       break;
     case IM_ERR_FORMAT:
-      msg = "Formato de Arquivo de Imagem Inválido.\n";
+      msg = "Formato de Arquivo de Imagem Inválido.";
       break;
     case IM_ERR_COMPRESS:
-      msg = "Compressão Inválida ou não Suportada.\n";
+      msg = "Compressão Inválida ou não Suportada.";
       break;
     default:
-      msg = "Erro Desconhecido.\n";
+      msg = "Erro Desconhecido.";
     }
   }
 
@@ -89,9 +90,8 @@ static void iSaveErrorMsg(int error)
 
 Ihandle* IupLoadImage(const char* file_name)
 {
-  long palette[256];
   int i, error, width, height, color_mode, flags,
-      data_type, palette_count, has_alpha = 0;
+      data_type, has_alpha = 0;
   Ihandle* iup_image = NULL;
   const unsigned char* transp_index;
   void* image_data = NULL;
@@ -137,35 +137,113 @@ Ihandle* IupLoadImage(const char* file_name)
       iup_image = IupImageRGBA(width, height, (unsigned char*)image_data);
     else
       iup_image = IupImageRGB(width, height, (unsigned char*)image_data);
-    palette_count = 0;
   }
   else
   {
+    int palette_count;
+    long palette[256];
+
     imFileGetPalette(ifile, palette, &palette_count);
     iup_image = IupImage(width, height, (unsigned char*)image_data);
-  }
 
-  for (i = 0; i < palette_count; i++)
-  {
-    char attr[6], color[30];
-    unsigned char r, g, b;
-
-    sprintf(attr, "%d", i);
-    imColorDecode(&r, &g, &b, palette[i]);
-    sprintf(color, "%d %d %d", (int)r, (int)g, (int)b);
-
-    IupStoreAttribute(iup_image, attr, color); 
+    for (i = 0; i < palette_count; i++)
+    {
+      unsigned char r, g, b;
+      imColorDecode(&r, &g, &b, palette[i]);
+      IupSetRGBId(iup_image, "", i, r, g, b); 
+    }
   }
 
   transp_index = imFileGetAttribute(ifile, "TransparencyIndex", NULL, NULL);
   if (transp_index)
-  {
-    char attr[6];
-    sprintf(attr, "%d", (int)(*transp_index));
-    IupSetAttribute(iup_image, attr, "BGCOLOR"); 
-  }
+    IupSetAttributeId(iup_image, "", (int)(*transp_index), "BGCOLOR"); 
 
 load_finish:
+  imCounterSetCallback(NULL, old_callback);
+  if (ifile) imFileClose(ifile);
+  if (image_data) free(image_data);
+  iSaveErrorMsg(error);
+  return iup_image;
+}
+
+/* Study. Not public yet */
+Ihandle* IupLoadImageRaw(const char* file_name, 
+                         int width, int height, int data_type, int color_mode,
+                         int switch_type, int byte_order, int padding, int start_offset, int ascii)
+{
+  int error, has_alpha = 0, i, flags, color_space;
+  Ihandle* iup_image = NULL;
+  void* image_data = NULL;
+  imCounterCallback old_callback;
+  imFile* ifile;
+
+  old_callback = imCounterSetCallback(NULL, NULL);
+
+  ifile = imFileOpenRaw(file_name, &error);
+  if (error)
+    goto load_raw_finish;
+
+  /* the bitmap data configuration */
+  flags = IM_TOPDOWN;
+  flags |= IM_PACKED;
+  if (imColorModeHasAlpha(color_mode))
+  {
+    has_alpha = 1;
+    flags |= IM_ALPHA;
+  }
+
+  color_space = imColorModeToBitmap(color_mode);
+
+  image_data = malloc(imImageDataSize(width, height, flags|color_space, IM_BYTE));
+  if (!image_data)
+    goto load_raw_finish;
+
+  /* the original data configuration */
+  imFileSetAttribute(ifile, "Width", IM_INT, 1, &width);
+  imFileSetAttribute(ifile, "Height", IM_INT, 1, &height);
+  imFileSetAttribute(ifile, "ColorMode", IM_INT, 1, &color_mode);
+  imFileSetAttribute(ifile, "DataType", IM_INT, 1, &data_type);
+
+  imFileSetAttribute(ifile, "SwitchType", IM_INT, 1, &switch_type);
+  imFileSetAttribute(ifile, "ByteOrder", IM_INT, 1, &byte_order);
+  imFileSetAttribute(ifile, "Padding", IM_INT, 1, &padding);
+  imFileSetAttribute(ifile, "StartOffset", IM_INT, 1, &start_offset);
+
+  if (ascii)
+    imFileSetInfo(ifile, "ASCII");
+
+  error = imFileReadImageInfo(ifile, 0, NULL, NULL, NULL, NULL);
+  if (error)
+    goto load_raw_finish;
+  
+  error = imFileReadImageData(ifile, image_data, 1, flags);
+  if (error)
+    goto load_raw_finish;
+
+  if (color_mode == IM_RGB)
+  {
+    if (has_alpha)
+      iup_image = IupImageRGBA(width, height, (unsigned char*)image_data);
+    else
+      iup_image = IupImageRGB(width, height, (unsigned char*)image_data);
+  }
+  else
+  {
+    int palette_count;
+    long palette[256];
+
+    imFileGetPalette(ifile, palette, &palette_count);
+    iup_image = IupImage(width, height, (unsigned char*)image_data);
+
+    for (i = 0; i < palette_count; i++)
+    {
+      unsigned char r, g, b;
+      imColorDecode(&r, &g, &b, palette[i]);
+      IupSetRGBId(iup_image, "", i, r, g, b); 
+    }
+  }
+
+load_raw_finish:
   imCounterSetCallback(NULL, old_callback);
   if (ifile) imFileClose(ifile);
   if (image_data) free(image_data);
@@ -197,6 +275,11 @@ int IupSaveImage(Ihandle* ih, const char* file_name, const char* format)
   }
 
   data = (unsigned char*)IupGetAttribute(ih, "WID");
+  if (!data)
+  {
+    iSaveErrorMsg(IM_ERR_DATA);
+    return 0;
+  }
 
   width = IupGetInt(ih, "WIDTH");
   height = IupGetInt(ih, "HEIGHT");
@@ -210,16 +293,11 @@ int IupSaveImage(Ihandle* ih, const char* file_name, const char* format)
   {
     for(i = 0; i < 256; i++)
     {
-      unsigned int r, g, b;
-      char str[20];
-      char* color;
-
-      sprintf(str, "%d", i);
-      color = IupGetAttribute(ih, str);
+      char* color = IupGetAttributeId(ih, "", i);
       if (!color)
         break;
 
-      if (strcmp(color, "BGCOLOR") == 0)
+      if (iupStrEqualNoCase(color, "BGCOLOR"))
       {
         unsigned char transp_index = (unsigned char)i;
         imFileSetAttribute(ifile, "TransparencyIndex", IM_BYTE, 1, &transp_index);
@@ -227,8 +305,9 @@ int IupSaveImage(Ihandle* ih, const char* file_name, const char* format)
       }
       else
       {
-        sscanf(color, "%d %d %d", &r, &g, &b);
-        palette[i] = imColorEncode((unsigned char)r, (unsigned char)g, (unsigned char)b);
+        unsigned char r, g, b;
+        iupStrToRGB(color, &r, &g, &b);
+        palette[i] = imColorEncode(r, g, b);
       }
     }
 

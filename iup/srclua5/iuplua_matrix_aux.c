@@ -87,12 +87,12 @@ static int MatGetAttribute(lua_State *L)
   const char *name = luaL_checkstring(L,2);
   int lin = luaL_checkint(L,3);
   int col = luaL_checkint(L,4);
-  const char *value = IupMatGetAttribute(ih, name, lin, col);
+  const char *value = IupGetAttributeId2(ih, name, lin, col);
   if (!value || iupATTRIB_ISINTERNAL(name))
     lua_pushnil(L);
   else
   {
-    if (iupAttribIsPointer(ih, name))
+    if (iupAttribIsNotString(ih, name))
     {
       if (iupObjectCheck((Ihandle*)value))
         iuplua_pushihandle(L, (Ihandle*)value);
@@ -113,19 +113,19 @@ static int MatStoreAttribute(lua_State *L)
   int col = luaL_checkint(L,4);
 
   if (lua_isnil(L,5)) 
-    IupMatSetAttribute(ih,a,lin, col,NULL);
+    IupSetAttributeId2(ih,a,lin, col,NULL);
   else 
   {
     const char *v;
     if(lua_isuserdata(L,5)) 
     {
       v = lua_touserdata(L,5);
-      IupMatSetAttribute(ih,a,lin, col,v);
+      IupSetAttributeId2(ih,a,lin, col,v);
     }
     else 
     {
       v = luaL_checkstring(L,5);
-      IupMatStoreAttribute(ih,a,lin, col,v);
+      IupStoreAttributeId2(ih,a,lin, col,v);
     }
   }
   return 0;
@@ -133,6 +133,7 @@ static int MatStoreAttribute(lua_State *L)
 
 void iuplua_matrixfuncs_open (lua_State *L)
 {
+  /* DEPRECATED backward compatibility */
   iuplua_register(L, MatGetAttribute, "MatGetAttribute");
   iuplua_register(L, MatStoreAttribute, "MatStoreAttribute");
   iuplua_register(L, MatStoreAttribute, "MatSetAttribute");
@@ -140,4 +141,5 @@ void iuplua_matrixfuncs_open (lua_State *L)
   iuplua_register_cb(L, "BGCOLOR_CB", (lua_CFunction)matrix_bgcolor_cb, NULL);
   iuplua_register_cb(L, "FGCOLOR_CB", (lua_CFunction)matrix_fgcolor_cb, NULL);
   iuplua_register_cb(L, "DRAW_CB", (lua_CFunction)matrix_draw_cb, NULL);
+  iuplua_register_cb(L, "LISTDRAW_CB", (lua_CFunction)matrix_draw_cb, NULL);
 }

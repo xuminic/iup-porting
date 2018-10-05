@@ -25,6 +25,7 @@
 #include "iup_controls.h"
 #include "iup_cdutil.h"
 #include "iup_register.h"
+#include "iup_image.h"
 
 
 #define IGAUGE_DEFAULTCOLOR "64 96 192"
@@ -67,19 +68,19 @@ static void iGaugeDrawText(Ihandle* ih, int xmid)
 {
   int x, y, xmin, xmax, ymin, ymax;
   char* text = ih->data->text;
+  char buffer[30];
 
-  cdIupSetFont(ih, ih->data->cddbuffer, IupGetAttribute(ih, "FONT"));
+  IupCdSetFont(ih, ih->data->cddbuffer, IupGetAttribute(ih, "FONT"));
   cdCanvasTextAlignment(ih->data->cddbuffer, CD_CENTER);
   cdCanvasBackOpacity(ih->data->cddbuffer, CD_TRANSPARENT);
 
   x = (int)(0.5 * ih->data->w);
   y = (int)(0.5 * ih->data->h);
 
-  if(text == NULL)
+  if (text == NULL)
   {
-    char* m = iupStrGetMemory(30);
-    sprintf(m, "%.1f%%", 100 * (ih->data->value - ih->data->vmin) / (ih->data->vmax - ih->data->vmin));
-    text = m;
+    sprintf(buffer, "%.1f%%", 100 * (ih->data->value - ih->data->vmin) / (ih->data->vmax - ih->data->vmin));
+    text = buffer;
   }
 
   cdCanvasGetTextBox(ih->data->cddbuffer, x, y, text, &xmin, &xmax, &ymin, &ymax);
@@ -241,9 +242,7 @@ static int iGaugeSetValueAttrib(Ihandle* ih, const char* value)
 
 static char* iGaugeGetValueAttrib(Ihandle* ih)
 {
-  char* value = iupStrGetMemory(30);
-  sprintf(value, "%g", ih->data->value);
-  return value;
+  return iupStrReturnFloat((float)ih->data->value);
 }
 
 static int iGaugeSetMinAttrib(Ihandle* ih, const char* value)
@@ -257,9 +256,7 @@ static int iGaugeSetMinAttrib(Ihandle* ih, const char* value)
 
 static char* iGaugeGetMinAttrib(Ihandle* ih)
 {
-  char* value = iupStrGetMemory(30);
-  sprintf(value, "%g", ih->data->vmin);
-  return value;
+  return iupStrReturnFloat((float)ih->data->vmin);
 }
 
 static int iGaugeSetMaxAttrib(Ihandle* ih, const char* value)
@@ -272,16 +269,14 @@ static int iGaugeSetMaxAttrib(Ihandle* ih, const char* value)
 
 static char* iGaugeGetMaxAttrib(Ihandle* ih)
 {
-  char* value = iupStrGetMemory(30);
-  sprintf(value, "%g", ih->data->vmax);
-  return value;
+  return iupStrReturnFloat((float)ih->data->vmax);
 }
 
 static int iGaugeSetShowTextAttrib(Ihandle* ih, const char* value)
 {
-  if(iupStrEqualNoCase(value, "YES"))
+  if (iupStrBoolean(value))
     ih->data->show_text = 1;
-  else if(iupStrEqualNoCase(value, "NO"))
+  else 
     ih->data->show_text = 0;
 
   iGaugeRepaint(ih);
@@ -290,10 +285,7 @@ static int iGaugeSetShowTextAttrib(Ihandle* ih, const char* value)
 
 static char* iGaugeGetShowTextAttrib(Ihandle* ih)
 {
-  if(ih->data->show_text)
-    return "YES";
-  else 
-    return "NO";
+  return iupStrReturnBoolean(ih->data->show_text);
 }
 
 static int iGaugeSetPaddingAttrib(Ihandle* ih, const char* value)
@@ -305,16 +297,14 @@ static int iGaugeSetPaddingAttrib(Ihandle* ih, const char* value)
 
 static char* iGaugeGetPaddingAttrib(Ihandle* ih)
 {
-  char *str = iupStrGetMemory(50);
-  sprintf(str, "%dx%d", ih->data->horiz_padding, ih->data->vert_padding);
-  return str;
+  return iupStrReturnIntInt(ih->data->horiz_padding, ih->data->vert_padding, 'x');
 }
 
 static int iGaugeSetDashedAttrib(Ihandle* ih, const char* value)
 {
-  if(iupStrEqualNoCase(value, "YES"))
+  if (iupStrBoolean(value))
     ih->data->dashed = 1;
-  else if(iupStrEqualNoCase(value, "NO"))
+  else 
     ih->data->dashed = 0;
 
   iGaugeRepaint(ih);
@@ -323,10 +313,7 @@ static int iGaugeSetDashedAttrib(Ihandle* ih, const char* value)
 
 static char* iGaugeGetDashedAttrib(Ihandle* ih)
 {
-  if(ih->data->dashed)
-    return "YES";
-  else 
-    return "NO";
+  return iupStrReturnBoolean(ih->data->dashed);
 }
 
 static int iGaugeSetTextAttrib(Ihandle* ih, const char* value)
@@ -381,12 +368,12 @@ static int iGaugeCreateMethod(Ihandle* ih, void **params)
   ih->data = iupALLOCCTRLDATA();
 
   /* change the IupCanvas default values */
-  iupAttribSetStr(ih, "BORDER", "NO");
+  iupAttribSet(ih, "BORDER", "NO");
   IupSetAttribute(ih, "SIZE", IGAUGE_DEFAULTSIZE);
   ih->expand = IUP_EXPAND_NONE;
 
   /* default values */
-  iupAttribSetStr(ih, "FGCOLOR", IGAUGE_DEFAULTCOLOR);
+  iupAttribSet(ih, "FGCOLOR", IGAUGE_DEFAULTCOLOR);
   ih->data->fgcolor = cdIupConvertColor(IGAUGE_DEFAULTCOLOR);
   ih->data->vmax         = 1;
   ih->data->bgcolor      = CD_GRAY;

@@ -30,9 +30,7 @@
 
 #define IUP_MAC_ERROR -1
 
-/******************************************
- **  These are NOT working as expected. So we kept the posix versions. ***
-
+#if 0
 static void iupMacStrToUniChar(const char* buffer, UniChar* outBuf, long length, long* outLen)
 {
   CFStringRef stringRef = CFStringCreateWithCString(NULL, buffer, kCFStringEncodingUTF8);
@@ -42,90 +40,7 @@ static void iupMacStrToUniChar(const char* buffer, UniChar* outBuf, long length,
     
   CFRelease(stringRef);
 }
-
-int iupdrvMakeDirectory(const char* name) 
-{
-  FSRef refParent, refNew;
-  UniChar nameDir;
-  long lenDir;
-
-  if(FSFindFolder(kUserDomain, kCurrentUserFolderType, kDontCreateFolder, &refParent) != noErr)
-    return 0;
-                    
-  iupMacStrToUniChar(name, &nameDir, strlen(name), &lenDir);
-  
-  if(FSMakeFSRefUnicode(&refParent, lenDir, &nameDir, kTextEncodingUnknown, &refNew) != fnfErr)  /* fnfErr => Directory does not exists */
-    return 0;
-    
-  if(FSCreateDirectoryUnicode(&refParent, lenDir, &nameDir, kFSCatInfoNone, NULL, &refNew, NULL, NULL) != noErr)
-    return 0;
-      
-  return 1;
-}
-
-char* iupdrvGetCurrentDirectory(void)
-{
-  FSRef refDir;
-  FSVolumeRefNum vRefNum;
-  long dirID;
-  size_t size = 256;
-  char *buffer = (char *)malloc(size);
-
-  if(HGetVol(NULL, &vRefNum, &dirID) != noErr)  /* Deprecated in Mac OS X v10.4 */
-    return 0;
-
-  if(FSMakeFSRef(vRefNum, dirID, NULL, &refDir) != noErr)  /* Deprecated in Mac OS X v10.5 */
-    return 0;
-
-  FSRefMakePath (&refDir, (UInt8*)buffer, size);
-
-  return buffer;
-}
-
-int iupdrvSetCurrentDirectory(const char* dir)
-{
-  FSRef refDir;
-  FSCatalogInfo    catalogInfo;
-  int isDirectory;
-
-  if(FSPathMakeRef((const UInt8*)dir, &refDir, &isDirectory) != noErr)
-    return 0;
-
-  if (!isDirectory)
-    return 0;
-
-  if(FSGetCatalogInfo(refDir, kFSCatInfoVolume + kFSCatInfoNodeID, &catalogInfo, NULL, NULL, NULL) != noErr)
-    return 0;
-
-  if(HSetVol(NULL, catalogInfo.volume, catalogInfo.nodeID) != noErr)  /* Deprecated in Mac OS X v10.4 */
-    return 0;
-
-  return 1;
-}
-
-char* iupdrvGetCurrentDirectory(void)
-{
-  char* path = iupStrGetMemory(256);
-  CFBundleRef mainBundle = CFBundleGetMainBundle();
-  CFURLRef curDir = CFBundleCopyBundleURL(mainBundle);
-  CFStringRef cfStringRef = CFURLCopyFileSystemPath(curDir, kCFURLPOSIXPathStyle);
-  
-  CFStringGetCString(cfStringRef, path, 256, kCFStringEncodingUTF8);
-  
-  return path;
-}
-*********************************************/
-
-int iupdrvMakeDirectory(const char* name) 
-{
-  mode_t oldmask = umask((mode_t)0);
-  int fail =  mkdir(name, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP |
-                          S_IWGRP | S_IXGRP | S_IROTH | S_IXOTH);
-  umask (oldmask);
-  if (fail)
-    return 0;
-  return 1;
-}
+#endif
 
 static int iMacIsFolder(const char* name)
 {
@@ -136,54 +51,6 @@ static int iMacIsFolder(const char* name)
     return IUP_MAC_ERROR;
     
   return isFolder;
-}
-
-int iupdrvIsFile(const char* name)
-{
-  int isDir = iMacIsFolder(name);
-  
-  if((isDir != IUP_MAC_ERROR) && !isDir)
-    return 1;
-      
-  return 0;
-}
-
-int iupdrvIsDirectory(const char* name)
-{
-  int isDir = iMacIsFolder(name);
-  
-  if((isDir != IUP_MAC_ERROR) && isDir)
-    return 1;
-      
-  return 0;
-}            
-
-char* iupdrvGetCurrentDirectory(void)
-{
-  size_t size = 256;
-  char *buffer = (char *)malloc(size);
-
-  for (;;)
-  {
-    if (getcwd(buffer, size) != NULL)
-      return buffer;
-
-    if (errno != ERANGE)
-    {
-      free(buffer);
-      return NULL;
-    }
-
-    size += size;
-    buffer = (char *)realloc(buffer, size);
-  }
-
-  return NULL;
-}
-
-int iupdrvSetCurrentDirectory(const char* dir)
-{
-  return chdir(dir) == 0? 1: 0;
 }
 
 int iupdrvGetWindowDecor(void* wnd, int *border, int *caption)
@@ -218,6 +85,11 @@ int iupdrvGetWindowDecor(void* wnd, int *border, int *caption)
   *caption = 0;
 
   return 0;
+}
+
+void iupdrvAddScreenOffset(int *x, int *y, int add)
+{
+  /* ?????? */
 }
 
 void iupdrvGetScreenSize(int *width, int *height)
@@ -273,22 +145,19 @@ void iupdrvGetKeyState(char* key)
     key[0] = 'S';
   else
     key[0] = ' ';
-
   if (GetCurrentEventKeyModifiers() & controlKey)
     key[1] = 'C';
   else
     key[1] = ' ';
-
   if (GetCurrentEventKeyModifiers() & optionKey)
     key[2] = 'A';
   else
     key[2] = ' ';
-
   if (GetCurrentEventKeyModifiers() & cmdKey)
     key[3] = 'Y';
   else
     key[3] = ' ';
-
+  
   key[4] = 0;
 }
 
@@ -319,14 +188,11 @@ char *iupdrvGetSystemName(void)
 
 char *iupdrvGetSystemVersion(void)
 {
-  char* str = iupStrGetMemory(70);
+  char* str = iupStrGetMemory(100);
   SInt32 systemVersion, versionMajor, versionMinor, versionBugFix, systemArchitecture;
 
   if (Gestalt(gestaltSystemVersion, &systemVersion) != noErr)
-  {
-    printf("Unable to obtain system version\n");
     return NULL;
-  }
 
   if (systemVersion < 0x1040)
   {
@@ -343,14 +209,14 @@ char *iupdrvGetSystemVersion(void)
     sprintf(str, "%ld.%ld.%ld", (long)versionMajor, (long)versionMinor, (long)versionBugFix);
   }
 
-  if(Gestalt(gestaltSysArchitecture, &systemArchitecture) == noErr)
+  if (Gestalt(gestaltSysArchitecture, &systemArchitecture) == noErr)
   {
     if (systemArchitecture == gestalt68k)
-      sprintf(str, "%s %s", str, "(Motorola 68k)");
+      strcat(str, " (Motorola 68k)");
     else if (systemArchitecture == gestaltPowerPC)
-      sprintf(str, "%s %s", str, "(Power PC)");
+      strcat(str, " (Power PC)");
     else /* gestaltIntel */
-      sprintf(str, "%s %s", str, "(Intel)");  
+      strcat(str, " (Intel)");  
   }
 
   return str;
@@ -374,5 +240,5 @@ char *iupdrvGetUserName(void)
 
 char* iupdrvLocaleInfo(void)
 {
-  return iupStrGetMemoryCopy(nl_langinfo(CODESET));
+  return iupStrReturnStr(nl_langinfo(CODESET));
 }

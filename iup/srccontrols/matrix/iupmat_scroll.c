@@ -80,7 +80,7 @@ static int iMatrixScrollGetNextNonEmpty(Ihandle* ih, int m, int index)
   else
     p = &(ih->data->columns);
 
-  while(index < p->num && p->sizes[index] == 0)
+  while(index < p->num && p->dt[index].size == 0)
     index++;
 
   if (index > p->num-1)
@@ -103,7 +103,7 @@ static int iMatrixScrollGetPrevNonEmpty(Ihandle* ih, int m, int index)
   else
     p = &(ih->data->columns);
 
-  while(index > 0 && p->sizes[index] == 0)
+  while(index > 0 && p->dt[index].size == 0)
     index--;
 
   if (index < p->num_noscroll)
@@ -170,7 +170,7 @@ void iupMatrixScrollMove(iupMatrixScrollMoveFunc func, Ihandle* ih, int mode, fl
   int old_lines_first_offset = ih->data->lines.first_offset;
   int old_columns_first_offset = ih->data->columns.first_offset;
 
-  iupMatrixEditForceHidden(ih);
+  iupMatrixEditHide(ih);
 
   func(ih, mode, pos, m);
 
@@ -462,7 +462,7 @@ void iupMatrixScrollPosFunc(Ihandle* ih, int mode, float pos, int m)
     return;
   }
 
-  scroll_pos = (int)(pos * p->total_size + 0.5);
+  scroll_pos = (int)(pos * p->total_visible_size + 0.5);  /* round */
 
   /* position first and first_offset, according to scroll pos */
   iupMatrixAuxAdjustFirstFromScrollPos(p, scroll_pos);

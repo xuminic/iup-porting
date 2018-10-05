@@ -141,7 +141,7 @@ struct Iclass_
   void (*ChildAdded)(Ihandle* ih, Ihandle* child);
 
   /** Notifies the element that a child was removed using IupDetach. \n
-   * Called only from IupDetach or IupReparent. The child is not mapped, but the parent can be mapped.
+   * Called only from IupDetach or IupReparent. The child is already detached, but mapped state was not changed.
    */
   void (*ChildRemoved)(Ihandle* ih, Ihandle* child);
 
@@ -335,18 +335,20 @@ void iupClassRegisterReplaceAttribFlags(Iclass* ic, const char* name, int _flags
 
 
 /** Register the parameters of a callback. \n
- * format follows the format specification of the class creation parameters format, 
- * but it adds the "double" option and remove array options.
+ * Format follows the \ref iupcbs.h header definitions. \n
+ * Notice that these definitions are similiar to the class registration
+ * but have several differences and conflicts, for backward compatibility reasons. \n
  * It can have none, one or more of the following. \n
- * - "b" = (unsigned char) - byte
+ * - "c" = (unsigned char) - byte
  * - "i" = (int) - integer
+ * - "I" = (int*) - array of integer
  * - "f" = (float) - real
  * - "d" = (double) - real
  * - "s" = (char*) - string 
- * - "v" = (void*) - generic pointer 
- * - "h" = (Ihandle*) - element handle
- * The default return value for all callbacks is "i" (int). 
- * But the return value can be specified using one of the above parameters, 
+ * - "C" = (void*) - generic pointer 
+ * - "n" = (Ihandle*) - element handle
+ * The default return value for all callbacks is "i" (int), 
+ * but a different return value can be specified using one of the above parameters, 
  * after all parameters using "=" to separate it from them.
  * \ingroup iclass */
 void iupClassRegisterCallback(Iclass* ic, const char* name, const char* format);
@@ -447,12 +449,10 @@ char* iupClassObjectGetAttributeId(Ihandle* ih, const char* name, int id);
 int   iupClassObjectSetAttributeId2(Ihandle* ih, const char* name, int id1, int id2, const char* value);
 char* iupClassObjectGetAttributeId2(Ihandle* ih, const char* name, int id1, int id2);
 
-#define IUP_INVALID_ID -10
-
 /* Used only in iupAttribGetStr */
 void  iupClassObjectGetAttributeInfo(Ihandle* ih, const char* name, char* *def_value, int *inherit);
 
-/* Used only in iupAttribIsPointer */
+/* Used only in iupAttribIsNotString */
 int   iupClassObjectAttribIsNotString(Ihandle* ih, const char* name);
 
 /* Used only in iupAttribUpdateFromParent */

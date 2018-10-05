@@ -58,10 +58,8 @@ char* iupMenuGetChildIdStr(Ihandle* ih)
     return iupDialogGetChildIdStr(ih);
   else
   {
-    char *str = iupStrGetMemory(50);
     Ihandle* dialog = iMenuGetTopMenu(ih);
-    sprintf(str, "iup-%s-%d", ih->iclass->name, dialog->data->child_id);
-    return str;
+    return iupStrReturnStrf("iup-%s-%d", ih->iclass->name, dialog->data->child_id);
   }
 }
 
@@ -117,20 +115,18 @@ static void iMenuAdjustPos(int *x, int *y)
     *y = cursor_y;
     break;
   }
+
+  iupdrvAddScreenOffset(x, y, 1);
 }
 
 char* iupMenuProcessTitle(Ihandle* ih, const char* title)
 {
-  int keychar;
   char* str;
 
-  char* key = iupAttribGet(ih, "KEY");
+  char* key = iupAttribGet(ih, "KEY");  /* NOT the same definition as the global KEY attribute */
   if (!key) return (char*)title;
 
-  keychar = iupKeyNameToCode(key);
-  if (!keychar) return (char*)title;
-
-  str = strchr(title, keychar);
+  str = strchr(title, (int)key);
   if (str)
   {
     int len = strlen(title);
@@ -159,8 +155,8 @@ static int iItemCreateMethod(Ihandle* ih, void** params)
 {
   if (params)
   {
-    if (params[0]) iupAttribStoreStr(ih, "TITLE", (char*)(params[0]));
-    if (params[1]) iupAttribStoreStr(ih, "ACTION", (char*)(params[1]));
+    if (params[0]) iupAttribSetStr(ih, "TITLE", (char*)(params[0]));
+    if (params[1]) iupAttribSetStr(ih, "ACTION", (char*)(params[1]));
   }
   return IUP_NOERROR;
 }
@@ -169,7 +165,7 @@ static int iSubmenuCreateMethod(Ihandle* ih, void** params)
 {
   if (params)
   {
-    if (params[0]) iupAttribStoreStr(ih, "TITLE", (char*)(params[0]));
+    if (params[0]) iupAttribSetStr(ih, "TITLE", (char*)(params[0]));
     if (params[1]) 
     {
       Ihandle* child = (Ihandle*)(params[1]);

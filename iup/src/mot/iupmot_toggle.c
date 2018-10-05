@@ -241,7 +241,7 @@ static int motToggleSetValueAttrib(Ihandle* ih, const char* value)
     {
       if (iupObjectCheck(last_tg) && last_tg != ih)
         XtVaSetValues(last_tg->handle, XmNset, XmUNSET, NULL);
-      iupAttribSetStr(radio, "_IUPMOT_LASTTOGGLE", (char*)ih);
+      iupAttribSet(radio, "_IUPMOT_LASTTOGGLE", (char*)ih);
     }
 
     if (last_tg != ih && oldcheck != check)
@@ -268,14 +268,12 @@ static int motToggleSetValueAttrib(Ihandle* ih, const char* value)
 
 static char* motToggleGetValueAttrib(Ihandle* ih)
 {
-  unsigned char check = 0;
-  XtVaGetValues (ih->handle, XmNset, &check, NULL);
-  if (check == XmINDETERMINATE)
-    return "NOTDEF";
-  else if (check == XmSET)
-    return "ON";
-  else
-    return "OFF";
+  int check;
+  unsigned char set = 0;
+  XtVaGetValues (ih->handle, XmNset, &set, NULL);
+  check = set;
+  if (check == XmINDETERMINATE) check = -1;
+  return iupStrReturnChecked(check);
 }
 
 static int motToggleSetPaddingAttrib(Ihandle* ih, const char* value)
@@ -295,11 +293,9 @@ static char* motToggleGetSelectColorAttrib(Ihandle* ih)
 {
   unsigned char r, g, b;
   Pixel color;
-  char* str = iupStrGetMemory(20);
   XtVaGetValues(ih->handle, XmNselectColor, &color, NULL); 
   iupmotColorGetRGB(color, &r, &g, &b);
-  sprintf(str, "%d %d %d", (int)r, (int)g, (int)b);
-  return str;
+  return iupStrReturnStrf("%d %d %d", (int)r, (int)g, (int)b);
 }
 
 static int motToggleSetSelectColorAttrib(Ihandle* ih, const char *value)
@@ -339,7 +335,7 @@ static void motToggleValueChangedCallback(Widget w, Ihandle* ih, XmToggleButtonC
         if (iupObjectCheck(ih))
           iupBaseCallValueChangedCb(last_tg);
       }
-      iupAttribSetStr(radio, "_IUPMOT_LASTTOGGLE", (char*)ih);
+      iupAttribSet(radio, "_IUPMOT_LASTTOGGLE", (char*)ih);
 
       if (last_tg != ih)
       {
@@ -447,7 +443,7 @@ static int motToggleMapMethod(Ihandle* ih)
     if (!iupAttribGet(radio, "_IUPMOT_LASTTOGGLE"))
     {
       /* this is the first toggle in the radio, and the last toggle with VALUE=ON */
-      iupAttribSetStr(ih, "VALUE","ON");
+      iupAttribSet(ih, "VALUE","ON");
     }
   }
   else
@@ -522,7 +518,7 @@ static int motToggleMapMethod(Ihandle* ih)
   XtRealizeWidget(ih->handle);
 
   if (ih->data->type == IUP_TOGGLE_TEXT)
-    iupmotSetString(ih->handle, XmNlabelString, "");
+    iupmotSetXmString(ih->handle, XmNlabelString, "");
 
   return IUP_NOERROR;
 }

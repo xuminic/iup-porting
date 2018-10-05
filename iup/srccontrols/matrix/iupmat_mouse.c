@@ -71,7 +71,7 @@ static void iMatrixMouseEdit(Ihandle* ih)
             Edit-KillFocus - weird, must avoid using _IUPMAT_DOUBLECLICK
          Since OpenMotif version 2.2.3 this is not necessary anymore. */
       if (atoi(IupGetGlobal("MOTIFNUMBER")) < 2203) 
-        iupAttribSetStr(ih, "_IUPMAT_DOUBLECLICK", "1");
+        iupAttribSet(ih, "_IUPMAT_DOUBLECLICK", "1");
     }
   }
 
@@ -83,19 +83,31 @@ static void iMatrixMouseEdit(Ihandle* ih)
 static int iMatrixIsDropArea(Ihandle* ih, int lin, int col, int x, int y)
 {
   IFnii dropcheck_cb = (IFnii)IupGetCallback(ih, "DROPCHECK_CB");
-  if (dropcheck_cb && dropcheck_cb(ih, lin, col) == IUP_DEFAULT)
+  if (dropcheck_cb)
   {
-    int x1, y1, x2, y2;
+    int ret = dropcheck_cb(ih, lin, col);
+    if (ret != IUP_IGNORE)
+    {
+      int x1, y1, x2, y2;
 
-    iupMatrixGetVisibleCellDim(ih, lin, col, &x1, &y1, &x2, &y2);
-    x2 += x1;  /* the previous fucntion returns w and h */
-    y2 += y1;
+      iupMatrixGetVisibleCellDim(ih, lin, col, &x1, &y1, &x2, &y2);
+      x2 += x1;  /* the previous function returns w and h */
+      y2 += y1;
 
-    iupMatrixDrawSetDropFeedbackArea(&x1, &y1, &x2, &y2);
+      if (ret == IUP_DEFAULT)
+        iupMatrixDrawSetDropFeedbackArea(&x1, &y1, &x2, &y2);
+      else if (ret == IUP_CONTINUE)
+        iupMatrixDrawSetToggleArea(&x1, &y1, &x2, &y2);
 
-    if (x > x1 && x < x2 &&
-        y > y1 && y < y2)
-      return 1;
+      if (x > x1 && x < x2 &&
+          y > y1 && y < y2)
+      {
+        if (ret == IUP_DEFAULT)
+          return 1;
+        else if (ret == IUP_CONTINUE)
+          return -1;
+      }
+    }
   }
   return 0;
 }
@@ -104,7 +116,7 @@ static void iMatrixMouseLeftPress(Ihandle* ih, int lin, int col, int shift, int 
 {
   if (dclick)
   {
-    iupMatrixMarkMouseReset(ih);
+    iupMatrixMarkBlockReset(ih);
 
     if (lin==0 || col==0)
       return;
@@ -128,7 +140,7 @@ static void iMatrixMouseLeftPress(Ihandle* ih, int lin, int col, int shift, int 
   {
     if (shift && ih->data->mark_multiple && ih->data->mark_mode != IMAT_MARK_NO)
     {
-      iupMatrixMarkMouseBlock(ih, lin, col);
+      iupMatrixMarkBlockEnd(ih, lin, col);
     }
     else
     {
@@ -136,6 +148,8 @@ static void iMatrixMouseLeftPress(Ihandle* ih, int lin, int col, int shift, int 
 
       if (lin>0 && col>0)
       {
+        int ret;
+
         if (iupMatrixAuxCallLeaveCellCb(ih) == IUP_IGNORE)
           return;
 
@@ -144,18 +158,27 @@ static void iMatrixMouseLeftPress(Ihandle* ih, int lin, int col, int shift, int 
 
         /* process mark before EnterCell */
         if (ih->data->mark_mode != IMAT_MARK_NO)
-          iupMatrixMarkMouseItem(ih, ctrl, lin, col);
+          iupMatrixMarkBlockBegin(ih, ctrl, lin, col);
 
         iupMatrixAuxCallEnterCellCb(ih);
 
-        if (iMatrixIsDropArea(ih, lin, col, x, y))
+        ret = iMatrixIsDropArea(ih, lin, col, x, y);
+        if (ret==1)
           iMatrixMouseEdit(ih);
+        else if (ret==-1)
+        {
+          IFniii togglevalue_cb = (IFniii)IupGetCallback(ih, "TOGGLEVALUE_CB");
+          int togglevalue = !iupAttribGetIntId2(ih, "TOGGLEVALUE", lin, col);
+          iupAttribSetIntId2(ih, "TOGGLEVALUE", lin, col, togglevalue);
+          iupMatrixDrawCells(ih, lin, col, lin, col);
+          if (togglevalue_cb) togglevalue_cb(ih, lin, col, togglevalue);
+        }
       }
       else
       {
         /* only process marks if at titles */
         if (ih->data->mark_mode != IMAT_MARK_NO)
-          iupMatrixMarkMouseItem(ih, ctrl, lin, col);
+          iupMatrixMarkBlockBegin(ih, ctrl, lin, col);
       }
     }
   }
@@ -166,7 +189,7 @@ int iupMatrixMouseButton_CB(Ihandle* ih, int b, int press, int x, int y, char* r
   int lin=-1, col=-1;
 
   if (!iupMatrixIsValid(ih, 0))
-    return IUP_DEFAULT;
+    return IUP_IGNORE;
 
   /* reset press state */
   ih->data->leftpressed = 0;
@@ -175,13 +198,15 @@ int iupMatrixMouseButton_CB(Ihandle* ih, int b, int press, int x, int y, char* r
   {
     ih->data->dclick = 0;
 
-    /* The edit Focus callback is not called when the user clicks in the parent canvas. 
+    /* Sometimes the edit Focus callback is not called when the user clicks in the parent canvas, 
        so we have to compensate that. */
-    iupMatrixEditForceHidden(ih);
+    iupAttribSet(ih, "EDITIONHIDEFOCUS", "1");
+    iupMatrixEditHide(ih);
+    iupAttribSet(ih, "EDITIONHIDEFOCUS", NULL);
     ih->data->has_focus = 1;
   }
 
-  iupMatrixGetCellFromOffset(ih, x, y, &lin, &col);
+  iupMatrixGetCellFromXY(ih, x, y, &lin, &col);
 
   if (b == IUP_BUTTON1)
   {
@@ -205,7 +230,7 @@ int iupMatrixMouseButton_CB(Ihandle* ih, int b, int press, int x, int y, char* r
     }
   }
   else
-    iupMatrixMarkMouseReset(ih);
+    iupMatrixMarkBlockReset(ih);
 
   if (lin!=-1 && col!=-1)
   {
@@ -217,28 +242,47 @@ int iupMatrixMouseButton_CB(Ihandle* ih, int b, int press, int x, int y, char* r
   return IUP_DEFAULT;
 }
 
+static void iMatrixMouseResetCursor(Ihandle* ih)
+{
+  char *cursor = iupAttribGet(ih, "_IUPMAT_CURSOR");
+  if (cursor)
+  {
+    IupStoreAttribute(ih, "CURSOR", cursor);
+    iupAttribSet(ih, "_IUPMAT_CURSOR", NULL);
+  }
+}
+
+static void iMatrixMouseSetCursor(Ihandle* ih, const char* name)
+{
+  if (!iupAttribGet(ih, "_IUPMAT_CURSOR"))
+    iupAttribSetStr(ih, "_IUPMAT_CURSOR", IupGetAttribute(ih, "CURSOR"));
+  IupSetAttribute(ih, "CURSOR", name);
+}
+
 int iupMatrixMouseMove_CB(Ihandle* ih, int x, int y)
 {
-  int lin, col;
+  int lin, col, has_lincol;
 
   if (!iupMatrixIsValid(ih, 0))
     return IUP_DEFAULT;
 
+  has_lincol = iupMatrixGetCellFromXY(ih, x, y, &lin, &col);
+
   if (ih->data->leftpressed && ih->data->mark_multiple && ih->data->mark_mode != IMAT_MARK_NO)
   {
-    if ((x < ih->data->columns.sizes[0] || x < IMAT_DRAG_SCROLL_DELTA) && (ih->data->columns.first > ih->data->columns.num_noscroll))
+    if ((x < ih->data->columns.dt[0].size || x < IMAT_DRAG_SCROLL_DELTA) && (ih->data->columns.first > ih->data->columns.num_noscroll))
       iupMATRIX_ScrollLeft(ih);
     else if ((x > ih->data->w - IMAT_DRAG_SCROLL_DELTA) && (ih->data->columns.last < ih->data->columns.num-1))
       iupMATRIX_ScrollRight(ih);
 
-    if ((y < ih->data->lines.sizes[0] || y < IMAT_DRAG_SCROLL_DELTA) && (ih->data->lines.first > ih->data->lines.num_noscroll))
+    if ((y < ih->data->lines.dt[0].size || y < IMAT_DRAG_SCROLL_DELTA) && (ih->data->lines.first > ih->data->lines.num_noscroll))
       iupMATRIX_ScrollUp(ih);
     else if ((y > ih->data->h - IMAT_DRAG_SCROLL_DELTA) && (ih->data->lines.last < ih->data->lines.num-1))
       iupMATRIX_ScrollDown(ih);
 
-    if (iupMatrixGetCellFromOffset(ih, x, y, &lin, &col))
+    if (has_lincol)
     {
-      iupMatrixMarkMouseBlock(ih, lin, col);
+      iupMatrixMarkBlockEnd(ih, lin, col);
       iupMatrixDrawUpdate(ih);
 
       iMatrixMouseCallMoveCb(ih, lin, col);
@@ -247,11 +291,16 @@ int iupMatrixMouseMove_CB(Ihandle* ih, int x, int y)
   }
   else if(iupMatrixColResIsResizing(ih)) /* Make a resize in a column size */
     iupMatrixColResMove(ih, x);
-  else /* Change cursor when it is passed on a join involving column titles */
-    iupMatrixColResCheckChangeCursor(ih, x, y);
+  else if (has_lincol && iMatrixIsDropArea(ih, lin, col, x, y)!=0)
+    iMatrixMouseSetCursor(ih, "ARROW");
+  else if (iupMatrixColResCheckChangeCursor(ih, x, y))
+    iMatrixMouseSetCursor(ih, "RESIZE_W");
+  else 
+    iMatrixMouseResetCursor(ih);
 
-  if (iupMatrixGetCellFromOffset(ih, x, y, &lin, &col))
+  if (has_lincol)
     iMatrixMouseCallMoveCb(ih, lin, col);
 
   return IUP_DEFAULT;
 }
+

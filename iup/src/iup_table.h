@@ -119,15 +119,25 @@ char *iupTableFirst(Itable *it);
  * \ingroup table */
 char *iupTableNext(Itable *it);
 
-/** Returns the value at the current position.
+/** Returns the value at the current position.  \n
  * The current context is an iterator
- * that is filled by iupTableNext().
+ * that is filled by iupTableNext().  \n
  * iupTableGetCur() is faster then iupTableGet(),
  * so when you want to access an item stored
  * at a key returned by iupTableNext(),
  * use this function instead of iupTableGet().
  * \ingroup table */
 void *iupTableGetCurr(Itable *it);
+
+/** Returns the type at the current position. \n
+ * Same as \ref iupTableGetCurr but returns the type.
+ * Returns -1 if failed.
+ * \ingroup table */
+int iupTableGetCurrType(Itable *it);
+
+/** Replaces the data at the current position.
+ * \ingroup table */
+void iupTableSetCurr(Itable *it, void* value, Itable_Types itemType);
 
 /** Removes the current element and returns the next key.
  * Use this function to remove an element during an iteration.

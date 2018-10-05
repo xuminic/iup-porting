@@ -6,10 +6,14 @@
 #include "wd.h"
 
 
-/* World: (0-600)x(0-400)
+/* World:
    The canvas will be a window into that space.
    If canvas is smaller than the virtual space, scrollbars are active.
-   The drawing is a red X connecting the corners of the world.
+   The drawing is a red X connecting the corners of the world,
+   plus a box inside the borders.
+
+   Remember that:
+   XMIN<=POSX<=XMAX-DX
 */
 #define WORLD_W 600
 #define WORLD_H 400
@@ -44,7 +48,7 @@ static void update_viewport(Ihandle* ih, cdCanvas *canvas, float posx, float pos
 
   /* posy is top-bottom, CD is bottom-top.
      invert posy reference (YMAX-DY - POSY) */
-  posy = WORLD_H-IupGetFloat(ih, "DY") - posy;
+  posy = IupGetFloat(ih, "YMAX")-IupGetFloat(ih, "DY") - posy;
   if (posy < 0) posy = 0;
 
   if (scale > 0)
@@ -80,6 +84,11 @@ printf("ACTION\n");
   wdCanvasLine(canvas, 0, WORLD_H, WORLD_W, 0);
   wdCanvasArc(canvas, WORLD_W/2, WORLD_H/2+WORLD_H/10, WORLD_W/10, WORLD_H/10, 0, 360);
 
+  wdCanvasLine(canvas, 0, 0, WORLD_W, 0);
+  wdCanvasLine(canvas, 0, WORLD_H, WORLD_W, WORLD_H);
+  wdCanvasLine(canvas, 0, 0, 0, WORLD_H);
+  wdCanvasLine(canvas, WORLD_W, 0, WORLD_W, WORLD_H);
+
   return IUP_DEFAULT;
 }
 
@@ -93,10 +102,10 @@ printf("RESIZE_CB(%d, %d) RASTERSIZE=%s DRAWSIZE=%s \n", canvas_w, canvas_h, Iup
 printf("                                DRAWSIZE=%s \n", IupGetAttribute(ih, "DRAWSIZE"));
   /* update the canvas size */
   IupGetIntInt(ih, "DRAWSIZE", &canvas_w, &canvas_h);
+  update_scrollbar(ih, canvas_w, canvas_h);  
 
   /* update the application */
   cdCanvasActivate(canvas);
-  update_scrollbar(ih, canvas_w, canvas_h);  
   update_viewport(ih, canvas, IupGetFloat(ih, "POSX"), IupGetFloat(ih, "POSY"));
 
   return IUP_DEFAULT;
@@ -141,6 +150,7 @@ static int wheel_cb(Ihandle *ih,float delta,int x,int y,char* status)
 
 static int map_cb(Ihandle *ih)
 {
+  /* canvas will be automatically saved in "_CD_CANVAS" attribute */
   cdCanvas *canvas = cdCreateCanvas(CD_IUP, ih);
 
   /* World size is fixed */

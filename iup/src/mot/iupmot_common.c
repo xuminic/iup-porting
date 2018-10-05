@@ -40,93 +40,6 @@ void iupdrvActivate(Ihandle* ih)
   XtCallActionProc(ih->handle, "ArmAndActivate", 0, 0, 0 );
 }
 
-void iupmotSetMnemonicTitle(Ihandle *ih, Widget w, int pos, const char* value)
-{
-  char c;
-  char* str;
-
-  if (!value) 
-    value = "";
-
-  if (!w)
-    w = ih->handle;
-
-  str = iupStrProcessMnemonic(value, &c, -1);  /* remove & and return in c */
-  if (str != value)
-  {
-    KeySym keysym = iupmotKeyCharToKeySym(c);
-    XtVaSetValues(w, XmNmnemonic, keysym, NULL);   /* works only for menus, but underlines the letter */
-
-    if (ih->iclass->nativetype != IUP_TYPEMENU)
-      iupKeySetMnemonic(ih, c, pos);
-
-    iupmotSetString(w, XmNlabelString, str);
-    free(str);
-  }
-  else
-  {
-    XtVaSetValues (w, XmNmnemonic, NULL, NULL);
-    iupmotSetString(w, XmNlabelString, str);
-  }
-}
-
-void iupmotSetString(Widget w, const char *resource, const char* value)
-{
-  XmString xm_str = XmStringCreateLocalized((String)value);
-  XtVaSetValues(w, resource, xm_str, NULL);
-  XmStringFree(xm_str);
-}
-
-char* iupmotConvertString(XmString str)
-{
-  char* text = (char*)XmStringUnparse(str, NULL, XmCHARSET_TEXT, XmCHARSET_TEXT, NULL, 0, XmOUTPUT_ALL);
-  char* buf = iupStrGetMemoryCopy(text);
-  XtFree(text);
-  return buf;
-}
-
-#ifdef OLD_CONVERT
-char* iupmotConvertString(XmString str)
-{
-  XmStringContext context;
-  char *text, *p, *buf;
-  unsigned int length;
-  XmStringComponentType type;
-
-  if (!XmStringInitContext (&context, str))
-    return NULL;
-
-  buf = iupStrGetMemory(XmStringLength(str));  /* always greatter than strlen */
-
-  /* p keeps a running pointer through buf as text is read */
-  p = buf;
-  while ((type = XmStringGetNextTriple(context, &length, (XtPointer)&text)) != XmSTRING_COMPONENT_END) 
-  {
-    switch (type) 
-    {
-    case XmSTRING_COMPONENT_TEXT:
-      memcpy(p, text, length);
-      p += length;
-      *p = 0;
-      break;
-    case XmSTRING_COMPONENT_TAB:
-      *p++ = '\t';
-      *p = 0;
-      break;
-    case XmSTRING_COMPONENT_SEPARATOR:
-      *p++ = '\n';
-      *p = 0;
-      break;
-    }
-    XtFree(text);
-  }
-
-  XmStringFreeContext(context);
-
-  return buf;
-}
-#endif
-
 static void motSaveAttributesRec(Ihandle* ih)
 {
   Ihandle *child;
@@ -387,11 +300,9 @@ char* iupmotGetBgColorAttrib(Ihandle* ih)
 {
   unsigned char r, g, b;
   Pixel color;
-  char* str = iupStrGetMemory(20);
   XtVaGetValues(ih->handle, XmNbackground, &color, NULL); 
   iupmotColorGetRGB(color, &r, &g, &b);
-  sprintf(str, "%d %d %d", (int)r, (int)g, (int)b);
-  return str;
+  return iupStrReturnStrf("%d %d %d", (int)r, (int)g, (int)b);
 }
 
 int iupdrvBaseSetFgColorAttrib(Ihandle* ih, const char* value)
@@ -499,7 +410,7 @@ static Cursor motGetCursor(Ihandle* ih, const char* name)
     cur = (Cursor)iupImageGetCursor(name);
   }
 
-  iupAttribSetStr(ih, str, (char*)cur);
+  iupAttribSet(ih, str, (char*)cur);
   return cur;
 }
 
@@ -529,6 +440,11 @@ void iupdrvBaseRegisterCommonAttrib(Iclass* ic)
   iupClassRegisterAttribute(ic, "XMFONTLIST", iupmotGetFontListAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
   iupClassRegisterAttribute(ic, "XFONTSTRUCT", iupmotGetFontStructAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
   iupClassRegisterAttribute(ic, "XFONTID", iupmotGetFontIdAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
+}
+
+void iupdrvBaseRegisterVisualAttrib(Iclass* ic)
+{
+  (void)ic;
 }
 
 int iupdrvGetScrollbarSize(void)
@@ -724,7 +640,7 @@ void iupdrvSendMouse(int x, int y, int bt, int status)
       XSendEvent(iupmot_display, (Window)PointerWindow, False, ButtonReleaseMask, (XEvent*)&evt);
     }
   }
-#if 0 /* kept until code stabilizes */
+#if 0 /* kept for future reference */
   else
   {
     XMotionEvent evt;

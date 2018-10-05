@@ -9,6 +9,7 @@
 #include <string.h>
 #include <math.h>
 
+#undef SCI_NAMESPACE
 #include <Scintilla.h>
 
 #include "iup.h"
@@ -17,7 +18,6 @@
 #include "iup_attrib.h"
 #include "iup_str.h"
 
-#include "iupsci_folding.h"
 #include "iupsci.h"
 
 /***** FOLDING *****
@@ -40,7 +40,7 @@ SCI_TOGGLEFOLD(int line)
 --SCI_ENSUREVISIBLEENFORCEPOLICY(int line)
 */
 
-int iupScintillaSetFoldFlagsAttrib(Ihandle* ih, const char* value)
+static int iScintillaSetFoldFlagsAttrib(Ihandle* ih, const char* value)
 {
   if (iupStrEqualNoCase(value, "LEVELNUMBERS"))
     iupScintillaSendMessage(ih, SCI_SETFOLDFLAGS, SC_FOLDFLAG_LEVELNUMBERS, 0);
@@ -56,7 +56,7 @@ int iupScintillaSetFoldFlagsAttrib(Ihandle* ih, const char* value)
   return 0;
 }
 
-char* iupScintillaGetFoldLevelAttrib(Ihandle* ih, int line)
+static char* iScintillaGetFoldLevelAttrib(Ihandle* ih, int line)
 {
   int level = iupScintillaSendMessage(ih, SCI_GETFOLDLEVEL, line, 0);
 
@@ -70,7 +70,7 @@ char* iupScintillaGetFoldLevelAttrib(Ihandle* ih, int line)
     return "BASE";
 }
 
-int iupScintillaSetFoldLevelAttrib(Ihandle* ih, int line, const char* value)
+static int iScintillaSetFoldLevelAttrib(Ihandle* ih, int line, const char* value)
 {
   if (iupStrEqualNoCase(value, "WHITEFLAG"))
     iupScintillaSendMessage(ih, SCI_SETFOLDLEVEL, line, SC_FOLDLEVELWHITEFLAG);
@@ -84,7 +84,7 @@ int iupScintillaSetFoldLevelAttrib(Ihandle* ih, int line, const char* value)
   return 0;
 }
 
-int iupScintillaSetFoldToggleAttrib(Ihandle* ih, const char* value)
+static int iScintillaSetFoldToggleAttrib(Ihandle* ih, const char* value)
 {
   int line, level;
   
@@ -98,4 +98,11 @@ int iupScintillaSetFoldToggleAttrib(Ihandle* ih, const char* value)
   }
 
   return 0;
+}
+
+void iupScintillaRegisterFolding(Iclass* ic)
+{
+  iupClassRegisterAttribute(ic,   "FOLDFLAGS", NULL, iScintillaSetFoldFlagsAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic,   "FOLDTOGGLE", NULL, iScintillaSetFoldToggleAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "FOLDLEVEL", iScintillaGetFoldLevelAttrib, iScintillaSetFoldLevelAttrib, IUPAF_NO_INHERIT);
 }

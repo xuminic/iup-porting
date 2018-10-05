@@ -47,7 +47,6 @@ char* iupFrameGetBgColorAttrib(Ihandle* ih)
 static char* iFrameGetClientSizeAttrib(Ihandle* ih)
 {
   int width, height, decorwidth, decorheight;
-  char* str = iupStrGetMemory(20);
   width = ih->currentwidth;
   height = ih->currentheight;
   iFrameGetDecorSize(ih, &decorwidth, &decorheight);
@@ -55,19 +54,16 @@ static char* iFrameGetClientSizeAttrib(Ihandle* ih)
   height -= decorheight;
   if (width < 0) width = 0;
   if (height < 0) height = 0;
-  sprintf(str, "%dx%d", width, height);
-  return str;
+  return iupStrReturnIntInt(width, height, 'x');
 }
 
 static char* iFrameGetClientOffsetAttrib(Ihandle* ih)
 {
   int dx, dy;
-  char* str = iupStrGetMemory(20);
   iupdrvFrameGetDecorOffset(&dx, &dy);
   if (iupAttribGet(ih, "_IUPFRAME_HAS_TITLE") || iupAttribGet(ih, "TITLE"))
     dy += iupFrameGetTitleHeight(ih);
-  sprintf(str, "%dx%d", dx, dy);
-  return str;
+  return iupStrReturnIntInt(dx, dy, 'x');
 }
 
 static int iFrameCreateMethod(Ihandle* ih, void** params)
@@ -82,7 +78,7 @@ static int iFrameCreateMethod(Ihandle* ih, void** params)
   return IUP_NOERROR;
 }
 
-static void iFrameComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *expand)
+static void iFrameComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *children_expand)
 {
   int decorwidth, decorheight;
   Ihandle* child = ih->firstchild;
@@ -96,7 +92,7 @@ static void iFrameComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *exp
     /* update child natural size first */
     iupBaseComputeNaturalSize(child);
 
-    *expand = child->expand;
+    *children_expand = child->expand;
     *w += child->naturalwidth;
     *h += child->naturalheight;
   }

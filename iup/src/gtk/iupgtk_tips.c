@@ -29,11 +29,11 @@ static void gtkTooltipSetTitle(Ihandle* ih, GtkWidget* widget, const char* value
 {
 #if GTK_CHECK_VERSION(2, 12, 0)
   if (iupAttribGetBoolean(ih, "TIPMARKUP"))
-    gtk_widget_set_tooltip_markup(widget, iupgtkStrConvertToUTF8(value));
+    gtk_widget_set_tooltip_markup(widget, iupgtkStrConvertToSystem(value));
   else
-    gtk_widget_set_tooltip_text(widget, iupgtkStrConvertToUTF8(value));
+    gtk_widget_set_tooltip_text(widget, iupgtkStrConvertToSystem(value));
 #else
-  gtk_tooltips_set_tip(gtk_tips, widget, iupgtkStrConvertToUTF8(value), NULL);
+  gtk_tooltips_set_tip(gtk_tips, widget, iupgtkStrConvertToSystem(value), NULL);
 #endif
 }
 
@@ -134,10 +134,7 @@ char* iupdrvBaseGetTipVisibleAttrib(Ihandle* ih)
     return NULL;
 
   tip_window = gtk_widget_get_tooltip_window(widget);
-  if (tip_window && iupgtkIsVisible((GtkWidget*)tip_window))
-    return "Yes";
-  else
-    return "No";
+  return iupStrReturnBoolean (tip_window && iupgtkIsVisible((GtkWidget*)tip_window)); 
 #else
   return NULL;
 #endif

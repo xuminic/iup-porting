@@ -4,7 +4,9 @@
 
 #include "iup.h"
 #include "iupcontrols.h"
+#include "iupmatrixex.h"
 #include <cd.h>
+
 
 static int leave(Ihandle *self, int lin, int col)
 {
@@ -57,9 +59,18 @@ static int dropcheck(Ihandle *self, int lin, int col)
 
 static int click(Ihandle *self, int lin, int col)
 {
-  char* value = IupMatGetAttribute(self, "", lin, col);
+  char* value = IupGetAttributeId2(self, "", lin, col);
   if (!value) value = "NULL";
   printf("click_cb(%d, %d)\n", lin, col);
+  printf("  VALUE%d:%d = %s\n", lin, col, value);
+  return IUP_DEFAULT;
+}
+
+static int release(Ihandle *self, int lin, int col)
+{
+  char* value = IupGetAttributeId2(self, "", lin, col);
+  if (!value) value = "NULL";
+  printf("release_cb(%d, %d)\n", lin, col);
   printf("  VALUE%d:%d = %s\n", lin, col, value);
   return IUP_DEFAULT;
 }
@@ -141,13 +152,18 @@ static int actioncb(Ihandle *h, int c, int lin, int col, int active, char* after
   return IUP_DEFAULT;
 }
 
-
 static Ihandle *create_mat(int mati)
 {
   Ihandle *mat = IupMatrix(NULL); 
   char name[30];
 
   sprintf(name, "mat%d", mati);
+
+  if (mati==1)
+  {
+    IupMatrixExInit(mat);
+    IupSetAttribute(mat,"UNDOREDO","Yes"); 
+  }
 
   IupSetHandle(name, mat);
   
@@ -167,8 +183,8 @@ static Ihandle *create_mat(int mati)
 //  IupSetAttribute(mat,"MARKAREA", "NOT_CONTINUOUS");
  IupSetAttribute(mat, "MARKAREA", "CONTINUOUS");
 
-  IupSetAttribute(mat,"0:0","Inflation");
-  IupSetAttribute(mat,"1:0","Medicine ");
+  IupSetAttribute(mat,"0:0","Test");
+  IupSetAttribute(mat,"1:0","Medicine");
   IupSetAttribute(mat,"2:0","Food"); 
   IupSetAttribute(mat,"3:0","Energy"); 
   IupSetAttribute(mat,"0:1","January 2000"); 
@@ -179,6 +195,16 @@ static Ihandle *create_mat(int mati)
   IupSetAttribute(mat,"1:2","4.5");
   IupSetAttribute(mat,"2:2","8.1");
   IupSetAttribute(mat,"3:2","3.4 (RO)");
+
+  
+  IupSetAttribute(mat, "NUMERICFORMATTITLE3", "%s (%s)");
+  IupSetAttribute(mat, "NUMERICQUANTITY3", "Time");
+  IupSetAttribute(mat, "NUMERICUNIT3", "day");
+  IupSetAttribute(mat, "NUMERICUNITSHOWN3", "day");
+  IupSetAttribute(mat,"0:3","Time");
+  IupSetAttribute(mat,"1:3","1");
+  IupSetAttribute(mat,"2:3","1.5");
+  IupSetAttribute(mat,"3:3","2");
 
 //  IupSetAttribute(mat,"BGCOLOR1:*","255 128 0");
   IupSetAttribute(mat,"BGCOLOR2:1","255 128 0");
@@ -203,6 +229,7 @@ static Ihandle *create_mat(int mati)
   IupSetCallback(mat,"DROPCHECK_CB",(Icallback)dropcheck);
   IupSetCallback(mat,"EDITION_CB",(Icallback)edition);
   IupSetCallback(mat,"CLICK_CB",(Icallback)click);
+  IupSetCallback(mat,"RELEASE_CB",(Icallback)release);
   IupSetCallback(mat,"DRAW_CB",(Icallback)drawcb);
   IupSetCallback(mat,"ACTION_CB",(Icallback)actioncb);
 
@@ -302,6 +329,9 @@ static void createmenu(void)
 void MatrixCbsTest(void)
 {
   Ihandle *dlg, *bt;
+
+  IupMatrixExOpen();
+  IupImageLibOpen();
  
   IupSetFunction("removeline", (Icallback)removeline);
   IupSetFunction("addline", (Icallback)addline);

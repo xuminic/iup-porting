@@ -31,10 +31,7 @@ struct _IcontrolData
 
 static char* iOleControlGetDesignModeAttrib(Ihandle* ih)
 {
-  if (ih->data->olehandler->m_ambientProp.getDesignMode())
-    return "YES";
-  else
-    return "NO";
+  return iupStrReturnBoolean (ih->data->olehandler->m_ambientProp.getDesignMode()); 
 }
 
 static int iOleControlSetDesignModeAttrib(Ihandle* ih, const char* value)
@@ -93,10 +90,16 @@ static int iOleControlResize_CB(Ihandle *ih)
   return IUP_DEFAULT;
 }
 
-static void iOleControlComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *expand)
+static int iOleControlAction_CB(Ihandle *ih)
+{
+  (void)ih; /* does nothing to avoid background repaint */
+  return IUP_DEFAULT;
+}
+
+static void iOleControlComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *children_expand)
 {
   long natural_w = 0, natural_h = 0;
-  (void)expand; /* unset if not a container */
+  (void)children_expand; /* unset if not a container */
 
   ih->data->olehandler->GetNaturalSize(&natural_w, &natural_h);
 
@@ -131,9 +134,10 @@ static int iOleControlCreateMethod(Ihandle* ih, void **params)
   ih->data->olehandler = new tOleHandler();
 
   /* change the IupCanvas default values */
-  iupAttribSetStr(ih, "BORDER", "NO");
+  iupAttribSet(ih, "BORDER", "NO");
 
   /* IupCanvas callbacks */
+  IupSetCallback(ih,"ACTION",(Icallback)iOleControlAction_CB);
   IupSetCallback(ih,"RESIZE_CB",(Icallback)iOleControlResize_CB);
 
   if (!params || !(params[0]))

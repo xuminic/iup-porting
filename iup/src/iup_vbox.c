@@ -39,7 +39,7 @@ static int iVboxSetRasterSizeAttrib(Ihandle* ih, const char* value)
       ih->userwidth = 0;
     }
   }
-  iupAttribSetStr(ih, "SIZE", NULL); /* clear SIZE in hash table */
+  iupAttribSet(ih, "SIZE", NULL); /* clear SIZE in hash table */
   return 0;
 }
 
@@ -80,18 +80,15 @@ static int iVboxSetAlignmentAttrib(Ihandle* ih, const char* value)
 static char* iVboxGetAlignmentAttrib(Ihandle* ih)
 {
   char* align2str[3] = {"ALEFT", "ACENTER", "ARIGHT"};
-  char *str = iupStrGetMemory(50);
-  sprintf(str, "%s", align2str[ih->data->alignment]);
-  return str;
+  return iupStrReturnStr(align2str[ih->data->alignment]);
 }
 
-static void iVboxComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *expand)
+static void iVboxComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *children_expand)
 {
   Ihandle* child;
   int total_natural_width, total_natural_height;
 
   /* calculate total children natural size */
-  int children_expand = 0;
   int children_count = 0;
   int children_natural_maxwidth = 0;
   int children_natural_maxheight = 0;
@@ -105,7 +102,7 @@ static void iVboxComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *expa
 
     if (!(child->flags & IUP_FLOATING))
     {
-      children_expand |= child->expand;
+      *children_expand |= child->expand;
       children_natural_maxwidth = iupMAX(children_natural_maxwidth, child->naturalwidth);
       children_natural_maxheight = iupMAX(children_natural_maxheight, child->naturalheight);
       children_count++;
@@ -134,7 +131,6 @@ static void iVboxComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *expa
   /* Store to be used in iVboxCalcEmptyHeight */
   ih->data->total_natural_size = total_natural_height;
 
-  *expand = children_expand;
   *w = total_natural_width;
   *h = total_natural_height;
 }

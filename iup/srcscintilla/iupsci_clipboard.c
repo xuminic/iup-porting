@@ -9,6 +9,7 @@
 #include <string.h>
 #include <math.h>
 
+#undef SCI_NAMESPACE
 #include <Scintilla.h>
 
 #include "iup.h"
@@ -17,7 +18,6 @@
 #include "iup_attrib.h"
 #include "iup_str.h"
 
-#include "iupsci_clipboard.h"
 #include "iupsci.h"
 
 
@@ -34,7 +34,7 @@ SCI_CANPASTE
    --SCI_GETPASTECONVERTENDINGS
 */
 
-int iupScintillaSetClipboardAttrib(Ihandle *ih, const char *value)
+static int iScintillaSetClipboardAttrib(Ihandle *ih, const char *value)
 {
   if (iupStrEqualNoCase(value, "COPY"))
     iupScintillaSendMessage(ih, SCI_COPY, 0, 0);
@@ -48,12 +48,9 @@ int iupScintillaSetClipboardAttrib(Ihandle *ih, const char *value)
   return 0;
 }
 
-char* iupScintillaGetCanPasteAttrib(Ihandle* ih)
+static char* iScintillaGetCanPasteAttrib(Ihandle* ih)
 {
-  if (iupScintillaSendMessage(ih, SCI_CANPASTE, 0, 0))
-    return "YES";
-  else
-    return "NO";
+  return iupStrReturnBoolean (iupScintillaSendMessage(ih, SCI_CANPASTE, 0, 0)); 
 }
 
 /***** Undo and Redo *****
@@ -69,7 +66,7 @@ SCI_GETUNDOCOLLECTION
 --SCI_ADDUNDOACTION(int token, int flags)
 */
 
-int iupScintillaSetUndoAttrib(Ihandle *ih, const char *value)
+static int iScintillaSetUndoAttrib(Ihandle *ih, const char *value)
 {
   if (iupStrBoolean(value))
     iupScintillaSendMessage(ih, SCI_UNDO, 0, 0);
@@ -78,15 +75,12 @@ int iupScintillaSetUndoAttrib(Ihandle *ih, const char *value)
   return 0;
 }
 
-char* iupScintillaGetUndoAttrib(Ihandle* ih)
+static char* iScintillaGetUndoAttrib(Ihandle* ih)
 {
-  if (iupScintillaSendMessage(ih, SCI_CANUNDO, 0, 0))
-    return "YES";
-  else
-    return "NO";
+  return iupStrReturnBoolean (iupScintillaSendMessage(ih, SCI_CANUNDO, 0, 0)); 
 }
 
-int iupScintillaSetRedoAttrib(Ihandle *ih, const char *value)
+static int iScintillaSetRedoAttrib(Ihandle *ih, const char *value)
 {
   if (iupStrBoolean(value))
     iupScintillaSendMessage(ih, SCI_REDO, 0, 0);
@@ -95,15 +89,12 @@ int iupScintillaSetRedoAttrib(Ihandle *ih, const char *value)
   return 0;
 }
 
-char* iupScintillaGetRedoAttrib(Ihandle* ih)
+static char* iScintillaGetRedoAttrib(Ihandle* ih)
 {
-  if (iupScintillaSendMessage(ih, SCI_CANREDO, 0, 0))
-    return "YES";
-  else
-    return "NO";
+  return iupStrReturnBoolean (iupScintillaSendMessage(ih, SCI_CANREDO, 0, 0)); 
 }
 
-int iupScintillaSetUndoCollectAttrib(Ihandle *ih, const char *value)
+static int iScintillaSetUndoCollectAttrib(Ihandle *ih, const char *value)
 {
   if (iupStrBoolean(value))
     iupScintillaSendMessage(ih, SCI_SETUNDOCOLLECTION, 1, 0);
@@ -112,11 +103,15 @@ int iupScintillaSetUndoCollectAttrib(Ihandle *ih, const char *value)
   return 0;
 }
 
-char* iupScintillaGetUndoCollectAttrib(Ihandle* ih)
+static char* iScintillaGetUndoCollectAttrib(Ihandle* ih)
 {
-  if (iupScintillaSendMessage(ih, SCI_GETUNDOCOLLECTION, 0, 0))
-    return "YES";
-  else
-    return "NO";
+  return iupStrReturnBoolean (iupScintillaSendMessage(ih, SCI_GETUNDOCOLLECTION, 0, 0)); 
 }
 
+void iupScintillaRegisterClipboard(Iclass* ic)
+{
+  iupClassRegisterAttribute(ic, "CLIPBOARD", iScintillaGetCanPasteAttrib, iScintillaSetClipboardAttrib, NULL, NULL, IUPAF_NO_SAVE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "UNDO", iScintillaGetUndoAttrib, iScintillaSetUndoAttrib, NULL, NULL, IUPAF_NO_SAVE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "REDO", iScintillaGetRedoAttrib, iScintillaSetRedoAttrib, NULL, NULL, IUPAF_NO_SAVE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "UNDOCOLLECT", iScintillaGetUndoCollectAttrib, iScintillaSetUndoCollectAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NO_INHERIT);
+}

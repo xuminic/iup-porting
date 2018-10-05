@@ -43,6 +43,7 @@ int iupwinGetKeyBoardCues(void)
 {
   BOOL cues = 0;
   SystemParametersInfo(SPI_GETKEYBOARDCUES, 0, &cues, 0);
+
   if (cues)
     return 1;
   else
@@ -61,7 +62,7 @@ void iupwinWmSetFocus(Ihandle *ih)
 {
   Ihandle* dialog = IupGetDialog(ih);
   if (ih != dialog)
-    iupAttribSetStr(dialog, "_IUPWIN_LASTFOCUS", (char*)ih);  /* used by IupMenu and here. */
+    iupAttribSet(dialog, "_IUPWIN_LASTFOCUS", (char*)ih);  /* used by IupMenu and here. */
   else
   {
     /* if a control inside that dialog had the focus, then reset to it when the dialog gets the focus */

@@ -157,7 +157,7 @@ static IgtkFont* gtkFontSet(Ihandle* ih, const char* value)
   IgtkFont *gtkfont = gtkFindFont(value);
   if (gtkfont)
   {
-    iupAttribSetStr(ih, "_IUP_GTKFONT", (char*)gtkfont);
+    iupAttribSet(ih, "_IUP_GTKFONT", (char*)gtkfont);
     return gtkfont;
   }
   else
@@ -313,7 +313,7 @@ char* iupgtkGetFontIdAttrib(Ihandle *ih)
 #if GTK_CHECK_VERSION(3, 0, 0)
     return NULL;  /* TODO: check gtkglarea for GTK3 support, not available yet. */
 #else
-    /* both fucntions are marked as deprecated in GDK (since 2.22) */
+    /* both functions are marked as deprecated in GDK (since 2.22) */
     GdkFont* gdk_font = gdk_font_from_description(gtkfont->fontdesc);
     return (char*)gdk_font_id(gdk_font);  /* In UNIX will return an X Font ID, 
                                              in Win32 will return an HFONT */
@@ -364,10 +364,10 @@ void iupdrvFontGetMultiLineStringSize(Ihandle* ih, const char* str, int *w, int 
     if (iupAttribGetBoolean(ih, "MARKUP"))
     {
       pango_layout_set_attributes(gtkfont->layout, NULL);
-      pango_layout_set_markup(gtkfont->layout, iupgtkStrConvertToUTF8(str), -1);
+      pango_layout_set_markup(gtkfont->layout, iupgtkStrConvertToSystem(str), -1);
     }
     else
-      pango_layout_set_text(gtkfont->layout, iupgtkStrConvertToUTF8(str), -1);
+      pango_layout_set_text(gtkfont->layout, iupgtkStrConvertToSystem(str), -1);
 
     pango_layout_get_pixel_size(gtkfont->layout, &max_w, &dummy_h);
   }
@@ -380,7 +380,7 @@ int iupdrvFontGetStringWidth(Ihandle* ih, const char* str)
 {
   IgtkFont* gtkfont;
   int len, w;
-  char* line_end;
+  const char* line_end;
 
   if (!str || str[0]==0)
     return 0;
@@ -389,19 +389,22 @@ int iupdrvFontGetStringWidth(Ihandle* ih, const char* str)
   if (!gtkfont)
     return 0;
 
+  /* do it only for the first line, if any */
   line_end = strchr(str, '\n');
   if (line_end)
     len = line_end-str;
   else
     len = strlen(str);
 
+  str = iupgtkStrConvertToSystemLen(str, &len);
+
   if (iupAttribGetBoolean(ih, "MARKUP"))
   {
     pango_layout_set_attributes(gtkfont->layout, NULL);
-    pango_layout_set_markup(gtkfont->layout, iupgtkStrConvertToUTF8(str), len);
+    pango_layout_set_markup(gtkfont->layout, str, len);
   }
   else
-    pango_layout_set_text(gtkfont->layout, iupgtkStrConvertToUTF8(str), len);
+    pango_layout_set_text(gtkfont->layout, str, len);
 
   pango_layout_get_pixel_size(gtkfont->layout, &w, NULL);
   return w;

@@ -140,7 +140,7 @@ static void iDialDrawVertical(Ihandle* ih)
 
   iDialDrawVerticalBackground(ih, amin, amax, &ymin, &ymax);
 
-  cdIupDrawRaisenRect(ih->data->cddbuffer, IDIAL_SPACE, ymin, ih->data->w-1-IDIAL_SPACE, ymax,
+  cdIupDrawRaiseRect(ih->data->cddbuffer, IDIAL_SPACE, ymin, ih->data->w-1-IDIAL_SPACE, ymax,
                       ih->data->light_shadow, ih->data->mid_shadow, ih->data->dark_shadow);
 
   for ( ; a < amax; a += delta)    /* graduation */
@@ -208,7 +208,7 @@ static void iDialDrawHorizontal(Ihandle* ih)
 
   iDialDrawHorizontalBackground(ih, amin, amax, &xmin, &xmax);
 
-  cdIupDrawRaisenRect(ih->data->cddbuffer, xmin, IDIAL_SPACE, xmax, ih->data->h-1-IDIAL_SPACE,
+  cdIupDrawRaiseRect(ih->data->cddbuffer, xmin, IDIAL_SPACE, xmax, ih->data->h-1-IDIAL_SPACE,
                       ih->data->light_shadow, ih->data->mid_shadow, ih->data->dark_shadow);
 
   for ( ; a < amax; a += delta)
@@ -290,7 +290,7 @@ static void iDialRepaint(Ihandle* ih)
   /* update display */
   cdCanvasFlush(ih->data->cddbuffer);
   if (ih->data->has_focus)
-    cdIupDrawFocusRect(ih, ih->data->cdcanvas, 0, 0, ih->data->w-1, ih->data->h-1);
+    IupCdDrawFocusRect(ih, ih->data->cdcanvas, 0, 0, ih->data->w-1, ih->data->h-1);
 }
 
 static void iDialUpdateFgColors(Ihandle* ih, unsigned char r, unsigned char g, unsigned char b)
@@ -527,7 +527,7 @@ static int iDialRedraw_CB(Ihandle* ih)
   /* update display */
   cdCanvasFlush(ih->data->cddbuffer);
   if (ih->data->has_focus)
-    cdIupDrawFocusRect(ih, ih->data->cdcanvas, 0, 0, ih->data->w-1, ih->data->h-1);
+    IupCdDrawFocusRect(ih, ih->data->cdcanvas, 0, 0, ih->data->w-1, ih->data->h-1);
 
   return IUP_DEFAULT;
 }
@@ -642,9 +642,7 @@ static int iDialWheel_CB(Ihandle* ih, float delta)
 
 static char* iDialGetValueAttrib(Ihandle* ih)
 {
-  char* str = iupStrGetMemory(20);
-  sprintf(str, "%g", ih->data->angle);
-  return str;
+  return iupStrReturnFloat((float)ih->data->angle);
 }
 
 static int iDialSetValueAttrib(Ihandle* ih, const char* value)
@@ -667,9 +665,7 @@ static int iDialSetDensityAttrib(Ihandle* ih, const char* value)
 
 static char* iDialGetDensityAttrib(Ihandle* ih)
 {
-  char* str = iupStrGetMemory(20);
-  sprintf(str, "%g", ih->data->density);
-  return str;
+  return iupStrReturnFloat((float)ih->data->density);
 }
 
 static int iDialSetBgColorAttrib(Ihandle* ih, const char* value)
@@ -806,7 +802,7 @@ static int iDialCreateMethod(Ihandle* ih, void **params)
   ih->data = iupALLOCCTRLDATA();
 
   /* change the IupCanvas default values */
-  iupAttribSetStr(ih, "BORDER", "NO");
+  iupAttribSet(ih, "BORDER", "NO");
   ih->expand = IUP_EXPAND_NONE;
 
   /* default values */

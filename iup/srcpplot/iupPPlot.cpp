@@ -113,12 +113,7 @@ void StringPlotData::InsertItem (int inIndex, const char *inString) {
 }
 
 
-void LegendData::SetDefaultColor (int inPlotIndex) {
-  mColor = GetDefaultColor (inPlotIndex);
-}
-
 void LegendData::SetDefaultValues (int inPlotIndex) {
-    SetDefaultColor (inPlotIndex);
   char theBuf[32];
   sprintf (theBuf, "plot %d", inPlotIndex);
   mName = theBuf;
@@ -149,48 +144,6 @@ int PPlot::Round (float inFloat) {
   return (int)floor (inFloat+0.5f);
 #endif
 }
-
-PColor LegendData::GetDefaultColor (int inPlotIndex) {
-
-  PColor theC;
-  switch (inPlotIndex%7) {
-  case 0:
-    theC.mR = 255;
-    theC.mG = 0;
-    theC.mB = 0;
-    break;
-  case 1:
-    theC.mR = 0;
-    theC.mG = 0;
-    theC.mB = 255;
-    break;
-  case 2:
-    theC.mR = 0;
-    theC.mG = 255;
-    theC.mB = 0;
-    break;
-  case 3:
-    theC.mR = 0;
-    theC.mG = 255;
-    theC.mB = 255;
-    break;
-  case 4:
-    theC.mR = 255;
-    theC.mG = 0;
-    theC.mB = 255;
-    break;
-  case 5:
-    theC.mR = 255;
-    theC.mG = 255;
-    theC.mB = 0;
-    break;
-  default:
-    // black
-    break;
-  }
-  return theC;
-}
-
 
 
 float TickInfo::RoundSpan (float inSpan) {
@@ -263,8 +216,8 @@ void TickInfo::MakeFormatString (float inValue, string &outFormatString) {
     if (inValue<1) {
       float theSpan = inValue;
       while (theSpan<1) {
-  thePrecision++;
-  theSpan *=10;
+        thePrecision++;
+        theSpan *=10;
       }
     }
 
@@ -422,6 +375,52 @@ void PlotDataContainer::ClearData () {
   mPlotDataSelectionList.clear ();
 }
 
+static PColor GetDefaultColor(int index)
+{
+  switch (index) 
+  {
+  case 0: return PColor(255,0,0);
+  case 1: return PColor(0,255,0);
+  case 2: return PColor(0,0,255);
+  case 3: return PColor(0,255,255);
+  case 4: return PColor(255,0,255);
+  case 5: return PColor(255,255,0);
+  case 6: return PColor(128,0,0);
+  case 7: return PColor(0,128,0);
+  case 8: return PColor(0,0,128);
+  case 9: return PColor(0,128,128);
+  case 10: return PColor(128,0,128);
+  case 11: return PColor(128,128,0);
+  default: return PColor(0,0,0);
+  }
+}
+
+void PlotDataContainer::SetNewLegendColor(LegendData *theLegendData)
+{
+  int def_color = 0, i = 0;
+  PColor theC;
+
+  do
+  {
+    theC = GetDefaultColor(def_color);
+
+    for (i=0; i<mLegendDataList.size(); i++)
+    {
+      if (mLegendDataList[i]->mColor.mR == theC.mR && 
+          mLegendDataList[i]->mColor.mG == theC.mG && 
+          mLegendDataList[i]->mColor.mB == theC.mB)
+        break;
+    }
+
+    if (i == mLegendDataList.size())
+      break;
+
+    def_color++;
+  } while (def_color<12);
+
+  theLegendData->mColor = theC;
+}
+
 /* M.T. - changed to return the index of the added plot; returns -1 on error */
 int PlotDataContainer::AddXYPlot (PlotDataBase *inXData, PlotDataBase *inYData, LegendData *inLegendData, DataDrawerBase *inDataDrawer, PlotDataSelection *inPlotDataSelection) {
   if (!inYData || (!inYData->GetRealPlotData () && !inYData->GetCalculatedData ())) {
@@ -438,6 +437,7 @@ int PlotDataContainer::AddXYPlot (PlotDataBase *inXData, PlotDataBase *inYData, 
   if (!theLegendData) {
     theLegendData = new LegendData ();
     theLegendData->SetDefaultValues (mLegendDataList.size ());
+    SetNewLegendColor(theLegendData);
   }
   mLegendDataList.push_back (theLegendData);
 
@@ -482,6 +482,7 @@ void PlotDataContainer::SetXYPlot (int inIndex, PlotDataBase *inXData, PlotDataB
             *theLegendData = *mLegendDataList[inIndex];   // copy old values...
         } else {
             theLegendData->SetDefaultValues (mLegendDataList.size ());
+            SetNewLegendColor(theLegendData);
         }
     }
     if (!theDataDrawer) {
@@ -1504,8 +1505,10 @@ bool PPlot::DrawLegend (const PRect &inRect, Painter &inPainter) const {
 
     int theHeight = inPainter.GetFontHeight();
     int margin = theHeight/2;
+    if (mLegendPos == PPLOT_BOTTOMCENTER)
+      margin = 0;
     int plotCount = mPlotDataContainer.GetPlotCount();
-    int totalHeight = plotCount*(1.2*theHeight) - 0.2*theHeight + 2*margin;
+    int totalHeight = plotCount*theHeight + 2*margin;
 
     int maxWidth = 0;
     for (theI=0; theI<plotCount; theI++) 
@@ -1513,18 +1516,18 @@ bool PPlot::DrawLegend (const PRect &inRect, Painter &inPainter) const {
         const LegendData *theLegendData = mPlotDataContainer.GetConstLegendData(theI);
         if (theLegendData && theLegendData->mShow) {
             inPainter.SetStyle (theLegendData->mStyle);
-            int size = inPainter.CalculateTextDrawSize(theLegendData->mName.c_str());
+            int width = inPainter.CalculateTextDrawSize(theLegendData->mName.c_str());
 
             const DataDrawerBase* drawer = mPlotDataContainer.GetConstDataDrawer(theI);
             if (drawer->mHasMarks)
             {
               LineDataDrawer* linedrawer = (LineDataDrawer*)drawer;
               if (linedrawer->mDrawPoint)
-                size += linedrawer->mStyle.mMarkSize+8;
+                width += linedrawer->mStyle.mMarkSize+8;
             }
 
-            if (size > maxWidth)
-              maxWidth = size;
+            if (width > maxWidth)
+              maxWidth = width;
         }
     }
 
@@ -1550,17 +1553,27 @@ bool PPlot::DrawLegend (const PRect &inRect, Painter &inPainter) const {
       theX += inRect.mW - maxWidth - 2;
       theY += inRect.mH - totalHeight - 2;
       break;
+    case PPLOT_BOTTOMCENTER:
+      theX += (inRect.mW - maxWidth) / 2;
+      theY = inPainter.GetHeight() - totalHeight - theHeight/4;
+      break;
     default: // PPLOT_TOPRIGHT
       theX += inRect.mW - maxWidth - 2;
       theY += 2;
       break;
     }
 
+    if (mLegendPos == PPLOT_BOTTOMCENTER)
+      inPainter.SetClipRect (0, 0, inPainter.GetWidth (), inPainter.GetHeight());
+
     theC = mPlotBackground.mPlotRegionBackColor;
     inPainter.SetFillColor (theC.mR, theC.mG, theC.mB);
     inPainter.FillRect(theX, theY, maxWidth, totalHeight);
-    inPainter.SetLineColor (theC.mR/1.5, theC.mG/1.5, theC.mB/1.5);
-    DrawRect(inPainter, theX, theY, maxWidth, totalHeight);
+    if (mLegendPos != PPLOT_BOTTOMCENTER)
+    {
+      inPainter.SetLineColor (theC.mR/1.5, theC.mG/1.5, theC.mB/1.5);
+      DrawRect(inPainter, theX, theY, maxWidth, totalHeight);
+    }
 
     for (theI=0; theI<plotCount; theI++) {
         const LegendData *theLegendData = mPlotDataContainer.GetConstLegendData(theI);
@@ -1569,23 +1582,23 @@ bool PPlot::DrawLegend (const PRect &inRect, Painter &inPainter) const {
             inPainter.SetLineColor (theC.mR, theC.mG, theC.mB);
 
             int X = theX + margin;
-            int Y = theY + theI*(theHeight*1.2) + margin;
+            int Y = theY + theI*theHeight + margin;
 
-            int mark_size = 0;
+            int mark_offset = 0;
             const DataDrawerBase* drawer = mPlotDataContainer.GetConstDataDrawer(theI);
             if (drawer->mHasMarks)
             {
               LineDataDrawer* linedrawer = (LineDataDrawer*)drawer;
               if (linedrawer->mDrawPoint)
               {
-                mark_size = linedrawer->mStyle.mMarkSize+8;
+                mark_offset = linedrawer->mStyle.mMarkSize+8;
                 inPainter.SetStyle (linedrawer->mStyle);
-                linedrawer->DrawPoint(X+mark_size/2, Y+3*inPainter.GetFontHeight()/4, inRect, inPainter);
+                linedrawer->DrawPoint(X+mark_offset/2, Y+3*inPainter.GetFontHeight()/4, inRect, inPainter);
               }
             }
            
             inPainter.SetStyle (theLegendData->mStyle);
-            inPainter.DrawText (X+mark_size, Y, PPLOT_NORTH_WEST, theLegendData->mName.c_str ());
+            inPainter.DrawText (X+mark_offset, Y, PPLOT_NORTH_WEST, theLegendData->mName.c_str ());
         }
     }
     return true;

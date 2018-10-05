@@ -9,6 +9,7 @@
 #include <string.h>
 #include <math.h>
 
+#undef SCI_NAMESPACE
 #include <Scintilla.h>
 
 #include "iup.h"
@@ -17,7 +18,6 @@
 #include "iup_attrib.h"
 #include "iup_str.h"
 
-#include "iupsci_tab.h"
 #include "iupsci.h"
 
 /***** TABS AND INDENTATION GUIDES ****
@@ -40,18 +40,14 @@ SCI_SETHIGHLIGHTGUIDE(int column)
 SCI_GETHIGHLIGHTGUIDE
 */
 
-char* iupScintillaGetTabSizeAttrib(Ihandle *ih)
+static char* iScintillaGetTabSizeAttrib(Ihandle *ih)
 {
   int widthInChars;
-  char* str = iupStrGetMemory(100);
-
   widthInChars = iupScintillaSendMessage(ih, SCI_GETTABWIDTH, 0, 0);
-  sprintf(str, "%d", widthInChars);
-
-  return str;
+  return iupStrReturnInt(widthInChars);
 }
 
-int iupScintillaSetTabSizeAttrib(Ihandle *ih, const char *value)
+static int iScintillaSetTabSizeAttrib(Ihandle *ih, const char *value)
 {
   int widthInChars;
   iupStrToInt(value, &widthInChars);
@@ -64,17 +60,13 @@ int iupScintillaSetTabSizeAttrib(Ihandle *ih, const char *value)
   return 0;
 }
 
-char* iupScintillaGetHighlightGuideAttrib(Ihandle *ih)
+static char* iScintillaGetHighlightGuideAttrib(Ihandle *ih)
 {
   int col = iupScintillaSendMessage(ih, SCI_GETHIGHLIGHTGUIDE, 0, 0);
-  char* str = iupStrGetMemory(15);
-
-  sprintf(str, "%d", col);
-
-  return str;
+  return iupStrReturnInt(col);
 }
 
-int iupScintillaSetHighlightGuideAttrib(Ihandle *ih, const char *value)
+static int iScintillaSetHighlightGuideAttrib(Ihandle *ih, const char *value)
 {
   int col;
   if (!iupStrToInt(value, &col))
@@ -85,14 +77,14 @@ int iupScintillaSetHighlightGuideAttrib(Ihandle *ih, const char *value)
   return 0;
 }
 
-char* iupScintillaGetIndentationGuidesAttrib(Ihandle *ih)
+static char* iScintillaGetIndentationGuidesAttrib(Ihandle *ih)
 {
   int indentView = iupScintillaSendMessage(ih, SCI_GETINDENTATIONGUIDES, 0, 0);
   char* str[] = {"NONE", "REAL", "LOOKFORWARD", "LOOKBOTH"};
   return str[indentView];
 }
 
-int iupScintillaSetIndentationGuidesAttrib(Ihandle *ih, const char *value)
+static int iScintillaSetIndentationGuidesAttrib(Ihandle *ih, const char *value)
 {
   int indentView;
 
@@ -110,16 +102,21 @@ int iupScintillaSetIndentationGuidesAttrib(Ihandle *ih, const char *value)
   return 0;
 }
 
-int iupScintillaSetUseTabsAttrib(Ihandle* ih, const char* value)
+static int iScintillaSetUseTabsAttrib(Ihandle* ih, const char* value)
 {
   iupScintillaSendMessage(ih, SCI_SETUSETABS, iupStrBoolean(value), 0);
   return 0;
 }
 
-char* iupScintillaGetUseTabsAttrib(Ihandle* ih)
+static char* iScintillaGetUseTabsAttrib(Ihandle* ih)
 {
-  if (iupScintillaSendMessage(ih, SCI_GETUSETABS, 0, 0))
-    return "YES";
-  else
-    return "NO";
+  return iupStrReturnBoolean (iupScintillaSendMessage(ih, SCI_GETUSETABS, 0, 0)); 
+}
+
+void iupScintillaRegisterTab(Iclass* ic)
+{
+  iupClassRegisterAttribute(ic, "TABSIZE", iScintillaGetTabSizeAttrib, iScintillaSetTabSizeAttrib, IUPAF_SAMEASSYSTEM, "8", IUPAF_DEFAULT);
+  iupClassRegisterAttribute(ic, "INDENTATIONGUIDES", iScintillaGetIndentationGuidesAttrib, iScintillaSetIndentationGuidesAttrib, IUPAF_SAMEASSYSTEM, "NONE", IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "HIGHLIGHTGUIDE", iScintillaGetHighlightGuideAttrib, iScintillaSetHighlightGuideAttrib, NULL, NULL, IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "USETABS", iScintillaGetUseTabsAttrib, iScintillaSetUseTabsAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NO_INHERIT);
 }

@@ -20,6 +20,17 @@
 #include "iup_class.h"
 
 #include "iupwin_drv.h"
+#include "iupwin_str.h"
+
+
+/* old cygwin related hack */
+#ifndef LOCALE_INVARIANT
+#define LOCALE_INVARIANT 0x007f
+#endif
+
+#ifndef SPI_SETCLIENTAREAANIMATION
+#define SPI_SETCLIENTAREAANIMATION 0x1043
+#endif
 
 
 static int win_monitor_index = 0;
@@ -41,7 +52,7 @@ static int winGlobalSetMutex(const char* name)
     ReleaseMutex(win_singleintance);
 
   /* try to create a mutex (will fail if already one of that name) */
-  win_singleintance = CreateMutex(NULL, FALSE, name);
+  win_singleintance = CreateMutex(NULL, FALSE, iupwinStrToSystem(name));
 
   /* Return TRUE if existing semaphore opened */
   if (win_singleintance != NULL && GetLastError()==ERROR_ALREADY_EXISTS)
@@ -56,12 +67,14 @@ static int winGlobalSetMutex(const char* name)
 
 static BOOL CALLBACK winGlobalEnumWindowProc(HWND hWnd, LPARAM lParam)
 {
-  char* name = (char*)lParam;
-  char str[256];
+  TCHAR* name = (TCHAR*)lParam;
+  int name_len = lstrlen(name);
+  TCHAR str[256];
   int len = GetWindowText(hWnd, str, 256);
   if (len)
   {
-    if (iupStrEqualPartial(str, name))
+    if (len > name_len) len = name_len;
+    if (CompareString(LOCALE_INVARIANT, 0, str, len, name, name_len)==CSTR_EQUAL)
     {
       win_findwindow = hWnd;
       return FALSE;
@@ -74,7 +87,7 @@ static BOOL CALLBACK winGlobalEnumWindowProc(HWND hWnd, LPARAM lParam)
 static HWND winGlobalFindWindow(const char* name)
 {
   win_findwindow = NULL;
-  EnumWindows(winGlobalEnumWindowProc, (LPARAM)name);
+  EnumWindows(winGlobalEnumWindowProc, (LPARAM)iupwinStrToSystem(name));
   return win_findwindow;
 }
 
@@ -83,16 +96,18 @@ static void winGlobalFindFirstInstance(const char* name)
   HWND hWnd = winGlobalFindWindow(name);
   if (hWnd)
   {
+    int len;
     LPTSTR cmdLine = GetCommandLine();
 
     SetForegroundWindow(hWnd);
 
     /* Command line is not empty. Send it to the first instance. */ 
-    if (strlen(cmdLine) != 0) 
+    len = lstrlen(cmdLine);
+    if (len != 0) 
     {
       COPYDATASTRUCT cds;
       cds.dwData = (ULONG_PTR)"IUP_DATA";
-      cds.cbData = strlen(cmdLine)+1;
+      cds.cbData = (len+1)*sizeof(TCHAR);
       cds.lpData = cmdLine;
       SendMessage(hWnd, WM_COPYDATA, 0, (LPARAM)&cds);
     }
@@ -301,7 +316,7 @@ static LRESULT CALLBACK winHookGetMessageProc(int hcode, WPARAM gm_wp, LPARAM gm
   return CallNextHookEx(win_OldGetMessageHook, hcode, gm_wp, gm_lp);
 }
 
-int iupdrvSetGlobal(const char *name, const char *value)
+int iupdrvSetGlobal(const char* name, const char* value)
 {
   if (iupStrEqual(name, "INPUTCALLBACKS"))
   {
@@ -322,6 +337,16 @@ int iupdrvSetGlobal(const char *name, const char *value)
     }
     return 1;
   }
+  if (iupStrEqual(name, "UTF8MODE"))
+  {
+    iupwinStrSetUTF8Mode(iupStrBoolean(value));
+    return 0;
+  }
+  if (iupStrEqual(name, "UTF8MODE_FILE"))
+  {
+    iupwinStrSetUTF8ModeFile(iupStrBoolean(value));
+    return 0;
+  }
   if (iupStrEqual(name, "DLL_HINSTANCE"))
   {
     iupwin_dll_hinstance = (HINSTANCE)value;
@@ -337,27 +362,38 @@ int iupdrvSetGlobal(const char *name, const char *value)
     else
       return 1; /* save the attribute, this is the first instance */
   }
+  if (iupStrEqual(name, "CLIENTAREAANIMATION"))
+  {
+    BOOL flag = iupStrBoolean(value);
+    SystemParametersInfoA(SPI_SETCLIENTAREAANIMATION, 0, (void*)flag, 0);
+    return 1;
+  }
+  if (iupStrEqual(name, "HOTTRACKING"))
+  {
+    BOOL flag = iupStrBoolean(value);
+    SystemParametersInfoA(SPI_SETHOTTRACKING, 0, (void*)flag, 0);
+    return 1;
+  }
+  
   return 1;
 }
 
-char *iupdrvGetGlobal(const char *name)
+char* iupdrvGetGlobal(const char* name)
 {
   if (iupStrEqual(name, "VIRTUALSCREEN"))
   {
-    char *str = iupStrGetMemory(50);
     int x = GetSystemMetrics(SM_XVIRTUALSCREEN); 
     int y = GetSystemMetrics(SM_YVIRTUALSCREEN);
     int w = GetSystemMetrics(SM_CXVIRTUALSCREEN); 
     int h = GetSystemMetrics(SM_CYVIRTUALSCREEN);
-    sprintf(str, "%d %d %d %d", x, y, w, h);
-    return str;
+    return iupStrReturnStrf("%d %d %d %d", x, y, w, h);
   }
   if (iupStrEqual(name, "MONITORSINFO"))
   {
     int i;
     int monitors_count = GetSystemMetrics(SM_CMONITORS);
     RECT* monitors_rect = malloc(monitors_count*sizeof(RECT));
-    char *str = iupStrGetMemory(monitors_count*50);
+    char* str = iupStrGetMemory(monitors_count*50);
     char* pstr = str;
 
     win_monitor_index = 0;
@@ -371,9 +407,15 @@ char *iupdrvGetGlobal(const char *name)
   }
   if (iupStrEqual(name, "TRUECOLORCANVAS"))
   {
-    if (iupdrvGetScreenDepth() > 8)
-      return "YES";
-    return "NO";
+    return iupStrReturnBoolean(iupdrvGetScreenDepth() > 8);
+  }
+  if (iupStrEqual(name, "UTF8MODE"))
+  {
+    return iupStrReturnBoolean(iupwinStrGetUTF8Mode());
+  }
+  if (iupStrEqual(name, "UTF8MODE_FILE"))
+  {
+    return iupStrReturnBoolean(iupwinStrGetUTF8ModeFile());
   }
   if (iupStrEqual(name, "DLL_HINSTANCE"))
   {
@@ -382,25 +424,24 @@ char *iupdrvGetGlobal(const char *name)
   if (iupStrEqual(name, "SYSTEMCODEPAGE"))
   {
     CPINFOEX info;
-    char* str = iupStrGetMemory(20);
     GetCPInfoEx(CP_ACP, 0, &info);
-    sprintf(str, "%d", info.CodePage);
-    return str;
+    return iupStrReturnInt(info.CodePage);
   }
   if (iupStrEqual(name, "LASTERROR"))
   {
     DWORD error = GetLastError();
     if (error)
     {
-      LPVOID lpMsgBuf = NULL;
+      LPTSTR lpMsgBuf = NULL;
       FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER|
                     FORMAT_MESSAGE_FROM_SYSTEM|
                     FORMAT_MESSAGE_IGNORE_INSERTS,
                     NULL, error, 0, 
-                    (LPTSTR)&lpMsgBuf, 0, NULL);
+                    (LPTSTR)&lpMsgBuf,  /* weird but that's correct */
+                    0, NULL);
       if (lpMsgBuf)
       {
-        char* str = iupStrGetMemoryCopy((const char*)lpMsgBuf);
+        char* str = iupStrReturnStr(iupwinStrFromSystem(lpMsgBuf));
         LocalFree(lpMsgBuf);
         return str;
       }

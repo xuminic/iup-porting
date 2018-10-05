@@ -29,6 +29,7 @@
 #include "iupwin_handle.h"
 #include "iupwin_brush.h"
 #include "iupwin_info.h"
+#include "iupwin_str.h"
 
 
 static UINT WM_DRAGLISTMSG = 0;
@@ -44,7 +45,7 @@ static UINT WM_DRAGLISTMSG = 0;
 #define WS_EX_COMPOSITED 0x02000000L
 #endif
 
-int iupwinClassExist(const char* name)
+int iupwinClassExist(const TCHAR* name)
 {
   WNDCLASS WndClass;
   if (GetClassInfo(iupwin_hinstance, name, &WndClass))
@@ -81,32 +82,6 @@ void iupdrvActivate(Ihandle* ih)
   SendMessage(ih->handle, BM_SETSTATE, FALSE, 0);
 }
 
-WCHAR* iupwinStrChar2Wide(const char* str)
-{
-  if (str)
-  {
-    int len = (int)strlen(str)+1;
-    WCHAR* wstr = malloc(len * sizeof(WCHAR));
-    MultiByteToWideChar(CP_ACP, 0, str, -1, wstr, len);
-    return wstr;
-  }
-
-  return NULL;
-}
-
-char* iupwinStrWide2Char(const WCHAR* wstr)
-{
-  if (wstr)
-  {
-    int len = (int)wcslen(wstr)+1;
-    char* str = malloc(len * sizeof(char));
-    WideCharToMultiByte(CP_ACP, 0, wstr, -1, str, len, NULL, NULL);
-    return str;
-  }
-
-  return NULL;
-}
-
 int iupdrvGetScrollbarSize(void)
 {
   int xv = GetSystemMetrics(SM_CXVSCROLL);
@@ -121,7 +96,7 @@ void iupdrvReparent(Ihandle* ih)
   {
     HWND oldParent = SetParent(ih->handle, newParent);
     if (!iupAttribGet(ih, "_IUPWIN_REPARENT"))
-      iupAttribSetStr(ih, "_IUPWIN_REPARENT", (char*)oldParent);
+      iupAttribSet(ih, "_IUPWIN_REPARENT", (char*)oldParent);
   }
 }
 
@@ -193,13 +168,13 @@ static void winCallEnterLeaveWindow(Ihandle *ih, int enter)
     if (!iupAttribGetInt(ih, "_IUPWIN_ENTERWIN"))
     {
       cb = IupGetCallback(ih,"ENTERWINDOW_CB");
-      iupAttribSetStr(ih, "_IUPWIN_ENTERWIN", "1");
+      iupAttribSet(ih, "_IUPWIN_ENTERWIN", "1");
     }
   }
   else 
   {
     cb = IupGetCallback(ih,"LEAVEWINDOW_CB");
-    iupAttribSetStr(ih, "_IUPWIN_ENTERWIN", NULL);
+    iupAttribSet(ih, "_IUPWIN_ENTERWIN", NULL);
   }
 
   if (cb)
@@ -224,10 +199,13 @@ void iupwinSetStyle(Ihandle* ih, DWORD value, int set)
   SetWindowLong(ih->handle, GWL_STYLE, dwStyle);
 }
 
-int iupwinBaseProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result)
+int iupwinBaseMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result)
 { 
   switch (msg)
   {
+  case WM_INPUTLANGCHANGE:
+    iupwinKeyInit();
+    break;
   case WM_GETDLGCODE:
     {
       *result = DLGC_WANTALLKEYS;
@@ -313,11 +291,12 @@ int iupwinBaseProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result)
       break;
     }
   case WM_SETFOCUS:
-    /* TODO: Not using WS_TABSTOP still allows the control 
+    /* TODO: Not setting WS_TABSTOP still allows the control 
        to receive the focus when clicked. 
        But this code does make several controls 
-       with CANFOCUS=NO to stop working. */
-/*    if (!iupAttribGetBoolean(ih, "CANFOCUS"))
+       with CANFOCUS=NO to stop working. 
+       So we use it inside some of the controls. */
+/*  if (!iupAttribGetBoolean(ih, "CANFOCUS"))
     {
       HWND previous = (HWND)wp;
       if (previous && previous != ih->handle)
@@ -381,11 +360,11 @@ int iupwinBaseProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result)
   return 0;
 }
 
-LRESULT CALLBACK iupwinBaseWinProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
+LRESULT CALLBACK iupwinBaseWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
 {   
   int ret;
   LRESULT result = 0;
-  IwinProc winProc;
+  IwinMsgProc MsgProc;
   Ihandle *ih;
 
   ih = iupwinHandleGet(hwnd); 
@@ -393,18 +372,18 @@ LRESULT CALLBACK iupwinBaseWinProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp)
     return DefWindowProc(hwnd, msg, wp, lp);  /* should never happen */
 
   /* check if the element defines a custom procedure */
-  winProc = (IwinProc)IupGetCallback(ih, "_IUPWIN_CTRLPROC_CB");
-  if (winProc)
-    ret = winProc(ih, msg, wp, lp, &result);
+  MsgProc = (IwinMsgProc)IupGetCallback(ih, "_IUPWIN_CTRLMSGPROC_CB");
+  if (MsgProc)
+    ret = MsgProc(ih, msg, wp, lp, &result);
   else
-    ret = iupwinBaseProc(ih, msg, wp, lp, &result);
+    ret = iupwinBaseMsgProc(ih, msg, wp, lp, &result);
 
   if (ret)
     return result;
   else
   {
     /* retrieve the control previous procedure for subclassing */
-    WNDPROC oldProc = (WNDPROC)IupGetCallback(ih, "_IUPWIN_OLDPROC_CB");
+    WNDPROC oldProc = (WNDPROC)IupGetCallback(ih, "_IUPWIN_OLDWNDPROC_CB");
     return CallWindowProc(oldProc, hwnd, msg, wp, lp);
   }
 }
@@ -456,7 +435,7 @@ static int winCheckParent(Ihandle* child, Ihandle* ih)
   }
 }
 
-int iupwinBaseContainerProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result)
+int iupwinBaseContainerMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result)
 {
   /* All messages here are sent to the parent Window, 
      but they are usefull for child controls.  */
@@ -564,7 +543,7 @@ int iupwinBaseContainerProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT
         Ihandle *child = iupwinHandleGet(lpDrag->hWnd);
         if (child && winCheckParent(child, ih))
         {
-          *result = iupwinListProcessDND(child, lpDrag->uNotification, lpDrag->ptCursor);
+          *result = iupwinListDND(child, lpDrag->uNotification, lpDrag->ptCursor);
           return 1;
         }
       }
@@ -572,22 +551,22 @@ int iupwinBaseContainerProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT
     }
   }
 
-  return iupwinBaseProc(ih, msg, wp, lp, result);
+  return iupwinBaseMsgProc(ih, msg, wp, lp, result);
 }
 
-void iupwinChangeProc(Ihandle *ih, WNDPROC new_proc)
+void iupwinChangeWndProc(Ihandle *ih, WNDPROC newProc)
 {
-  IupSetCallback(ih, "_IUPWIN_OLDPROC_CB", (Icallback)GetWindowLongPtr(ih->handle, GWLP_WNDPROC));
-  SetWindowLongPtr(ih->handle, GWLP_WNDPROC, (LONG_PTR)new_proc);
+  IupSetCallback(ih, "_IUPWIN_OLDWNDPROC_CB", (Icallback)GetWindowLongPtr(ih->handle, GWLP_WNDPROC));
+  SetWindowLongPtr(ih->handle, GWLP_WNDPROC, (LONG_PTR)newProc);
 }
 
 void iupdrvBaseUnMapMethod(Ihandle* ih)
 {
-  WNDPROC oldProc = (WNDPROC)IupGetCallback(ih, "_IUPWIN_OLDPROC_CB");
+  WNDPROC oldProc = (WNDPROC)IupGetCallback(ih, "_IUPWIN_OLDWNDPROC_CB");
   if (oldProc)
   {
     SetWindowLongPtr(ih->handle, GWLP_WNDPROC, (LONG_PTR)oldProc);
-    IupSetCallback(ih, "_IUPWIN_OLDPROC_CB",  NULL);
+    IupSetCallback(ih, "_IUPWIN_OLDWNDPROC_CB",  NULL);
   }
 
   iupwinTipsDestroy(ih);
@@ -659,11 +638,11 @@ void iupdrvSetActive(Ihandle* ih, int enable)
   EnableWindow(ih->handle, enable);
 }
 
-int iupdrvBaseSetTitleAttrib(Ihandle* ih, const char* value)
+int iupwinSetTitleAttrib(Ihandle* ih, const char* value)
 {
   if (!value) value = "";
-  SetWindowText(ih->handle, value);
-  return 0;
+  SetWindowText(ih->handle, iupwinStrToSystem(value));
+  return 1;
 }
 
 void iupwinSetMnemonicTitle(Ihandle *ih, int pos, const char* value)
@@ -681,13 +660,13 @@ void iupwinSetMnemonicTitle(Ihandle *ih, int pos, const char* value)
   }
 }
 
-char* iupdrvBaseGetTitleAttrib(Ihandle* ih)
+TCHAR* iupwinGetWindowText(HWND hWnd)
 {
-  int nc = GetWindowTextLength(ih->handle);
-  if (nc)
+  int len = GetWindowTextLength(hWnd);
+  if (len)
   {
-    char* str = iupStrGetMemory(nc+1);
-    GetWindowText(ih->handle, str, nc+1);
+    TCHAR* str = (TCHAR*)iupStrGetMemory((len+1)*sizeof(TCHAR));
+    GetWindowText(hWnd, str, len+1);
     return str;
   }
   else
@@ -707,7 +686,7 @@ char* iupdrvBaseGetTitleAttrib(Ihandle* ih)
 static HCURSOR winLoadComCtlCursor(LPCTSTR lpCursorName)
 {
   HCURSOR cur = NULL;
-  HINSTANCE hinstDll = LoadLibrary("comctl32.dll");
+  HINSTANCE hinstDll = LoadLibrary(TEXT("comctl32.dll"));
   if (hinstDll)
   {
     cur = LoadCursor(hinstDll, lpCursorName);
@@ -720,7 +699,7 @@ static HCURSOR winGetCursor(Ihandle* ih, const char* name)
 {
   static struct {
     const char* iupname;
-    const char* sysname;
+    const TCHAR* sysname;
   } table[] = {
     {"NONE",      NULL}, 
     {"NULL",      NULL}, 
@@ -790,7 +769,7 @@ static HCURSOR winGetCursor(Ihandle* ih, const char* name)
       cur = winLoadComCtlCursor(MAKEINTRESOURCE(135));
   }
 
-  iupAttribSetStr(ih, str, (char*)cur);
+  iupAttribSet(ih, str, (char*)cur);
   return cur;
 }
 
@@ -798,7 +777,7 @@ int iupdrvBaseSetCursorAttrib(Ihandle* ih, const char* value)
 {
   /* Cursor can be NULL in Windows. */
   HCURSOR hCur = winGetCursor(ih, value);
-  iupAttribSetStr(ih, "_IUPWIN_HCURSOR", (char*)hCur);  /* To be used in WM_SETCURSOR */
+  iupAttribSet(ih, "_IUPWIN_HCURSOR", (char*)hCur);  /* To be used in WM_SETCURSOR */
   /* refresh the cursor */
   SendMessage(ih->handle, WM_SETCURSOR, (WPARAM)ih->handle, MAKELPARAM(1,WM_MOUSEMOVE));
   return 1;
@@ -808,15 +787,18 @@ void iupdrvBaseRegisterCommonAttrib(Iclass* ic)
 {
   iupClassRegisterAttribute(ic, "HFONT", iupwinGetHFontAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
 
-  if (iupwinIs7OrNew())
+  if (!WM_DRAGLISTMSG)
+    WM_DRAGLISTMSG = RegisterWindowMessage(DRAGLISTMSGSTRING);
+}
+
+void iupdrvBaseRegisterVisualAttrib(Iclass* ic)
+{
+  if (iupwinIsWin7OrNew())
     iupwinTouchRegisterAttrib(ic);
 
   iupClassRegisterAttribute(ic, "TIPBALLOON", NULL, NULL, IUPAF_SAMEASSYSTEM, NULL, IUPAF_NOT_MAPPED);
   iupClassRegisterAttribute(ic, "TIPBALLOONTITLE", NULL, NULL, IUPAF_SAMEASSYSTEM, NULL, IUPAF_NOT_MAPPED);
   iupClassRegisterAttribute(ic, "TIPBALLOONTITLEICON", NULL, NULL, IUPAF_SAMEASSYSTEM, NULL, IUPAF_NOT_MAPPED);
-
-  if (!WM_DRAGLISTMSG)
-    WM_DRAGLISTMSG = RegisterWindowMessage(DRAGLISTMSGSTRING);
 }
 
 int iupwinButtonDown(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp)
@@ -931,23 +913,27 @@ void iupwinGetNativeParentStyle(Ihandle* ih, DWORD *dwExStyle, DWORD *dwStyle)
     *dwExStyle |= WS_EX_COMPOSITED;
 }
 
-int iupwinWCreateWindowEx(Ihandle* ih, LPCWSTR lpClassName, DWORD dwExStyle, DWORD dwStyle)
+HWND iupwinCreateWindowEx(HWND hParent, LPCTSTR lpClassName, DWORD dwExStyle, DWORD dwStyle, int serial, void* clientdata)
 {
-  ih->serial = iupDialogGetChildId(ih);
-
-  ih->handle = CreateWindowExW(dwExStyle,  /* extended window style */
+  return CreateWindowEx(dwExStyle,  /* extended window style */
     lpClassName,                  /* window class */
     NULL,                         /* title */
     dwStyle,                      /* window style */
     0,                            /* x-position */
     0,                            /* y-position */
-    10,                           /* default width to avoid 0 */
-    10,                           /* default height to avoid 0 */
-    iupChildTreeGetNativeParentHandle(ih),     /* window parent */
-    (HMENU)ih->serial,            /* child identifier */
+    CW_USEDEFAULT,                /* default width to avoid 0 */
+    CW_USEDEFAULT,                /* default height to avoid 0 */
+    hParent,                      /* window parent */
+    (HMENU)serial,                /* child identifier */
     iupwin_hinstance,             /* instance of app. */
-    NULL);
+    clientdata);
+}
 
+int iupwinCreateWindow(Ihandle* ih, LPCTSTR lpClassName, DWORD dwExStyle, DWORD dwStyle, void* clientdata)
+{
+  ih->serial = iupDialogGetChildId(ih);
+
+  ih->handle = iupwinCreateWindowEx(iupChildTreeGetNativeParentHandle(ih), lpClassName, dwExStyle, dwStyle, ih->serial, clientdata);
   if (!ih->handle)
     return 0;
 
@@ -955,66 +941,9 @@ int iupwinWCreateWindowEx(Ihandle* ih, LPCWSTR lpClassName, DWORD dwExStyle, DWO
   iupwinHandleAdd(ih, ih->handle);
 
   /* replace the WinProc to handle base callbacks */
-  iupwinChangeProc(ih, iupwinBaseWinProc);
+  iupwinChangeWndProc(ih, iupwinBaseWndProc);
 
   return 1;
-}
-
-int iupwinCreateWindowEx(Ihandle* ih, LPCSTR lpClassName, DWORD dwExStyle, DWORD dwStyle)
-{
-  ih->serial = iupDialogGetChildId(ih);
-
-  ih->handle = CreateWindowExA(dwExStyle,  /* extended window style */
-    lpClassName,                  /* window class */
-    NULL,                         /* title */
-    dwStyle,                      /* window style */
-    0,                            /* x-position */
-    0,                            /* y-position */
-    10,                           /* default width to avoid 0 */
-    10,                           /* default height to avoid 0 */
-    iupChildTreeGetNativeParentHandle(ih),     /* window parent */
-    (HMENU)ih->serial,            /* child identifier */
-    iupwin_hinstance,             /* instance of app. */
-    NULL);
-
-  if (!ih->handle)
-    return 0;
-
-  /* associate HWND with Ihandle*, all Win32 controls must call this. */
-  iupwinHandleAdd(ih, ih->handle);
-
-  /* replace the WinProc to handle base callbacks */
-  iupwinChangeProc(ih, iupwinBaseWinProc);
-
-  return 1;
-}
-
-char* iupwinGetClipboardText(Ihandle* ih)
-{
-  HANDLE Handle;
-  char* str;
-
-  if (!IsClipboardFormatAvailable(CF_TEXT))
-    return NULL;
-
-  if (!OpenClipboard(ih->handle))
-    return NULL;
-
-  Handle = GetClipboardData(CF_TEXT);
-  if (!Handle)
-  {
-    CloseClipboard();
-    return NULL;
-  }
-  
-  str = (char*)GlobalLock(Handle);
-  str = iupStrDup(str);
-  
-  GlobalUnlock(Handle);
-  
-  CloseClipboard();
-
-  return str;
 }
 
 void iupdrvSendKey(int key, int press)

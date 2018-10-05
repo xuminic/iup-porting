@@ -69,7 +69,7 @@ static int iFillSetRasterSizeAttrib(Ihandle* ih, const char* value)
     int s = 0, d = 0;
     if (iFillGetDir(ih) == IUP_FILL_NONE)  /* if Fill is not yet a child of a Vbox or Hbox */
     {
-      iupAttribSetStr(ih, "SIZE", NULL);
+      iupAttribSet(ih, "SIZE", NULL);
       return 1;
     }
 
@@ -95,7 +95,7 @@ static int iFillSetRasterSizeAttrib(Ihandle* ih, const char* value)
       }
     }
   }
-  iupAttribSetStr(ih, "SIZE", NULL);
+  iupAttribSet(ih, "SIZE", NULL);
   return 0;
 }
 
@@ -111,7 +111,7 @@ static int iFillSetSizeAttrib(Ihandle* ih, const char* value)
     int s = 0, d = 0;
     if (iFillGetDir(ih) == IUP_FILL_NONE) /* if Fill is not yet a child of a Vbox or Hbox */
     {
-      iupAttribSetStr(ih, "RASTERSIZE", NULL);
+      iupAttribSet(ih, "RASTERSIZE", NULL);
       return 1;
     }
 
@@ -139,7 +139,7 @@ static int iFillSetSizeAttrib(Ihandle* ih, const char* value)
       }
     }
   }
-  iupAttribSetStr(ih, "RASTERSIZE", NULL);
+  iupAttribSet(ih, "RASTERSIZE", NULL);
   return 1;
 }
 
@@ -169,19 +169,19 @@ static void iFillUpdateSize(Ihandle* ih)
   if (value) 
   { 
     iFillSetSizeAttrib(ih, value);
-    iupAttribSetStr(ih, "SIZE", NULL);
+    iupAttribSet(ih, "SIZE", NULL);
   }
   value = iupAttribGet(ih, "RASTERSIZE");
   if (value) 
   { 
     iFillSetRasterSizeAttrib(ih, value);
-    iupAttribSetStr(ih, "RASTERSIZE", NULL);
+    iupAttribSet(ih, "RASTERSIZE", NULL);
   }
 }
 
-static void iFillComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *expand)
+static void iFillComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *children_expand)
 {
-  (void)expand;  /* unset if not a container */
+  (void)children_expand;  /* unset if not a container */
 
   /* EXPAND is initialized as none for FILL */
   ih->expand = IUP_EXPAND_NONE;

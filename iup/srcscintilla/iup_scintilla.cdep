@@ -8,7 +8,7 @@ $(OBJDIR)/Catalogue.o: src/Catalogue.cxx ../srcscintilla/include/ILexer.h \
  ../srcscintilla/lexlib/LexerModule.h src/Catalogue.h
 $(OBJDIR)/CellBuffer.o: src/CellBuffer.cxx ../srcscintilla/include/Platform.h \
  ../srcscintilla/include/Scintilla.h src/SplitVector.h src/Partitioning.h \
- src/CellBuffer.h
+ src/CellBuffer.h src/UniConversion.h
 $(OBJDIR)/CharClassify.o: src/CharClassify.cxx src/CharClassify.h
 $(OBJDIR)/ContractionState.o: src/ContractionState.cxx \
  ../srcscintilla/include/Platform.h src/SplitVector.h src/Partitioning.h \
@@ -20,14 +20,15 @@ $(OBJDIR)/Document.o: src/Document.cxx ../srcscintilla/include/Platform.h \
  ../srcscintilla/include/ILexer.h ../srcscintilla/include/Scintilla.h \
  src/SplitVector.h src/Partitioning.h src/RunStyles.h src/CellBuffer.h \
  src/PerLine.h src/CharClassify.h ../srcscintilla/lexlib/CharacterSet.h \
- src/Decoration.h src/Document.h src/RESearch.h src/UniConversion.h
+ src/Decoration.h src/CaseFolder.h src/Document.h src/RESearch.h \
+ src/UniConversion.h
 $(OBJDIR)/Editor.o: src/Editor.cxx ../srcscintilla/include/Platform.h \
  ../srcscintilla/include/ILexer.h ../srcscintilla/include/Scintilla.h \
  src/SplitVector.h src/Partitioning.h src/RunStyles.h \
  src/ContractionState.h src/CellBuffer.h src/KeyMap.h src/Indicator.h \
  src/XPM.h src/LineMarker.h src/Style.h src/ViewStyle.h \
- src/CharClassify.h src/Decoration.h src/Document.h src/UniConversion.h \
- src/Selection.h src/PositionCache.h src/Editor.h
+ src/CharClassify.h src/Decoration.h src/CaseFolder.h src/Document.h \
+ src/UniConversion.h src/Selection.h src/PositionCache.h src/Editor.h
 $(OBJDIR)/ExternalLexer.o: src/ExternalLexer.cxx ../srcscintilla/include/Platform.h \
  ../srcscintilla/include/ILexer.h ../srcscintilla/include/Scintilla.h \
  ../srcscintilla/include/SciLexer.h ../srcscintilla/lexlib/LexerModule.h \
@@ -46,7 +47,8 @@ $(OBJDIR)/PositionCache.o: src/PositionCache.cxx ../srcscintilla/include/Platfor
  src/RunStyles.h src/ContractionState.h src/CellBuffer.h src/KeyMap.h \
  src/Indicator.h src/XPM.h src/LineMarker.h src/Style.h src/ViewStyle.h \
  src/CharClassify.h src/Decoration.h ../srcscintilla/include/ILexer.h \
- src/Document.h src/Selection.h src/PositionCache.h
+ src/CaseFolder.h src/Document.h src/UniConversion.h src/Selection.h \
+ src/PositionCache.h
 $(OBJDIR)/RESearch.o: src/RESearch.cxx src/CharClassify.h src/RESearch.h
 $(OBJDIR)/RunStyles.o: src/RunStyles.cxx ../srcscintilla/include/Platform.h \
  ../srcscintilla/include/Scintilla.h src/SplitVector.h src/Partitioning.h \
@@ -58,8 +60,9 @@ $(OBJDIR)/ScintillaBase.o: src/ScintillaBase.cxx ../srcscintilla/include/Platfor
  src/Catalogue.h src/SplitVector.h src/Partitioning.h src/RunStyles.h \
  src/ContractionState.h src/CellBuffer.h src/CallTip.h src/KeyMap.h \
  src/Indicator.h src/XPM.h src/LineMarker.h src/Style.h src/ViewStyle.h \
- src/AutoComplete.h src/CharClassify.h src/Decoration.h src/Document.h \
- src/Selection.h src/PositionCache.h src/Editor.h src/ScintillaBase.h
+ src/AutoComplete.h src/CharClassify.h src/Decoration.h src/CaseFolder.h \
+ src/Document.h src/Selection.h src/PositionCache.h src/Editor.h \
+ src/ScintillaBase.h
 $(OBJDIR)/Selection.o: src/Selection.cxx ../srcscintilla/include/Platform.h \
  ../srcscintilla/include/Scintilla.h src/Selection.h
 $(OBJDIR)/Style.o: src/Style.cxx ../srcscintilla/include/Platform.h \
@@ -70,6 +73,10 @@ $(OBJDIR)/ViewStyle.o: src/ViewStyle.cxx ../srcscintilla/include/Platform.h \
  src/RunStyles.h src/Indicator.h src/XPM.h src/LineMarker.h src/Style.h \
  src/ViewStyle.h
 $(OBJDIR)/XPM.o: src/XPM.cxx ../srcscintilla/include/Platform.h src/XPM.h
+$(OBJDIR)/CaseConvert.o: src/CaseConvert.cxx src/CaseConvert.h src/UniConversion.h \
+ src/UnicodeFromUTF8.h
+$(OBJDIR)/CaseFolder.o: src/CaseFolder.cxx src/CaseConvert.h src/UniConversion.h \
+ src/CaseFolder.h
 $(OBJDIR)/LexA68k.o: lexers/LexA68k.cxx ../srcscintilla/include/ILexer.h \
  ../srcscintilla/include/Scintilla.h ../srcscintilla/include/SciLexer.h \
  ../srcscintilla/lexlib/WordList.h ../srcscintilla/lexlib/LexAccessor.h \
@@ -198,7 +205,7 @@ $(OBJDIR)/LexCPP.o: lexers/LexCPP.cxx ../srcscintilla/include/ILexer.h \
  ../srcscintilla/lexlib/Accessor.h ../srcscintilla/lexlib/StyleContext.h \
  ../srcscintilla/lexlib/CharacterSet.h \
  ../srcscintilla/lexlib/LexerModule.h ../srcscintilla/lexlib/OptionSet.h \
- ../srcscintilla/lexlib/SparseState.h
+ ../srcscintilla/lexlib/SparseState.h ../srcscintilla/lexlib/SubStyles.h
 $(OBJDIR)/LexCrontab.o: lexers/LexCrontab.cxx ../srcscintilla/include/ILexer.h \
  ../srcscintilla/include/Scintilla.h ../srcscintilla/include/SciLexer.h \
  ../srcscintilla/lexlib/WordList.h ../srcscintilla/lexlib/LexAccessor.h \
@@ -284,7 +291,8 @@ $(OBJDIR)/LexHaskell.o: lexers/LexHaskell.cxx ../srcscintilla/include/ILexer.h \
  ../srcscintilla/lexlib/LexAccessor.h ../srcscintilla/lexlib/Accessor.h \
  ../srcscintilla/lexlib/StyleContext.h \
  ../srcscintilla/lexlib/CharacterSet.h \
- ../srcscintilla/lexlib/LexerModule.h
+ ../srcscintilla/lexlib/LexerModule.h ../srcscintilla/lexlib/OptionSet.h \
+ ../srcscintilla/lexlib/CharacterCategory.h
 $(OBJDIR)/LexHTML.o: lexers/LexHTML.cxx ../srcscintilla/include/ILexer.h \
  ../srcscintilla/include/Scintilla.h ../srcscintilla/include/SciLexer.h \
  ../srcscintilla/lexlib/WordList.h ../srcscintilla/lexlib/LexAccessor.h \
@@ -600,6 +608,7 @@ $(OBJDIR)/LexVisualProlog.o: lexers/LexVisualProlog.cxx \
  ../srcscintilla/lexlib/LexAccessor.h ../srcscintilla/lexlib/Accessor.h \
  ../srcscintilla/lexlib/StyleContext.h \
  ../srcscintilla/lexlib/CharacterSet.h \
+ ../srcscintilla/lexlib/CharacterCategory.h \
  ../srcscintilla/lexlib/LexerModule.h ../srcscintilla/lexlib/OptionSet.h
 $(OBJDIR)/LexYAML.o: lexers/LexYAML.cxx ../srcscintilla/include/ILexer.h \
  ../srcscintilla/include/Scintilla.h ../srcscintilla/include/SciLexer.h \
@@ -607,6 +616,32 @@ $(OBJDIR)/LexYAML.o: lexers/LexYAML.cxx ../srcscintilla/include/ILexer.h \
  ../srcscintilla/lexlib/Accessor.h ../srcscintilla/lexlib/StyleContext.h \
  ../srcscintilla/lexlib/CharacterSet.h \
  ../srcscintilla/lexlib/LexerModule.h
+$(OBJDIR)/LexKVIrc.o: lexers/LexKVIrc.cxx ../srcscintilla/include/ILexer.h \
+ ../srcscintilla/include/Scintilla.h ../srcscintilla/include/SciLexer.h \
+ ../srcscintilla/lexlib/WordList.h ../srcscintilla/lexlib/LexAccessor.h \
+ ../srcscintilla/lexlib/Accessor.h ../srcscintilla/lexlib/StyleContext.h \
+ ../srcscintilla/lexlib/CharacterSet.h \
+ ../srcscintilla/lexlib/LexerModule.h
+$(OBJDIR)/LexLaTeX.o: lexers/LexLaTeX.cxx ../srcscintilla/include/ILexer.h \
+ ../srcscintilla/include/Scintilla.h ../srcscintilla/include/SciLexer.h \
+ ../srcscintilla/lexlib/PropSetSimple.h ../srcscintilla/lexlib/WordList.h \
+ ../srcscintilla/lexlib/LexAccessor.h ../srcscintilla/lexlib/Accessor.h \
+ ../srcscintilla/lexlib/StyleContext.h \
+ ../srcscintilla/lexlib/CharacterSet.h \
+ ../srcscintilla/lexlib/LexerModule.h ../srcscintilla/lexlib/LexerBase.h
+$(OBJDIR)/LexSTTXT.o: lexers/LexSTTXT.cxx ../srcscintilla/include/ILexer.h \
+ ../srcscintilla/include/Scintilla.h ../srcscintilla/include/SciLexer.h \
+ ../srcscintilla/lexlib/WordList.h ../srcscintilla/lexlib/LexAccessor.h \
+ ../srcscintilla/lexlib/Accessor.h ../srcscintilla/lexlib/StyleContext.h \
+ ../srcscintilla/lexlib/CharacterSet.h \
+ ../srcscintilla/lexlib/LexerModule.h
+$(OBJDIR)/LexRust.o: lexers/LexRust.cxx ../srcscintilla/include/ILexer.h \
+ ../srcscintilla/include/Scintilla.h ../srcscintilla/include/SciLexer.h \
+ ../srcscintilla/lexlib/WordList.h ../srcscintilla/lexlib/LexAccessor.h \
+ ../srcscintilla/lexlib/Accessor.h ../srcscintilla/lexlib/StyleContext.h \
+ ../srcscintilla/lexlib/CharacterSet.h \
+ ../srcscintilla/lexlib/LexerModule.h ../srcscintilla/lexlib/OptionSet.h \
+ ../srcscintilla/lexlib/PropSetSimple.h
 $(OBJDIR)/Accessor.o: lexlib/Accessor.cxx ../srcscintilla/include/ILexer.h \
  ../srcscintilla/include/Scintilla.h ../srcscintilla/include/SciLexer.h \
  lexlib/PropSetSimple.h lexlib/WordList.h lexlib/LexAccessor.h \
@@ -635,87 +670,81 @@ $(OBJDIR)/PropSetSimple.o: lexlib/PropSetSimple.cxx lexlib/PropSetSimple.h
 $(OBJDIR)/StyleContext.o: lexlib/StyleContext.cxx ../srcscintilla/include/ILexer.h \
  lexlib/LexAccessor.h lexlib/Accessor.h lexlib/StyleContext.h
 $(OBJDIR)/WordList.o: lexlib/WordList.cxx lexlib/WordList.h
+$(OBJDIR)/CharacterCategory.o: lexlib/CharacterCategory.cxx \
+ lexlib/CharacterCategory.h
 $(OBJDIR)/scintilla-marshal.o: gtk/scintilla-marshal.c
 $(OBJDIR)/iupsci_clipboard.o: iupsci_clipboard.c \
  ../srcscintilla/include/Scintilla.h ../include/iup.h ../include/iupkey.h \
  ../include/iupdef.h ../src/iup_object.h ../src/iup_class.h \
  ../src/iup_table.h ../src/iup_classbase.h ../src/iup_attrib.h \
- ../src/iup_str.h iupsci_clipboard.h iupsci.h
+ ../src/iup_str.h iupsci.h
 $(OBJDIR)/iupsci_folding.o: iupsci_folding.c ../srcscintilla/include/Scintilla.h \
  ../include/iup.h ../include/iupkey.h ../include/iupdef.h \
  ../src/iup_object.h ../src/iup_class.h ../src/iup_table.h \
- ../src/iup_classbase.h ../src/iup_attrib.h ../src/iup_str.h \
- iupsci_folding.h iupsci.h
+ ../src/iup_classbase.h ../src/iup_attrib.h ../src/iup_str.h iupsci.h
 $(OBJDIR)/iupsci_lexer.o: iupsci_lexer.c ../srcscintilla/include/Scintilla.h \
  ../srcscintilla/include/SciLexer.h ../include/iup.h ../include/iupkey.h \
  ../include/iupdef.h ../src/iup_object.h ../src/iup_class.h \
  ../src/iup_table.h ../src/iup_classbase.h ../src/iup_attrib.h \
- ../src/iup_str.h iupsci_lexer.h iupsci.h
+ ../src/iup_str.h iupsci.h
 $(OBJDIR)/iupsci_margin.o: iupsci_margin.c ../srcscintilla/include/Scintilla.h \
  ../include/iup.h ../include/iupkey.h ../include/iupdef.h \
  ../src/iup_object.h ../src/iup_class.h ../src/iup_table.h \
- ../src/iup_classbase.h ../src/iup_attrib.h ../src/iup_str.h \
- iupsci_margin.h iupsci.h
+ ../src/iup_classbase.h ../src/iup_attrib.h ../src/iup_str.h iupsci.h
 $(OBJDIR)/iupsci_overtype.o: iupsci_overtype.c ../srcscintilla/include/Scintilla.h \
  ../include/iup.h ../include/iupkey.h ../include/iupdef.h \
  ../src/iup_object.h ../src/iup_class.h ../src/iup_table.h \
- ../src/iup_classbase.h ../src/iup_attrib.h ../src/iup_str.h \
- iupsci_overtype.h iupsci.h
+ ../src/iup_classbase.h ../src/iup_attrib.h ../src/iup_str.h iupsci.h
 $(OBJDIR)/iupsci_scrolling.o: iupsci_scrolling.c \
  ../srcscintilla/include/Scintilla.h ../include/iup.h ../include/iupkey.h \
  ../include/iupdef.h ../include/iup_scintilla.h ../src/iup_object.h \
  ../src/iup_class.h ../src/iup_table.h ../src/iup_classbase.h \
- ../src/iup_attrib.h ../src/iup_str.h iupsci_scrolling.h iupsci.h
+ ../src/iup_attrib.h ../src/iup_str.h iupsci.h
 $(OBJDIR)/iupsci_selection.o: iupsci_selection.c \
  ../srcscintilla/include/Scintilla.h ../include/iup.h ../include/iupkey.h \
  ../include/iupdef.h ../include/iup_scintilla.h ../src/iup_object.h \
  ../src/iup_class.h ../src/iup_table.h ../src/iup_classbase.h \
- ../src/iup_attrib.h ../src/iup_str.h iupsci_selection.h iupsci.h
+ ../src/iup_attrib.h ../src/iup_str.h iupsci.h
 $(OBJDIR)/iupsci_style.o: iupsci_style.c ../srcscintilla/include/Scintilla.h \
  ../include/iup.h ../include/iupkey.h ../include/iupdef.h \
- ../src/iup_object.h ../src/iup_class.h ../src/iup_table.h \
- ../src/iup_classbase.h ../src/iup_attrib.h ../src/iup_str.h \
- iupsci_style.h iupsci.h
+ ../src/iup_drvfont.h ../src/iup_object.h ../src/iup_class.h \
+ ../src/iup_table.h ../src/iup_classbase.h ../src/iup_attrib.h \
+ ../src/iup_str.h iupsci.h
 $(OBJDIR)/iupsci_tab.o: iupsci_tab.c ../srcscintilla/include/Scintilla.h \
  ../include/iup.h ../include/iupkey.h ../include/iupdef.h \
  ../src/iup_object.h ../src/iup_class.h ../src/iup_table.h \
- ../src/iup_classbase.h ../src/iup_attrib.h ../src/iup_str.h iupsci_tab.h \
- iupsci.h
+ ../src/iup_classbase.h ../src/iup_attrib.h ../src/iup_str.h iupsci.h
 $(OBJDIR)/iupsci_text.o: iupsci_text.c ../srcscintilla/include/Scintilla.h \
  ../include/iup.h ../include/iupkey.h ../include/iupdef.h \
  ../src/iup_object.h ../src/iup_class.h ../src/iup_table.h \
- ../src/iup_classbase.h ../src/iup_attrib.h ../src/iup_str.h \
- iupsci_text.h iupsci.h
+ ../src/iup_classbase.h ../src/iup_attrib.h ../src/iup_str.h iupsci.h
 $(OBJDIR)/iupsci_wordwrap.o: iupsci_wordwrap.c ../srcscintilla/include/Scintilla.h \
  ../include/iup.h ../include/iupkey.h ../include/iupdef.h \
  ../src/iup_object.h ../src/iup_class.h ../src/iup_table.h \
- ../src/iup_classbase.h ../src/iup_attrib.h ../src/iup_str.h \
- iupsci_wordwrap.h iupsci.h
+ ../src/iup_classbase.h ../src/iup_attrib.h ../src/iup_str.h iupsci.h
 $(OBJDIR)/iupsci_markers.o: iupsci_markers.c ../srcscintilla/include/Scintilla.h \
  ../include/iup.h ../include/iupkey.h ../include/iupdef.h \
  ../src/iup_object.h ../src/iup_class.h ../src/iup_table.h \
- ../src/iup_classbase.h ../src/iup_attrib.h ../src/iup_str.h \
- ../src/iup_image.h iupsci_markers.h iupsci.h
+ ../src/iup_classbase.h ../src/iup_attrib.h ../src/iup_str.h iupsci.h
 $(OBJDIR)/iupsci_bracelight.o: iupsci_bracelight.c \
  ../srcscintilla/include/Scintilla.h ../include/iup.h ../include/iupkey.h \
  ../include/iupdef.h ../src/iup_object.h ../src/iup_class.h \
  ../src/iup_table.h ../src/iup_classbase.h ../src/iup_attrib.h \
- ../src/iup_str.h iupsci_bracelight.h iupsci.h
+ ../src/iup_str.h iupsci.h
 $(OBJDIR)/iupsci_cursor.o: iupsci_cursor.c ../srcscintilla/include/Scintilla.h \
  ../include/iup.h ../include/iupkey.h ../include/iupdef.h \
  ../src/iup_object.h ../src/iup_class.h ../src/iup_table.h \
- ../src/iup_classbase.h ../src/iup_attrib.h ../src/iup_str.h \
- iupsci_cursor.h iupsci.h
+ ../src/iup_classbase.h ../src/iup_attrib.h ../src/iup_str.h iupsci.h
 $(OBJDIR)/iupsci_whitespace.o: iupsci_whitespace.c \
  ../srcscintilla/include/Scintilla.h ../include/iup.h ../include/iupkey.h \
  ../include/iupdef.h ../src/iup_object.h ../src/iup_class.h \
  ../src/iup_table.h ../src/iup_classbase.h ../src/iup_attrib.h \
- ../src/iup_str.h iupsci_whitespace.h iupsci.h
+ ../src/iup_str.h iupsci.h
 $(OBJDIR)/iupsci_annotation.o: iupsci_annotation.c \
  ../srcscintilla/include/Scintilla.h ../include/iup.h ../include/iupkey.h \
  ../include/iupdef.h ../src/iup_object.h ../src/iup_class.h \
  ../src/iup_table.h ../src/iup_classbase.h ../src/iup_attrib.h \
- ../src/iup_str.h iupsci_annotation.h iupsci.h
+ ../src/iup_str.h iupsci.h
 $(OBJDIR)/iup_scintilla.o: iup_scintilla.cpp ../srcscintilla/include/Scintilla.h \
  ../srcscintilla/include/SciLexer.h \
  ../srcscintilla/include/ScintillaWidget.h ../include/iup.h \
@@ -724,8 +753,4 @@ $(OBJDIR)/iup_scintilla.o: iup_scintilla.cpp ../srcscintilla/include/Scintilla.h
  ../src/iup_table.h ../src/iup_classbase.h ../src/iup_object.h \
  ../src/iup_class.h ../src/iup_attrib.h ../src/iup_str.h ../src/iup_drv.h \
  ../src/iup_drvfont.h ../src/iup_register.h ../src/iup_layout.h \
- ../src/iup_assert.h ../src/gtk/iupgtk_drv.h iupsci_folding.h \
- iupsci_markers.h iupsci_margin.h iupsci_lexer.h iupsci_style.h \
- iupsci_text.h iupsci_selection.h iupsci_clipboard.h iupsci_overtype.h \
- iupsci_scrolling.h iupsci_tab.h iupsci_wordwrap.h iupsci_whitespace.h \
- iupsci_cursor.h iupsci_bracelight.h iupsci_annotation.h iupsci.h
+ ../src/iup_assert.h ../src/gtk/iupgtk_drv.h iupsci.h

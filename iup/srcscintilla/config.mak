@@ -4,13 +4,16 @@ OPT = YES
 
 ifdef DBG
   DEFINES += IUP_ASSERT
+  ifneq ($(findstring Win, $(TEC_SYSNAME)), )
+    LIBNAME := $(LIBNAME)_debug
+  endif
 endif  
 
 INCLUDES =  ../include ../src .
 LDIR = ../lib/$(TEC_UNAME)
 LIBS = iup
 
-DEFINES += STATIC_BUILD SCI_LEXER
+DEFINES += STATIC_BUILD SCI_LEXER SCI_NAMESPACE
 
 # Supported only in Windows and GTK
 
@@ -42,6 +45,7 @@ else
   INCLUDES += ../src/win ../srcscintilla/lexlib ../srcscintilla/src ../srcscintilla/include ../srcscintilla/win32
   INCLUDES += win
   LIBS += imm32
+  DEFINES += UNICODE
   
   ifneq ($(findstring gcc, $(TEC_UNAME)), )
     DEFINES += _WIN32 DISABLE_D2D
@@ -55,7 +59,7 @@ SRCSCINTILLA = src/AutoComplete.cxx src/CallTip.cxx src/Catalogue.cxx src/CellBu
                src/ContractionState.cxx src/Decoration.cxx src/Document.cxx src/Editor.cxx src/ExternalLexer.cxx \
                src/Indicator.cxx src/KeyMap.cxx src/LineMarker.cxx src/PerLine.cxx src/PositionCache.cxx \
                src/RESearch.cxx src/RunStyles.cxx src/ScintillaBase.cxx src/Selection.cxx src/Style.cxx \
-               src/UniConversion.cxx src/ViewStyle.cxx src/XPM.cxx
+               src/UniConversion.cxx src/ViewStyle.cxx src/XPM.cxx src/CaseConvert.cxx src/CaseFolder.cxx
 
 SRCSCINTILLA += lexers/LexA68k.cxx lexers/LexAbaqus.cxx lexers/LexAda.cxx lexers/LexAPDL.cxx lexers/LexAsm.cxx \
 				lexers/LexAsn1.cxx lexers/LexASY.cxx lexers/LexAU3.cxx lexers/LexAVE.cxx lexers/LexAVS.cxx \
@@ -76,11 +80,12 @@ SRCSCINTILLA += lexers/LexA68k.cxx lexers/LexAbaqus.cxx lexers/LexAda.cxx lexers
 				lexers/LexSmalltalk.cxx lexers/LexSML.cxx lexers/LexSorcus.cxx lexers/LexSpecman.cxx \
 				lexers/LexSpice.cxx lexers/LexSQL.cxx lexers/LexTACL.cxx lexers/LexTADS3.cxx lexers/LexTAL.cxx \
 				lexers/LexTCL.cxx lexers/LexTCMD.cxx lexers/LexTeX.cxx lexers/LexTxt2tags.cxx lexers/LexVB.cxx \
-				lexers/LexVerilog.cxx lexers/LexVHDL.cxx lexers/LexVisualProlog.cxx lexers/LexYAML.cxx
+				lexers/LexVerilog.cxx lexers/LexVHDL.cxx lexers/LexVisualProlog.cxx lexers/LexYAML.cxx \
+        lexers/LexKVIrc.cxx lexers/LexLaTeX.cxx lexers/LexSTTXT.cxx lexers/LexRust.cxx
 				
 SRCSCINTILLA += lexlib/Accessor.cxx lexlib/CharacterSet.cxx lexlib/LexerBase.cxx lexlib/LexerModule.cxx \
                 lexlib/LexerNoExceptions.cxx lexlib/LexerSimple.cxx lexlib/PropSetSimple.cxx \
-                lexlib/StyleContext.cxx lexlib/WordList.cxx
+                lexlib/StyleContext.cxx lexlib/WordList.cxx lexlib/CharacterCategory.cxx
 
 ifdef USE_GTK
   SRCSCINTILLA += gtk/PlatGTK.cxx gtk/ScintillaGTK.cxx gtk/scintilla-marshal.c
@@ -92,3 +97,9 @@ SRC = $(SRCSCINTILLA) iupsci_clipboard.c iupsci_folding.c iupsci_lexer.c iupsci_
       iupsci_overtype.c iupsci_scrolling.c iupsci_selection.c iupsci_style.c iupsci_tab.c \
       iupsci_text.c iupsci_wordwrap.c iupsci_markers.c iupsci_bracelight.c iupsci_cursor.c \
       iupsci_whitespace.c iupsci_annotation.c iup_scintilla.cpp 
+      
+ifneq ($(findstring MacOS, $(TEC_UNAME)), )
+  ifneq ($(TEC_SYSMINOR), 4)
+    BUILD_DYLIB=Yes
+  endif
+endif

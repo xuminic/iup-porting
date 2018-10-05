@@ -23,13 +23,24 @@ extern "C" {
 #define IMAT_FRAME_W   2
 #define IMAT_FRAME_H   2
 
-/* Cell flags */
-#define IMAT_HAS_FONT    1     /* Has FONTL:C attribute */
-#define IMAT_HAS_FGCOLOR 2     /* Has FGCOLORL:C attribute */
-#define IMAT_HAS_BGCOLOR 4     /* Has BGCOLORL:C attribute */
-#define IMAT_IS_MARKED   8     /* Is marked */
-#define IMAT_HAS_FRAMEHORIZCOLOR 16  /* Has FRAMEHORIZCOLORL:C */
-#define IMAT_HAS_FRAMEVERTCOLOR  32  /* Has FRAMEVERTCOLORL:C */
+/* Cell/Column/Line flags */
+#define IMAT_HAS_FONT    0x01     /* Has FONTL:C attribute */
+#define IMAT_HAS_FGCOLOR 0x02     /* Has FGCOLORL:C attribute */
+#define IMAT_HAS_BGCOLOR 0x04     /* Has BGCOLORL:C attribute */
+#define IMAT_IS_MARKED   0x08     /* Is marked */
+#define IMAT_HAS_FRAMEHORIZCOLOR 0x10  /* Has FRAMEHORIZCOLORL:C */
+#define IMAT_HAS_FRAMEVERTCOLOR  0x20  /* Has FRAMEVERTCOLORL:C */
+#define IMAT_HAS_TYPE 0x40       /* Has TYPEL:C attribute */
+
+/* Numeric Column flags */
+#define IMAT_IS_NUMERIC  1      /* Is numeric */
+#define IMAT_HAS_FORMAT  2      /* has format for lin!= 0 */
+#define IMAT_HAS_FORMATTITLE 4  /* has format for lin== 0 */
+
+enum{IMAT_TYPE_TEXT,
+     IMAT_TYPE_COLOR,
+     IMAT_TYPE_IMAGE,
+     IMAT_TYPE_FILL};
 
 enum{IMAT_EDITNEXT_LIN, 
      IMAT_EDITNEXT_COL, 
@@ -37,21 +48,27 @@ enum{IMAT_EDITNEXT_LIN,
      IMAT_EDITNEXT_COLCR,
      IMAT_EDITNEXT_NONE};
 
+typedef double (*ImatNumericConvertFunc)(double number, int quantity, int src_units, int dst_units);
+
 
 /***************************************************************************/
 /* Structures stored in each matrix                                        */
 /***************************************************************************/
 typedef struct _ImatCell
 {
-  char *value;      /* Cell value                              */
-  unsigned char flags;  
+  char *value;          /* Cell value */
+  unsigned char flags;  /* Attribute flags for the cell */
 } ImatCell;
 
+typedef struct _ImatLinCol
+{
+  int size;             /* Width/height of the column/line */
+  unsigned char flags;  /* Attribute flags for the column/line */
+} ImatLinCol;
 
 typedef struct _ImatLinColData
 {
-  int* sizes;            /* Width/height of the columns/lines  (allocated after map)   */
-  unsigned char* flags;  /* Attribute flags for the columns/lines (allocated after map) */
+  ImatLinCol* dt;   /* columns/lines data (allocated after map)   */
 
   int num;          /* Number of columns/lines, default/minimum=1, always includes the non scrollable cells */
   int num_alloc;    /* Number of columns/lines allocated, default=5 */
@@ -64,11 +81,18 @@ typedef struct _ImatLinColData
   int last;         /* Last visible column/line  */
 
   /* used to configure the scrollbar */
-  int total_size;   /* Sum of the widths/heights of the columns/lines, not including the non scrollable cells */
-  int visible_size; /* Width/height of the visible window, not including the non scrollable cells */
+  int total_visible_size;   /* Sum of the widths/heights of the columns/lines, not including the non scrollable cells */
+  int current_visible_size; /* Width/height of the visible window, not including the non scrollable cells */
 
   int focus_cell;   /* index of the current cell */
 } ImatLinColData;
+
+typedef struct _ImatNumericData
+{
+  unsigned char quantity;
+  unsigned char unit, unit_shown;
+  unsigned char flags;  
+} ImatNumericData;
 
 struct _IcontrolData
 {
@@ -93,12 +117,14 @@ struct _IcontrolData
   int need_calcsize;
   int need_redraw;
   int inside_markedit_cb;   /* avoid recursion */
+  int last_sort_index;
 
   /* attributes */
   int mark_continuous, mark_mode, mark_multiple;
   int checkframecolor, hidden_text_marks, editnext;
   int use_title_size;   /* use title contents when calculating cell size */
   int limit_expand; /* limit expand to maximum size */
+  int undo_redo, show_fill_value;
 
   /* Mouse and Keyboard AUX */
   int leftpressed;  /* left mouse button is pressed */
@@ -110,6 +136,7 @@ struct _IcontrolData
       colres_drag_col,   /* column being resized, handler is at right of the column */
       colres_drag_col_start_x, /* handler start position */
       colres_drag_col_last_x;  /* previous position */
+  long colres_color;
 
   /* Mark AUX */
   int mark_lin1, mark_col1,  /* used to store the start cell when a block is being marked */
@@ -118,23 +145,34 @@ struct _IcontrolData
       mark_full2;
 
   /* Draw AUX, valid only after iupMatrixPrepareDrawData */
-  sIFnii font_cb;
+  sIFnii font_cb, type_cb;
   IFniiIII fgcolor_cb;
   IFniiIII bgcolor_cb;
   char *bgcolor, *bgcolor_parent, *fgcolor, *font;  /* not need to free */
+  long bgcolor_cd;
 
   /* Clipping AUX for cell  */
   int clip_x1, clip_x2, clip_y1, clip_y2;
+
+  /* Numeric Columns */
+  char numeric_buffer_get[80];
+  char numeric_buffer_set[80];
+  ImatNumericData* numeric_columns;   /* information for numeric columns (allocated after map) */
+  ImatNumericConvertFunc numeric_convert_func;
+
+  /* Column Sort */
+  int* sort_line_index;     /* Remap index of the line */
+  int sort_has_index;       /* has a remap index of columns/lines */
 };
 
 
 int iupMatrixIsValid(Ihandle* ih, int check_cells);
+void iupMatrixRegisterEx(Iclass* ic);
 
 #define iupMATRIX_INVERTYAXIS(_ih, _y) ((_ih)->data->h-1 - (_y))
 
 #define iupMATRIX_CHECK_COL(_ih, _col) ((_col >= 0) && (_col < (_ih)->data->columns.num))
 #define iupMATRIX_CHECK_LIN(_ih, _lin) ((_lin >= 0) && (_lin < (_ih)->data->lines.num))
-
 
 
 #ifdef __cplusplus

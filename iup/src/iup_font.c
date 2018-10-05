@@ -90,7 +90,7 @@ char *IupUnMapFont(const char *standardfont)
     is_underline = 0,
     is_strikeout = 0;
   char typeface[1024];
-  char *str, *iup_typeface, *iup_style;
+  char *iup_typeface, *iup_style;
 
   iupASSERT(standardfont!=NULL);
   if (!standardfont)
@@ -117,9 +117,7 @@ char *IupUnMapFont(const char *standardfont)
   else
     return NULL;
 
-  str = iupStrGetMemory(1024);
-  sprintf(str, "%s%s%d", iup_typeface, iup_style, size);
-  return str;
+  return iupStrReturnStrf("%s%s%d", iup_typeface, iup_style, size);
 }
 
 static char* iFontGetStyle(const char* iupfont, int *size)
@@ -151,7 +149,7 @@ static char* iFontGetStyle(const char* iupfont, int *size)
 char *IupMapFont(const char *iupfont)
 {
   int size = 0;
-  char *str, *typeface, *style;
+  char *typeface, *style;
 
   iupASSERT(iupfont!=NULL);
   if (!iupfont)
@@ -181,9 +179,7 @@ char *IupMapFont(const char *iupfont)
   else 
     return NULL;
 
-  str = iupStrGetMemory(1024);
-  sprintf(str, "%s, %s %d", typeface, style, size);
-  return str;
+  return iupStrReturnStrf("%s, %s %d", typeface, style, size);
 }
 
 int iupSetFontAttrib(Ihandle* ih, const char* value)
@@ -204,8 +200,7 @@ char* iupGetFontAttrib(Ihandle* ih)
 
 void iupUpdateStandardFontAttrib(Ihandle* ih)
 {
-  int inherit;
-  iupClassObjectSetAttribute(ih, "STANDARDFONT", iupGetFontAttrib(ih), &inherit);
+  iupAttribSetClassObject(ih, "STANDARDFONT", iupGetFontAttrib(ih));
 }
 
 int iupGetFontInfo(const char* standardfont, char *fontface, int *size, int *is_bold, int *is_italic, int *is_underline, int *is_strikeout)
@@ -238,7 +233,6 @@ char* iupGetFontFaceAttrib(Ihandle* ih)
     is_underline = 0,
     is_strikeout = 0;
   char typeface[1024];
-  char *str;
   char* standardfont; 
   
   standardfont = iupGetFontAttrib(ih);
@@ -246,9 +240,7 @@ char* iupGetFontFaceAttrib(Ihandle* ih)
   if (!iupGetFontInfo(standardfont, typeface, &size, &is_bold, &is_italic, &is_underline, &is_strikeout))
     return NULL;
 
-  str = iupStrGetMemory(50);
-  sprintf(str, "%s", typeface);
-  return str;
+  return iupStrReturnStr(typeface);
 }
 
 char* iupGetFontSizeAttrib(Ihandle* ih)
@@ -259,7 +251,6 @@ char* iupGetFontSizeAttrib(Ihandle* ih)
     is_underline = 0,
     is_strikeout = 0;
   char typeface[1024];
-  char *str;
   char* standardfont; 
   
   standardfont = iupGetFontAttrib(ih);
@@ -267,9 +258,7 @@ char* iupGetFontSizeAttrib(Ihandle* ih)
   if (!iupGetFontInfo(standardfont, typeface, &size, &is_bold, &is_italic, &is_underline, &is_strikeout))
     return NULL;
 
-  str = iupStrGetMemory(50);
-  sprintf(str, "%d", size);
-  return str;
+  return iupStrReturnInt(size);
 }
 
 int iupSetFontSizeAttrib(Ihandle* ih, const char* value)
@@ -280,7 +269,6 @@ int iupSetFontSizeAttrib(Ihandle* ih, const char* value)
     is_underline = 0,
     is_strikeout = 0;
   char typeface[1024];
-  char new_standardfont[1024];
   char* standardfont; 
 
   if (!value)
@@ -291,9 +279,7 @@ int iupSetFontSizeAttrib(Ihandle* ih, const char* value)
   if (!iupGetFontInfo(standardfont, typeface, &size, &is_bold, &is_italic, &is_underline, &is_strikeout))
     return 0;
 
-  sprintf(new_standardfont, "%s, %s%s%s%s%s", typeface, is_bold?"Bold ":"", is_italic?"Italic ":"", is_underline?"Underline ":"", is_strikeout?"Strikeout ":"", value);
-  IupStoreAttribute(ih, "STANDARDFONT", new_standardfont);
-
+  IupSetfAttribute(ih, "STANDARDFONT", "%s, %s%s%s%s%s", typeface, is_bold?"Bold ":"", is_italic?"Italic ":"", is_underline?"Underline ":"", is_strikeout?"Strikeout ":"", value);
   return 0;
 }
 
@@ -305,7 +291,6 @@ void iupSetDefaultFontSizeGlobalAttrib(const char* value)
     is_underline = 0,
     is_strikeout = 0;
   char typeface[1024];
-  char new_standardfont[1024];
   char* standardfont; 
 
   if (!value)
@@ -316,8 +301,7 @@ void iupSetDefaultFontSizeGlobalAttrib(const char* value)
   if (!iupGetFontInfo(standardfont, typeface, &size, &is_bold, &is_italic, &is_underline, &is_strikeout))
     return;
 
-  sprintf(new_standardfont, "%s, %s%s%s%s%s", typeface, is_bold?"Bold ":"", is_italic?"Italic ":"", is_underline?"Underline ":"", is_strikeout?"Strikeout ":"", value);
-  IupStoreGlobal("DEFAULTFONT", new_standardfont);
+  IupSetfAttribute(NULL, "DEFAULTFONT", "%s, %s%s%s%s%s", typeface, is_bold?"Bold ":"", is_italic?"Italic ":"", is_underline?"Underline ":"", is_strikeout?"Strikeout ":"", value);
 
   return;
 }
@@ -330,17 +314,12 @@ char* iupGetDefaultFontSizeGlobalAttrib(void)
     is_underline = 0,
     is_strikeout = 0;
   char typeface[1024];
-  char *str;
-  char* standardfont; 
-  
-  standardfont = IupGetGlobal("DEFAULTFONT");
+  char* standardfont = IupGetGlobal("DEFAULTFONT");
 
   if (!iupGetFontInfo(standardfont, typeface, &size, &is_bold, &is_italic, &is_underline, &is_strikeout))
     return NULL;
 
-  str = iupStrGetMemory(50);
-  sprintf(str, "%d", size);
-  return str;
+  return iupStrReturnInt(size);
 }
 
 char* iupGetFontStyleAttrib(Ihandle* ih)
@@ -351,17 +330,12 @@ char* iupGetFontStyleAttrib(Ihandle* ih)
     is_underline = 0,
     is_strikeout = 0;
   char typeface[1024];
-  char *str;
-  char* standardfont; 
-  
-  standardfont = iupGetFontAttrib(ih);
+  char* standardfont = iupGetFontAttrib(ih);
 
   if (!iupGetFontInfo(standardfont, typeface, &size, &is_bold, &is_italic, &is_underline, &is_strikeout))
     return NULL;
 
-  str = iupStrGetMemory(200);
-  sprintf(str, "%s%s%s%s", is_bold?"Bold ":"", is_italic?"Italic ":"", is_underline?"Underline ":"", is_strikeout?"Strikeout ":"");
-  return str;
+  return iupStrReturnStrf("%s%s%s%s", is_bold?"Bold ":"", is_italic?"Italic ":"", is_underline?"Underline ":"", is_strikeout?"Strikeout ":"");
 }
 
 int iupSetFontStyleAttrib(Ihandle* ih, const char* value)
@@ -372,7 +346,6 @@ int iupSetFontStyleAttrib(Ihandle* ih, const char* value)
     is_underline = 0,
     is_strikeout = 0;
   char typeface[1024];
-  char new_standardfont[1024];
   char* standardfont; 
 
   if (!value)
@@ -383,8 +356,7 @@ int iupSetFontStyleAttrib(Ihandle* ih, const char* value)
   if (!iupGetFontInfo(standardfont, typeface, &size, &is_bold, &is_italic, &is_underline, &is_strikeout))
     return 0;
 
-  sprintf(new_standardfont, "%s, %s %d", typeface, value, size);
-  IupStoreAttribute(ih, "STANDARDFONT", new_standardfont);
+  IupSetfAttribute(ih, "STANDARDFONT", "%s, %s %d", typeface, value, size);
 
   return 0;
 }
@@ -399,6 +371,7 @@ Style can be a free combination of some names separated by spaces.
 Font name can be a list of font family names separated by comma.
 */
 
+/* this code is shared between CD and IUP, must be updated on both libraries */
 enum {                          /* style */
  FONT_PLAIN  = 0,
  FONT_BOLD   = 1,
@@ -410,7 +383,7 @@ enum {                          /* style */
 static int iFontFindStyleName(const char *name, int len, int *style)
 {
 #define STYLE_NUM_NAMES 21
-  static struct { const char* name; int style; } cd_style_names[STYLE_NUM_NAMES] = {
+  static struct { const char* name; int style; } style_names[STYLE_NUM_NAMES] = {
     {"Normal",         0},
     {"Oblique",        FONT_ITALIC},
     {"Italic",         FONT_ITALIC},
@@ -437,10 +410,10 @@ static int iFontFindStyleName(const char *name, int len, int *style)
   int i;
   for (i = 0; i < STYLE_NUM_NAMES; i++)
   {
-    /* iupStrEqualPartial(cd_style_names[i].name, name) */
-    if (strncmp(cd_style_names[i].name, name, len)==0)
+    /* iupStrEqualPartial(style_names[i].name, name) */
+    if (strncmp(style_names[i].name, name, len)==0)
     {
-      *style = cd_style_names[i].style;
+      *style = style_names[i].style;
       return 1;
     }
   }
@@ -450,6 +423,7 @@ static int iFontFindStyleName(const char *name, int len, int *style)
 
 #define is_style_sep(_x) (_x == ' ' || _x == ',')
 
+/* this code is partially shared between CD and IUP, must be updated on both libraries */
 static const char * iFontGetStyleWord(const char *str, const char *last, int *wordlen)
 {
   const char *result;
@@ -466,6 +440,7 @@ static const char * iFontGetStyleWord(const char *str, const char *last, int *wo
   return result;
 }
 
+/* this code is shared between CD and IUP, must be updated on both libraries */
 int iupFontParsePango(const char *standardfont, char *typeface, int *size, int *bold, int *italic, int *underline, int *strikeout)
 {
   const char *p, *last;

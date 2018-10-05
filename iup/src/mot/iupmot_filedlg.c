@@ -7,6 +7,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+
+#include <errno.h>
 
 #include <Xm/Xm.h>
 #include <Xm/MwmUtil.h>
@@ -30,6 +33,7 @@
 #include "iup_strmessage.h"
 #include "iup_drvinfo.h"
 #include "iup_array.h"
+#include "iup_predialogs.h"
 
 #include "iupmot_drv.h"
 
@@ -66,7 +70,7 @@ static int motFileDlgAskUser(Widget parent, const char* message)
   XtSetArg(args[1], XmNdialogStyle, XmDIALOG_FULL_APPLICATION_MODAL);
   XtSetArg(args[2], XmNnoResize, True);
   questionbox = XmCreateQuestionDialog(parent, "filedlg_question", args, 3);
-  iupmotSetString(questionbox, XmNmessageString, message);
+  iupmotSetXmString(questionbox, XmNmessageString, message);
   XtVaGetValues(parent, XmNdialogTitle, &title, NULL);
   XtVaSetValues(questionbox, XmNdialogTitle, title, NULL);
 
@@ -95,20 +99,20 @@ static int motFileDlgCheckValue(Ihandle* ih, Widget filebox)
 
   if (dialogtype == IUP_DIALOGDIR)
   {
-    if (!iupdrvIsDirectory(value))               /* if does not exist or not a directory */
+    if (!iupUnixIsDirectory(value))               /* if does not exist or not a directory */
     {
-      iupStrMessageShowError(ih, "IUP_INVALIDDIR");
+      iupShowError(ih, "IUP_INVALIDDIR");
       return 0;
     }
   }
   else if (!iupAttribGetBoolean(ih, "MULTIPLEFILES"))
   {
-    if (iupdrvIsDirectory(value))  /* selected a directory */
+    if (iupUnixIsDirectory(value))  /* selected a directory */
     {
-      iupStrMessageShowError(ih, "IUP_INVALIDDIR");
+      iupShowError(ih, "IUP_INVALIDDIR");
       return 0;
     }
-    else if (!iupdrvIsFile(value))      /* not a file == new file */
+    else if (!iupUnixIsFile(value))      /* not a file == new file */
     {
       value = iupAttribGet(ih, "ALLOWNEW");
       if (!value)
@@ -121,13 +125,13 @@ static int motFileDlgCheckValue(Ihandle* ih, Widget filebox)
 
       if (!iupStrBoolean(value))
       {
-        iupStrMessageShowError(ih, "IUP_FILENOTEXIST");
+        iupShowError(ih, "IUP_FILENOTEXIST");
         return 0;
       }
     }
     else if (dialogtype == IUP_DIALOGSAVE && !iupAttribGetInt(ih, "NOOVERWRITEPROMPT"))
     {
-      if (!motFileDlgAskUser(filebox, iupStrMessageGet("IUP_FILEOVERWRITE")))
+      if (!motFileDlgAskUser(filebox, IupGetLanguageString("IUP_FILEOVERWRITE")))
         return 0;
     }
   }
@@ -141,9 +145,9 @@ static void motFileDlgCBclose(Widget w, XtPointer client_data, XtPointer call_da
   if (!ih) return;
   (void)call_data;
   (void)w;
-  iupAttribSetStr(ih, "VALUE", NULL);
-  iupAttribSetStr(ih, "STATUS", "-1");
-  iupAttribSetStr(ih, "_IUP_WM_DELETE", "1");
+  iupAttribSet(ih, "VALUE", NULL);
+  iupAttribSet(ih, "STATUS", "-1");
+  iupAttribSet(ih, "_IUP_WM_DELETE", "1");
 }
 
 static int motFileDlgGetMultipleFiles(Ihandle* ih, const char* dir, Widget wList)
@@ -170,13 +174,17 @@ static int motFileDlgGetMultipleFiles(Ihandle* ih, const char* dir, Widget wList
 
   for (i = 0; i<sel_count; i++)
   {
-    filename = iupmotConvertString(items[pos[i]-1]);  /* XmListGetSelectedPos starts at 1 */
-    len = strlen(filename)-dir_len;
+    filename = iupmotGetXmString(items[pos[i]-1]);  /* XmListGetSelectedPos starts at 1 */
+    if (filename)
+    {
+      len = strlen(filename)-dir_len;
 
-    cur_len = iupArrayCount(names_array);
-    all_names = iupArrayAdd(names_array, len+1);
-    memcpy(all_names+cur_len, filename+dir_len, len);
-    all_names[cur_len+len] = '|';
+      cur_len = iupArrayCount(names_array);
+      all_names = iupArrayAdd(names_array, len+1);
+      memcpy(all_names+cur_len, filename+dir_len, len);
+      all_names[cur_len+len] = '|';
+      XtFree(filename);
+    }
   }
 
   XtFree((char*)pos);
@@ -185,7 +193,7 @@ static int motFileDlgGetMultipleFiles(Ihandle* ih, const char* dir, Widget wList
   all_names = iupArrayInc(names_array);
   all_names[cur_len+1] = 0;
 
-  iupAttribStoreStr(ih, "VALUE", all_names);
+  iupAttribSetStr(ih, "VALUE", all_names);
 
   iupArrayDestroy(names_array);
   return 1;
@@ -198,7 +206,7 @@ static void motFileDlgCallback(Widget filebox, Ihandle* ih, XmFileSelectionBoxCa
     int dialogtype = iupAttribGetInt(ih, "_IUPDLG_DIALOGTYPE");
     char* filename;
     XmStringGetLtoR(call_data->value, XmSTRING_DEFAULT_CHARSET, &filename);
-    iupAttribStoreStr(ih, "VALUE", filename);
+    iupAttribSetStr(ih, "VALUE", filename);
     XtFree(filename);
 
     if (!motFileDlgCheckValue(ih, filebox))
@@ -206,8 +214,8 @@ static void motFileDlgCallback(Widget filebox, Ihandle* ih, XmFileSelectionBoxCa
 
     if (dialogtype == IUP_DIALOGDIR)
     {
-      iupAttribSetStr(ih, "STATUS", "0");
-      iupAttribSetStr(ih, "FILEEXIST", NULL);
+      iupAttribSet(ih, "STATUS", "0");
+      iupAttribSet(ih, "FILEEXIST", NULL);
     }
     else if (iupAttribGetBoolean(ih, "MULTIPLEFILES"))
     {
@@ -217,16 +225,16 @@ static void motFileDlgCallback(Widget filebox, Ihandle* ih, XmFileSelectionBoxCa
       char* dir = iupAttribGet(ih, "VALUE");
       int len = strlen(dir);
       if (dir[len-1]=='/') dir[len-1] = 0;  /* remove last '/' */
-      iupAttribStoreStr(ih, "DIRECTORY", dir);
+      iupAttribSetStr(ih, "DIRECTORY", dir);
 
       if (!motFileDlgGetMultipleFiles(ih, iupAttribGet(ih, "DIRECTORY"), wList))
       {
-        iupStrMessageShowError(ih, "IUP_FILENOTEXIST");
+        iupShowError(ih, "IUP_FILENOTEXIST");
         return; /* do not update STATUS */
       }
 
-      iupAttribSetStr(ih, "STATUS", "0");
-      iupAttribSetStr(ih, "FILEEXIST", "YES");
+      iupAttribSet(ih, "STATUS", "0");
+      iupAttribSet(ih, "FILEEXIST", "YES");
     }
     else
     {
@@ -242,8 +250,8 @@ static void motFileDlgCallback(Widget filebox, Ihandle* ih, XmFileSelectionBoxCa
             char* file = iupAttribGet(ih, "FILE");
             if (file)
             {
-              iupmotSetString(filebox, XmNdirSpec, "");
-              iupmotSetString(filebox, XmNdirSpec, file);
+              iupmotSetXmString(filebox, XmNdirSpec, "");
+              iupmotSetXmString(filebox, XmNdirSpec, file);
             }
           }
 
@@ -254,19 +262,19 @@ static void motFileDlgCallback(Widget filebox, Ihandle* ih, XmFileSelectionBoxCa
       /* store the DIRECTORY */
       {
         char* dir = iupStrFileGetPath(filename);
-        iupAttribStoreStr(ih, "DIRECTORY", dir);
+        iupAttribSetStr(ih, "DIRECTORY", dir);
         free(dir);
       }
 
-      if (iupdrvIsFile(filename))  /* check if file exists */
+      if (iupUnixIsFile(filename))  /* check if file exists */
       {
-        iupAttribSetStr(ih, "FILEEXIST", "YES");
-        iupAttribSetStr(ih, "STATUS", "0");
+        iupAttribSet(ih, "FILEEXIST", "YES");
+        iupAttribSet(ih, "STATUS", "0");
       }
       else
       {
-        iupAttribSetStr(ih, "FILEEXIST", "NO");
-        iupAttribSetStr(ih, "STATUS", "1");
+        iupAttribSet(ih, "FILEEXIST", "NO");
+        iupAttribSet(ih, "STATUS", "1");
       }
     }
 
@@ -277,15 +285,15 @@ static void motFileDlgCallback(Widget filebox, Ihandle* ih, XmFileSelectionBoxCa
       char* dir;
       XtVaGetValues(filebox, XmNdirectory, &xm_dir, NULL);
       XmStringGetLtoR(xm_dir, XmSTRING_DEFAULT_CHARSET, &dir);
-      iupdrvSetCurrentDirectory(dir);
+      iupUnixSetCurrentDirectory(dir);
       XtFree(dir);
     }
   }
   else if (call_data->reason == XmCR_CANCEL)
   {
-    iupAttribSetStr(ih, "VALUE", NULL);
-    iupAttribSetStr(ih, "FILEEXIST", NULL);
-    iupAttribSetStr(ih, "STATUS", "-1");
+    iupAttribSet(ih, "VALUE", NULL);
+    iupAttribSet(ih, "FILEEXIST", NULL);
+    iupAttribSet(ih, "STATUS", "-1");
   }
 }
 
@@ -294,9 +302,9 @@ static void motFileDlgHelpCallback(Widget w, Ihandle *ih, XtPointer call_data)
   Icallback cb = IupGetCallback(ih, "HELP_CB");
   if (cb && cb(ih) == IUP_CLOSE)
   {
-    iupAttribSetStr(ih, "VALUE", NULL);
-    iupAttribSetStr(ih, "FILEEXIST", NULL);
-    iupAttribSetStr(ih, "STATUS", "-1");
+    iupAttribSet(ih, "VALUE", NULL);
+    iupAttribSet(ih, "FILEEXIST", NULL);
+    iupAttribSet(ih, "STATUS", "-1");
   }
 
   (void)call_data;
@@ -335,7 +343,7 @@ static XmString motFileDlgPrompt(Widget parent, const char* message)
   XtSetArg(args[0], XmNautoUnmanage, False);
   XtSetArg(args[1], XmNdialogStyle, XmDIALOG_FULL_APPLICATION_MODAL);
   promptbox = XmCreatePromptDialog(parent, "filedlg_prompt", args, 2);
-  iupmotSetString(promptbox, XmNselectionLabelString, message);
+  iupmotSetXmString(promptbox, XmNselectionLabelString, message);
   XtVaGetValues(parent, XmNdialogTitle, &title, NULL);
   XtVaSetValues(promptbox, XmNdialogTitle, title, NULL);
 
@@ -359,7 +367,7 @@ static XmString motFileDlgPrompt(Widget parent, const char* message)
 
 static void motFileDlgNewFolderCallback(Widget w, Widget filebox, XtPointer call_data)
 {
-  XmString xm_new_dir = motFileDlgPrompt(filebox, iupStrMessageGet("IUP_NAMENEWFOLDER"));
+  XmString xm_new_dir = motFileDlgPrompt(filebox, IupGetLanguageString("IUP_NAMENEWFOLDER"));
   if (xm_new_dir)
   {
     XmString xm_dir;
@@ -369,7 +377,7 @@ static void motFileDlgNewFolderCallback(Widget w, Widget filebox, XtPointer call
     {
       char* dir;
       XmStringGetLtoR(xm_dir, XmSTRING_DEFAULT_CHARSET, &dir);
-      iupdrvMakeDirectory(dir);
+      iupUnixMakeDirectory(dir);
       XtFree(dir);
     }
 
@@ -401,7 +409,7 @@ static void motFileDlgUpdatePreviewGLCanvas(Ihandle* ih)
   Ihandle* glcanvas = IupGetAttributeHandle(ih, "PREVIEWGLCANVAS");
   if (glcanvas)
   {
-    iupAttribSetStr(glcanvas, "XWINDOW", iupAttribGet(ih, "XWINDOW"));
+    iupAttribSet(glcanvas, "XWINDOW", iupAttribGet(ih, "XWINDOW"));
     glcanvas->iclass->Map(glcanvas);
   }
 }
@@ -410,11 +418,11 @@ static void motFileDlgPreviewCanvasInit(Ihandle *ih, Widget w)
 {
   XSetWindowAttributes attrs;
   GC gc = XCreateGC(iupmot_display, XtWindow(w), 0, NULL);
-  iupAttribSetStr(ih, "PREVIEWDC", (char*)gc);
-  iupAttribSetStr(ih, "WID", (char*)w);
+  iupAttribSet(ih, "PREVIEWDC", (char*)gc);
+  iupAttribSet(ih, "WID", (char*)w);
 
-  iupAttribSetStr(ih, "XWINDOW", (char*)XtWindow(w));
-  iupAttribSetStr(ih, "XDISPLAY", (char*)iupmot_display);
+  iupAttribSet(ih, "XWINDOW", (char*)XtWindow(w));
+  iupAttribSet(ih, "XDISPLAY", (char*)iupmot_display);
   motFileDlgUpdatePreviewGLCanvas(ih);
 
   attrs.bit_gravity = ForgetGravity; /* For the DrawingArea widget gets Expose events when you resize it to be smaller. */
@@ -437,7 +445,7 @@ static void motFileDlgPreviewCanvasExposeCallback(Widget w, Ihandle *ih, XtPoint
 
   /* callback here always exists */
   cb = (IFnss)IupGetCallback(ih, "FILE_CB");
-  if (iupdrvIsFile(filename))
+  if (iupUnixIsFile(filename))
     cb(ih, filename, "PAINT");
   else
     cb(ih, NULL, "PAINT");
@@ -456,7 +464,7 @@ static void motFileDlgBrowseSelectionCallback(Widget w, Ihandle* ih, XmListCallb
 
   /* callback here always exists */
   cb = (IFnss)IupGetCallback(ih, "FILE_CB");
-  if (iupdrvIsFile(filename))
+  if (iupUnixIsFile(filename))
     cb(ih, filename, "SELECT");
   else
     cb(ih, filename, "OTHER");
@@ -517,9 +525,10 @@ static int motFileDlgPopup(Ihandle* ih, int x, int y)
       value = "IUP_OPEN";
     else
       value = "IUP_SELECTDIR";
-    iupAttribSetStr(ih, "TITLE", iupStrMessageGet(value));
+    value = IupGetLanguageString(value);
+    iupAttribSet(ih, "TITLE", value);
   }
-  iupmotSetString(filebox, XmNdialogTitle, value);
+  iupmotSetXmString(filebox, XmNdialogTitle, value);
 
   XtVaSetValues(filebox,
                 XmNdialogStyle, style,
@@ -535,7 +544,7 @@ static int motFileDlgPopup(Ihandle* ih, int x, int y)
   if (value && value[0] == '/')
   {
     char* dir = iupStrFileGetPath(value);
-    iupAttribStoreStr(ih, "DIRECTORY", dir);
+    iupAttribSetStr(ih, "DIRECTORY", dir);
     free(dir);
   }
 
@@ -543,7 +552,7 @@ static int motFileDlgPopup(Ihandle* ih, int x, int y)
 
   value = iupAttribGet(ih, "DIRECTORY");
   if (value)
-    iupmotSetString(filebox, XmNdirectory, value);
+    iupmotSetXmString(filebox, XmNdirectory, value);
 
   value = iupAttribGet(ih, "FILTER");
   if (value)
@@ -559,7 +568,7 @@ static int motFileDlgPopup(Ihandle* ih, int x, int y)
       filter[size] = 0;
     }
 
-    iupmotSetString(filebox, XmNpattern, filter);
+    iupmotSetXmString(filebox, XmNpattern, filter);
 
     if (filter != value) 
       free(filter);
@@ -576,7 +585,7 @@ static int motFileDlgPopup(Ihandle* ih, int x, int y)
       char* dir = iupAttribGet(ih, "DIRECTORY");
       if (!dir)
       {
-        cur_dir = iupdrvGetCurrentDirectory();
+        cur_dir = iupUnixGetCurrentDirectory();
         dir = cur_dir;
       }
 
@@ -588,8 +597,8 @@ static int motFileDlgPopup(Ihandle* ih, int x, int y)
 
     /* clear value before setting. Do not know why we have to do this, 
        but if not cleared it will fail to set the XmNdirSpec value. */
-    iupmotSetString(filebox, XmNdirSpec, "");
-    iupmotSetString(filebox, XmNdirSpec, file);
+    iupmotSetXmString(filebox, XmNdirSpec, "");
+    iupmotSetXmString(filebox, XmNdirSpec, file);
 
     if (file != value)
       free(file);
@@ -607,7 +616,7 @@ static int motFileDlgPopup(Ihandle* ih, int x, int y)
     Widget new_folder = XtVaCreateManagedWidget("new_folder", xmPushButtonWidgetClass, filebox, 
                                                 XmNlabelType, XmSTRING, 
                                                 NULL);
-    iupmotSetString(new_folder, XmNlabelString, iupStrMessageGet("IUP_CREATEFOLDER"));
+    iupmotSetXmString(new_folder, XmNlabelString, IupGetLanguageString("IUP_CREATEFOLDER"));
     XtAddCallback(new_folder, XmNactivateCallback, (XtCallbackProc)motFileDlgNewFolderCallback, (XtPointer)filebox);
   }
   else
@@ -635,7 +644,7 @@ static int motFileDlgPopup(Ihandle* ih, int x, int y)
         XtAddCallback(preview_canvas, XmNexposeCallback, (XtCallbackProc)motFileDlgPreviewCanvasExposeCallback, (XtPointer)ih);
         XtAddCallback(preview_canvas, XmNresizeCallback, (XtCallbackProc)motFileDlgPreviewCanvasResizeCallback,  (XtPointer)ih);
 
-        iupAttribSetStr(ih, "_IUPDLG_FILEBOX", (char*)filebox);
+        iupAttribSet(ih, "_IUPDLG_FILEBOX", (char*)filebox);
       }
     }
 
@@ -679,7 +688,7 @@ static int motFileDlgPopup(Ihandle* ih, int x, int y)
   /* while the user hasn't provided an answer, simulate main loop.
   ** The answer changes as soon as the user selects one of the
   ** buttons and the callback routine changes its value. */
-  iupAttribSetStr(ih, "STATUS", NULL);
+  iupAttribSet(ih, "STATUS", NULL);
   while (iupAttribGet(ih, "STATUS") == NULL)
     XtAppProcessEvent(iupmot_appcontext, XtIMAll);
 

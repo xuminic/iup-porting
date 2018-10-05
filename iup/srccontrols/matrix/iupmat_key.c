@@ -31,6 +31,29 @@
 #include "iupmat_draw.h"
 
 
+static void iMatrixKeyCheckMarkStart(Ihandle* ih, int c, int mark_key)
+{
+  if (c==mark_key && ih->data->mark_multiple && ih->data->mark_mode != IMAT_MARK_NO)
+  {
+    if (ih->data->mark_lin1==-1 && ih->data->mark_col1==-1)
+      iupMatrixMarkBlockBegin(ih, 0, ih->data->lines.focus_cell, ih->data->columns.focus_cell);
+  }
+}
+
+static void iMatrixKeyCheckMarkEnd(Ihandle* ih, int c, int mark_key)
+{
+  if (ih->data->mark_multiple && ih->data->mark_mode != IMAT_MARK_NO)
+  {
+    if (c==mark_key)
+    {
+      if (ih->data->mark_lin1!=-1 && ih->data->mark_col1!=-1)
+        iupMatrixMarkBlockEnd(ih, ih->data->lines.focus_cell, ih->data->columns.focus_cell);
+    }
+    else
+      iupMatrixMarkBlockReset(ih);
+  }
+}
+
 int iupMatrixProcessKeyPress(Ihandle* ih, int c)
 {
   int ret = IUP_IGNORE; /* default for processed keys */
@@ -44,77 +67,93 @@ int iupMatrixProcessKeyPress(Ihandle* ih, int c)
     case K_cHOME:
     case K_sHOME:
     case K_HOME:
+      iMatrixKeyCheckMarkStart(ih, c, K_sHOME);
       if(iupMatrixAuxCallLeaveCellCb(ih) == IUP_IGNORE)
         break;
       iupMATRIX_ScrollKeyHome(ih);
       ih->data->homekeycount++;
       iupMatrixAuxCallEnterCellCb(ih);
+      iMatrixKeyCheckMarkEnd(ih, c, K_sHOME);
       break;
 
     case K_cEND:
     case K_sEND:
     case K_END:
+      iMatrixKeyCheckMarkStart(ih, c, K_sEND);
       if(iupMatrixAuxCallLeaveCellCb(ih) == IUP_IGNORE)
         break;
       iupMATRIX_ScrollKeyEnd(ih);
       ih->data->endkeycount++;
       iupMatrixAuxCallEnterCellCb(ih);
+      iMatrixKeyCheckMarkEnd(ih, c, K_sEND);
       break;
 
     case K_sTAB:
     case K_TAB:
       return IUP_CONTINUE;  /* do not redraw */
 
-    case K_cLEFT:
     case K_sLEFT:
+    case K_cLEFT:
     case K_LEFT:
+      iMatrixKeyCheckMarkStart(ih, c, K_sLEFT);
       if (iupMatrixAuxCallLeaveCellCb(ih) == IUP_IGNORE)
         break;
       iupMATRIX_ScrollKeyLeft(ih);
       iupMatrixAuxCallEnterCellCb(ih);
+      iMatrixKeyCheckMarkEnd(ih, c, K_sLEFT);
       break;
 
     case K_cRIGHT:
     case K_sRIGHT:
     case K_RIGHT:
+      iMatrixKeyCheckMarkStart(ih, c, K_sRIGHT);
       if(iupMatrixAuxCallLeaveCellCb(ih) == IUP_IGNORE)
         break;
       iupMATRIX_ScrollKeyRight(ih);
       iupMatrixAuxCallEnterCellCb(ih);
+      iMatrixKeyCheckMarkEnd(ih, c, K_sRIGHT);
       break;
 
     case K_cUP:
     case K_sUP:
     case K_UP:
+      iMatrixKeyCheckMarkStart(ih, c, K_sUP);
       if(iupMatrixAuxCallLeaveCellCb(ih) == IUP_IGNORE)
         break;
       iupMATRIX_ScrollKeyUp(ih);
       iupMatrixAuxCallEnterCellCb(ih);
+      iMatrixKeyCheckMarkEnd(ih, c, K_sUP);
       break ;
 
     case K_cDOWN:
     case K_sDOWN:
     case K_DOWN:
+      iMatrixKeyCheckMarkStart(ih, c, K_sDOWN);
       if(iupMatrixAuxCallLeaveCellCb(ih) == IUP_IGNORE)
         break;
       iupMATRIX_ScrollKeyDown(ih);
       iupMatrixAuxCallEnterCellCb(ih);
+      iMatrixKeyCheckMarkEnd(ih, c, K_sDOWN);
       break;
 
     case K_sPGUP:
     case K_PGUP:
+      iMatrixKeyCheckMarkStart(ih, c, K_sPGUP);
       if(iupMatrixAuxCallLeaveCellCb(ih) == IUP_IGNORE)
         break;
       iupMATRIX_ScrollKeyPgUp(ih);
       iupMatrixAuxCallEnterCellCb(ih);
+      iMatrixKeyCheckMarkEnd(ih, c, K_sPGUP);
       break;
 
     case K_sPGDN:
     case K_PGDN:
+      iMatrixKeyCheckMarkStart(ih, c, K_sPGDN);
       if(iupMatrixAuxCallLeaveCellCb(ih) == IUP_IGNORE)
         break;
       iupMATRIX_ScrollKeyPgDown(ih);
       iupMatrixAuxCallEnterCellCb(ih);
+      iMatrixKeyCheckMarkEnd(ih, c, K_sPGDN);
       break;
 
     case K_F2:
@@ -128,33 +167,7 @@ int iupMatrixProcessKeyPress(Ihandle* ih, int c)
     case K_sDEL:
     case K_DEL:
       {
-        int lin, col;
-        char str[100];
-        IFnii mark_cb = (IFnii)IupGetCallback(ih, "MARK_CB");
-
-        iupMatrixPrepareDrawData(ih);
-
-        for(lin = 1; lin < ih->data->lines.num; lin++)
-        {
-          for(col = 1; col < ih->data->columns.num; col++)
-          {
-            if (iupMatrixMarkCellGet(ih, lin, col, mark_cb, str))
-            {
-              if (iupMatrixAuxCallEditionCbLinCol(ih, lin, col, 1, 1) != IUP_IGNORE)
-              {
-                IFniis value_edit_cb;
-
-                iupMatrixCellSetValue(ih, lin, col, NULL);
-
-                value_edit_cb = (IFniis)IupGetCallback(ih, "VALUE_EDIT_CB");
-                if (value_edit_cb)
-                  value_edit_cb(ih, lin, col, NULL);
-
-                iupMatrixDrawCells(ih, lin, col, lin, col);
-              }
-            }
-          }
-        }
+        IupSetAttribute(ih, "CLEARVALUE", "MARKED");
         break;
       }
     default:
@@ -214,7 +227,7 @@ int iupMatrixKeyPress_CB(Ihandle* ih, int c, int press)
     else
     {
       c = cb(ih, c, ih->data->lines.focus_cell, ih->data->columns.focus_cell, 0,
-             iupMatrixCellGetValue(ih, ih->data->lines.focus_cell, ih->data->columns.focus_cell));
+             iupMatrixGetValue(ih, ih->data->lines.focus_cell, ih->data->columns.focus_cell));
     }
 
     if (c == IUP_IGNORE || c == IUP_CLOSE || c == IUP_CONTINUE)

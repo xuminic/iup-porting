@@ -2,6 +2,9 @@ PROJNAME = iup
 LIBNAME := iup
 OPT = YES
 
+ifeq "$(TEC_SYSNAME)" "Haiku"
+  USE_HAIKU = Yes
+else
 ifdef GTK_DEFAULT
   ifdef USE_MOTIF
     # Build Motif version in Linux and BSD
@@ -24,6 +27,7 @@ else
     endif
   endif
 endif
+endif
 
 ifdef DBG
   DEFINES += IUP_ASSERT
@@ -33,17 +37,34 @@ INCLUDES = ../include .
 # Windows XP minimum
 WIN32VER = 0x0501
 
-SRC = iup_array.c iup_callback.c iup_dlglist.c iup_attrib.c iup_focus.c iup_font.c iup_expander.c \
-      iup_globalattrib.c iup_object.c iup_key.c iup_layout.c iup_ledlex.c iup_names.c iup_open.c \
-      iup_ledparse.c iup_predialogs.c iup_register.c iup_scanf.c iup_show.c iup_str.c iup_table.c \
-      iup_func.c iup_childtree.c iup.c iup_classattrib.c iup_dialog.c iup_assert.c iup_canvas.c \
+SRC = iup_array.c iup_callback.c iup_dlglist.c iup_attrib.c iup_focus.c iup_font.c \
+      iup_globalattrib.c iup_object.c iup_key.c iup_layout.c iup_ledlex.c iup_names.c \
+      iup_ledparse.c iup_predialogs.c iup_register.c iup_scanf.c iup_show.c iup_str.c \
+      iup_func.c iup_childtree.c iup.c iup_classattrib.c iup_dialog.c iup_assert.c \
       iup_messagedlg.c iup_timer.c iup_image.c iup_label.c iup_fill.c iup_zbox.c iup_gridbox.c \
       iup_colordlg.c iup_fontdlg.c iup_filedlg.c iup_strmessage.c iup_menu.c iup_frame.c \
       iup_user.c iup_button.c iup_radio.c iup_toggle.c iup_progressbar.c iup_text.c iup_val.c \
       iup_box.c iup_hbox.c iup_vbox.c iup_cbox.c iup_class.c iup_classbase.c iup_maskmatch.c \
       iup_mask.c iup_maskparse.c iup_tabs.c iup_spin.c iup_list.c iup_getparam.c iup_link.c \
-      iup_sbox.c iup_scrollbox.c iup_normalizer.c iup_tree.c iup_split.c iup_layoutdlg.c iup_recplay.c
+      iup_sbox.c iup_scrollbox.c iup_normalizer.c iup_tree.c iup_split.c iup_layoutdlg.c \
+      iup_recplay.c iup_progressdlg.c iup_expander.c iup_open.c iup_table.c iup_canvas.c
 
+ifdef USE_HAIKU
+  # Since Haiku has no GTK and no Motif, we can only use the native implementation
+  SRC += haiku/iuphaiku_button.cpp haiku/iuphaiku_canvas.cpp haiku/iuphaiku_clipboard.c \
+         haiku/iuphaiku_colordlg.c haiku/iuphaiku_common.cpp haiku/iuphaiku_dialog.cpp \
+         haiku/iuphaiku_dragdrop.c haiku/iuphaiku_draw.c haiku/iuphaiku_filedlg.cpp \
+         haiku/iuphaiku_focus.cpp haiku/iuphaiku_font.cpp haiku/iuphaiku_fontdlg.c \
+         haiku/iuphaiku_frame.cpp haiku/iuphaiku_globalattrib.c haiku/iuphaiku_help.c \
+         haiku/iuphaiku_image.cpp haiku/iuphaiku_info.cpp haiku/iuphaiku_label.cpp \
+         haiku/iuphaiku_list.cpp haiku/iuphaiku_loop.cpp haiku/iuphaiku_menu.cpp \
+         haiku/iuphaiku_messagedlg.c haiku/iuphaiku_open.cpp haiku/iuphaiku_progressbar.cpp \
+         haiku/iuphaiku_tabs.cpp haiku/iuphaiku_text.cpp haiku/iuphaiku_timer.cpp \
+         haiku/iuphaiku_tips.c haiku/iuphaiku_toggle.cpp haiku/iuphaiku_tree.cpp \
+         haiku/iuphaiku_val.cpp gtk/iupgtk_draw_cairo.c gtk/iupgtk_key.c
+  INCLUDES += haiku
+#  DEFINES += _WIN32_WINNT=$(WIN32VER) _WIN32_IE=$(WIN32VER) WINVER=$(WIN32VER) NOTREEVIEW
+else
 ifdef USE_GTK
   CHECK_GTK = Yes
   DEFINES += GTK_DISABLE_DEPRECATED 
@@ -60,7 +81,7 @@ ifdef USE_GTK
          gtk/iupgtk_text.c gtk/iupgtk_frame.c gtk/iupgtk_progressbar.c \
          gtk/iupgtk_tabs.c gtk/iupgtk_menu.c gtk/iupgtk_list.c gtk/iupgtk_tree.c \
          gtk/iupgtk_canvas.c gtk/iupgtk_image.c gtk/iupgtk_dialog.c \
-         gtk/iupgtk_common.c
+         gtk/iupgtk_common.c gtk/iupgtk_str.c
            
   ifdef USE_GTK3
     SRC += gtk/iupgtk_draw_cairo.c
@@ -95,7 +116,7 @@ ifdef USE_MOTIF
          mot/iupmot_colordlg.c mot/iupmot_fontdlg.c mot/iupmot_filedlg.c mot/iupmot_frame.c \
          mot/iupmot_button.c mot/iupmot_toggle.c mot/iupmot_progressbar.c mot/iupmot_clipboard.c \
          mot/iupmot_text.c mot/iupmot_val.c mot/iupmot_tabs.c mot/iupmot_menu.c \
-         mot/iupmot_list.c mot/iupmot_tree.c mot/iupmot_dragdrop.c
+         mot/iupmot_list.c mot/iupmot_tree.c mot/iupmot_dragdrop.c mot/iupmot_str.c
          
   SRC += mot/iupunix_help.c mot/iupunix_info.c
   USE_X11 = Yes
@@ -103,7 +124,7 @@ ifdef USE_MOTIF
   INCLUDES += mot
 else
   SRC += win/iupwin_common.c win/iupwin_brush.c win/iupwin_focus.c win/iupwin_font.c \
-         win/iupwin_globalattrib.c win/iupwin_handle.c win/iupwin_key.c \
+         win/iupwin_globalattrib.c win/iupwin_handle.c win/iupwin_key.c win/iupwin_str.c \
          win/iupwin_loop.c win/iupwin_open.c win/iupwin_tips.c win/iupwin_info.c \
          win/iupwin_dialog.c win/iupwin_messagedlg.c win/iupwin_timer.c \
          win/iupwin_image.c win/iupwin_label.c win/iupwin_canvas.c win/iupwin_frame.c \
@@ -116,6 +137,8 @@ else
 
   INCLUDES += win
   DEFINES += _WIN32_WINNT=$(WIN32VER) _WIN32_IE=0x600 WINVER=$(WIN32VER) NOTREEVIEW
+  DEFINES += UNICODE
+endif
 endif
 endif
 

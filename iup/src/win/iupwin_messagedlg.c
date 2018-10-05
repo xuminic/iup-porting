@@ -13,6 +13,10 @@
 #include "iup_str.h"
 #include "iup_dialog.h"
 
+#include "iup_drv.h"
+#include "iupwin_drv.h"
+#include "iupwin_str.h"
+
 
 static void winMessageDlgHelpCallback(HELPINFO* HelpInfo)
 {
@@ -30,7 +34,6 @@ static void winMessageDlgHelpCallback(HELPINFO* HelpInfo)
 static int winMessageDlgPopup(Ihandle* ih, int x, int y)
 {
   InativeHandle* parent = iupDialogGetNativeParent(ih);
-  MSGBOXPARAMS MsgBoxParams;
   int result, num_but = 2;
   DWORD dwStyle = MB_TASKMODAL;
   char *icon, *buttons;
@@ -70,28 +73,32 @@ static int winMessageDlgPopup(Ihandle* ih, int x, int y)
   else
     dwStyle |= MB_DEFBUTTON1;
 
-  MsgBoxParams.cbSize = sizeof(MSGBOXPARAMS);
-  MsgBoxParams.hwndOwner = parent;
-  MsgBoxParams.hInstance = NULL;
-  MsgBoxParams.lpszText = iupAttribGet(ih, "VALUE");
-  MsgBoxParams.lpszCaption = iupAttribGet(ih, "TITLE");
-  MsgBoxParams.dwStyle = dwStyle;
-  MsgBoxParams.lpszIcon = NULL;
-  MsgBoxParams.dwContextHelpId = (DWORD_PTR)ih;
-  MsgBoxParams.lpfnMsgBoxCallback = (MSGBOXCALLBACK)winMessageDlgHelpCallback;
-  MsgBoxParams.dwLanguageId = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
+  {
+    MSGBOXPARAMS MsgBoxParams;
+    MsgBoxParams.cbSize = sizeof(MSGBOXPARAMS);
+    MsgBoxParams.hwndOwner = parent;
+    MsgBoxParams.hInstance = NULL;
+    MsgBoxParams.lpszText = iupwinStrToSystem(iupAttribGet(ih, "VALUE"));
+    MsgBoxParams.lpszCaption = iupwinStrToSystem(iupAttribGet(ih, "TITLE"));
+    MsgBoxParams.dwStyle = dwStyle;
+    MsgBoxParams.lpszIcon = NULL;
+    MsgBoxParams.dwContextHelpId = (DWORD_PTR)ih;
+    MsgBoxParams.lpfnMsgBoxCallback = (MSGBOXCALLBACK)winMessageDlgHelpCallback;
+    MsgBoxParams.dwLanguageId = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
 
-  result = MessageBoxIndirect(&MsgBoxParams);
+    result = MessageBoxIndirect(&MsgBoxParams);
+  }
+
   if (result == 0)
   {
-    iupAttribSetStr(ih, "BUTTONRESPONSE", NULL);
+    iupAttribSet(ih, "BUTTONRESPONSE", NULL);
     return IUP_ERROR;
   }
 
   if (result == IDNO || result == IDCANCEL)
-    iupAttribSetStr(ih, "BUTTONRESPONSE", "2");
+    iupAttribSet(ih, "BUTTONRESPONSE", "2");
   else
-    iupAttribSetStr(ih, "BUTTONRESPONSE", "1");
+    iupAttribSet(ih, "BUTTONRESPONSE", "1");
 
   return IUP_NOERROR;
 }

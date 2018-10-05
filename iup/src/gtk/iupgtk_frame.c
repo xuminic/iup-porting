@@ -38,18 +38,13 @@ int iupdrvFrameHasClientOffset(void)
   return 0;
 }
 
-static char* gtkFrameGetTitleAttrib(Ihandle* ih)
-{
-  GtkFrame* frame = (GtkFrame*)ih->handle;
-  return iupStrGetMemoryCopy(iupgtkStrConvertFromUTF8(gtk_frame_get_label(frame)));
-}
-
 static int gtkFrameSetTitleAttrib(Ihandle* ih, const char* value)
 {
   if (iupAttribGetStr(ih, "_IUPFRAME_HAS_TITLE"))
   {
     GtkFrame* frame = (GtkFrame*)ih->handle;
-    gtk_frame_set_label(frame, iupgtkStrConvertToUTF8(value));
+    gtk_frame_set_label(frame, iupgtkStrConvertToSystem(value));
+    return 1;
   }
   return 0;
 }
@@ -128,7 +123,7 @@ static int gtkFrameMapMethod(Ihandle* ih)
     return IUP_ERROR;
 
   if (title)
-    iupAttribSetStr(ih, "_IUPFRAME_HAS_TITLE", "1");
+    iupAttribSet(ih, "_IUPFRAME_HAS_TITLE", "1");
   else
   {
     value = iupAttribGetStr(ih, "SUNKEN");
@@ -138,7 +133,7 @@ static int gtkFrameMapMethod(Ihandle* ih)
       gtk_frame_set_shadow_type((GtkFrame*)ih->handle, GTK_SHADOW_ETCHED_IN);
 
     if (iupAttribGet(ih, "BGCOLOR"))
-      iupAttribSetStr(ih, "_IUPFRAME_HAS_BGCOLOR", "1");
+      iupAttribSet(ih, "_IUPFRAME_HAS_BGCOLOR", "1");
   }
 
   /* the container that will receive the child element. */
@@ -174,5 +169,5 @@ void iupdrvFrameInitClass(Iclass* ic)
 
   /* Special */
   iupClassRegisterAttribute(ic, "FGCOLOR", NULL, gtkFrameSetFgColorAttrib, IUPAF_SAMEASSYSTEM, "DLGFGCOLOR", IUPAF_DEFAULT);
-  iupClassRegisterAttribute(ic, "TITLE", gtkFrameGetTitleAttrib, gtkFrameSetTitleAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "TITLE", NULL, gtkFrameSetTitleAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
 }

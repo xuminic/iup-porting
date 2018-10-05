@@ -267,16 +267,16 @@ int iupgtkSetMnemonicTitle(Ihandle* ih, GtkLabel* label, const char* value)
   str = iupStrProcessMnemonic(value, &c, 1);  /* replace & by c, the returned value of c is ignored in GTK */
   if (str != value)
   {
-    gtk_label_set_text_with_mnemonic(label, iupgtkStrConvertToUTF8(str));
+    gtk_label_set_text_with_mnemonic(label, iupgtkStrConvertToSystem(str));
     free(str);
     return 1;
   }
   else
   {
     if (iupAttribGetBoolean(ih, "MARKUP"))
-      gtk_label_set_markup(label, iupgtkStrConvertToUTF8(str));
+      gtk_label_set_markup(label, iupgtkStrConvertToSystem(str));
     else
-      gtk_label_set_text(label, iupgtkStrConvertToUTF8(str));
+      gtk_label_set_text(label, iupgtkStrConvertToSystem(str));
   }
   return 0;
 }
@@ -614,7 +614,7 @@ static GdkCursor* gtkGetCursor(Ihandle* ih, const char* name)
   }
 
   /* save the cursor in cache */
-  iupAttribSetStr(ih, str, (char*)cur);
+  iupAttribSet(ih, str, (char*)cur);
 
   return cur;
 }
@@ -700,210 +700,12 @@ void iupdrvBaseRegisterCommonAttrib(Iclass* ic)
 #endif
   iupClassRegisterAttribute(ic, "PANGOFONTDESC", iupgtkGetPangoFontDescAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
   iupClassRegisterAttribute(ic, "PANGOLAYOUT", iupgtkGetPangoLayoutAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
+}
 
+void iupdrvBaseRegisterVisualAttrib(Iclass* ic)
+{
   iupClassRegisterAttribute(ic, "TIPMARKUP", NULL, NULL, IUPAF_SAMEASSYSTEM, NULL, IUPAF_NOT_MAPPED);
   iupClassRegisterAttribute(ic, "TIPICON", NULL, NULL, IUPAF_SAMEASSYSTEM, NULL, IUPAF_NOT_MAPPED);
-}
-
-static int gtkStrIsAscii(const char* str)
-{
-  while(*str)
-  {
-    int c = *str;
-    if (c < 0)
-      return 0;
-    str++;
-  }
-  return 1;
-}
-
-static char* gtkStrToUTF8(const char *str, const char* charset)
-{
-  return g_convert(str, -1, "UTF-8", charset, NULL, NULL, NULL);
-}
-
-static char* gtkStrFromUTF8(const char *str, const char* charset)
-{
-  return g_convert(str, -1, charset, "UTF-8", NULL, NULL, NULL);
-}
-
-static char* gktLastConvertUTF8 = NULL;
-
-void iupgtkReleaseConvertUTF8(void)
-{
-  if (gktLastConvertUTF8)
-    g_free(gktLastConvertUTF8);
-}
-
-char* iupgtkStrConvertToUTF8(const char* str)  /* From IUP to GTK */
-{
-  if (!str || *str == 0)
-    return (char*)str;
-
-  if (iupgtk_utf8autoconvert)  /* this means str is in current locale */
-  {
-    const char *charset = NULL;
-    if (g_get_charset(&charset)==TRUE)  /* current locale is already UTF-8 */
-    {
-      if (g_utf8_validate(str, -1, NULL))
-        return (char*)str;
-      else
-      {
-        if (gktLastConvertUTF8)
-          g_free(gktLastConvertUTF8);
-        gktLastConvertUTF8 = gtkStrToUTF8(str, "ISO8859-1");   /* if string is not UTF-8, assume ISO8859-1 */
-        if (!gktLastConvertUTF8) return (char*)str;
-        return gktLastConvertUTF8;
-      }
-    }
-    else
-    {
-      if (gtkStrIsAscii(str) || !charset)
-        return (char*)str;
-      else if (charset)
-      {
-        if (gktLastConvertUTF8)
-          g_free(gktLastConvertUTF8);
-        gktLastConvertUTF8 = gtkStrToUTF8(str, charset);
-        if (!gktLastConvertUTF8) return (char*)str;
-        return gktLastConvertUTF8;
-      }
-    }
-  }
-  return (char*)str;
-}
-
-char* iupgtkStrConvertFromUTF8(const char* str)  /* From GTK to IUP */
-{
-  if (!str || *str == 0)
-    return (char*)str;
-
-  if (iupgtk_utf8autoconvert)  /* this means str is in current locale */
-  {
-    const gchar *charset = NULL;
-    if (g_get_charset(&charset)==TRUE)  /* current locale is already UTF-8 */
-    {
-      if (g_utf8_validate(str, -1, NULL))
-        return (char*)str;
-      else
-      {
-        if (gktLastConvertUTF8)
-          g_free(gktLastConvertUTF8);
-        gktLastConvertUTF8 = gtkStrFromUTF8(str, "ISO8859-1");  /* if string is not UTF-8, assume ISO8859-1 */
-        if (!gktLastConvertUTF8) return (char*)str;
-        return gktLastConvertUTF8;
-      }
-    }
-    else
-    {
-      if (gtkStrIsAscii(str) || !charset)
-        return (char*)str;
-      else if (charset)
-      {
-        if (gktLastConvertUTF8)
-          g_free(gktLastConvertUTF8);
-        gktLastConvertUTF8 = gtkStrFromUTF8(str, charset);
-        if (!gktLastConvertUTF8) return (char*)str;
-        return gktLastConvertUTF8;
-      }
-    }
-  }
-  return (char*)str;
-}
-
-static gboolean gtkGetFilenameCharset(const gchar **filename_charset)
-{
-  const gchar **charsets = NULL;
-  gboolean is_utf8 = FALSE;
-  
-#if GTK_CHECK_VERSION(2, 6, 0)
-  is_utf8 = g_get_filename_charsets (&charsets);
-#endif
-
-  if (filename_charset && charsets)
-    *filename_charset = charsets[0];
-  
-  return is_utf8;
-}
-
-char* iupgtkStrConvertToFilename(const char* str)   /* From IUP to Filename */
-{
-  if (!str || *str == 0)
-    return (char*)str;
-
-  if (iupgtk_utf8autoconvert)  /* this means str is in current locale */
-    return (char*)str;
-  else
-  {
-    const gchar *charset = NULL;
-    if (gtkGetFilenameCharset(&charset)==TRUE)  /* current locale is already UTF-8 */
-    {
-      if (g_utf8_validate(str, -1, NULL))
-        return (char*)str;
-      else
-      {
-        if (gktLastConvertUTF8)
-          g_free(gktLastConvertUTF8);
-        gktLastConvertUTF8 = gtkStrFromUTF8(str, "ISO8859-1");  /* if string is not UTF-8, assume ISO8859-1 */
-        if (!gktLastConvertUTF8) return (char*)str;
-        return gktLastConvertUTF8;
-      }
-    }
-    else
-    {
-      if (gtkStrIsAscii(str) || !charset)
-        return (char*)str;
-      else if (charset)
-      {
-        if (gktLastConvertUTF8)
-          g_free(gktLastConvertUTF8);
-        gktLastConvertUTF8 = gtkStrFromUTF8(str, charset);
-        if (!gktLastConvertUTF8) return (char*)str;
-        return gktLastConvertUTF8;
-      }
-    }
-  }
-  return (char*)str;
-}
-
-char* iupgtkStrConvertFromFilename(const char* str)   /* From Filename to IUP */
-{
-  if (!str || *str == 0)
-    return (char*)str;
-
-  if (iupgtk_utf8autoconvert)  /* this means str is in current locale */
-    return (char*)str;
-  else
-  {
-    const char *charset = NULL;
-    if (gtkGetFilenameCharset(&charset)==TRUE)  /* current locale is already UTF-8 */
-    {
-      if (g_utf8_validate(str, -1, NULL))
-        return (char*)str;
-      else
-      {
-        if (gktLastConvertUTF8)
-          g_free(gktLastConvertUTF8);
-        gktLastConvertUTF8 = gtkStrToUTF8(str, "ISO8859-1");   /* if string is not UTF-8, assume ISO8859-1 */
-        if (!gktLastConvertUTF8) return (char*)str;
-        return gktLastConvertUTF8;
-      }
-    }
-    else
-    {
-      if (gtkStrIsAscii(str) || !charset)
-        return (char*)str;
-      else if (charset)
-      {
-        if (gktLastConvertUTF8)
-          g_free(gktLastConvertUTF8);
-        gktLastConvertUTF8 = gtkStrToUTF8(str, charset);
-        if (!gktLastConvertUTF8) return (char*)str;
-        return gktLastConvertUTF8;
-      }
-    }
-  }
-  return (char*)str;
 }
 
 gboolean iupgtkMotionNotifyEvent(GtkWidget *widget, GdkEventMotion *evt, Ihandle *ih)
@@ -1096,7 +898,7 @@ void iupdrvSendMouse(int x, int y, int bt, int status)
 
     gdk_event_put((GdkEvent*)&evt);
   }
-#if 0 /* kept until code stabilizes */
+#if 0 /* kept for future reference */
   else
   {
     GtkWidget* grab_widget;

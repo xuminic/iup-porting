@@ -53,18 +53,18 @@ int iupluaScanf(lua_State *L)
 
   indParam = 2;        /* va_start(va,format); */
   REQUIRE((s1 = s = (char *) iupStrDup(format)) != NULL);
-  title = iupStrCopyUntil(&s, '\n');
+  title = iupStrDupUntil(&s, '\n');
   REQUIRE(title != NULL);
   for (i = 0; i < fields; ++i) {
     int n;
-    prompt[i] = iupStrCopyUntil(&s, '%');
+    prompt[i] = iupStrDupUntil(&s, '%');
     REQUIRE(prompt[i] != NULL);
     n = sscanf(s, "%d.%d", width + i, scroll + i);
     REQUIRE(n == 2);
     s = strchr(s, '%');
     REQUIRE(s != NULL);
     if (outf) free(outf);
-    outf = iupStrCopyUntil(&s, '\n');
+    outf = iupStrDupUntil(&s, '\n');
     text[i] = ALLOC(width[i] + 1, char);
     REQUIRE(text[i] != NULL);
 
@@ -155,12 +155,12 @@ int iupluaScanf(lua_State *L)
     case 'G':
       if (s[-3] == 'l') {
         double l = 0;
-        sscanf(text[i], "%lg", &l);
+        sscanf(text[i], "%lf", &l);
         lua_pushnumber(L, l);
         total++;
       } else {
         float l = 0;
-        sscanf(text[i], "%g", &l);
+        sscanf(text[i], "%f", &l);
         lua_pushnumber(L, l);
         total++;
       }

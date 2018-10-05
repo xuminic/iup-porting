@@ -26,6 +26,7 @@
 #include "iupwin_handle.h"
 #include "iupwin_draw.h"
 #include "iupwin_info.h"
+#include "iupwin_str.h"
 
 
 void iupdrvFrameGetDecorOffset(int *x, int *y)
@@ -69,6 +70,13 @@ static int winFrameSetBgColorAttrib(Ihandle* ih, const char* value)
     return 0;
 }
 
+static int winFrameSetTitleAttrib(Ihandle* ih, const char* value)
+{
+  iupwinSetTitleAttrib(ih, value);
+  iupdrvPostRedraw(ih);
+  return 1;
+}
+
 static void winFrameDrawText(HDC hDC, const char* text, int x, int y, COLORREF fgcolor)
 {
   COLORREF oldcolor;
@@ -77,7 +85,11 @@ static void winFrameDrawText(HDC hDC, const char* text, int x, int y, COLORREF f
   SetBkMode(hDC, TRANSPARENT);
   oldcolor = SetTextColor(hDC, fgcolor);
 
-  TextOut(hDC, x, y, text, strlen(text));
+  {
+    TCHAR* str = iupwinStrToSystem(text);
+    int len = lstrlen(str);
+    TextOut(hDC, x, y, str, len);
+  }
 
   SetTextColor(hDC, oldcolor);
   SetBkMode(hDC, OPAQUE);
@@ -99,14 +111,18 @@ static void winFrameDrawItem(Ihandle* ih, DRAWITEMSTRUCT *drawitem)
     COLORREF fgcolor;
     SIZE size;
 
-    char* title = iupdrvBaseGetTitleAttrib(ih);
+    char* title = iupAttribGet(ih, "TITLE");
     if (!title) title = "";
 
     x = drawitem->rcItem.left+7;
     y = drawitem->rcItem.top;
 
     hOldFont = SelectObject(hDC, hFont);
-    GetTextExtentPoint32(hDC, title, strlen(title), &size);
+    {
+      TCHAR* str = iupwinStrToSystem(title);
+      int len = lstrlen(str);
+      GetTextExtentPoint32(hDC, str, len, &size);
+    }
     ExcludeClipRect(hDC, x-2, y, x+size.cx+2, y+size.cy);
 
     drawitem->rcItem.top += txt_height/2;
@@ -163,7 +179,7 @@ static void winFrameDrawItem(Ihandle* ih, DRAWITEMSTRUCT *drawitem)
   iupwinDrawDestroyBitmapDC(&bmpDC);
 }
 
-static int winFrameProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result)
+static int winFrameMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result)
 {
   switch (msg)
   {
@@ -185,7 +201,7 @@ static int winFrameProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *re
     }
   }
 
-  return iupwinBaseContainerProc(ih, msg, wp, lp, result);
+  return iupwinBaseContainerMsgProc(ih, msg, wp, lp, result);
 }
 
 static int winFrameMapMethod(Ihandle* ih)
@@ -200,20 +216,20 @@ static int winFrameMapMethod(Ihandle* ih)
 
   title = iupAttribGet(ih, "TITLE");
   if (title)
-    iupAttribSetStr(ih, "_IUPFRAME_HAS_TITLE", "1");
+    iupAttribSet(ih, "_IUPFRAME_HAS_TITLE", "1");
   else
   {
     if (iupAttribGet(ih, "BGCOLOR"))
-      iupAttribSetStr(ih, "_IUPFRAME_HAS_BGCOLOR", "1");
+      iupAttribSet(ih, "_IUPFRAME_HAS_BGCOLOR", "1");
   }
 
   iupwinGetNativeParentStyle(ih, &dwExStyle, &dwStyle);
 
-  if (!iupwinCreateWindowEx(ih, "BUTTON", dwExStyle, dwStyle))
+  if (!iupwinCreateWindow(ih, WC_BUTTON, dwExStyle, dwStyle, NULL))
     return IUP_ERROR;
 
   /* replace the WinProc to handle other messages */
-  IupSetCallback(ih, "_IUPWIN_CTRLPROC_CB", (Icallback)winFrameProc);
+  IupSetCallback(ih, "_IUPWIN_CTRLMSGPROC_CB", (Icallback)winFrameMsgProc);
 
   /* Process WM_DRAWITEM */
   IupSetCallback(ih, "_IUPWIN_DRAWITEM_CB", (Icallback)winFrameDrawItem);  
@@ -236,5 +252,5 @@ void iupdrvFrameInitClass(Iclass* ic)
 
   /* Special */
   iupClassRegisterAttribute(ic, "FGCOLOR", NULL, NULL, IUPAF_SAMEASSYSTEM, "DLGFGCOLOR", IUPAF_NOT_MAPPED);
-  iupClassRegisterAttribute(ic, "TITLE", iupdrvBaseGetTitleAttrib, iupdrvBaseSetTitleAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "TITLE", NULL, winFrameSetTitleAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
 }

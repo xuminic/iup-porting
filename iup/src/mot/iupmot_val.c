@@ -68,9 +68,9 @@ static void motValRemoveOldTicks(Widget scale)
     {
       if ((name = XtName(children[i])) != (String)0) 
       {
-        if ((strcmp(name, "BigTic") == 0) ||
-            (strcmp(name, "MedTic") == 0) ||
-            (strcmp(name, "SmallTic") == 0)) 
+        if (iupStrEqual(name, "BigTic") ||
+            iupStrEqual(name, "MedTic") ||
+            iupStrEqual(name, "SmallTic")) 
         {
           XtDestroyWidget(children[i]);
         }
@@ -251,32 +251,29 @@ static void motValKeyPressEvent(Widget w, Ihandle *ih, XKeyEvent *evt, Boolean *
   if (*cont == False)
     return;
 
-  motcode = iupmotKeycodeToKeysym(evt->keycode);
+  motcode = iupmotKeycodeToKeysym(evt);
 
-  /* add missing support for numeric keyboard */
   /* add missing support for left/right in vertical
     and up/down in horizontal */
-  if (motcode == XK_Left || motcode == XK_KP_Left || 
-      motcode == XK_Up || motcode == XK_KP_Up)
+  if (motcode == XK_Left || motcode == XK_Up)
   {
     motValIncLineValue(ih, -1);
     *cont = False;
     return;
   }
-  if (motcode == XK_Right || motcode == XK_KP_Right || 
-      motcode == XK_Down || motcode == XK_KP_Down)
+  if (motcode == XK_Right || motcode == XK_Down)
   {
     motValIncLineValue(ih, 1);
     *cont = False;
     return;
   }
-  if (motcode == XK_Prior || motcode == XK_KP_Page_Up)
+  if (motcode == XK_Prior)
   {
     motValIncPageValue(ih, -1);
     *cont = False;
     return;
   }
-  if (motcode == XK_Next || motcode == XK_KP_Page_Down)
+  if (motcode == XK_Next)
   {
     motValIncPageValue(ih, 1);
     *cont = False;
@@ -286,7 +283,7 @@ static void motValKeyPressEvent(Widget w, Ihandle *ih, XKeyEvent *evt, Boolean *
   /* change Home and End default behaviour */
   if (ih->data->inverted)
   {
-    if (motcode==XK_Home || motcode==XK_KP_Home)
+    if (motcode==XK_Home)
     {
       int ival = SHRT_MAX;  /* set to maximum */
       XtVaSetValues(ih->handle, XmNvalue, ival, NULL);
@@ -294,7 +291,7 @@ static void motValKeyPressEvent(Widget w, Ihandle *ih, XKeyEvent *evt, Boolean *
       *cont = False;
       return;
     }
-    if (motcode==XK_End || motcode==XK_KP_End)
+    if (motcode==XK_End)
     {
       int ival = 0; /* set to minimum */
       XtVaSetValues(ih->handle, XmNvalue, ival, NULL);
@@ -305,8 +302,7 @@ static void motValKeyPressEvent(Widget w, Ihandle *ih, XKeyEvent *evt, Boolean *
   }
   else
   {
-    /* add missing support for numeric keyboard */
-    if (motcode==XK_KP_Home)
+    if (motcode==XK_Home)
     {
       int ival = 0; /* set to minimum */
       XtVaSetValues(ih->handle, XmNvalue, ival, NULL);
@@ -314,7 +310,7 @@ static void motValKeyPressEvent(Widget w, Ihandle *ih, XKeyEvent *evt, Boolean *
       *cont = False;
       return;
     }
-    if (motcode==XK_KP_End)
+    if (motcode==XK_End)
     {
       int ival = SHRT_MAX;  /* set to maximum */
       XtVaSetValues(ih->handle, XmNvalue, ival, NULL);
@@ -350,12 +346,12 @@ static void motValButtonPressReleaseEvent(Widget w, Ihandle* ih, XButtonEvent* e
 
   if (evt->type==ButtonPress && evt->button==Button1)
   {
-    iupAttribSetStr(ih, "_IUPVAL_IGNOREFOCUS", "1");
+    iupAttribSet(ih, "_IUPVAL_IGNOREFOCUS", "1");
   }
   if (evt->type==ButtonRelease && evt->button==Button1)
   {
-    iupAttribSetStr(ih, "_IUPVAL_IGNOREFOCUS", NULL);
-    iupAttribSetStr(ih, "_IUPVAL_IGNOREKILLFOCUS", "1");
+    iupAttribSet(ih, "_IUPVAL_IGNOREFOCUS", NULL);
+    iupAttribSet(ih, "_IUPVAL_IGNOREKILLFOCUS", "1");
   }
 }
 
@@ -366,7 +362,7 @@ static void motValFocusChangeEvent(Widget w, Ihandle *ih, XEvent *evt, Boolean *
 
   if (evt->type == FocusOut && iupAttribGet(ih, "_IUPVAL_IGNOREKILLFOCUS"))
   {
-    iupAttribSetStr(ih, "_IUPVAL_IGNOREKILLFOCUS", NULL);
+    iupAttribSet(ih, "_IUPVAL_IGNOREKILLFOCUS", NULL);
     return;
   }
 

@@ -25,33 +25,9 @@
 #include "iup_drv.h"
 #include "iup_drvfont.h"
 
-/* Duplicated from "iupwin_drv.c" */
-static WCHAR* iupwinStrChar2Wide(const char* str)
-{
-  if (str)
-  {
-    int len = (int)strlen(str)+1;
-    WCHAR* wstr = (WCHAR*)malloc(len * sizeof(WCHAR));
-    MultiByteToWideChar(CP_ACP, 0, str, -1, wstr, len);
-    return wstr;
-  }
-
-  return NULL;
-}
-
-static char* iupwinStrWide2Char(const WCHAR* wstr)
-{
-  if (wstr)
-  {
-    int len = (int)wcslen(wstr)+1;
-    char* str = (char*)malloc(len * sizeof(char));
-    WideCharToMultiByte(CP_ACP, 0, wstr, -1, str, len, NULL, NULL);
-    return str;
-  }
-
-  return NULL;
-}
-
+/* Exported from "iupwin_str.c" */
+extern "C" WCHAR* iupwinStrChar2Wide(const char* str);
+extern "C" char*  iupwinStrWide2Char(const WCHAR* wstr);
 
 #include <atlbase.h>
 #include <atlcom.h>
@@ -61,6 +37,11 @@ static char* iupwinStrWide2Char(const WCHAR* wstr)
 #include <exdispid.h>  /* DISPID_*   */
 
 using namespace ATL;
+
+// Should have only one instance of a class
+// derived from CAtlModule in a project.
+static CComModule* iweb_module = NULL;
+
 
 interface CSink:public IDispEventImpl<0, CSink, &DIID_DWebBrowserEvents2, &LIBID_SHDocVw, 1, 0>
 {
@@ -119,7 +100,7 @@ public:
   void STDMETHODCALLTYPE NavigateError(IDispatch *pDisp, VARIANT *url, VARIANT *TargetFrameName, 
                      VARIANT *StatusCode, VARIANT_BOOL *Cancel)
   {
-    iupAttribSetStr(ih, "_IUPWEB_FAILED", "1");
+    iupAttribSet(ih, "_IUPWEB_FAILED", "1");
     IFns cb = (IFns)IupGetCallback(ih, "ERROR_CB");
     if (cb)
     {
@@ -172,7 +153,7 @@ static int winWebBrowserSetHTMLAttrib(Ihandle* ih, const char* value)
   pweb->get_Document(&lpDispatch);
   if (!lpDispatch)
   {
-    iupAttribSetStr(ih, "_IUPWEB_FAILED", NULL);
+    iupAttribSet(ih, "_IUPWEB_FAILED", NULL);
 
     pweb->Navigate(L"about:blank", NULL, NULL, NULL, NULL);
     IupFlush();
@@ -212,7 +193,7 @@ static int winWebBrowserSetHTMLAttrib(Ihandle* ih, const char* value)
   pweb->get_Document(&lpDispatch);
   if (!lpDispatch)
   {
-    iupAttribSetStr(ih, "_IUPWEB_FAILED", NULL);
+    iupAttribSet(ih, "_IUPWEB_FAILED", NULL);
 
     pweb->Navigate(L"about:blank", NULL, NULL, NULL, NULL);
     IupFlush();
@@ -312,7 +293,7 @@ static int winWebBrowserSetValueAttrib(Ihandle* ih, const char* value)
     var.vt = VT_ARRAY | VT_UI1;
     var.bstrVal = L"_top";
 
-    iupAttribSetStr(ih, "_IUPWEB_FAILED", NULL);
+    iupAttribSet(ih, "_IUPWEB_FAILED", NULL);
 
     pweb->Navigate(wvalue, NULL, &var, NULL, NULL);
     free(wvalue);
@@ -328,7 +309,7 @@ static char* winWebBrowserGetValueAttrib(Ihandle* ih)
   {
     char* str = iupwinStrWide2Char(pbstrLocationURL);
     SysFreeString(pbstrLocationURL);
-    char* value = iupStrGetMemoryCopy(str);
+    char* value = iupStrReturnStr(str);
     free(str);
     return value;
   }
@@ -346,11 +327,7 @@ static int winWebBrowserCreateMethod(Ihandle* ih, void **params)
 
   IWebBrowser2 *pweb = NULL;
   punk->QueryInterface(IID_IWebBrowser2, (void **)&pweb);
-  iupAttribSetStr(ih, "_IUPWEB_BROWSER", (char*)pweb);
-
-  /* CComModule implements a COM server module, 
-     allowing a client to access the module's components  */
-  CComModule* module = new CComModule();
+  iupAttribSet(ih, "_IUPWEB_BROWSER", (char*)pweb);
 
   /* CSink object to capture events */
   CSink* sink = new CSink();
@@ -358,14 +335,10 @@ static int winWebBrowserCreateMethod(Ihandle* ih, void **params)
   /* Set handle to use in CSink Interface */
   sink->ih = ih;
 
-  /* Initializing ATL Support */
-  module->Init(NULL, GetModuleHandle(NULL));
-
   /* Connecting to the server's outgoing interface */
   sink->DispEventAdvise(punk);
 
-  iupAttribSetStr(ih, "_IUPWEB_MODULE", (char*)module);
-  iupAttribSetStr(ih, "_IUPWEB_SINK", (char*)sink);
+  iupAttribSet(ih, "_IUPWEB_SINK", (char*)sink);
   punk->Release();
 
   return IUP_NOERROR; 
@@ -376,7 +349,6 @@ static void winWebBrowserDestroyMethod(Ihandle* ih)
   IWebBrowser2 *pweb = (IWebBrowser2*)iupAttribGet(ih, "_IUPWEB_BROWSER");
   pweb->Release();
 
-  CComModule* module = (CComModule*)iupAttribGet(ih, "_IUPWEB_MODULE");
   CSink* sink = (CSink*)iupAttribGet(ih, "_IUPWEB_SINK");
 
   /* Get the current IUnknown* */
@@ -386,11 +358,17 @@ static void winWebBrowserDestroyMethod(Ihandle* ih)
   sink->DispEventUnadvise(punk);
   delete sink;
 
-  /* Terminating ATL support */
-  module->Term();
-  delete module;
-
   punk->Release();
+}
+
+static void winWebBrowserRelease(Iclass* ic)
+{
+  /* Terminating ATL support */
+  iweb_module->Term();
+  delete iweb_module;
+  iweb_module = NULL;
+
+  (void)ic;
 }
 
 Iclass* iupWebBrowserNewClass(void)
@@ -407,6 +385,7 @@ Iclass* iupWebBrowserNewClass(void)
   ic->New = iupWebBrowserNewClass;
   ic->Create = winWebBrowserCreateMethod;
   ic->Destroy = winWebBrowserDestroyMethod;
+  ic->Release = winWebBrowserRelease;
 
   /* Callbacks */
   iupClassRegisterCallback(ic, "NEWWINDOW_CB", "s");
@@ -421,5 +400,26 @@ Iclass* iupWebBrowserNewClass(void)
   iupClassRegisterAttribute(ic, "HTML", NULL, winWebBrowserSetHTMLAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "STATUS", winWebBrowserGetStatusAttrib, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_READONLY|IUPAF_NO_INHERIT);
 
+  /* CComModule implements a COM server module, 
+     allowing a client to access the module's components  */
+  iweb_module = new CComModule();
+
+  /* Initializing ATL Support */
+  iweb_module->Init(NULL, GetModuleHandle(NULL));
+
   return ic;
 }
+
+/*
+IWebBrowser2::ExecWB
+WebBrowser1.ExecWB OLECMDID_PRINT, OLECMDEXECOPT_PROMPTUSER, 2, vbNull
+
+    '' Another way for printing...
+    Me.WebBrowser1.Navigate2 "javascript:window.print()"
+
+WebBrowser1.ExecWB OLECMDID_SELECTALL, OLECMDEXECOPT_DONTPROMPTUSER, vbNull, vbNull
+WebBrowser1.ExecWB OLECMDID_COPY, OLECMDEXECOPT_DONTPROMPTUSER, vbNull, vbNull
+
+WebBrowser1.ExecWB OLECMDID_ZOOM, OLECMDEXECOPT_DONTPROMPTUSER, Z, Null
+WebBrowser1.ExecWB OLECMDID_OPTICAL_ZOOM, OLECMDEXECOPT_DONTPROMPTUSER, CLng(zoom), vbNull
+*/

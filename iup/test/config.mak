@@ -20,6 +20,11 @@ USE_IUP3 = Yes
 USE_STATIC = Yes
 IUP = ..
 
+ifeq "$(TEC_SYSNAME)" "Haiku"
+  USE_HAIKU = Yes
+  USE_STATIC =
+endif
+
 ifdef DBG_DIR
   IUPLIB = $(IUP)/lib/$(TEC_UNAME)d
   CDLIB = $(CD)/lib/$(TEC_UNAME)d
@@ -47,6 +52,7 @@ SRC += toggle.c
 SRC += vbox.c
 SRC += hbox.c
 SRC += progressbar.c
+SRC += progressdlg.c
 SRC += text.c
 SRC += val.c
 SRC += tabs.c
@@ -109,6 +115,11 @@ SRC += gauge.c
 SRC += matrix.c
 SRC += matrix_cbs.c
 SRC += matrix_cbmode.c
+ifneq ($(findstring Win, $(TEC_SYSNAME)), )
+  LIBS += iupmatrixex
+else
+  SLIB += $(IUPLIB)/libiupmatrixex.a
+endif
 
 LINKER = g++
 DEFINES += PPLOT_TEST

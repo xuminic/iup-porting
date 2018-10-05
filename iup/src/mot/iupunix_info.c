@@ -17,10 +17,10 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/Xatom.h>
+
 #include <sys/utsname.h>
 #include <unistd.h>
 #include <errno.h>
-#include <sys/stat.h>
 #include <langinfo.h>
 
 #include "iup_str.h"
@@ -29,66 +29,7 @@
 
 char* iupdrvLocaleInfo(void)
 {
-  return iupStrGetMemoryCopy(nl_langinfo(CODESET));
-}
-
-int iupdrvMakeDirectory(const char* name) 
-{
-  mode_t oldmask = umask((mode_t)0);
-  int fail =  mkdir(name, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP |
-                          S_IWGRP | S_IXGRP | S_IROTH | S_IXOTH);
-  umask (oldmask);
-  if (fail)
-    return 0;
-  return 1;
-}
-
-int iupdrvIsFile(const char* name)
-{
-  struct stat status;
-  if (stat(name, &status) != 0)
-    return 0;
-  if (S_ISDIR(status.st_mode))
-    return 0;
-  return 1;
-}
-
-int iupdrvIsDirectory(const char* name)
-{
-  struct stat status;
-  if (stat(name, &status) != 0)
-    return 0;
-  if (S_ISDIR(status.st_mode))
-    return 1;
-  return 0;
-}            
-
-char* iupdrvGetCurrentDirectory(void)
-{
-  size_t size = 256;
-  char *buffer = (char *)malloc(size);
-
-  for (;;)
-  {
-    if (getcwd(buffer, size) != NULL)
-      return buffer;
-
-    if (errno != ERANGE)
-    {
-      free(buffer);
-      return NULL;
-    }
-
-    size += size;
-    buffer = (char *)realloc(buffer, size);
-  }
-
-  return NULL;
-}
-
-int iupdrvSetCurrentDirectory(const char* dir)
-{
-  return chdir(dir) == 0? 1: 0;
+  return iupStrReturnStr(nl_langinfo(CODESET));
 }
 
 static int xGetWorkAreaSize(Display* display, int screen, int *width, int *height)
@@ -117,6 +58,13 @@ static int xGetWorkAreaSize(Display* display, int screen, int *width, int *heigh
 
   XFree(data);
   return 1;
+}
+
+void iupdrvAddScreenOffset(int *x, int *y, int add)
+{
+  (void)x;
+  (void)y;
+  (void)add;
 }
 
 void iupdrvGetScreenSize(int *width, int *height)
@@ -271,36 +219,24 @@ void iupdrvGetKeyState(char* key)
 char *iupdrvGetSystemName(void)
 {
   struct utsname un;
-  char *str = iupStrGetMemory(50); 
-
   uname(&un);
   if (iupStrEqualNoCase(un.sysname, "Darwin"))
-    strcpy(str, "MacOS");
+    return iupStrReturnStr("MacOS");
   else
-    strcpy(str, un.sysname);
-
-  return str;
+    return iupStrReturnStr(un.sysname);
 }
 
 char *iupdrvGetSystemVersion(void)
 {
   struct utsname un;
-  char *str = iupStrGetMemory(100); 
-
   uname(&un);
   if (iupStrEqualNoCase(un.sysname, "Darwin"))
   {
     int release = atoi(un.release);
-    sprintf(str, "%d", release-4);
+    return iupStrReturnInt(release-4);
   }
   else
-  {
-    strcpy(str, un.release);
-    strcat(str, ".");
-    strcat(str, un.version);
-  }
-
-  return str;
+    return iupStrReturnStrf("%s.%s", un.release, un.version);
 }
 
 char *iupdrvGetComputerName(void)
@@ -314,3 +250,67 @@ char *iupdrvGetUserName(void)
 {
   return (char*)getlogin();
 }
+
+
+/**************************************************************************/
+
+
+int iupUnixIsFile(const char* name)
+{
+  struct stat status;
+  if (stat(name, &status) != 0)
+    return 0;
+  if (S_ISDIR(status.st_mode))
+    return 0;
+  return 1;
+}
+
+int iupUnixIsDirectory(const char* name)
+{
+  struct stat status;
+  if (stat(name, &status) != 0)
+    return 0;
+  if (S_ISDIR(status.st_mode))
+    return 1;
+  return 0;
+}            
+
+int iupUnixSetCurrentDirectory(const char* dir)
+{
+  return chdir(dir) == 0? 1: 0;
+}
+
+char* iupUnixGetCurrentDirectory(void)
+{
+  size_t size = 256;
+  char *buffer = (char *)malloc(size);
+
+  for (;;)
+  {
+    if (getcwd(buffer, size) != NULL)
+      return buffer;
+
+    if (errno != ERANGE)
+    {
+      free(buffer);
+      return NULL;
+    }
+
+    size += size;
+    buffer = (char *)realloc(buffer, size);
+  }
+
+  return NULL;
+}
+
+int iupUnixMakeDirectory(const char* name) 
+{
+  mode_t oldmask = umask((mode_t)0);
+  int fail =  mkdir(name, S_IRUSR | S_IWUSR | S_IXUSR | S_IRGRP |
+                          S_IWGRP | S_IXGRP | S_IROTH | S_IXOTH);
+  umask (oldmask);
+  if (fail)
+    return 0;
+  return 1;
+}
+

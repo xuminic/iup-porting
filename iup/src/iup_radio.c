@@ -107,9 +107,6 @@ static int iRadioSetValueAttrib(Ihandle* ih, const char* value)
 static char* iRadioGetValueAttrib(Ihandle* ih)
 {
   Ihandle *ih_toggle = (Ihandle*)iRadioGetValueHandleAttrib(ih);
-  if (!ih_toggle)
-    return NULL;
-
   return IupGetName(ih_toggle);
 }
 
@@ -127,7 +124,7 @@ static int iRadioCreateMethod(Ihandle* ih, void** params)
   return IUP_NOERROR;
 }
 
-static void iRadioComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *expand)
+static void iRadioComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *children_expand)
 {
   Ihandle* child = ih->firstchild;
   if (child)
@@ -135,7 +132,7 @@ static void iRadioComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *exp
     /* update child natural size first */
     iupBaseComputeNaturalSize(child);
 
-    *expand = child->expand;
+    *children_expand = child->expand;
     *w = child->naturalwidth;
     *h = child->naturalheight;
   }

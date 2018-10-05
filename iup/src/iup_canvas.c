@@ -54,16 +54,12 @@ void iupCanvasCalcScrollRealPos(double min, double max, double *pos,
 
 char* iupCanvasGetPosXAttrib(Ihandle* ih)
 {
-  char* str = iupStrGetMemory(20);
-  sprintf(str, "%g", ih->data->posx);
-  return str;
+  return iupStrReturnFloat(ih->data->posx);
 }
 
 char* iupCanvasGetPosYAttrib(Ihandle* ih)
 {
-  char* str = iupStrGetMemory(20);
-  sprintf(str, "%g", ih->data->posy);
-  return str;
+  return iupStrReturnFloat(ih->data->posy);
 }
 
 static int iCanvasCreateMethod(Ihandle* ih, void** params)
@@ -71,7 +67,7 @@ static int iCanvasCreateMethod(Ihandle* ih, void** params)
   if (params && params[0])
   {
     char* action = (char*)params[0];
-    iupAttribStoreStr(ih, "ACTION", action);
+    iupAttribSetStr(ih, "ACTION", action);
   }
 
   ih->data = iupALLOCCTRLDATA();
@@ -82,10 +78,10 @@ static int iCanvasCreateMethod(Ihandle* ih, void** params)
   return IUP_NOERROR;
 }
 
-static void iCanvasComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *expand)
+static void iCanvasComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *children_expand)
 {
   int natural_w = 0, natural_h = 0;
-  (void)expand; /* unset if not a container */
+  (void)children_expand; /* unset if not a container */
 
   /* canvas natural size is 1 character */
   iupdrvFontGetCharSize(ih, &natural_w, &natural_h);

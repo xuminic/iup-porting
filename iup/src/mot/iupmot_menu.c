@@ -250,7 +250,7 @@ static int motItemSetTitleAttrib(Ihandle* ih, const char* value)
       char* acc_value = new_value + offset + 1;
       new_value[offset] = 0;
       iupmotSetMnemonicTitle(ih, NULL, 0, new_value);
-      iupmotSetString(ih->handle, XmNacceleratorText, acc_value);
+      iupmotSetXmString(ih->handle, XmNacceleratorText, acc_value);
       free(new_value);
 
       if (str != value) free(str);
@@ -278,10 +278,7 @@ static int motItemSetValueAttrib(Ihandle* ih, const char* value)
 
 static char* motItemGetValueAttrib(Ihandle* ih)
 {
-  if (XmIsToggleButton(ih->handle) && XmToggleButtonGetState(ih->handle))
-    return "ON";
-  else
-    return "OFF";
+  return iupStrReturnChecked(XmIsToggleButton(ih->handle) && XmToggleButtonGetState(ih->handle));
 }
 
 static int motItemMapMethod(Ihandle* ih)

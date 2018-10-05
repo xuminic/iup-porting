@@ -1,13 +1,13 @@
 $(OBJDIR)/iup_mglplot.o: iup_mglplot.cpp ../include/iup.h ../include/iupkey.h \
- ../include/iupdef.h ../include/iupcbs.h ../include/iupgl.h \
- ../include/iup_mglplot.h ../src/iup_assert.h ../src/iup_class.h \
- ../src/iup_table.h ../src/iup_classbase.h ../src/iup_register.h \
- ../src/iup_object.h ../src/iup_class.h ../src/iup_attrib.h \
- ../src/iup_str.h ../src/iup_drv.h ../src/iup_drvfont.h \
- ../src/iup_stdcontrols.h ../src/iup_array.h mgl/mgl.h mgl/mgl_data.h \
- mgl/mgl_define.h mgl/config.h mgl/mgl_font.h mgl/mgl_ab.h mgl/mgl.h \
- mgl/mgl_eps.h mgl/mgl_ab.h mgl/mgl_zb.h mgl/mgl_eval.h mgl/mgl_gl.h \
- mgl_makefont.h mgl/mgl_font.h
+ ../include/iupdef.h ../include/iupcbs.h ../include/iupkey.h \
+ ../include/iupgl.h ../include/iup_mglplot.h ../src/iup_assert.h \
+ ../src/iup_class.h ../src/iup_table.h ../src/iup_classbase.h \
+ ../src/iup_register.h ../src/iup_object.h ../src/iup_class.h \
+ ../src/iup_attrib.h ../src/iup_str.h ../src/iup_drv.h \
+ ../src/iup_drvfont.h ../src/iup_stdcontrols.h ../src/iup_array.h \
+ mgl/mgl.h mgl/mgl_data.h mgl/mgl_define.h mgl/config.h mgl/mgl_font.h \
+ mgl/mgl_ab.h mgl/mgl.h mgl/mgl_eps.h mgl/mgl_ab.h mgl/mgl_zb.h \
+ mgl/mgl_eval.h mgl/mgl_gl.h mgl_makefont.h mgl/mgl_font.h
 $(OBJDIR)/mgl_makefont.o: mgl_makefont.cpp ../srcmglplot/ftgl/FTGL/ftgl.h \
  ../srcmglplot/freetype/ft2build.h freetype/config/ftheader.h \
  freetype/freetype.h freetype/config/ftconfig.h \

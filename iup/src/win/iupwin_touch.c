@@ -44,7 +44,7 @@ static BOOL (WINAPI *winIsTouchWindow)(HWND hwnd, PULONG pulFlags) = NULL;
 
 void iupwinTouchInit(void)
 {
-  HINSTANCE lib = LoadLibrary("user32");
+  HINSTANCE lib = LoadLibrary(TEXT("user32"));
   
   winGetTouchInputInfo = (BOOL (WINAPI *)(HTOUCHINPUT,UINT,TOUCHINPUT *,int))GetProcAddress(lib, "GetTouchInputInfo");
   winCloseTouchInputHandle = (BOOL (WINAPI *)(HTOUCHINPUT))GetProcAddress(lib, "CloseTouchInputHandle");
@@ -73,10 +73,7 @@ static int winSetTouchAttrib(Ihandle *ih, const char *value)
 static char* winGetTouchAttrib(Ihandle* ih)
 {
   ULONG pulFlags = 0;
-  if (win_touch_loaded && winIsTouchWindow(ih->handle, &pulFlags))
-    return "Yes";
-  else
-    return "No";
+  return iupStrReturnBoolean (win_touch_loaded && winIsTouchWindow(ih->handle, &pulFlags)); 
 }
 
 void iupwinTouchRegisterAttrib(Iclass* ic)

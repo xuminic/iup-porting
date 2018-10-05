@@ -18,6 +18,8 @@
 #include "iup_image.h"
 
 #include "iupwin_drv.h"
+#include "iupwin_str.h"
+
 
 /* RGB in RGBA DIBs are pre-multiplied by alpha to AlphaBlend usage. */
 #define iupALPHAPRE(_src, _alpha) (((_src)*(_alpha))/255)
@@ -374,7 +376,7 @@ static HBITMAP winImageCreateBitmap(Ihandle *ih, int width, int height, int bpp,
     /* since colors are only passed to the CreateDIBSection here, must update BGCOLOR and inactive here */
     RGBQUAD* bitmap_colors = (RGBQUAD*)(((BYTE*)bmih) + sizeof(BITMAPINFOHEADER));
     if (winImageInitDibColors(colors, bitmap_colors, colors_count, bg_r, bg_g, bg_b, make_inactive))
-      iupAttribSetStr(ih, "_IUP_BGCOLOR_DEPEND", "1");
+      iupAttribSet(ih, "_IUP_BGCOLOR_DEPEND", "1");
   }
 
   hDC = GetDC(NULL);
@@ -464,7 +466,7 @@ void* iupdrvImageCreateImage(Ihandle *ih, const char* bgcolor, int make_inactive
   }
 
   if (make_inactive || (channels == 4 && flat_alpha))
-    iupAttribSetStr(ih, "_IUP_BGCOLOR_DEPEND", "1");
+    iupAttribSet(ih, "_IUP_BGCOLOR_DEPEND", "1");
 
   return hBitmap;
 }
@@ -551,7 +553,7 @@ static HICON winImageCreateIcon(Ihandle *ih, int is_cursor)
           !iupStrEqual(iupAttribGet(ih, "2"), "BGCOLOR"))
       {
         color0 = iupStrDup(iupAttribGet(ih, "0"));
-        iupAttribSetStr(ih, "0", "BGCOLOR");
+        iupAttribSet(ih, "0", "BGCOLOR");
       }
     }
   }
@@ -595,7 +597,7 @@ static HICON winImageCreateIcon(Ihandle *ih, int is_cursor)
 
   if (color0)
   {
-    iupAttribStoreStr(ih, "0", color0);
+    iupAttribSetStr(ih, "0", color0);
     free(color0);
   }
   
@@ -623,11 +625,11 @@ void* iupdrvImageCreateMask(Ihandle *ih)
 void* iupdrvImageLoad(const char* name, int type)
 {
   int iup2win[3] = {IMAGE_BITMAP, IMAGE_ICON, IMAGE_CURSOR};
-  HANDLE hImage = LoadImage(iupwin_hinstance, (LPCTSTR)name, iup2win[type], 0, 0, type==0?LR_CREATEDIBSECTION:0);
+  HANDLE hImage = LoadImage(iupwin_hinstance, iupwinStrToSystem(name), iup2win[type], 0, 0, type==0?LR_CREATEDIBSECTION:0);
   if (!hImage && iupwin_dll_hinstance)
-    hImage = LoadImage(iupwin_dll_hinstance, (LPCTSTR)name, iup2win[type], 0, 0, type==0?LR_CREATEDIBSECTION:0);
+    hImage = LoadImage(iupwin_dll_hinstance, iupwinStrToSystem(name), iup2win[type], 0, 0, type==0?LR_CREATEDIBSECTION:0);
   if (!hImage)
-    hImage = LoadImage(NULL, (LPCTSTR)name, iup2win[type], 0, 0, LR_LOADFROMFILE|(type==0?LR_CREATEDIBSECTION:0));
+    hImage = LoadImage(NULL, iupwinStrToSystemFilename(name), iup2win[type], 0, 0, LR_LOADFROMFILE|(type==0?LR_CREATEDIBSECTION:0));
   return hImage;
 }
 

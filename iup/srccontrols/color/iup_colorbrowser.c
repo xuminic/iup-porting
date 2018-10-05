@@ -25,6 +25,7 @@
 #include "iup_controls.h"
 #include "iup_cdutil.h"
 #include "iup_register.h"
+#include "iup_image.h"
 
 #include "iup_colorhsi.h"
 
@@ -53,7 +54,7 @@ struct _IcontrolData
   int h_x, h_y,
       si_x, si_y;
 
-  /* HSI-XY coordinate convertion */
+  /* HSI-XY coordinate conversion */
   int xc, yc,  /* center */
       R,       /* maximum radius available inside the size of the control */
       Ix,      /* x coordinate where S is 0 */
@@ -144,7 +145,7 @@ static void iColorBrowserRenderImageHue(Ihandle* ih)
     active = 0;
 
   if (ih->data->has_focus)
-    cdDrawFocusRect(ih->data->cddbuffer, 0, 0, ih->data->w-1, ih->data->h-1);
+    cdIupDrawFocusRect(ih->data->cddbuffer, 0, 0, ih->data->w-1, ih->data->h-1);
 
   red = cdRedImage(ih->data->cddbuffer);
   green = cdGreenImage(ih->data->cddbuffer);
@@ -198,11 +199,7 @@ static void iColorBrowserRenderImageHue(Ihandle* ih)
         }
 
         if (!active)
-        {
-          *r = cdIupLIGTHER(*r);
-          *g = cdIupLIGTHER(*g);
-          *b = cdIupLIGTHER(*b);
-        }
+          iupImageColorMakeInactive(r, g, b, bg_red, bg_green, bg_blue);
       }
     }
   }
@@ -299,11 +296,7 @@ static void iColorBrowserRenderImageSI(Ihandle* ih)
         }
 
         if (!active)
-        {
-          *r = cdIupLIGTHER(*r);
-          *g = cdIupLIGTHER(*g);
-          *b = cdIupLIGTHER(*b);
-        }
+          iupImageColorMakeInactive(r, g, b, bg_red, bg_green, bg_blue);
       }
     }
   }
@@ -681,9 +674,7 @@ static int iColorBrowserKeypress_CB(Ihandle* ih, int c, int press)
 
 static char* iColorBrowserGetHSIAttrib(Ihandle* ih)
 {
-  char* buffer = iupStrGetMemory(100);
-  sprintf(buffer, "%g %g %g", (double)ih->data->hue, (double)ih->data->saturation, (double)ih->data->intensity);
-  return buffer;
+  return iupStrReturnStrf("%.9f %.9f %.9f", (double)ih->data->hue, (double)ih->data->saturation, (double)ih->data->intensity);
 }
 
 static int iColorBrowserSetHSIAttrib(Ihandle* ih, const char* value)
@@ -711,9 +702,7 @@ static int iColorBrowserSetHSIAttrib(Ihandle* ih, const char* value)
 
 static char* iColorBrowserGetRGBAttrib(Ihandle* ih)
 {
-  char* buffer = iupStrGetMemory(20);
-  sprintf(buffer, "%d %d %d", (int) ih->data->red, (int) ih->data->green, (int) ih->data->blue);
-  return buffer;
+  return iupStrReturnRGB(ih->data->red, ih->data->green, ih->data->blue);
 }
 
 static int iColorBrowserSetRGBAttrib(Ihandle* ih, const char* value)
@@ -804,7 +793,7 @@ static int iColorBrowserCreateMethod(Ihandle* ih, void **params)
 
   /* change the IupCanvas default values */
   IupSetfAttribute(ih, "RASTERSIZE", "%dx%d", ICB_DEFAULTSIZE, ICB_DEFAULTSIZE);
-  iupAttribSetStr(ih, "BORDER", "NO");
+  iupAttribSet(ih, "BORDER", "NO");
   ih->expand = IUP_EXPAND_NONE;
 
   /* IupCanvas callbacks */

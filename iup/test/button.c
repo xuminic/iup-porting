@@ -173,7 +173,8 @@ static void show_menu(Ihandle* ih)
     NULL);
 
   x = IupGetInt(ih, "X");
-  y = IupGetInt(ih, "Y") + IupGetInt2(ih, "RASTERSIZE");
+  y = IupGetInt(ih, "Y");
+  y += IupGetInt2(ih, "RASTERSIZE");
 
   IupPopup(menu, x, y);
   IupDestroy(menu);
@@ -183,7 +184,7 @@ static int action_cb(Ihandle *ih)
 {
   static int count = 1;
   printf("ACTION(%s) - %d\n", get_name(ih), count); count++;
-//  show_menu(ih);
+  show_menu(ih);
   return IUP_DEFAULT;
 }
 
@@ -290,12 +291,15 @@ void ButtonTest(void)
 //  IupSetAttribute(box1, "PADDING", "15x15");
 
   button = IupButton(NULL, NULL);
-  IupSetAttribute(button, "TITLE", "Button Text");
+  IupSetStrAttribute(button, "TITLE", "_@IUP_OK");
   IupSetCallback(button, "ACTION", active_cb);
   IupAppend(box1, button);
 
   button = IupButton(NULL, NULL);
-  IupSetAttribute(button, "TITLE", "&Text && Test(ηγν)");
+  if (IupGetInt(NULL, "UTF8MODE"))
+    IupSetAttribute(button, "TITLE", "&Text && Test(Γ§Γ£ΓµΓ΅Γ³Γ©)");
+  else
+    IupSetAttribute(button, "TITLE", "&Text && Test(ηγυασι)");
   IupSetAttribute(button, "TIP", "Button & Tip");
   //IupSetAttribute(button, "PADDING", "15x15");
   //IupSetAttribute(button, "BGCOLOR", "128 128 255");
@@ -376,6 +380,7 @@ void ButtonTest(void)
   button = IupButton(NULL, NULL);
   IupSetAttribute(button, "TITLE", "Images");
   IupSetAttributeHandle(button, "IMAGE", load_image_FileSave());
+  //IupSetAttribute(button, "IMAGE", "TECGRAF_BITMAP");
   IupAppend(box2, button);
 
   button = IupButton(NULL, NULL);
@@ -388,10 +393,11 @@ void ButtonTest(void)
 //  IupSetAttribute(button, "IMAGE", "IUP_Tecgraf");
   IupSetAttributeHandle(button, "IMAGE", image1);
 //  IupSetAttributeHandle(button, "IMINACTIVE", image1i);
-  IupSetAttributeHandle(button, "IMPRESS", image1p);
+//  IupSetAttributeHandle(button, "IMPRESS", image1p);
   IupSetAttribute(button, "TIP", "Image Label");
   IupSetAttribute(button, "NAME", "button4");
   IupSetAttribute(button, "PADDING", "5x5");
+  IupSetAttribute(button, "FLAT", "Yes");
   set_callbacks(button);
   IupAppend(box2, button);
 
@@ -433,7 +439,12 @@ void ButtonTest(void)
 
   IupSetAttributeHandle(dlg, "STARTFOCUS", button);
 
+//  IupSetGlobal("CLIENTAREAANIMATION", "No");
+//  IupSetGlobal("HOTTRACKING", "No");
+
   IupShow(dlg);
+//  IupShowXY(dlg,IUP_LEFT,IUP_TOP);
+//  IupShowXY(dlg,0,0);
 }
 
 #ifndef BIG_TEST

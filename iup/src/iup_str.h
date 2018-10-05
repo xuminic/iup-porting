@@ -25,45 +25,66 @@ int iupStrEqual(const char* str1, const char* str2);
 
 /** Returns a non zero value if the two strings are equal but ignores case.
  * str1 or str2 can be NULL.
+ * It will work only for character codes <128.
  * \ingroup str */
 int iupStrEqualNoCase(const char* str1, const char* str2);
 
+/** Returns a non zero value if the two strings are equal but ignores case and spaces. \n
+ * str1 or str2 can be NULL. \n
+ * It will work only for character codes <128.
+ * \ingroup str */
+int iupStrEqualNoCaseNoSpace(const char* str1, const char* str2);
+
 /** Returns a non zero value if the two strings are equal 
- * up to a number of characters defined by the strlen of the second string.
+ * up to a number of characters defined by the strlen of the second string. \n
  * str1 or str2 can be NULL.
  * \ingroup str */
 int iupStrEqualPartial(const char* str1, const char* str2);
 
 /** Returns a non zero value if the two strings are equal but ignores case 
- * up to a number of characters defined by the strlen of the second string.
- * str1 or str2 can be NULL.
+ * up to a number of characters defined by the strlen of the second string. \n
+ * str1 or str2 can be NULL. \n
+ * It will work only for character codes <128.
  * \ingroup str */
 int iupStrEqualNoCasePartial(const char* str1, const char* str2);
 
-/** Returns 1 if the string is "1", "YES", "ON" or "TRUE". \n
- * Returns 0 otherwise.
+
+
+/** Returns 1 if the string is "YES" or "ON". \n
+ * Returns 0 otherwise (including NULL or empty).
  * \ingroup str */
 int iupStrBoolean(const char* str);
 
-/** Returns 1 if the string is "NO", "OFF" or "FALSE". \n
- * Returns 0 otherwise.
+/** Returns 1 if the string is "NO" or "OFF". \n
+ * Returns 0 otherwise (including NULL or empty). \n
+ * To be used when value can be "False" or others different than "True".
  * \ingroup str */
 int iupStrFalse(const char* str);
+
+
 
 /** Returns the number of lines in a string.
  * It works for UNIX, DOS and MAC line ends.
  * \ingroup str */
 int iupStrLineCount(const char* str);
 
-/** Returns the a pointer to the next line and the size of the current line.
+/** Returns a pointer to the next line and the size of the current line.
  * It works for UNIX, DOS and MAC line ends. The size does not includes the line end.
  * If str is NULL it will return NULL.
  * \ingroup str */
 const char* iupStrNextLine(const char* str, int *len);
 
+/** Returns a pointer to the next value and the size of the current value.
+ * The size does not includes the separator.
+ * If str is NULL it will return NULL.
+ * \ingroup str */
+const char* iupStrNextValue(const char* str, int str_len, int *len, char sep);
+
 /** Returns the number of repetitions of the character occours in the string.
  * \ingroup str */
-int iupStrCountChar(const char *str, int c);
+int iupStrCountChar(const char *str, char c);
+
+
 
 /** Returns a copy of the given string.
  * If str is NULL it will return NULL.
@@ -73,12 +94,14 @@ char* iupStrDup(const char* str);
 /** Returns a new string containing a copy of the string up to the character.
  * The string is then incremented to after the position of the character.
  * \ingroup str */
-char *iupStrCopyUntil(char **str, int c);
+char *iupStrDupUntil(char **str, char c);
 
 /** Copy the string to the buffer, but limited to the max_size of the buffer.
  * buffer is always properly ended.
  * \ingroup str */
 void iupStrCopyN(char* dst_str, int dst_max_size, const char* src_str);
+
+
 
 /** Returns a buffer with the specified size+1. \n
  * The buffer is resused after 50 calls. It must NOT be freed.
@@ -86,20 +109,20 @@ void iupStrCopyN(char* dst_str, int dst_max_size, const char* src_str);
  * \ingroup str */
 char *iupStrGetMemory(int size);
 
-/** Returns a buffer that contains a copy of the given buffer using \ref iupStrGetMemory.
- * \ingroup str */
-char *iupStrGetMemoryCopy(const char* str);
-
 /** Returns a very large buffer to be used in unknown size string construction.
  * Use snprintf or vsnprintf with the given size.
  * \ingroup str */
 char *iupStrGetLargeMem(int *size);
 
-/** Converts a string into lower case. Can be used in-place.
+
+
+/** Converts a string into lower case. Can be used in-place. \n
+ * It will work only for character codes <128.
  * \ingroup str */
 void iupStrLower(char* dstr, const char* sstr);
 
-/** Converts a string into upper case. Can be used in-place.
+/** Converts a string into upper case. Can be used in-place. \n
+ * It will work only for character codes <128.
  * \ingroup str */
 void iupStrUpper(char* dstr, const char* sstr);
 
@@ -107,13 +130,65 @@ void iupStrUpper(char* dstr, const char* sstr);
  * \ingroup str */
 int iupStrHasSpace(const char* str);
 
+/** Checks if the character is a digit. 
+ * \ingroup str */
+#define iup_isdigit(_c) (_c>='0' && _c<='9')
+
+/** Converts a character into upper case. \n
+ * It will work only for character codes <128.
+ * \ingroup str */
+#define iup_toupper(_c)  ((_c >= 'a' && _c <= 'z')? (_c - 'a') + 'A': _c)
+
+/** Converts a character into lower case. \n
+ * It will work only for character codes <128.
+ * \ingroup str */
+#define iup_tolower(_c)  ((_c >= 'A' && _c <= 'Z')? (_c - 'A') + 'a': _c)
+
+
+
+/** Returns combined values in a formated string using \ref iupStrGetMemory.
+ * This is not supposed to be used for very large strings,
+ * just for combinations of numeric data or constant strings.
+ * \ingroup str */
+char* iupStrReturnStrf(const char* format, ...);
+
+/** Returns a string value in a string using \ref iupStrGetMemory.
+ * \ingroup str */
+char* iupStrReturnStr(const char* str);
+
+/** Returns a boolean value (as YES or NO) in a string.
+ * \ingroup str */
+char* iupStrReturnBoolean(int i);
+
+/** Returns a checked value (as ON, OFF or NOTDEF (-1)) in a string.
+ * \ingroup str */
+char* iupStrReturnChecked(int i);
+
+/** Returns an int value in a string using \ref iupStrGetMemory.
+ * \ingroup str */
+char* iupStrReturnInt(int i);
+
+/** Returns a float value in a string using \ref iupStrGetMemory.
+ * \ingroup str */
+char* iupStrReturnFloat(float f);
+
+/** Returns a RGB value in a string using \ref iupStrGetMemory.
+ * \ingroup str */
+char* iupStrReturnRGB(unsigned char r, unsigned char g, unsigned char b);
+
+/** Returns two string values in a string using \ref iupStrGetMemory.
+ * \ingroup str */
+char* iupStrReturnStrStr(const char *str1, const char *str2, char sep);
+
+/** Returns two int values in a string using \ref iupStrGetMemory.
+ * \ingroup str */
+char* iupStrReturnIntInt(int i1, int i2, char sep);
+
+
+
 /** Extract a RGB triple from the string. Returns 0 or 1.
  * \ingroup str */
 int iupStrToRGB(const char *str, unsigned char *r, unsigned char *g, unsigned char *b);
-
-/** Extract a RGBA quad from the string, alpha is optional. Returns 0, 3 or 4.
- * \ingroup str */
-int iupStrToRGBA(const char *str, unsigned char *r, unsigned char *g, unsigned char *b, unsigned char *a);
 
 /** Converts the string to an int. The string must contains only the integer value.
  * Returns a a non zero value if sucessfull.
@@ -136,6 +211,7 @@ int iupStrToFloat(const char *str, float *f);
  * separated by the given character (usually 'x' or ':').
  * Returns the number of converted values.
  * Values not extracted are not changed.
+ * ATENTION: AVOID DEFINING THIS TYPE OF ATTRIBUTE VALUE.
  * \ingroup str */
 int iupStrToFloatFloat(const char *str, float *f1, float *f2, char sep);
 
@@ -145,6 +221,8 @@ int iupStrToFloatFloat(const char *str, float *f1, float *f2, char sep);
  * Values not extracted are not changed.
  * \ingroup str */
 int iupStrToStrStr(const char *str, char *str1, char *str2, char sep);
+
+
 
 /** Returns the file extension of a file name.
  * Supports UNIX and Windows directory separators.
@@ -169,6 +247,8 @@ char* iupStrFileMakeFileName(const char* path, const char* title);
  * \ingroup str */
 void iupStrFileNameSplit(const char* filename, char* path, char* title);
 
+
+
 /** Replace a character in a string.
  * Returns the number of occurrences.
  * \ingroup str */
@@ -192,13 +272,17 @@ char* iupStrToDos(const char* str);
  * \ingroup str */
 char* iupStrConvertToC(const char* str);
 
+
+
 /** Remove the interval from the string. Done in-place.
  * \ingroup str */
-void iupStrRemove(char* value, int start, int end, int dir);
+void iupStrRemove(char* value, int start, int end, int dir, int utf8);
 
 /** Remove the interval from the string and insert the new string at the start.
  * \ingroup str */
-char* iupStrInsert(const char* value, const char* insert_value, int start, int end);
+char* iupStrInsert(const char* value, const char* insert_value, int start, int end, int utf8);
+
+
 
 /** Process the mnemonic in the string. If not found returns str.
  * If found returns a new string. Action can be:
@@ -211,6 +295,28 @@ char* iupStrProcessMnemonic(const char* str, char *c, int action);
 /** Returns the Mnemonic if found. Zero otherwise.
  * \ingroup str */
 int iupStrFindMnemonic(const char* str);
+
+
+
+/** Compare two strings using strcmp semantics, 
+ *  but using the "Alphanum Algorithm" (A1 A2 A11 A30 ...). \n
+ *  This means that numbers and text are sorted separately. \n
+ *  Also natural alphabetic order is used: 123...aAáÁ...bBcC... \n
+ *  Sorting and case insensitive will work only for Latin-1 characters, even when using utf8=1.
+ * \ingroup str */
+int iupStrCompare(const char* str1, const char* str2, int casesensitive, int utf8);
+
+/** Returns a non zero value if the two strings are equal. \n
+ *  If partial=1 the compare up to a number of characters defined by the strlen of the second string. \n
+ *  Case insensitive will work only for Latin-1 characters, even when using utf8=1.
+ * \ingroup str */
+int iupStrCompareEqual(const char *str1, const char *str2, int casesensitive, int utf8, int partial);
+
+/** Returns a non zero value if the second string is found inside the first string.  \n
+    Uses \ref iupStrCompareEqual.
+ * \ingroup str */
+int iupStrCompareFind(const char *str1, const char *str2, int casesensitive, int utf8);
+
 
 
 #ifdef __cplusplus

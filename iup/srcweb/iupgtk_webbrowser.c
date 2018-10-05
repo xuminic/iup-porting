@@ -45,11 +45,7 @@ static char* gtkWebBrowserGetItemHistoryAttrib(Ihandle* ih, int id)
   WebKitWebBackForwardList *back_forward_list = webkit_web_view_get_back_forward_list ((WebKitWebView*)ih->handle);
   WebKitWebHistoryItem* item = webkit_web_back_forward_list_get_nth_item(back_forward_list, id);
   if (item)
-  {
-    char* str = iupStrGetMemory(1024);
-    sprintf(str, "%s", webkit_web_history_item_get_uri(item));
-    return str;
-  }
+    return iupStrReturnStr(webkit_web_history_item_get_uri(item));
   else
     return NULL;
 }
@@ -57,17 +53,13 @@ static char* gtkWebBrowserGetItemHistoryAttrib(Ihandle* ih, int id)
 static char* gtkWebBrowserGetForwardCountAttrib(Ihandle* ih)
 {
   WebKitWebBackForwardList *back_forward_list = webkit_web_view_get_back_forward_list ((WebKitWebView*)ih->handle);
-  char* str = iupStrGetMemory(30);
-  sprintf(str, "%d", webkit_web_back_forward_list_get_forward_length(back_forward_list));
-  return str;
+  return iupStrReturnInt(webkit_web_back_forward_list_get_forward_length(back_forward_list));
 }
 
 static char* gtkWebBrowserGetBackCountAttrib(Ihandle* ih)
 {
   WebKitWebBackForwardList *back_forward_list = webkit_web_view_get_back_forward_list ((WebKitWebView*)ih->handle);
-  char* str = iupStrGetMemory(30);
-  sprintf(str, "%d", webkit_web_back_forward_list_get_back_length(back_forward_list));
-  return str;
+  return iupStrReturnInt(webkit_web_back_forward_list_get_back_length(back_forward_list));
 }
 
 static int gtkWebBrowserSetHTMLAttrib(Ihandle* ih, const char* value)
@@ -123,7 +115,7 @@ static int gtkWebBrowserSetValueAttrib(Ihandle* ih, const char* value)
 static char* gtkWebBrowserGetValueAttrib(Ihandle* ih)
 {
   const gchar* value = webkit_web_view_get_uri((WebKitWebView*)ih->handle);
-  return iupStrGetMemoryCopy(value);
+  return iupStrReturnStr(value);
 }
 
 /*********************************************************************************************/
@@ -243,7 +235,7 @@ static int gtkWebBrowserMapMethod(Ihandle* ih)
 
   gtk_widget_show((GtkWidget*)scrolled_window);
 
-  iupAttribSetStr(ih, "_IUP_EXTRAPARENT", (char*)scrolled_window);
+  iupAttribSet(ih, "_IUP_EXTRAPARENT", (char*)scrolled_window);
 
   /* add to the parent, all GTK controls must call this. */
   iupgtkAddToParent(ih);
@@ -265,39 +257,13 @@ static int gtkWebBrowserMapMethod(Ihandle* ih)
   return IUP_NOERROR;
 }
 
-static void gtkWebBrowserInitClass(Iclass* ic)
-{
-  /* Driver Dependent Class functions */
-  ic->Map = gtkWebBrowserMapMethod;
-  
-  /* Visual */
-  iupClassRegisterAttribute(ic, "BGCOLOR", NULL, iupdrvBaseSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_DEFAULT); 
-
-  /* IupWebBrowser GTK only */
-  iupClassRegisterAttribute(ic, "VALUE", gtkWebBrowserGetValueAttrib, gtkWebBrowserSetValueAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "BACKFORWARD", NULL, gtkWebBrowserSetBackForwardAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "STOP", NULL, gtkWebBrowserSetStopAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "RELOAD", NULL, gtkWebBrowserSetReloadAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "HTML", NULL, gtkWebBrowserSetHTMLAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "STATUS", gtkWebBrowserGetStatusAttrib, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_READONLY|IUPAF_NO_INHERIT);
-
-  iupClassRegisterAttribute(ic, "BACKCOUNT", gtkWebBrowserGetBackCountAttrib, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_READONLY|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "FORWARDCOUNT", gtkWebBrowserGetForwardCountAttrib, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_READONLY|IUPAF_NO_INHERIT);
-  iupClassRegisterAttributeId(ic, "ITEMHISTORY",  gtkWebBrowserGetItemHistoryAttrib,  NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
-}
-
-static void gtkWebBrowserComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *expand)
+static void gtkWebBrowserComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *children_expand)
 {
   int natural_w = 0, natural_h = 0;
-  int sb_size = iupdrvGetScrollbarSize();
-  (void)expand; /* unset if not a container */
+  (void)children_expand; /* unset if not a container */
 
+  /* natural size is 1 character */
   iupdrvFontGetCharSize(ih, &natural_w, &natural_h);
-
-  if (ih->data->sb & IUP_SB_HORIZ)
-    natural_h += sb_size;  /* sb horizontal affects vertical size */
-  if (ih->data->sb & IUP_SB_VERT)
-    natural_w += sb_size;  /* sb vertical affects horizontal size */
 
   *w = natural_w;
   *h = natural_h;
@@ -330,10 +296,10 @@ Iclass* iupWebBrowserNewClass(void)
   /* Class functions */
   ic->New = iupWebBrowserNewClass;
   ic->Create = gtkWebBrowserCreateMethod;
-  ic->ComputeNaturalSize = gtkWebBrowserComputeNaturalSizeMethod;
-
-  ic->LayoutUpdate = iupdrvBaseLayoutUpdateMethod;
+  ic->Map = gtkWebBrowserMapMethod;
   ic->UnMap = iupdrvBaseUnMapMethod;
+  ic->ComputeNaturalSize = gtkWebBrowserComputeNaturalSizeMethod;
+  ic->LayoutUpdate = iupdrvBaseLayoutUpdateMethod;
 
   /* Callbacks */
   iupClassRegisterCallback(ic, "NEWWINDOW_CB", "s");
@@ -346,8 +312,32 @@ Iclass* iupWebBrowserNewClass(void)
   /* Visual */
   iupBaseRegisterVisualAttrib(ic);
 
+  /* Overwrite Visual */
+  iupClassRegisterAttribute(ic, "BGCOLOR", NULL, iupdrvBaseSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_DEFAULT); 
+
   /* IupWebBrowser only */
-  gtkWebBrowserInitClass(ic);
+  iupClassRegisterAttribute(ic, "VALUE", gtkWebBrowserGetValueAttrib, gtkWebBrowserSetValueAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "BACKFORWARD", NULL, gtkWebBrowserSetBackForwardAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "STOP", NULL, gtkWebBrowserSetStopAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "RELOAD", NULL, gtkWebBrowserSetReloadAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "HTML", NULL, gtkWebBrowserSetHTMLAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "STATUS", gtkWebBrowserGetStatusAttrib, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_READONLY|IUPAF_NO_INHERIT);
+
+  iupClassRegisterAttribute(ic, "BACKCOUNT", gtkWebBrowserGetBackCountAttrib, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_READONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "FORWARDCOUNT", gtkWebBrowserGetForwardCountAttrib, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_READONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttributeId(ic, "ITEMHISTORY",  gtkWebBrowserGetItemHistoryAttrib,  NULL, IUPAF_READONLY|IUPAF_NO_INHERIT);
 
   return ic;
 }
+
+/*
+WebKitWebFrame *    webkit_web_view_get_main_frame      (WebKitWebView *web_view);
+webkit_web_frame_print ()
+gfloat              webkit_web_view_get_zoom_level      (WebKitWebView *web_view);
+void                webkit_web_view_zoom_in             (WebKitWebView *web_view);
+void                webkit_web_view_zoom_out            (WebKitWebView *web_view);
+void                webkit_web_view_set_zoom_level      (WebKitWebView *web_view,
+                                                         gfloat zoom_level);
+void                webkit_web_view_select_all          (WebKitWebView *web_view);
+void                webkit_web_view_copy_clipboard      (WebKitWebView *web_view);
+*/

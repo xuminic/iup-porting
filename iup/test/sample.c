@@ -1,7 +1,17 @@
+#if 0
+/* To check for memory leaks */
+#define VLD_MAX_DATA_DUMP 80
+#include <vld.h>
+#endif
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <iup.h>
+
+//#define IUP_CONTROLS
+#ifdef IUP_CONTROLS
 #include <iupcontrols.h>
+#endif
 
 static Ihandle* load_image_Tecgraf(void)
 {
@@ -280,6 +290,7 @@ static void globalwheel_cb(float delta,int x, int y, char* status)
   printf("GLOBALWHEEL_CB(delta=%g, x=%d, y=%d, status=%s)\n", delta, x, y, status);
 }
 
+#ifdef IUP_CONTROLS
 static Ihandle* create_matrix(void)
 {
   Ihandle* mat = IupMatrix(NULL); 
@@ -361,6 +372,7 @@ static Ihandle* create_matrix(void)
 
   return mat;
 }
+#endif
 
 void SampleTest(void)
 {
@@ -524,8 +536,10 @@ void SampleTest(void)
             IupSetAttributes(IupFrame(IupHbox(pbar, NULL)), "TITLE=IupProgressBar"),
             IupSetAttributes(IupFrame(IupHbox(tabs, NULL)), "TITLE=IupTabs"),
             NULL),
+#ifdef IUP_CONTROLS
     IupHbox(IupSetAttributes(IupFrame(IupHbox(create_matrix(), NULL)), "TITLE=IupMatrix"),
             NULL),
+#endif
     IupHbox(IupSetAttributes(IupFrame(IupHbox(_cnv_1, NULL)), "TITLE=IupCanvas"),
             IupSetAttributes(IupFrame(IupHbox(tree, NULL)), "TITLE=IupTree"),
             NULL),
@@ -553,7 +567,8 @@ void SampleTest(void)
 //  IupSetAttribute(dlg, "FONT", "Helvetica, 24");
 //  IupSetAttribute(dlg, "FONT", "-*-helvetica-*-r-*-*-18-*-*-*-*-*-*-*");
   
-//  IupSetAttribute(box, "FGCOLOR", "255 0 0");
+//  IupSetAttribute(_vbox_1, "FGCOLOR", "255 0 0");
+//  IupSetAttribute(_vbox_1, "ACTIVE", "NO");
 
 //  IupSetAttribute(dlg,"RASTERSIZE","1000x800");
 //  IupSetAttribute(dlg,"RASTERSIZE","600x500");
@@ -584,7 +599,9 @@ void SampleTest(void)
 int main(int argc, char* argv[])
 {
   IupOpen(&argc, &argv);
+#ifdef IUP_CONTROLS
   IupControlsOpen();
+#endif
 
   IupSetGlobal("SINGLEINSTANCE", "Iup Sample");
   if (!IupGetGlobal("SINGLEINSTANCE"))

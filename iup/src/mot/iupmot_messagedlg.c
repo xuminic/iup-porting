@@ -32,19 +32,19 @@ static void motMessageDlgDeleteWindowCallback(Widget w, XtPointer client_data, X
   (void)call_data;
   (void)w;
   if (iupStrEqualNoCase(iupAttribGetStr(ih, "BUTTONS"), "OK"))
-    iupAttribSetStr(ih, "BUTTONRESPONSE", "1");
+    iupAttribSet(ih, "BUTTONRESPONSE", "1");
   else
-    iupAttribSetStr(ih, "BUTTONRESPONSE", "2");
-  iupAttribSetStr(ih, "_IUP_WM_DELETE", "1");
+    iupAttribSet(ih, "BUTTONRESPONSE", "2");
+  iupAttribSet(ih, "_IUP_WM_DELETE", "1");
 }
 
 static void motMessageDlgCallback(Widget w, Ihandle* ih, XmAnyCallbackStruct* call_data)
 {
   (void)w;
   if (call_data->reason == XmCR_OK)
-    iupAttribSetStr(ih, "BUTTONRESPONSE", "1");
+    iupAttribSet(ih, "BUTTONRESPONSE", "1");
   else if (call_data->reason == XmCR_CANCEL)
-    iupAttribSetStr(ih, "BUTTONRESPONSE", "2");
+    iupAttribSet(ih, "BUTTONRESPONSE", "2");
 }
 
 static void motMessageDlgHelpCallback(Widget w, XtPointer client_data, XtPointer call_data)
@@ -54,9 +54,9 @@ static void motMessageDlgHelpCallback(Widget w, XtPointer client_data, XtPointer
   if (cb && cb(ih) == IUP_CLOSE)
   {
     if (iupStrEqualNoCase(iupAttribGetStr(ih, "BUTTONS"), "OK"))
-      iupAttribSetStr(ih, "BUTTONRESPONSE", "1");
+      iupAttribSet(ih, "BUTTONRESPONSE", "1");
     else
-      iupAttribSetStr(ih, "BUTTONRESPONSE", "2");
+      iupAttribSet(ih, "BUTTONRESPONSE", "2");
   }
 
   (void)call_data;
@@ -107,7 +107,7 @@ static int motMessageDlgPopup(Ihandle* ih, int x, int y)
 
   value = iupAttribGet(ih, "TITLE");
   if (value)
-    iupmotSetString(msgbox, XmNdialogTitle, value);
+    iupmotSetXmString(msgbox, XmNdialogTitle, value);
   else
   {
     if (parent)
@@ -120,7 +120,7 @@ static int motMessageDlgPopup(Ihandle* ih, int x, int y)
 
   value = iupAttribGet(ih, "VALUE");
   if (value)
-    iupmotSetString(msgbox, XmNmessageString, value);
+    iupmotSetXmString(msgbox, XmNmessageString, value);
 
   XtVaSetValues(msgbox,
                 XmNdialogType, type,
@@ -137,8 +137,8 @@ static int motMessageDlgPopup(Ihandle* ih, int x, int y)
   }
   else if (iupStrEqualNoCase(value, "YESNO"))
   {
-    iupmotSetString(msgbox, XmNokLabelString, iupStrMessageGet("IUP_YES"));
-    iupmotSetString(msgbox, XmNcancelLabelString, iupStrMessageGet("IUP_NO"));
+    iupmotSetXmString(msgbox, XmNokLabelString, IupGetLanguageString("IUP_YES"));
+    iupmotSetXmString(msgbox, XmNcancelLabelString, IupGetLanguageString("IUP_NO"));
   }
 
   if (!IupGetCallback(ih, "HELP_CB"))
@@ -167,7 +167,7 @@ static int motMessageDlgPopup(Ihandle* ih, int x, int y)
   /* while the user hasn't provided an answer, simulate main loop.
   ** The answer changes as soon as the user selects one of the
   ** buttons and the callback routine changes its value. */
-  iupAttribSetStr(ih, "BUTTONRESPONSE", NULL);
+  iupAttribSet(ih, "BUTTONRESPONSE", NULL);
   while (iupAttribGet(ih, "BUTTONRESPONSE") == NULL)
     XtAppProcessEvent(iupmot_appcontext, XtIMAll);
 

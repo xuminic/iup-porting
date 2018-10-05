@@ -102,8 +102,8 @@ static int gtkDialogGetMenuSize(Ihandle* ih)
 {
 #ifdef HILDON
   return 0;
-#else
-  if (ih->data->menu && !iupgtk_globalmenu)
+#else                    
+  if (ih->data->menu && !iupStrBoolean(IupGetGlobal("GLOBALMENU")))
     return iupdrvMenuGetMenuBarSize(ih->data->menu);
   else
     return 0;
@@ -138,7 +138,7 @@ void iupdrvDialogGetDecoration(Ihandle* ih, int *border, int *caption, int *menu
                      iupAttribGetBoolean(ih, "MAXBOX")  ||
                      iupAttribGetBoolean(ih, "MINBOX")  ||
                      iupAttribGetBoolean(ih, "MENUBOX") || 
-                     IupGetAttribute(ih, "TITLE"); /* must use IupGetAttribute to check from the native implementation */
+                     iupAttribGet(ih, "TITLE");
 
   int has_border = has_titlebar ||
                    iupAttribGetBoolean(ih, "RESIZE") ||
@@ -251,7 +251,7 @@ int iupdrvDialogSetPlacement(Ihandle* ih)
       ih->data->show_state = IUP_RESTORE;
   }
 
-  iupAttribSetStr(ih, "PLACEMENT", NULL); /* reset to NORMAL */
+  iupAttribSet(ih, "PLACEMENT", NULL); /* reset to NORMAL */
 
   return 1;
 }
@@ -455,7 +455,7 @@ static int gtkDialogMapMethod(Ihandle* ih)
   } 
   else 
   {
-    iupAttribSetStr(ih, "DIALOGHINT", "YES");  /* otherwise not displayed correctly */ 
+    iupAttribSet(ih, "DIALOGHINT", "YES");  /* otherwise not displayed correctly */ 
     ih->handle = gtk_window_new(GTK_WINDOW_TOPLEVEL);
   }
 #else
@@ -510,7 +510,7 @@ static int gtkDialogMapMethod(Ihandle* ih)
     decorations |= GDK_DECOR_BORDER;  /* has_border */
   }
   else
-    iupAttribSetStr(ih, "MAXBOX", "NO");
+    iupAttribSet(ih, "MAXBOX", "NO");
   if (iupAttribGetBoolean(ih, "MENUBOX")) 
   {
     functions   |= GDK_FUNC_CLOSE;
@@ -552,13 +552,13 @@ static int gtkDialogMapMethod(Ihandle* ih)
 
   /* configure for DRAG&DROP */
   if (IupGetCallback(ih, "DROPFILES_CB"))
-    iupAttribSetStr(ih, "DROPFILESTARGET", "YES");
+    iupAttribSet(ih, "DROPFILESTARGET", "YES");
 
   /* configure the size range */
   gtkDialogSetMinMax(ih, 1, 1, 65535, 65535);  /* MINSIZE and MAXSIZE default values */
 
   /* Ignore VISIBLE before mapping */
-  iupAttribSetStr(ih, "VISIBLE", NULL);
+  iupAttribSet(ih, "VISIBLE", NULL);
 
   if (iupStrBoolean(IupGetGlobal("INPUTCALLBACKS")))
     gtk_widget_add_events(ih->handle, GDK_POINTER_MOTION_MASK|GDK_BUTTON_PRESS_MASK|GDK_BUTTON_RELEASE_MASK|GDK_BUTTON_MOTION_MASK);
@@ -582,7 +582,10 @@ static void gtkDialogUnMapMethod(Ihandle* ih)
 #if GTK_CHECK_VERSION(2, 10, 0)
   status_icon = (GtkStatusIcon*)iupAttribGet(ih, "_IUPDLG_STATUSICON");
   if (status_icon)
+  {
     g_object_unref(status_icon);
+    iupAttribSet(ih, "_IUPDLG_STATUSICON", NULL);
+  }
 #endif
 
   inner_parent = gtk_bin_get_child((GtkBin*)ih->handle);
@@ -691,48 +694,30 @@ static int gtkDialogSetTitleAttrib(Ihandle* ih, const char* value)
 {
   if (!value)
     value = "";
-  gtk_window_set_title((GtkWindow*)ih->handle, iupgtkStrConvertToUTF8(value));
-  return 0;
+  gtk_window_set_title((GtkWindow*)ih->handle, iupgtkStrConvertToSystem(value));
+  return 1;
 }
 
 static char* gtkDialogGetActiveWindowAttrib(Ihandle* ih)
 {
-  if (gtk_window_is_active((GtkWindow*)ih->handle))
-    return "Yes";
-  else
-    return "No";
-}    
-
-static char* gtkDialogGetTitleAttrib(Ihandle* ih)
-{
-  const char* title = gtk_window_get_title((GtkWindow*)ih->handle);
-
-  if (!title || title[0] == 0)
-    return NULL;
-  else
-    return iupStrGetMemoryCopy(iupgtkStrConvertFromUTF8(title));
+  return iupStrReturnBoolean (gtk_window_is_active((GtkWindow*)ih->handle)); 
 }    
 
 static char* gtkDialogGetClientSizeAttrib(Ihandle *ih)
 {
-  char* str = iupStrGetMemory(20);
- 
   int width, height;
   gtk_window_get_size((GtkWindow*)ih->handle, &width, &height);
 
   /* remove the menu because it is placed inside the client area */
   height -= gtkDialogGetMenuSize(ih);
 
-  sprintf(str, "%dx%d", width, height);
-  return str;
+  return iupStrReturnIntInt(width, height, 'x');
 }
 
 static char* gtkDialogGetClientOffsetAttrib(Ihandle *ih)
 {
-  char* str = iupStrGetMemory(20);
   /* remove the menu because it is placed inside the client area */
-  sprintf(str, "0x%d", -gtkDialogGetMenuSize(ih));
-  return str;
+  return iupStrReturnIntInt(0, -gtkDialogGetMenuSize(ih), 'x');
 }
 
 static int gtkDialogSetFullScreenAttrib(Ihandle* ih, const char* value)
@@ -743,25 +728,25 @@ static int gtkDialogSetFullScreenAttrib(Ihandle* ih, const char* value)
     {
       /* save the previous decoration attributes */
       /* during fullscreen these attributes can be consulted by the application */
-      iupAttribStoreStr(ih, "_IUPGTK_FS_MAXBOX", iupAttribGet(ih, "MAXBOX"));
-      iupAttribStoreStr(ih, "_IUPGTK_FS_MINBOX", iupAttribGet(ih, "MINBOX"));
-      iupAttribStoreStr(ih, "_IUPGTK_FS_MENUBOX",iupAttribGet(ih, "MENUBOX"));
-      iupAttribStoreStr(ih, "_IUPGTK_FS_RESIZE", iupAttribGet(ih, "RESIZE"));
-      iupAttribStoreStr(ih, "_IUPGTK_FS_BORDER", iupAttribGet(ih, "BORDER"));
-      iupAttribStoreStr(ih, "_IUPGTK_FS_TITLE",  IupGetAttribute(ih, "TITLE"));  /* must use IupGetAttribute to check from the native implementation */
+      iupAttribSetStr(ih, "_IUPGTK_FS_MAXBOX", iupAttribGet(ih, "MAXBOX"));
+      iupAttribSetStr(ih, "_IUPGTK_FS_MINBOX", iupAttribGet(ih, "MINBOX"));
+      iupAttribSetStr(ih, "_IUPGTK_FS_MENUBOX",iupAttribGet(ih, "MENUBOX"));
+      iupAttribSetStr(ih, "_IUPGTK_FS_RESIZE", iupAttribGet(ih, "RESIZE"));
+      iupAttribSetStr(ih, "_IUPGTK_FS_BORDER", iupAttribGet(ih, "BORDER"));
+      iupAttribSetStr(ih, "_IUPGTK_FS_TITLE",  iupAttribGet(ih, "TITLE"));
 
       /* remove the decorations attributes */
-      iupAttribSetStr(ih, "MAXBOX", "NO");
-      iupAttribSetStr(ih, "MINBOX", "NO");
-      iupAttribSetStr(ih, "MENUBOX", "NO");
-      IupSetAttribute(ih, "TITLE", NULL); iupAttribSetStr(ih, "TITLE", NULL); /* remove from the hash table if we are during IupMap */
-      iupAttribSetStr(ih, "RESIZE", "NO");
-      iupAttribSetStr(ih, "BORDER", "NO");
+      iupAttribSet(ih, "MAXBOX", "NO");
+      iupAttribSet(ih, "MINBOX", "NO");
+      iupAttribSet(ih, "MENUBOX", "NO");
+      IupSetAttribute(ih, "TITLE", NULL);  /* must use IupSetAttribute to update the native implementation */
+      iupAttribSet(ih, "RESIZE", "NO");
+      iupAttribSet(ih, "BORDER", "NO");
 
       if (iupdrvIsVisible(ih))
         gtk_window_fullscreen((GtkWindow*)ih->handle);
 
-      iupAttribSetStr(ih, "_IUPGTK_FS_STYLE", "YES");
+      iupAttribSet(ih, "_IUPGTK_FS_STYLE", "YES");
     }
   }
   else
@@ -769,26 +754,26 @@ static int gtkDialogSetFullScreenAttrib(Ihandle* ih, const char* value)
     char* fs_style = iupAttribGet(ih, "_IUPGTK_FS_STYLE");
     if (fs_style)
     {
-      iupAttribSetStr(ih, "_IUPGTK_FS_STYLE", NULL);
+      iupAttribSet(ih, "_IUPGTK_FS_STYLE", NULL);
 
       /* restore the decorations attributes */
-      iupAttribStoreStr(ih, "MAXBOX", iupAttribGet(ih, "_IUPGTK_FS_MAXBOX"));
-      iupAttribStoreStr(ih, "MINBOX", iupAttribGet(ih, "_IUPGTK_FS_MINBOX"));
-      iupAttribStoreStr(ih, "MENUBOX",iupAttribGet(ih, "_IUPGTK_FS_MENUBOX"));
+      iupAttribSetStr(ih, "MAXBOX", iupAttribGet(ih, "_IUPGTK_FS_MAXBOX"));
+      iupAttribSetStr(ih, "MINBOX", iupAttribGet(ih, "_IUPGTK_FS_MINBOX"));
+      iupAttribSetStr(ih, "MENUBOX",iupAttribGet(ih, "_IUPGTK_FS_MENUBOX"));
       IupSetAttribute(ih, "TITLE",  iupAttribGet(ih, "_IUPGTK_FS_TITLE"));   /* must use IupSetAttribute to update the native implementation */
-      iupAttribStoreStr(ih, "RESIZE", iupAttribGet(ih, "_IUPGTK_FS_RESIZE"));
-      iupAttribStoreStr(ih, "BORDER", iupAttribGet(ih, "_IUPGTK_FS_BORDER"));
+      iupAttribSetStr(ih, "RESIZE", iupAttribGet(ih, "_IUPGTK_FS_RESIZE"));
+      iupAttribSetStr(ih, "BORDER", iupAttribGet(ih, "_IUPGTK_FS_BORDER"));
 
       if (iupdrvIsVisible(ih))
         gtk_window_unfullscreen((GtkWindow*)ih->handle);
 
       /* remove auxiliar attributes */
-      iupAttribSetStr(ih, "_IUPGTK_FS_MAXBOX", NULL);
-      iupAttribSetStr(ih, "_IUPGTK_FS_MINBOX", NULL);
-      iupAttribSetStr(ih, "_IUPGTK_FS_MENUBOX",NULL);
-      iupAttribSetStr(ih, "_IUPGTK_FS_RESIZE", NULL);
-      iupAttribSetStr(ih, "_IUPGTK_FS_BORDER", NULL);
-      iupAttribSetStr(ih, "_IUPGTK_FS_TITLE",  NULL);
+      iupAttribSet(ih, "_IUPGTK_FS_MAXBOX", NULL);
+      iupAttribSet(ih, "_IUPGTK_FS_MINBOX", NULL);
+      iupAttribSet(ih, "_IUPGTK_FS_MENUBOX",NULL);
+      iupAttribSet(ih, "_IUPGTK_FS_RESIZE", NULL);
+      iupAttribSet(ih, "_IUPGTK_FS_BORDER", NULL);
+      iupAttribSet(ih, "_IUPGTK_FS_TITLE",  NULL);
     }
   }
   return 1;
@@ -966,7 +951,7 @@ static GtkStatusIcon* gtkDialogGetStatusIcon(Ihandle *ih)
     g_signal_connect(G_OBJECT(status_icon), "activate", G_CALLBACK(gtkDialogTaskAction), ih);
     g_signal_connect(G_OBJECT(status_icon), "popup-menu", G_CALLBACK(gtkDialogTaskPopupMenu), ih);
 
-    iupAttribSetStr(ih, "_IUPDLG_STATUSICON", (char*)status_icon);
+    iupAttribSet(ih, "_IUPDLG_STATUSICON", (char*)status_icon);
   }
   return status_icon;
 }
@@ -1036,7 +1021,7 @@ void iupdrvDialogInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "CLIENTOFFSET", gtkDialogGetClientOffsetAttrib, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_READONLY|IUPAF_NO_INHERIT);
 
   /* Special */
-  iupClassRegisterAttribute(ic, "TITLE", gtkDialogGetTitleAttrib, gtkDialogSetTitleAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "TITLE", NULL, gtkDialogSetTitleAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
 
   /* IupDialog only */
   iupClassRegisterAttribute(ic, "BACKGROUND", NULL, gtkDialogSetBackgroundAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_NO_INHERIT);

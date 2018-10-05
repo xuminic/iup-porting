@@ -282,7 +282,7 @@ static void iColorbarDrawFocusCell(Ihandle* ih)
   ymin += delta;
   ymax -= delta;
 
-  cdIupDrawFocusRect(ih, ih->data->cdcanvas, xmin, ymin, xmax, ymax);
+  IupCdDrawFocusRect(ih, ih->data->cdcanvas, xmin, ymin, xmax, ymax);
 }
 
 /* This function is used to repaint a cell. */
@@ -371,9 +371,7 @@ static int iColorbarSetNumPartsAttrib(Ihandle* ih, const char* value)
 
 static char* iColorbarGetNumPartsAttrib(Ihandle* ih)
 {
-  char* buffer = iupStrGetMemory(100);
-  sprintf(buffer, "%d", ih->data->num_parts);
-  return buffer;
+  return iupStrReturnInt(ih->data->num_parts);
 }
 
 static int iColorbarSetPrimaryCellAttrib(Ihandle* ih, const char* value)
@@ -392,9 +390,7 @@ static int iColorbarSetPrimaryCellAttrib(Ihandle* ih, const char* value)
 
 static char* iColorbarGetPrimaryCellAttrib(Ihandle* ih)
 {
-  char* buffer = iupStrGetMemory(100);
-  sprintf(buffer, "%d", ih->data->fgcolor_idx);
-  return buffer;
+  return iupStrReturnInt(ih->data->fgcolor_idx);
 }
 
 static int iColorbarSetSecondaryCellAttrib(Ihandle* ih, const char* value)
@@ -414,30 +410,25 @@ static int iColorbarSetSecondaryCellAttrib(Ihandle* ih, const char* value)
 
 static char* iColorbarGetSecondaryCellAttrib(Ihandle* ih)
 {
-  char* buffer = iupStrGetMemory(100);
-  sprintf(buffer, "%d", ih->data->bgcolor_idx);
-  return buffer;
+  return iupStrReturnInt(ih->data->bgcolor_idx);
 }
 
 static int iColorbarSetBufferizeAttrib(Ihandle* ih, const char* value)
 {
-  if (iupStrEqualNoCase(value, "NO"))
+  if (iupStrBoolean(value))
+    ih->data->bufferize = 1;
+  else
   { 
     ih->data->bufferize = 0;
     iColorbarRepaint(ih);
   }
-  else
-    ih->data->bufferize = 1;
 
   return 0;
 }
 
 static char* iColorbarGetBufferizeAttrib(Ihandle* ih)
 {
-  if (ih->data->bufferize)
-    return "YES";
-  else
-    return "NO";
+  return iupStrReturnBoolean (ih->data->bufferize); 
 }
 
 static int iColorbarSetNumCellsAttrib(Ihandle* ih, const char* value)
@@ -463,9 +454,7 @@ static int iColorbarSetNumCellsAttrib(Ihandle* ih, const char* value)
 
 static char* iColorbarGetNumCellsAttrib(Ihandle* ih)
 {
-  char* buffer = iupStrGetMemory(100);
-  sprintf(buffer, "%d", ih->data->num_cells);
-  return buffer;
+  return iupStrReturnInt(ih->data->num_cells);
 }
 
 static int iColorbarSetOrientationAttrib(Ihandle* ih, const char* value)
@@ -489,67 +478,46 @@ static char* iColorbarGetOrientationAttrib(Ihandle* ih)
 
 static int iColorbarSetSquaredAttrib(Ihandle* ih, const char* value)
 {
-  if (iupStrEqualNoCase(value, "NO"))
-    ih->data->squared = 0;
-  else
-    ih->data->squared = 1;
-  
+  ih->data->squared = iupStrBoolean(value);
   iColorbarRepaint(ih);
   return 0;
 }
 
 static char* iColorbarGetSquaredAttrib(Ihandle* ih)
 {
-  if (ih->data->squared) 
-    return "YES";
-  else 
-    return "NO";
+  return iupStrReturnBoolean(ih->data->squared);
 }
 
 static int iColorbarSetShadowedAttrib(Ihandle* ih, const char* value)
 {
-  if (iupStrEqualNoCase(value, "NO"))
-    ih->data->shadowed = 0;
-  else
-    ih->data->shadowed = 1;
-
+  ih->data->shadowed = iupStrBoolean(value);
   iColorbarRepaint(ih);
   return 0;
 }
 
 static char* iColorbarGetShadowedAttrib(Ihandle* ih)
 {
-  if (ih->data->shadowed) 
-    return "YES";
-  else 
-    return "NO";
+  return iupStrReturnBoolean(ih->data->shadowed);
 }
 
 static int iColorbarSetShowSecondaryAttrib(Ihandle* ih, const char* value)
 {
-  if (iupStrEqualNoCase(value, "NO"))
-    ih->data->show_secondary = 0;
-  else
-    ih->data->show_secondary = 1;
-  
+  ih->data->show_secondary = iupStrBoolean(value);
   iColorbarRepaint(ih);
   return 0;
 }
 
 static char* iColorbarGetShowSecondaryAttrib(Ihandle* ih)
 {
-  if (ih->data->show_secondary) 
-    return "YES";
-  else 
-    return "NO";
+  return iupStrReturnBoolean(ih->data->show_secondary);
 }
 
 static int iColorbarSetShowPreviewAttrib(Ihandle* ih, const char* value)
 {
-  if (iupStrEqualNoCase(value, "NO"))
-    ih->data->preview_size = 0;
-  else
+  if (iupStrBoolean(value))
     ih->data->preview_size = -1;  /* reset to automatic */
+  else
+    ih->data->preview_size = 0;
   
   iColorbarRepaint(ih);
   return 1;
@@ -567,11 +535,7 @@ static char* iColorbarGetPreviewSizeAttrib(Ihandle* ih)
   if (ih->data->preview_size == -1)  /* automatic */
     return NULL;
   else 
-  {
-    char* buffer = iupStrGetMemory(100);
-    sprintf(buffer, "%d", ih->data->preview_size);
-    return buffer;
-  }
+    return iupStrReturnInt(ih->data->preview_size);
 }
 
 static int iColorbarSetCellAttrib(Ihandle* ih, int id, const char* value)
@@ -587,15 +551,13 @@ static int iColorbarSetCellAttrib(Ihandle* ih, int id, const char* value)
 
 static char* iColorbarGetCellAttrib(Ihandle* ih, int id)
 {
-  char* buffer = iupStrGetMemory(100);
   long color;
   
   if (id < 0 || id >= ih->data->num_cells)
     return NULL;
 
   color = ih->data->colors[id];
-  sprintf(buffer, "%d %d %d", cdRed(color), cdGreen(color), cdBlue(color));
-  return buffer;
+  return iupStrReturnRGB(cdRed(color), cdGreen(color), cdBlue(color));
 }
 
 static int iColorbarSetTransparencyAttrib(Ihandle* ih, const char* value)
@@ -614,11 +576,7 @@ static char* iColorbarGetTransparencyAttrib(Ihandle* ih)
   if (ih->data->transparency == ICOLORBAR_NO_COLOR)
     return NULL;
   else
-  {
-    char* buffer = iupStrGetMemory(100);
-    sprintf(buffer, "%d %d %d", cdRed(ih->data->transparency), cdGreen(ih->data->transparency), cdBlue(ih->data->transparency));
-    return buffer;
-  }
+    return iupStrReturnRGB(cdRed(ih->data->transparency), cdGreen(ih->data->transparency), cdBlue(ih->data->transparency));
 }
 
 static int iColorbarSetBgColorAttrib(Ihandle* ih, const char* value)
@@ -997,7 +955,7 @@ static int iColorbarCreateMethod(Ihandle* ih, void **params)
   ih->data = iupALLOCCTRLDATA();
 
   /* change the IupCanvas default values */
-  iupAttribSetStr(ih, "BORDER", "NO");
+  iupAttribSet(ih, "BORDER", "NO");
 
   /* default values */
   ih->data->num_cells = 16;

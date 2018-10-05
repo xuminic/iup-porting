@@ -33,6 +33,7 @@
 #include "iupwin_handle.h"
 #include "iupwin_brush.h"
 #include "iupwin_info.h"
+#include "iupwin_str.h"
 
 
 /* From the OLE Drag and Drop Tutorial at Catch22
@@ -358,7 +359,7 @@ static ULONG STDMETHODCALLTYPE IwinDataObject_Release(IwinDataObject* pThis)
   return nCount;
 }
 
-static void winGetClipboardFormatName(CLIPFORMAT cf, char* name, int len);
+static void winGetClipboardFormatName(CLIPFORMAT cf, TCHAR* name, int len);
 
 static HRESULT STDMETHODCALLTYPE IwinDataObject_GetData(IwinDataObject* pThis, LPFORMATETC pFormatEtc, LPSTGMEDIUM pStgMedium)
 {
@@ -366,7 +367,7 @@ static HRESULT STDMETHODCALLTYPE IwinDataObject_GetData(IwinDataObject* pThis, L
   IFnsCi cbDragData;
   int size;
   void *pData;
-  char type[256];
+  TCHAR type[256];
 
   ULONG nIndex = winDataObjectLookupFormatEtc(pThis, pFormatEtc);
   if(nIndex == (ULONG)-1)
@@ -378,7 +379,7 @@ static HRESULT STDMETHODCALLTYPE IwinDataObject_GetData(IwinDataObject* pThis, L
   winGetClipboardFormatName(pFormatEtc->cfFormat, type, 256);
 
   cbDragDataSize = (IFns)IupGetCallback(pThis->ih, "DRAGDATASIZE_CB");
-  size = cbDragDataSize(pThis->ih, type);
+  size = cbDragDataSize(pThis->ih, iupwinStrFromSystem(type));
   if (size <= 0)
     return STG_E_MEDIUMFULL;
 
@@ -390,7 +391,7 @@ static HRESULT STDMETHODCALLTYPE IwinDataObject_GetData(IwinDataObject* pThis, L
 
   /* fill data */
   cbDragData = (IFnsCi)IupGetCallback(pThis->ih, "DRAGDATA_CB");
-  cbDragData(pThis->ih, type, pData, size);
+  cbDragData(pThis->ih, iupwinStrFromSystem(type), pData, size);
 
   GlobalUnlock(pStgMedium->hGlobal);
 
@@ -657,7 +658,7 @@ static void winCallDropDataCB(Ihandle* ih, CLIPFORMAT cf, HGLOBAL hData, int x, 
   if(cbDropData)
   {
     void* targetData = NULL;
-    char type[256];
+    TCHAR type[256];
     SIZE_T size;
 
     iupdrvScreenToClient(ih, &x, &y);
@@ -669,7 +670,7 @@ static void winCallDropDataCB(Ihandle* ih, CLIPFORMAT cf, HGLOBAL hData, int x, 
 
     winGetClipboardFormatName(cf, type, 256);
 
-    cbDropData(ih, type, targetData, size, x, y);
+    cbDropData(ih, iupwinStrFromSystem(type), targetData, size, x, y);
 
     GlobalUnlock(hData);
   }
@@ -741,27 +742,27 @@ static IwinDropTarget* winCreateDropTarget(CLIPFORMAT *pClipFormat, ULONG nNumFo
 
 /******************************************************************************************/
 
-static void winGetClipboardFormatName(CLIPFORMAT cf, char* name, int len)
+static void winGetClipboardFormatName(CLIPFORMAT cf, TCHAR* name, int len)
 {
   if (cf == CF_TEXT)
-    strcpy(name, "TEXT");
+    lstrcpy(name, TEXT("TEXT"));
   else if (cf == CF_BITMAP)
-    strcpy(name, "BITMAP");
+    lstrcpy(name, TEXT("BITMAP"));
   else if (cf == CF_METAFILEPICT)
-    strcpy(name, "METAFILEPICT");
+    lstrcpy(name, TEXT("METAFILEPICT"));
   else if (cf == CF_TIFF)
-    strcpy(name, "TIFF");
+    lstrcpy(name, TEXT("TIFF"));
   else if (cf == CF_TIFF)
-    strcpy(name, "TIFF");
+    lstrcpy(name, TEXT("TIFF"));
   else if (cf == CF_DIB)
-    strcpy(name, "DIB");
+    lstrcpy(name, TEXT("DIB"));
   else if (cf == CF_WAVE)
-    strcpy(name, "WAVE");
+    lstrcpy(name, TEXT("WAVE"));
   else if (cf == CF_UNICODETEXT)
-    strcpy(name, "UNICODETEXT");
+    lstrcpy(name, TEXT("UNICODETEXT"));
   else if (cf == CF_ENHMETAFILE)
-    strcpy(name, "ENHMETAFILE");
-  else 
+    lstrcpy(name, TEXT("ENHMETAFILE"));
+  else
     GetClipboardFormatName(cf, name, len);
 }
 
@@ -783,7 +784,8 @@ static CLIPFORMAT winRegisterClipboardFormat(const char* name)
     return CF_UNICODETEXT;
   if (iupStrEqual(name, "ENHMETAFILE"))
     return CF_ENHMETAFILE;
-  return (CLIPFORMAT)RegisterClipboardFormat(name);
+
+  return (CLIPFORMAT)RegisterClipboardFormat(iupwinStrToSystem(name));
 }
 
 static IwinDropTarget* winRegisterDrop(Ihandle *ih)
@@ -902,7 +904,7 @@ static void winDestroyTypesList(Iarray *list)
   iupArrayDestroy(list);
 }
 
-static Iarray* winCreateTypesList(const char *value)
+static Iarray* winCreateTypesList(const char* value)
 {
   Iarray *newList = iupArrayCreate(10, sizeof(char*));
   char** newListData;
@@ -910,7 +912,7 @@ static Iarray* winCreateTypesList(const char *value)
   char valueTemp[256];
   int i = 0;
 
-  sprintf(valueCopy, "%s", value);
+  strcpy(valueCopy, value);
   while(iupStrToStrStr(valueCopy, valueTemp, valueCopy, ',') > 0)
   {
     newListData = (char**)iupArrayInc(newList);
@@ -936,7 +938,7 @@ static int winSetDropTypesAttrib(Ihandle* ih, const char* value)
   if (drop_types_list)
   {
     winDestroyTypesList(drop_types_list);
-    iupAttribSetStr(ih, "_IUPWIN_DROP_TYPES", NULL);
+    iupAttribSet(ih, "_IUPWIN_DROP_TYPES", NULL);
   }
 
   if(!value)
@@ -944,7 +946,7 @@ static int winSetDropTypesAttrib(Ihandle* ih, const char* value)
 
   drop_types_list = winCreateTypesList(value);
   if (drop_types_list)
-    iupAttribSetStr(ih, "_IUPWIN_DROP_TYPES", (char*)drop_types_list);
+    iupAttribSet(ih, "_IUPWIN_DROP_TYPES", (char*)drop_types_list);
 
   return 1;
 }
@@ -973,7 +975,7 @@ static int winSetDropTargetAttrib(Ihandle* ih, const char* value)
     RevokeDragDrop(ih->handle);
     CoLockObjectExternal((LPUNKNOWN)pDropTarget, FALSE, TRUE);
     ((IDropTarget*)pDropTarget)->lpVtbl->Release((IDropTarget*)pDropTarget);
-    iupAttribSetStr(ih, "_IUPWIN_DROPTARGET", NULL);
+    iupAttribSet(ih, "_IUPWIN_DROPTARGET", NULL);
   }
 
   if (iupStrBoolean(value))
@@ -981,7 +983,7 @@ static int winSetDropTargetAttrib(Ihandle* ih, const char* value)
     pDropTarget = winRegisterDrop(ih);
     CoLockObjectExternal((LPUNKNOWN)pDropTarget, TRUE, FALSE);
     RegisterDragDrop(ih->handle, (IDropTarget*)pDropTarget);
-    iupAttribSetStr(ih, "_IUPWIN_DROPTARGET", (char*)pDropTarget);
+    iupAttribSet(ih, "_IUPWIN_DROPTARGET", (char*)pDropTarget);
   }
 
   return 1;
@@ -993,7 +995,7 @@ static int winSetDragTypesAttrib(Ihandle* ih, const char* value)
   if (drag_types_list)
   {
     winDestroyTypesList(drag_types_list);
-    iupAttribSetStr(ih, "_IUPWIN_DRAG_TYPES", NULL);
+    iupAttribSet(ih, "_IUPWIN_DRAG_TYPES", NULL);
   }
 
   if(!value)
@@ -1001,7 +1003,7 @@ static int winSetDragTypesAttrib(Ihandle* ih, const char* value)
 
   drag_types_list = winCreateTypesList(value);
   if (drag_types_list)
-    iupAttribSetStr(ih, "_IUPWIN_DRAG_TYPES", (char*)drag_types_list);
+    iupAttribSet(ih, "_IUPWIN_DRAG_TYPES", (char*)drag_types_list);
 
   return 1;
 }
@@ -1030,7 +1032,7 @@ static int winSetDropFilesTargetAttrib(Ihandle* ih, const char* value)
 void iupwinDropFiles(HDROP hDrop, Ihandle *ih)
 {
   /* called for a WM_DROPFILES */
-  char *filename;
+  TCHAR* filename;
   int i, numFiles, numchar, ret;
   POINT point;
 
@@ -1038,17 +1040,18 @@ void iupwinDropFiles(HDROP hDrop, Ihandle *ih)
   if (!cb) return; 
 
   numFiles = DragQueryFile(hDrop, 0xFFFFFFFF, NULL, 0);
+
   DragQueryPoint(hDrop, &point);  
   for (i = 0; i < numFiles; i++)
   {
     numchar = DragQueryFile(hDrop, i, NULL, 0);
-    filename = (char*)malloc(numchar+1); 
+    filename = (TCHAR*)malloc((numchar+1)*sizeof(TCHAR)); 
     if (!filename)
       break;
 
     DragQueryFile(hDrop, i, filename, numchar+1);
 
-    ret = cb(ih, filename, numFiles-i-1, (int) point.x, (int) point.y); 
+    ret = cb(ih, iupwinStrFromSystemFilename(filename), numFiles-i-1, (int) point.x, (int) point.y); 
 
     free(filename);
 
@@ -1078,7 +1081,7 @@ void iupwinDestroyDragDrop(Ihandle* ih)
   {
     CoLockObjectExternal((LPUNKNOWN)pDropTarget, TRUE, FALSE);
     ((IDropTarget*)pDropTarget)->lpVtbl->Release((IDropTarget*)pDropTarget);
-    iupAttribSetStr(ih, "_IUPWIN_DROPTARGET", NULL);
+    iupAttribSet(ih, "_IUPWIN_DROPTARGET", NULL);
   }
 }
 

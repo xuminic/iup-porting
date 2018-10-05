@@ -29,6 +29,7 @@
 #include "iupwin_handle.h"
 #include "iupwin_brush.h"
 #include "iupwin_info.h"
+#include "iupwin_str.h"
 
 
 
@@ -238,7 +239,7 @@ static void winCanvasUpdateHorScroll(Ihandle* ih, WORD winop)
   }
   else
   {
-    /* line and page convertions are the same */
+    /* line and page conversions are the same */
     linex = iupAttribGetFloat(ih,"LINEX");
     iupCanvasCalcScrollIntPos(xmin, xmax, linex, 0, 
                               IUP_SB_MIN, IUP_SB_MAX, &ilinex,  NULL);
@@ -314,7 +315,7 @@ static void winCanvasUpdateVerScroll(Ihandle* ih, WORD winop)
   }
   else
   {
-    /* line and page convertions are the same */
+    /* line and page conversions are the same */
     liney = iupAttribGetFloat(ih,"LINEY");
     iupCanvasCalcScrollIntPos(ymin, ymax, liney, 0, 
                               IUP_SB_MIN, IUP_SB_MAX, &iliney,  NULL);
@@ -367,14 +368,12 @@ static void winCanvasUpdateVerScroll(Ihandle* ih, WORD winop)
 
 static char* winCanvasGetDrawSizeAttrib(Ihandle* ih)
 {
-  char* str = iupStrGetMemory(20);
   RECT rect;
   GetClientRect(ih->handle, &rect);
-  sprintf(str, "%dx%d", (int)(rect.right-rect.left), (int)(rect.bottom-rect.top));
-  return str;
+  return iupStrReturnIntInt((int)(rect.right-rect.left), (int)(rect.bottom-rect.top), 'x');
 }
 
-static int winCanvasProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result)
+static int winCanvasMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result)
 {
   switch (msg)
   {
@@ -403,13 +402,13 @@ static int winCanvasProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *r
       {
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(ih->handle, &ps);
-        iupAttribSetStr(ih, "HDC_WMPAINT", (char*)hdc);
+        iupAttribSet(ih, "HDC_WMPAINT", (char*)hdc);
         iupAttribSetStrf(ih, "CLIPRECT", "%d %d %d %d", ps.rcPaint.left, ps.rcPaint.top, ps.rcPaint.right-ps.rcPaint.left, ps.rcPaint.bottom-ps.rcPaint.top);
 
         cb(ih, ih->data->posx, ih->data->posy);
 
-        iupAttribSetStr(ih, "CLIPRECT", NULL);
-        iupAttribSetStr(ih, "HDC_WMPAINT", NULL);
+        iupAttribSet(ih, "CLIPRECT", NULL);
+        iupAttribSet(ih, "HDC_WMPAINT", NULL);
         EndPaint(ih->handle, &ps);
       }
       break;
@@ -508,7 +507,7 @@ static int winCanvasProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *r
         SendMessage(ih->handle, WM_SETCURSOR, (WPARAM)ih->handle, MAKELPARAM(1,WM_MOUSEMOVE));
       }
 
-      break; /* let iupwinBaseProc process enter/leavewin */
+      break; /* let iupwinBaseMsgProc process enter/leavewin */
     }
   case WM_XBUTTONUP:
   case WM_LBUTTONUP:
@@ -566,16 +565,16 @@ static int winCanvasProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *r
 
   /* can be a container */
   if (ih->firstchild)
-    return iupwinBaseContainerProc(ih, msg, wp, lp, result);
+    return iupwinBaseContainerMsgProc(ih, msg, wp, lp, result);
   else
-    return iupwinBaseProc(ih, msg, wp, lp, result);
+    return iupwinBaseMsgProc(ih, msg, wp, lp, result);
 }
 
 static int winCanvasMapMethod(Ihandle* ih)
 {
   CLIENTCREATESTRUCT clientstruct;
   void *clientdata = NULL;
-  char *classname;
+  TCHAR *classname;
   DWORD dwStyle = WS_CHILD|WS_CLIPSIBLINGS, 
       dwExStyle = 0;
 
@@ -606,13 +605,13 @@ static int winCanvasMapMethod(Ihandle* ih)
        it will work as parent of all MDI children */
     Ihandle *winmenu = IupGetAttributeHandle(ih, "MDIMENU");
 
-    classname = "mdiclient";
+    classname = TEXT("mdiclient");
     dwStyle = WS_CHILD|WS_CLIPCHILDREN|WS_VSCROLL|WS_HSCROLL|MDIS_ALLCHILDSTYLES;
     dwExStyle = WS_EX_CLIENTEDGE;
 
-    iupAttribSetStr(ih, "BORDER", "NO");
+    iupAttribSet(ih, "BORDER", "NO");
 
-    iupAttribSetStr(IupGetDialog(ih), "MDICLIENT_HANDLE", (char*)ih);
+    iupAttribSet(IupGetDialog(ih), "MDICLIENT_HANDLE", (char*)ih);
 
     clientdata = &clientstruct;
     clientstruct.hWindowMenu = winmenu? winmenu->handle: NULL;
@@ -624,39 +623,16 @@ static int winCanvasMapMethod(Ihandle* ih)
     clientstruct.idFirstChild = IUP_MDI_FIRSTCHILD;
   }
   else 
-    classname = "IupCanvas";
+    classname = TEXT("IupCanvas");
 
-  ih->serial = iupDialogGetChildId(ih);
-
-  ih->handle = CreateWindowEx(dwExStyle,/* extended style */
-          classname,                    /* window class */
-          NULL,                         /* title */
-          dwStyle,                      /* window style */
-          0,                            /* x-position */
-          0,                            /* y-position */
-          10,                           /* default width to avoid 0 */
-          10,                           /* default height to avoid 0 */
-          iupChildTreeGetNativeParentHandle(ih),     /* window parent */
-          (HMENU)ih->serial,            /* child identifier */
-          iupwin_hinstance,             /* instance of app. */
-          clientdata);
-
-  if (!ih->handle)
+  if (!iupwinCreateWindow(ih, classname, dwExStyle, dwStyle, clientdata))
     return IUP_ERROR;
 
-  /* associate HWND with Ihandle*, all Win32 controls must call this. */
-  iupwinHandleAdd(ih, ih->handle);
-
-  if (iupAttribGetBoolean(ih, "MDICLIENT"))  
-    iupwinChangeProc(ih, iupwinBaseWinProc);
-  else
-    IupSetCallback(ih, "_IUPWIN_OLDPROC_CB", (Icallback)DefWindowProc);
-
-  IupSetCallback(ih, "_IUPWIN_CTRLPROC_CB", (Icallback)winCanvasProc);
+  IupSetCallback(ih, "_IUPWIN_CTRLMSGPROC_CB", (Icallback)winCanvasMsgProc);
 
   /* configure for DROP of files */
   if (IupGetCallback(ih, "DROPFILES_CB"))
-    iupAttribSetStr(ih, "DROPFILESTARGET", "YES");
+    iupAttribSet(ih, "DROPFILESTARGET", "YES");
 
   return IUP_NOERROR;
 }
@@ -703,21 +679,14 @@ static void winCanvasUnMapMethod(Ihandle* ih)
   DestroyWindow(ih->handle);
 }
 
-static void winCanvasReleaseMethod(Iclass* ic)
-{
-  (void)ic;
-  if (iupwinClassExist("IupCanvas"))
-    UnregisterClass("IupCanvas", iupwin_hinstance);
-}
-
 static void winCanvasRegisterClass(void)
 {
   WNDCLASS wndclass;
   ZeroMemory(&wndclass, sizeof(WNDCLASS));
   
   wndclass.hInstance      = iupwin_hinstance;
-  wndclass.lpszClassName  = "IupCanvas";
-  wndclass.lpfnWndProc    = (WNDPROC)iupwinBaseWinProc;
+  wndclass.lpszClassName  = TEXT("IupCanvas");
+  wndclass.lpfnWndProc    = (WNDPROC)DefWindowProc;
   wndclass.hCursor        = LoadCursor(NULL, IDC_ARROW);
   wndclass.style          = CS_DBLCLKS | CS_OWNDC | CS_HREDRAW | CS_VREDRAW; /* using CS_OWNDC will minimize the work of cdActivate in the CD library */
   wndclass.hbrBackground  = NULL;  /* remove the background to optimize redraw */
@@ -727,13 +696,12 @@ static void winCanvasRegisterClass(void)
 
 void iupdrvCanvasInitClass(Iclass* ic)
 {
-  if (!iupwinClassExist("IupCanvas"))
+  if (!iupwinClassExist(TEXT("IupCanvas")))
     winCanvasRegisterClass();
 
   /* Driver Dependent Class functions */
   ic->Map = winCanvasMapMethod;
   ic->UnMap = winCanvasUnMapMethod;
-  ic->Release = winCanvasReleaseMethod;
 
   /* Driver Dependent Attribute functions */
 

@@ -10,9 +10,14 @@
 #include "iup.h"
 
 #include <cd.h>
-#include <cd_private.h>
 #include <cdiup.h>
 #include <cdnative.h>
+
+/* IMPORTANT: this module does NOT depends on the internal cdCanvas structure.
+   It depends ONLY on the internal cdContext structure. 
+   So no need to rebuild IUPCD if cdCanvas was not changed. */
+#include <cd_private.h>
+
 
 static void (*cdcreatecanvasNATIVE)(cdCanvas* canvas, void* data) = NULL;
 
@@ -23,7 +28,7 @@ static void cdcreatecanvasIUP(cdCanvas* canvas, Ihandle *ih_canvas)
 #endif
   char* data;
 
-  if (cdBaseDriver()==CD_BASE_GDK)
+  if (cdBaseDriver()==CD_BASE_GDK || cdBaseDriver()==CD_BASE_HAIKU)
   {
     data = IupGetAttribute(ih_canvas, "DRAWABLE");  /* new IUP 3 attribute, works for GTK only */
     if (!data)
@@ -55,6 +60,12 @@ static void cdcreatecanvasIUP(cdCanvas* canvas, Ihandle *ih_canvas)
   cdcreatecanvasNATIVE(canvas, data);
 
   IupSetAttribute(ih_canvas, "_CD_CANVAS", (char*)canvas);
+
+  {
+    int utf8mode = IupGetInt(NULL, "UTF8MODE");
+    if (utf8mode)
+      cdCanvasSetAttribute(canvas, "UTF8MODE", "1");
+  }
 }
 
 static cdContext cdIupContext;

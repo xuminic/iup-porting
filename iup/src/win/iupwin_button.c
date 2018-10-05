@@ -27,6 +27,7 @@
 #include "iupwin_handle.h"
 #include "iupwin_draw.h"
 #include "iupwin_info.h"
+#include "iupwin_str.h"
 
 
 /* Not defined in MingW and Cygwin */
@@ -147,7 +148,7 @@ static void winButtonDrawImageText(Ihandle* ih, HDC hDC, int rect_width, int rec
   HBITMAP hBitmap, hMask;
   COLORREF fgcolor;
 
-  char* title = iupdrvBaseGetTitleAttrib(ih);
+  char* title = iupAttribGet(ih, "TITLE");
   char* str = iupStrProcessMnemonic(title, NULL, 0);   /* remove & */
   iupdrvFontGetMultiLineStringSize(ih, str, &txt_width, &txt_height);
   if (str && str!=title) free(str);
@@ -284,7 +285,7 @@ static void winButtonDrawText(Ihandle* ih, HDC hDC, int rect_width, int rect_hei
   int x, y, width, height, shift = 0;
   COLORREF fgcolor;
 
-  char* title = iupdrvBaseGetTitleAttrib(ih);
+  char* title = iupAttribGet(ih, "TITLE");
   if (title)
   {
     int style = 0;
@@ -470,9 +471,7 @@ static char* winButtonGetAlignmentAttrib(Ihandle *ih)
 {
   char* horiz_align2str[3] = {"ALEFT", "ACENTER", "ARIGHT"};
   char* vert_align2str[3] = {"ATOP", "ACENTER", "ABOTTOM"};
-  char *str = iupStrGetMemory(50);
-  sprintf(str, "%s:%s", horiz_align2str[ih->data->horiz_alignment], vert_align2str[ih->data->vert_alignment]);
-  return str;
+  return iupStrReturnStrf("%s:%s", horiz_align2str[ih->data->horiz_alignment], vert_align2str[ih->data->vert_alignment]);
 }
 
 static int winButtonSetPaddingAttrib(Ihandle* ih, const char* value)
@@ -486,7 +485,9 @@ static int winButtonSetPaddingAttrib(Ihandle* ih, const char* value)
 static int winButtonSetTitleAttrib(Ihandle* ih, const char* value)
 {
   iupwinSetMnemonicTitle(ih, 0, value);
-  return iupdrvBaseSetTitleAttrib(ih, value);
+  iupwinSetTitleAttrib(ih, value);
+  iupdrvPostRedraw(ih);
+  return 1;
 }
 
 static int winButtonSetBgColorAttrib(Ihandle* ih, const char* value)
@@ -494,7 +495,7 @@ static int winButtonSetBgColorAttrib(Ihandle* ih, const char* value)
   /* update internal image cache for controls that have the IMAGE attribute */
   if (ih->data->type != IUP_BUTTON_TEXT)
   {
-    iupAttribSetStr(ih, "BGCOLOR", value);
+    iupAttribSet(ih, "BGCOLOR", value);
     iupImageUpdateParent(ih);
     iupdrvRedrawNow(ih);
   }
@@ -511,11 +512,7 @@ static char* winButtonGetBgColorAttrib(Ihandle* ih)
   {
     COLORREF cr;
     if (iupwinDrawGetThemeButtonBgColor(ih->handle, &cr))
-    {
-      char* str = iupStrGetMemory(20);
-      sprintf(str, "%d %d %d", (int)GetRValue(cr), (int)GetGValue(cr), (int)GetBValue(cr));
-      return str;
-    }
+      return iupStrReturnStrf("%d %d %d", (int)GetRValue(cr), (int)GetGValue(cr), (int)GetBValue(cr));
   }
 
   if (iupAttribGet(ih, "IMPRESS"))
@@ -539,7 +536,7 @@ static int winButtonSetFgColorAttrib(Ihandle* ih, const char* value)
 
 /****************************************************************************************/
 
-static int winButtonProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result)
+static int winButtonMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *result)
 {
   if (ih->data->type != IUP_BUTTON_TEXT)
   {
@@ -566,7 +563,7 @@ static int winButtonProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *r
       if ((msg==WM_LBUTTONDOWN && !iupAttribGetBoolean(ih, "CANFOCUS")) ||
           msg==WM_LBUTTONDBLCLK)
       {
-        iupAttribSetStr(ih, "_IUPWINBUT_SELECTED", "1");
+        iupAttribSet(ih, "_IUPWINBUT_SELECTED", "1");
         iupdrvRedrawNow(ih);
       }
       break;
@@ -583,7 +580,7 @@ static int winButtonProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *r
       {
         if (iupAttribGet(ih, "_IUPWINBUT_SELECTED"))
         {
-          iupAttribSetStr(ih, "_IUPWINBUT_SELECTED", NULL);
+          iupAttribSet(ih, "_IUPWINBUT_SELECTED", NULL);
           iupdrvRedrawNow(ih);
         }
 
@@ -621,12 +618,12 @@ static int winButtonProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *r
   case WM_MOUSELEAVE:
     if (!iupwin_comctl32ver6 && iupAttribGetBoolean(ih, "FLAT"))
     {
-      iupAttribSetStr(ih, "_IUPWINBUT_ENTERWIN", NULL);
+      iupAttribSet(ih, "_IUPWINBUT_ENTERWIN", NULL);
       iupdrvRedrawNow(ih);
     }
     if (iupAttribGet(ih, "_IUPWINBUT_SELECTED"))
     {
-      iupAttribSetStr(ih, "_IUPWINBUT_SELECTED", NULL);
+      iupAttribSet(ih, "_IUPWINBUT_SELECTED", NULL);
       iupdrvRedrawNow(ih);
     }
     break;
@@ -635,16 +632,16 @@ static int winButtonProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *r
     {
       if (!iupAttribGet(ih, "_IUPWINBUT_ENTERWIN"))
       {
-        iupAttribSetStr(ih, "_IUPWINBUT_ENTERWIN", "1");
+        iupAttribSet(ih, "_IUPWINBUT_ENTERWIN", "1");
         iupdrvRedrawNow(ih);
       }
     }
     break;
   case WM_SETFOCUS:
+    if (!iupAttribGetBoolean(ih, "CANFOCUS"))
     {
       HWND previous = (HWND)wp;
-      if (previous && previous!=ih->handle &&
-          !iupAttribGetBoolean(ih, "CANFOCUS"))
+      if (previous && previous != ih->handle)
       {
         SetFocus(previous);
         *result = 0;
@@ -654,7 +651,7 @@ static int winButtonProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *r
     break;
   }
 
-  return iupwinBaseProc(ih, msg, wp, lp, result);
+  return iupwinBaseMsgProc(ih, msg, wp, lp, result);
 }
 
 static int winButtonWmNotify(Ihandle* ih, NMHDR* msg_info, int *result)
@@ -710,14 +707,14 @@ static int winButtonWmCommand(Ihandle* ih, WPARAM wp, LPARAM lp)
         if (!iupAttribGet(ih, "_IUPBUT_INSIDE_ACTION"))  /* to avoid double calls when pressing enter and a dialog is displayed */
         {
           int ret;
-          iupAttribSetStr(ih, "_IUPBUT_INSIDE_ACTION", "1");
+          iupAttribSet(ih, "_IUPBUT_INSIDE_ACTION", "1");
 
           ret = cb(ih);
           if (ret == IUP_CLOSE)
             IupExitLoop();
 
           if (ret!=IUP_IGNORE && iupObjectCheck(ih))
-            iupAttribSetStr(ih, "_IUPBUT_INSIDE_ACTION", NULL);
+            iupAttribSet(ih, "_IUPBUT_INSIDE_ACTION", NULL);
         }
       }
     }
@@ -766,14 +763,14 @@ static int winButtonMapMethod(Ihandle* ih)
   if (iupAttribGetBoolean(ih, "CANFOCUS"))
     dwStyle |= WS_TABSTOP;
 
-  if (!iupwinCreateWindowEx(ih, "BUTTON", 0, dwStyle))
+  if (!iupwinCreateWindow(ih, WC_BUTTON, 0, dwStyle, NULL))
     return IUP_ERROR;
 
   /* Process WM_COMMAND */
   IupSetCallback(ih, "_IUPWIN_COMMAND_CB", (Icallback)winButtonWmCommand);
 
   /* Process BUTTON_CB and others */
-  IupSetCallback(ih, "_IUPWIN_CTRLPROC_CB", (Icallback)winButtonProc);
+  IupSetCallback(ih, "_IUPWIN_CTRLMSGPROC_CB", (Icallback)winButtonMsgProc);
 
   if (iupwin_comctl32ver6)
     IupSetCallback(ih, "_IUPWIN_NOTIFY_CB", (Icallback)winButtonWmNotify);  /* Process WM_NOTIFY */
@@ -798,7 +795,7 @@ void iupdrvButtonInitClass(Iclass* ic)
 
   /* Special */
   iupClassRegisterAttribute(ic, "FGCOLOR", NULL, winButtonSetFgColorAttrib, "DLGFGCOLOR", NULL, IUPAF_NOT_MAPPED);  /* force the new default value */  
-  iupClassRegisterAttribute(ic, "TITLE", iupdrvBaseGetTitleAttrib, winButtonSetTitleAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "TITLE", NULL, winButtonSetTitleAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
 
   /* IupButton only */
   iupClassRegisterAttribute(ic, "ALIGNMENT", winButtonGetAlignmentAttrib, winButtonSetAlignmentAttrib, "ACENTER:ACENTER", NULL, IUPAF_NO_INHERIT);

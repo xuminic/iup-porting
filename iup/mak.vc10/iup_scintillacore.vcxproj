@@ -5,6 +5,10 @@
       <Configuration>Debug</Configuration>
       <Platform>Win32</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{22AD4898-ABC1-EF25-A8A8-DF17F12D38B2}</ProjectGuid>
@@ -16,6 +20,10 @@
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
   </ImportGroup>
@@ -23,22 +31,50 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
   </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+    <Import Project="$(VCTargetsPath)Microsoft.CPP.UpgradeFromVC71.props" />
+  </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
     <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\lib\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\lib\x64\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">..\obj\Debug\iup_scintilla\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\obj\Debug_x64\iup_scintilla\</IntDir>
     <CodeAnalysisRuleSet Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">AllRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSet Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">AllRules.ruleset</CodeAnalysisRuleSet>
     <CodeAnalysisRules Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" />
+    <CodeAnalysisRules Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" />
     <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" />
+    <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" />
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">iup_scintilla</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">iup_scintilla</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
       <InlineFunctionExpansion>Default</InlineFunctionExpansion>
       <AdditionalIncludeDirectories>..\src;..\src\win;..\include;..\srcscintilla\include;..\srcscintilla\lexlib;..\srcscintilla\src;..\srcscintilla\win32;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;IUP_ASSERT;_CRT_SECURE_NO_DEPRECATE;STATIC_BUILD;SCI_LEXER;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;IUP_ASSERT;_CRT_SECURE_NO_DEPRECATE;STATIC_BUILD;SCI_LEXER;SCI_NAMESPACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MinimalRebuild>false</MinimalRebuild>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+    </ClCompile>
+    <Lib>
+      <OutputFile>$(OutDir)$(ProjectName).lib</OutputFile>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+      <InlineFunctionExpansion>Default</InlineFunctionExpansion>
+      <AdditionalIncludeDirectories>..\src;..\src\win;..\include;..\srcscintilla\include;..\srcscintilla\lexlib;..\srcscintilla\src;..\srcscintilla\win32;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;IUP_ASSERT;_CRT_SECURE_NO_DEPRECATE;STATIC_BUILD;SCI_LEXER;SCI_NAMESPACE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>false</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -55,23 +91,12 @@
     <CustomBuildStep Include="..\include\iup_scintilla.h" />
     <ClInclude Include="..\include\iup_scintilla.h" />
     <ClInclude Include="..\srcscintilla\iupsci.h" />
-    <ClInclude Include="..\srcscintilla\iupsci_annotation.h" />
-    <ClInclude Include="..\srcscintilla\iupsci_bracelight.h" />
-    <ClInclude Include="..\srcscintilla\iupsci_clipboard.h" />
-    <ClInclude Include="..\srcscintilla\iupsci_cursor.h" />
-    <ClInclude Include="..\srcscintilla\iupsci_folding.h" />
-    <ClInclude Include="..\srcscintilla\iupsci_lexer.h" />
-    <ClInclude Include="..\srcscintilla\iupsci_margin.h" />
-    <ClInclude Include="..\srcscintilla\iupsci_markers.h" />
-    <ClInclude Include="..\srcscintilla\iupsci_overtype.h" />
-    <ClInclude Include="..\srcscintilla\iupsci_scrolling.h" />
-    <ClInclude Include="..\srcscintilla\iupsci_selection.h" />
-    <ClInclude Include="..\srcscintilla\iupsci_style.h" />
-    <ClInclude Include="..\srcscintilla\iupsci_tab.h" />
-    <ClInclude Include="..\srcscintilla\iupsci_text.h" />
-    <ClInclude Include="..\srcscintilla\iupsci_wordwrap.h" />
+    <ClInclude Include="..\srcscintilla\lexlib\CharacterCategory.h" />
+    <ClInclude Include="..\srcscintilla\lexlib\SubStyles.h" />
     <ClInclude Include="..\srcscintilla\src\AutoComplete.h" />
     <ClInclude Include="..\srcscintilla\src\CallTip.h" />
+    <ClInclude Include="..\srcscintilla\src\CaseConvert.h" />
+    <ClInclude Include="..\srcscintilla\src\CaseFolder.h" />
     <ClInclude Include="..\srcscintilla\src\Catalogue.h" />
     <ClInclude Include="..\srcscintilla\src\CellBuffer.h" />
     <ClInclude Include="..\srcscintilla\src\CharClassify.h" />
@@ -94,6 +119,7 @@
     <ClInclude Include="..\srcscintilla\src\SplitVector.h" />
     <ClInclude Include="..\srcscintilla\src\Style.h" />
     <ClInclude Include="..\srcscintilla\src\SVector.h" />
+    <ClInclude Include="..\srcscintilla\src\UnicodeFromUTF8.h" />
     <ClInclude Include="..\srcscintilla\src\UniConversion.h" />
     <ClInclude Include="..\srcscintilla\src\ViewStyle.h" />
     <ClInclude Include="..\srcscintilla\src\XPM.h" />
@@ -127,8 +153,15 @@
     <ClCompile Include="..\srcscintilla\iupsci_text.c" />
     <ClCompile Include="..\srcscintilla\iupsci_whitespace.c" />
     <ClCompile Include="..\srcscintilla\iupsci_wordwrap.c" />
+    <ClCompile Include="..\srcscintilla\lexers\LexKVIrc.cxx" />
+    <ClCompile Include="..\srcscintilla\lexers\LexLaTeX.cxx" />
+    <ClCompile Include="..\srcscintilla\lexers\LexRust.cxx" />
+    <ClCompile Include="..\srcscintilla\lexers\LexSTTXT.cxx" />
+    <ClCompile Include="..\srcscintilla\lexlib\CharacterCategory.cxx" />
     <ClCompile Include="..\srcscintilla\src\AutoComplete.cxx" />
     <ClCompile Include="..\srcscintilla\src\CallTip.cxx" />
+    <ClCompile Include="..\srcscintilla\src\CaseConvert.cxx" />
+    <ClCompile Include="..\srcscintilla\src\CaseFolder.cxx" />
     <ClCompile Include="..\srcscintilla\src\Catalogue.cxx" />
     <ClCompile Include="..\srcscintilla\src\CellBuffer.cxx" />
     <ClCompile Include="..\srcscintilla\src\CharClassify.cxx" />

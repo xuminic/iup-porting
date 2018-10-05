@@ -44,6 +44,10 @@ void iupBaseRegisterCommonCallbacks(Iclass* ic);
    Used only from iupBaseRegisterCommonAttrib */
 void iupdrvBaseRegisterCommonAttrib(Iclass* ic);
 
+/* Register driver dependent visual attributes. 
+   Used only from iupBaseRegisterVisualAttrib */
+void iupdrvBaseRegisterVisualAttrib(Iclass* ic);
+
 /** Updates the expand member of the IUP object from the EXPAND attribute.
  * Should be called in the beginning of the ComputeNaturalSize for a container.
  * \ingroup iclassbase */
@@ -136,10 +140,6 @@ int iupBaseNoSaveCheck(Ihandle* ih, const char* name);
 
 /* drag&drop */
 void iupdrvRegisterDragDropAttrib(Iclass* ic);
-
-/* Windows Only */
-char* iupdrvBaseGetTitleAttrib(Ihandle* ih);
-int iupdrvBaseSetTitleAttrib(Ihandle* ih, const char* value);
 
 /** @} */
 

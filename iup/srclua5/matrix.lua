@@ -18,10 +18,13 @@ local ctrl = {
     enteritem_cb = "nn",
     leaveitem_cb = "nn",
     mousemove_cb = "nn",
+    togglevalue_cb = "nnn",
+    colresize_cb = "n",
     scrolltop_cb = "nn",
     fgcolor_cb = "nn",  -- fake definitions to be replaced by matrixfuncs module
     bgcolor_cb = "nn",
     font_cb = {"nn", ret = "s"}, -- ret is return type
+    type_cb = {"nn", ret = "s"}, -- ret is return type
     value_cb = {"nn", ret = "s"}, -- ret is return type
     value_edit_cb = "nns",
     mark_cb = "nn",
@@ -36,11 +39,11 @@ function ctrl.createElement(class, param)
 end
 
 function ctrl.setcell(handle, l, c, val)
-  iup.MatSetAttribute(handle,"",l,c,val)
+  iup.SetAttributeId2(handle,"",l,c,val)
 end
 
 function ctrl.getcell(handle, l, c)
-  return iup.MatGetAttribute(handle,"",l,c)
+  return iup.GetAttributeId2(handle,"",l,c)
 end
 
 iup.RegisterWidget(ctrl)

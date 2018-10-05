@@ -6,7 +6,8 @@ $(OBJDIR)/iuplua.o: iuplua.c ../include/iup.h ../include/iupkey.h \
  /cygdrive/d/tecgraf/lua5.1/include/lua.h ../include/iuplua.h il.h \
  lh/iuplua.lh lh/constants.lh
 $(OBJDIR)/iuplua_api.o: iuplua_api.c ../include/iup.h ../include/iupkey.h \
- ../include/iupdef.h /cygdrive/d/tecgraf/lua5.1/include/lua.h \
+ ../include/iupdef.h ../include/iupkey.h \
+ /cygdrive/d/tecgraf/lua5.1/include/lua.h \
  /cygdrive/d/tecgraf/lua5.1/include/luaconf.h \
  /cygdrive/d/tecgraf/lua5.1/include/lauxlib.h \
  /cygdrive/d/tecgraf/lua5.1/include/lua.h ../include/iuplua.h il.h \
@@ -250,12 +251,6 @@ $(OBJDIR)/il_cbox.o: il_cbox.c /cygdrive/d/tecgraf/lua5.1/include/lua.h \
  /cygdrive/d/tecgraf/lua5.1/include/lua.h ../include/iup.h \
  ../include/iupkey.h ../include/iupdef.h ../include/iuplua.h il.h \
  lh/cbox.lh
-$(OBJDIR)/il_messagedlg.o: il_messagedlg.c /cygdrive/d/tecgraf/lua5.1/include/lua.h \
- /cygdrive/d/tecgraf/lua5.1/include/luaconf.h \
- /cygdrive/d/tecgraf/lua5.1/include/lauxlib.h \
- /cygdrive/d/tecgraf/lua5.1/include/lua.h ../include/iup.h \
- ../include/iupkey.h ../include/iupdef.h ../include/iuplua.h il.h \
- lh/messagedlg.lh
 $(OBJDIR)/il_radio.o: il_radio.c /cygdrive/d/tecgraf/lua5.1/include/lua.h \
  /cygdrive/d/tecgraf/lua5.1/include/luaconf.h \
  /cygdrive/d/tecgraf/lua5.1/include/lauxlib.h \
@@ -293,3 +288,16 @@ $(OBJDIR)/il_progressbar.o: il_progressbar.c \
  /cygdrive/d/tecgraf/lua5.1/include/lua.h ../include/iup.h \
  ../include/iupkey.h ../include/iupdef.h ../include/iuplua.h il.h \
  lh/progressbar.lh
+$(OBJDIR)/il_messagedlg.o: il_messagedlg.c /cygdrive/d/tecgraf/lua5.1/include/lua.h \
+ /cygdrive/d/tecgraf/lua5.1/include/luaconf.h \
+ /cygdrive/d/tecgraf/lua5.1/include/lauxlib.h \
+ /cygdrive/d/tecgraf/lua5.1/include/lua.h ../include/iup.h \
+ ../include/iupkey.h ../include/iupdef.h ../include/iuplua.h il.h \
+ lh/messagedlg.lh
+$(OBJDIR)/il_progressdlg.o: il_progressdlg.c \
+ /cygdrive/d/tecgraf/lua5.1/include/lua.h \
+ /cygdrive/d/tecgraf/lua5.1/include/luaconf.h \
+ /cygdrive/d/tecgraf/lua5.1/include/lauxlib.h \
+ /cygdrive/d/tecgraf/lua5.1/include/lua.h ../include/iup.h \
+ ../include/iupkey.h ../include/iupdef.h ../include/iuplua.h il.h \
+ lh/progressdlg.lh

@@ -43,7 +43,7 @@ enum {                          /* text alignment */
 };
 
 // Legend Position
-enum PLegendPos {PPLOT_TOPLEFT, PPLOT_TOPRIGHT, PPLOT_BOTTOMLEFT, PPLOT_BOTTOMRIGHT};
+enum PLegendPos {PPLOT_TOPLEFT, PPLOT_TOPRIGHT, PPLOT_BOTTOMLEFT, PPLOT_BOTTOMRIGHT, PPLOT_BOTTOMCENTER};
 #endif
 
 typedef vector<float> RealData;
@@ -189,9 +189,7 @@ class LegendData {
    PColor mColor;
    bool mShow;
 
-   void SetDefaultColor (int inPlotIndex);
    void SetDefaultValues (int inPlotIndex);
-   static PColor GetDefaultColor (int inPlotIndex);
 
    PStyle mStyle;
 };
@@ -348,6 +346,7 @@ class PlotDataContainer {
   bool CalculateYRangePlot (float inXMin, float inXMax, const PlotDataBase &inXData, const PlotDataBase &inYData, float &outYMin, float &outYMax) const;
 
  protected:
+  void SetNewLegendColor(LegendData *theLegendData);
   bool CheckState () const;
   PlotDataList mXDataList;
   PlotDataList mYDataList;

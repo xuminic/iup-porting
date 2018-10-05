@@ -172,7 +172,7 @@ void iupdrvDialogGetDecoration(Ihandle* ih, int *border, int *caption, int *menu
                      iupAttribGetBoolean(ih, "MAXBOX")  ||
                      iupAttribGetBoolean(ih, "MINBOX")  ||
                      iupAttribGetBoolean(ih, "MENUBOX") || 
-                     IupGetAttribute(ih, "TITLE");  /* must use IupGetAttribute to check from the native implementation */
+                     iupAttribGet(ih, "TITLE");
 
   int has_border = has_titlebar ||
                    iupAttribGetBoolean(ih, "RESIZE") ||
@@ -273,7 +273,7 @@ static void motDialogSetWindowManagerStyle(Ihandle* ih)
   hints.input_mode = 0;
   hints.status = 0;
 
-  if (IupGetAttribute(ih, "TITLE")) {  /* must use IupGetAttribute to check from the native implementation */
+  if (iupAttribGet(ih, "TITLE")) {
     hints.functions   |= MWM_FUNC_MOVE;
     hints.decorations |= MWM_DECOR_TITLE;
   }
@@ -452,7 +452,7 @@ int iupdrvDialogSetPlacement(Ihandle* ih)
       NULL);
   }
 
-  iupAttribSetStr(ih, "PLACEMENT", NULL); /* reset to NORMAL */
+  iupAttribSet(ih, "PLACEMENT", NULL); /* reset to NORMAL */
 
   return 1;
 }
@@ -502,31 +502,12 @@ static int motDialogSetTitleAttrib(Ihandle* ih, const char* value)
   if (!value)
     value = "";
 
-  XtVaSetValues(ih->handle, XmNtitle, value, 
-                                    XmNiconName, value, 
-                                    NULL);
-  return 0;
+  iupmotSetTitle(ih->handle, value);
+  return 1;
 }
-
-static char* motDialogGetTitleAttrib(Ihandle* ih)
-{
-  char* title;
-  XtVaGetValues(ih->handle, XmNtitle, &title, NULL);
-
-  if (!title || title[0] == 0)
-    return NULL;
-  else
-  {
-    char* str = iupStrGetMemory(200);
-    strcpy(str, title);
-    return str;
-  }
-}    
 
 static char* motDialogGetClientSizeAttrib(Ihandle *ih)
 {
-  char* str = iupStrGetMemory(20);
- 
   Dimension manager_width, manager_height;
   Widget dialog_manager = (Widget)iupAttribGet(ih, "_IUPMOT_DLGCONTAINER");
   XtVaGetValues(dialog_manager, XmNwidth,  &manager_width,
@@ -536,16 +517,13 @@ static char* motDialogGetClientSizeAttrib(Ihandle *ih)
   /* remove the menu because it is placed inside the client area */
   manager_height -= (Dimension)motDialogGetMenuSize(ih);
 
-  sprintf(str, "%dx%d", (int)manager_width, (int)manager_height);
-  return str;
+  return iupStrReturnIntInt((int)manager_width, (int)manager_height, 'x');
 }
 
 static char* motDialogGetClientOffsetAttrib(Ihandle *ih)
 {
-  char* str = iupStrGetMemory(20);
   /* remove the menu because it is placed inside the client area */
-  sprintf(str, "0x%d", -motDialogGetMenuSize(ih));
-  return str;
+  return iupStrReturnIntInt(0, -motDialogGetMenuSize(ih), 'x');
 }
 
 static int motDialogSetBgColorAttrib(Ihandle* ih, const char* value)
@@ -586,26 +564,26 @@ static int motDialogSetFullScreenAttrib(Ihandle* ih, const char* value)
     {
       int visible = iupdrvDialogIsVisible(ih);
       if (visible)
-        iupAttribSetStr(ih, "_IUPMOT_FS_STYLE", "VISIBLE");
+        iupAttribSet(ih, "_IUPMOT_FS_STYLE", "VISIBLE");
       else
-        iupAttribSetStr(ih, "_IUPMOT_FS_STYLE", "HIDDEN");
+        iupAttribSet(ih, "_IUPMOT_FS_STYLE", "HIDDEN");
 
       /* save the previous decoration attributes */
       /* during fullscreen these attributes can be consulted by the application */
-      iupAttribStoreStr(ih, "_IUPMOT_FS_MAXBOX", iupAttribGet(ih, "MAXBOX"));
-      iupAttribStoreStr(ih, "_IUPMOT_FS_MINBOX", iupAttribGet(ih, "MINBOX"));
-      iupAttribStoreStr(ih, "_IUPMOT_FS_MENUBOX",iupAttribGet(ih, "MENUBOX"));
-      iupAttribStoreStr(ih, "_IUPMOT_FS_RESIZE", iupAttribGet(ih, "RESIZE"));
-      iupAttribStoreStr(ih, "_IUPMOT_FS_BORDER", iupAttribGet(ih, "BORDER"));
-      iupAttribStoreStr(ih, "_IUPMOT_FS_TITLE",  IupGetAttribute(ih, "TITLE"));  /* must use IupGetAttribute to check from the native implementation */
+      iupAttribSetStr(ih, "_IUPMOT_FS_MAXBOX", iupAttribGet(ih, "MAXBOX"));
+      iupAttribSetStr(ih, "_IUPMOT_FS_MINBOX", iupAttribGet(ih, "MINBOX"));
+      iupAttribSetStr(ih, "_IUPMOT_FS_MENUBOX",iupAttribGet(ih, "MENUBOX"));
+      iupAttribSetStr(ih, "_IUPMOT_FS_RESIZE", iupAttribGet(ih, "RESIZE"));
+      iupAttribSetStr(ih, "_IUPMOT_FS_BORDER", iupAttribGet(ih, "BORDER"));
+      iupAttribSetStr(ih, "_IUPMOT_FS_TITLE",  iupAttribGet(ih, "TITLE"));
 
       /* remove the decorations attributes */
-      iupAttribSetStr(ih, "MAXBOX", "NO");
-      iupAttribSetStr(ih, "MINBOX", "NO");
-      iupAttribSetStr(ih, "MENUBOX", "NO");
-      IupSetAttribute(ih, "TITLE", NULL); iupAttribSetStr(ih, "TITLE", NULL); /* remove from the hash table if we are during IupMap */
-      iupAttribSetStr(ih, "RESIZE", "NO");
-      iupAttribSetStr(ih, "BORDER", "NO");
+      iupAttribSet(ih, "MAXBOX", "NO");
+      iupAttribSet(ih, "MINBOX", "NO");
+      iupAttribSet(ih, "MENUBOX", "NO");
+      IupSetAttribute(ih, "TITLE", NULL);  /* must use IupSetAttribute to update the native implementation */
+      iupAttribSet(ih, "RESIZE", "NO");
+      iupAttribSet(ih, "BORDER", "NO");
 
       /* use WM fullscreen support */
       if (!motDialogSetFullScreen(ih, 1))
@@ -617,18 +595,18 @@ static int motDialogSetFullScreenAttrib(Ihandle* ih, const char* value)
         /* hide before changing decorations */
         if (visible)
         {
-          iupAttribSetStr(ih, "_IUPMOT_SHOW_STATE", NULL);  /* To avoid a SHOW_CB notification */
+          iupAttribSet(ih, "_IUPMOT_SHOW_STATE", NULL);  /* To avoid a SHOW_CB notification */
           XtUnmapWidget(ih->handle);
         }
 
         /* save the previous position and size */
-        iupAttribStoreStr(ih, "_IUPMOT_FS_X", IupGetAttribute(ih, "X"));  /* must use IupGetAttribute to check from the native implementation */
-        iupAttribStoreStr(ih, "_IUPMOT_FS_Y", IupGetAttribute(ih, "Y"));
-        iupAttribStoreStr(ih, "_IUPMOT_FS_SIZE", IupGetAttribute(ih, "RASTERSIZE"));
+        iupAttribSetStr(ih, "_IUPMOT_FS_X", IupGetAttribute(ih, "X"));  /* must use IupGetAttribute to check from the native implementation */
+        iupAttribSetStr(ih, "_IUPMOT_FS_Y", IupGetAttribute(ih, "Y"));
+        iupAttribSetStr(ih, "_IUPMOT_FS_SIZE", IupGetAttribute(ih, "RASTERSIZE"));
 
         /* save the previous decoration */
         XtVaGetValues(ih->handle, XmNmwmDecorations, &decor, NULL);
-        iupAttribSetStr(ih, "_IUPMOT_FS_DECOR", (char*)(long)decor);
+        iupAttribSet(ih, "_IUPMOT_FS_DECOR", (char*)(long)decor);
 
         /* remove the decorations */
         XtVaSetValues(ih->handle, XmNmwmDecorations, (XtArgVal)0, NULL);
@@ -659,15 +637,15 @@ static int motDialogSetFullScreenAttrib(Ihandle* ih, const char* value)
       /* when fullscreen was set */
       if (iupStrEqualNoCase(fs_style, "VISIBLE"))
       {
-        iupAttribSetStr(ih, "_IUPMOT_FS_STYLE", NULL);
+        iupAttribSet(ih, "_IUPMOT_FS_STYLE", NULL);
 
         /* restore the decorations attributes */
-        iupAttribStoreStr(ih, "MAXBOX", iupAttribGet(ih, "_IUPMOT_FS_MAXBOX"));
-        iupAttribStoreStr(ih, "MINBOX", iupAttribGet(ih, "_IUPMOT_FS_MINBOX"));
-        iupAttribStoreStr(ih, "MENUBOX",iupAttribGet(ih, "_IUPMOT_FS_MENUBOX"));
-        IupSetAttribute(ih, "TITLE",  iupAttribGet(ih, "_IUPMOT_FS_TITLE"));   /* TITLE is not stored in the HashTable */
-        iupAttribStoreStr(ih, "RESIZE", iupAttribGet(ih, "_IUPMOT_FS_RESIZE"));
-        iupAttribStoreStr(ih, "BORDER", iupAttribGet(ih, "_IUPMOT_FS_BORDER"));
+        iupAttribSetStr(ih, "MAXBOX", iupAttribGet(ih, "_IUPMOT_FS_MAXBOX"));
+        iupAttribSetStr(ih, "MINBOX", iupAttribGet(ih, "_IUPMOT_FS_MINBOX"));
+        iupAttribSetStr(ih, "MENUBOX",iupAttribGet(ih, "_IUPMOT_FS_MENUBOX"));
+        IupSetAttribute(ih, "TITLE",  iupAttribGet(ih, "_IUPMOT_FS_TITLE"));   /* must use IupSetAttribute to update the native implementation */
+        iupAttribSetStr(ih, "RESIZE", iupAttribGet(ih, "_IUPMOT_FS_RESIZE"));
+        iupAttribSetStr(ih, "BORDER", iupAttribGet(ih, "_IUPMOT_FS_BORDER"));
 
         if (!motDialogSetFullScreen(ih, 0))
         {
@@ -699,19 +677,19 @@ static int motDialogSetFullScreenAttrib(Ihandle* ih, const char* value)
             XtMapWidget(ih->handle);
 
           /* remove auxiliar attributes */
-          iupAttribSetStr(ih, "_IUPMOT_FS_X", NULL);
-          iupAttribSetStr(ih, "_IUPMOT_FS_Y", NULL);
-          iupAttribSetStr(ih, "_IUPMOT_FS_SIZE", NULL);
-          iupAttribSetStr(ih, "_IUPMOT_FS_DECOR", NULL);
+          iupAttribSet(ih, "_IUPMOT_FS_X", NULL);
+          iupAttribSet(ih, "_IUPMOT_FS_Y", NULL);
+          iupAttribSet(ih, "_IUPMOT_FS_SIZE", NULL);
+          iupAttribSet(ih, "_IUPMOT_FS_DECOR", NULL);
         }
 
         /* remove auxiliar attributes */
-        iupAttribSetStr(ih, "_IUPMOT_FS_MAXBOX", NULL);
-        iupAttribSetStr(ih, "_IUPMOT_FS_MINBOX", NULL);
-        iupAttribSetStr(ih, "_IUPMOT_FS_MENUBOX",NULL);
-        iupAttribSetStr(ih, "_IUPMOT_FS_RESIZE", NULL);
-        iupAttribSetStr(ih, "_IUPMOT_FS_BORDER", NULL);
-        iupAttribSetStr(ih, "_IUPMOT_FS_TITLE",  NULL);
+        iupAttribSet(ih, "_IUPMOT_FS_MAXBOX", NULL);
+        iupAttribSet(ih, "_IUPMOT_FS_MINBOX", NULL);
+        iupAttribSet(ih, "_IUPMOT_FS_MENUBOX",NULL);
+        iupAttribSet(ih, "_IUPMOT_FS_RESIZE", NULL);
+        iupAttribSet(ih, "_IUPMOT_FS_BORDER", NULL);
+        iupAttribSet(ih, "_IUPMOT_FS_TITLE",  NULL);
       }
     }
   }
@@ -889,7 +867,7 @@ static int motDialogMapMethod(Ihandle* ih)
     mwm_decor |= MWM_DECOR_BORDER;  /* has_border */
   }
   else
-    iupAttribSetStr(ih, "MAXBOX", "NO");
+    iupAttribSet(ih, "MAXBOX", "NO");
   if (iupAttribGetBoolean(ih, "MENUBOX"))
   {
     mwm_decor |= MWM_DECOR_MENU;
@@ -963,7 +941,7 @@ static int motDialogMapMethod(Ihandle* ih)
               XmNnavigationType, XmTAB_GROUP,
               NULL);
 
-  iupAttribSetStr(ih, "_IUPMOT_DLGCONTAINER", (char*)dialog_manager);
+  iupAttribSet(ih, "_IUPMOT_DLGCONTAINER", (char*)dialog_manager);
 
   XtOverrideTranslations(dialog_manager, XtParseTranslationTable("<Configure>: iupDialogConfigure()"));
   XtAddCallback(dialog_manager, XmNhelpCallback, (XtCallbackProc)iupmotHelpCallback, (XtPointer)ih);
@@ -980,7 +958,7 @@ static int motDialogMapMethod(Ihandle* ih)
     motDialogSetWindowManagerStyle(ih);
 
   /* Ignore VISIBLE before mapping */
-  iupAttribSetStr(ih, "VISIBLE", NULL);
+  iupAttribSet(ih, "VISIBLE", NULL);
 
   if (IupGetGlobal("_IUP_RESET_DLGBGCOLOR"))
   {
@@ -1087,7 +1065,7 @@ void iupdrvDialogInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "CLIENTOFFSET", motDialogGetClientOffsetAttrib, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_READONLY|IUPAF_NO_INHERIT);
 
   /* Special */
-  iupClassRegisterAttribute(ic, "TITLE", motDialogGetTitleAttrib, motDialogSetTitleAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "TITLE", NULL, motDialogSetTitleAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
 
   /* IupDialog only */
   iupClassRegisterAttribute(ic, "BACKGROUND", NULL, motDialogSetBackgroundAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_DEFAULT);

@@ -120,7 +120,7 @@ static void motFontDlgInitSizeList(Ihandle* ih, const char* fontface, int size)
     {
       if (sz == size)
         selected = j;
-      IupSetfAttributeId(list3, "", j, "%d", sz);
+      IupSetIntId(list3, "", j, sz);
       prev_sz = sz;
       j++;
     }
@@ -129,8 +129,8 @@ static void motFontDlgInitSizeList(Ihandle* ih, const char* fontface, int size)
 
   if (selected != -1)
   {
-    IupSetfAttribute(list3, "VALUE", "%d", selected);
-    IupSetfAttribute(list3, "TOPITEM", "%d", selected);
+    IupSetInt(list3, "VALUE", selected);
+    IupSetInt(list3, "TOPITEM", selected);
   }
 
   XFreeFontNames(font_list_str);
@@ -155,8 +155,8 @@ static void motFontDlgSelectFontFace(Ihandle* ih, char* fontface, int select)
     {
       if (iupStrEqualNoCase(fontface, IupGetAttributeId(list1, "", i+1)))
       {
-        IupSetfAttribute(list1, "VALUE", "%d", i+1);
-        IupSetfAttribute(list1, "TOPITEM", "%d", i+1);
+        IupSetInt(list1, "VALUE", i+1);
+        IupSetInt(list1, "TOPITEM", i+1);
         break;
       }
     }
@@ -177,14 +177,14 @@ static void motFontDlgSelectFontFace(Ihandle* ih, char* fontface, int select)
 static int motFontDlgButtonOK_CB(Ihandle* ih)
 {
   Ihandle* sample = IupGetDialogChild(ih, "SAMPLE");
-  iupAttribStoreStr(IupGetDialog(ih), "VALUE", IupGetAttribute(sample, "FONT"));
-  iupAttribSetStr(IupGetDialog(ih), "STATUS", "1");
+  iupAttribSetStr(IupGetDialog(ih), "VALUE", IupGetAttribute(sample, "FONT"));
+  iupAttribSet(IupGetDialog(ih), "STATUS", "1");
   return IUP_CLOSE;
 }
 
 static int motFontDlgButtonCancel_CB(Ihandle* ih)
 {
-  iupAttribSetStr(IupGetDialog(ih), "STATUS", NULL);
+  iupAttribSet(IupGetDialog(ih), "STATUS", NULL);
   return IUP_CLOSE;
 }
 
@@ -193,7 +193,7 @@ static int motFontDlgButtonHelp_CB(Ihandle* ih)
   Icallback cb = IupGetCallback(IupGetDialog(ih), "HELP_CB");
   if (cb && cb(ih) == IUP_CLOSE)
   {
-    iupAttribSetStr(IupGetDialog(ih), "STATUS", NULL);
+    iupAttribSet(IupGetDialog(ih), "STATUS", NULL);
     return IUP_CLOSE;
   }
   return IUP_DEFAULT;
@@ -274,17 +274,17 @@ static int motFontDlgCreateMethod(Ihandle* ih, void** params)
   Ihandle *ok_bt, *cancel_bt, *help_bt;
   Ihandle *lin1, *lin2, *list1, *list2, *list3;
 
-  ok_bt = IupButton(iupStrMessageGet("IUP_OK"), NULL);
+  ok_bt = IupButton(IupGetLanguageString("IUP_OK"), NULL);
   IupSetAttribute(ok_bt, "PADDING", "20x0");
   IupSetCallback (ok_bt, "ACTION", (Icallback)motFontDlgButtonOK_CB);
   IupSetAttributeHandle(ih, "DEFAULTENTER", ok_bt);
 
-  cancel_bt = IupButton(iupStrMessageGet("IUP_CANCEL"), NULL);
+  cancel_bt = IupButton(IupGetLanguageString("IUP_CANCEL"), NULL);
   IupSetAttribute(cancel_bt, "PADDING", "20x0");
   IupSetCallback (cancel_bt, "ACTION", (Icallback)motFontDlgButtonCancel_CB);
   IupSetAttributeHandle(ih, "DEFAULTESC", cancel_bt);
 
-  help_bt = IupButton(iupStrMessageGet("IUP_HELP"), NULL);            /* Help Button */
+  help_bt = IupButton(IupGetLanguageString("IUP_HELP"), NULL);            /* Help Button */
   IupSetAttribute(help_bt, "PADDING", "20x0");
   IupSetAttribute(help_bt, "NAME", "HELPBUT");
   IupSetCallback (help_bt, "ACTION", (Icallback)motFontDlgButtonHelp_CB);
@@ -317,9 +317,9 @@ static int motFontDlgCreateMethod(Ihandle* ih, void** params)
   IupSetAttribute(list3, "NAME", "LIST3");
   
   lin1 = IupHbox(
-           IupSetAttributes(IupVbox(IupLabel(iupStrMessageGet("IUP_FAMILY")), list1, NULL), "GAP=0"),
-           IupSetAttributes(IupVbox(IupLabel(iupStrMessageGet("IUP_STYLE")), list2, NULL), "GAP=0"),
-           IupSetAttributes(IupVbox(IupLabel(iupStrMessageGet("IUP_SIZE")), list3, NULL), "GAP=0"),
+           IupSetAttributes(IupVbox(IupLabel(IupGetLanguageString("IUP_FAMILY")), list1, NULL), "GAP=0"),
+           IupSetAttributes(IupVbox(IupLabel(IupGetLanguageString("IUP_STYLE")), list2, NULL), "GAP=0"),
+           IupSetAttributes(IupVbox(IupLabel(IupGetLanguageString("IUP_SIZE")), list3, NULL), "GAP=0"),
            NULL);
   IupSetAttribute(lin1, "GAP", "10");
   IupSetAttribute(lin1, "MARGIN", "0x0");
@@ -332,7 +332,7 @@ static int motFontDlgCreateMethod(Ihandle* ih, void** params)
   /* Do not use IupAppend because we set childtype=IUP_CHILDNONE */
   iupChildTreeAppend(ih, IupSetAttributes(IupVbox(lin1, 
                       IupSetAttributes(IupVbox(
-                        IupLabel(iupStrMessageGet("IUP_SAMPLE")), 
+                        IupLabel(IupGetLanguageString("IUP_SAMPLE")), 
                         IupFrame(IupSetAttributes(IupLabel(NULL), "NAME=SAMPLE, TITLE=\"abcdefghijk ABCDEFGHIJK\", EXPAND=HORIZONTAL, RASTERSIZE=x40")), 
                         NULL), "MARGIN=0x0, GAP=0"),
                       IupSetAttributes(IupLabel(NULL), "SEPARATOR=HORIZONTAL"), 

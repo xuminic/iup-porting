@@ -21,8 +21,6 @@
 #include "iup_childtree.h"
 
 
-static Ihandle* spin_timer = NULL;
-
 
 static int iSpinCallCB(Ihandle* ih, int dub, int ten, int sign)
 {
@@ -73,19 +71,23 @@ static int iSpinTimerCB(Ihandle* ih)
   return iSpinCallCB(spin_button, iup_isshift(status), iup_iscontrol(status), spin_dir);
 }
 
-static void iSpinPrepareTimer(Ihandle* ih, char* status, char* dir)
+static void iSpinRunTimer(Ihandle* ih, char* status, char* dir)
 {
-  (void)ih;
+  Ihandle* spin_timer = IupGetHandle("IupSpinTimer");
 
-  iupAttribSetStr(spin_timer, "_IUPSPIN_BUTTON", (char*)ih);
-
-  iupAttribStoreStr(spin_timer, "_IUPSPIN_STATUS", status);
-
+  iupAttribSet(spin_timer, "_IUPSPIN_BUTTON", (char*)ih);
+  iupAttribSetStr(spin_timer, "_IUPSPIN_STATUS", status);
   iupAttribSetStr(spin_timer, "_IUPSPIN_DIR",   dir);
-  iupAttribSetStr(spin_timer, "_IUPSPIN_COUNT", "0");
+  iupAttribSet(spin_timer, "_IUPSPIN_COUNT", "0");
 
   IupSetAttribute(spin_timer, "TIME",           "400");
   IupSetAttribute(spin_timer, "RUN",            "YES");
+}
+
+static void iSpinStopTimer(void)
+{
+  Ihandle* spin_timer = IupGetHandle("IupSpinTimer");
+  IupSetAttribute(spin_timer, "RUN", "NO");
 }
 
 static int iSpinK_SP(Ihandle* ih)
@@ -118,14 +120,12 @@ static int iSpinButtonCB(Ihandle* ih, int but, int pressed, int x, int y, char* 
   {
     int dir = iupAttribGetInt(ih, "_IUPSPIN_DIR");
     
-    iSpinPrepareTimer(ih, status, iupAttribGet(ih, "_IUPSPIN_DIR"));
+    iSpinRunTimer(ih, status, iupAttribGet(ih, "_IUPSPIN_DIR"));
     
     return iSpinCallCB(ih, iup_isshift(status), iup_iscontrol(status), dir);
   }
   else if (!pressed && but == IUP_BUTTON1)
-  {
-    IupSetAttribute(spin_timer, "RUN", "NO");
-  }
+    iSpinStopTimer();
   
   return IUP_DEFAULT;
 }
@@ -211,18 +211,6 @@ static void iSpinLoadImages(void)
   IupSetHandle("IupSpinDownImage", img); 
 }
 
-static void iSpinReleaseMethod(Iclass* ic)
-{
-  (void)ic;
-
-  if (spin_timer)
-  {
-    /* no need to destroy the images, they will be destroyed by IupClose automatically */
-    IupDestroy(spin_timer);
-    spin_timer = NULL;
-  }
-}
-
 Iclass* iupSpinNewClass(void)
 {
   Iclass* ic = iupClassNew(iupRegisterFindClass("vbox"));
@@ -236,16 +224,16 @@ Iclass* iupSpinNewClass(void)
   /* Class functions */
   ic->New = iupSpinNewClass;
   ic->Create = iSpinCreateMethod;
-  ic->Release = iSpinReleaseMethod;
 
   iupClassRegisterCallback(ic, "SPIN_CB", "i");
 
-  if (!spin_timer)
+  if (!IupGetHandle("IupSpinUpImage") || !IupGetHandle("IupSpinDownImage"))
   {
-    iSpinLoadImages();
-
-    spin_timer = IupTimer();
+    Ihandle* spin_timer = IupTimer();
     IupSetCallback(spin_timer, "ACTION_CB", (Icallback) iSpinTimerCB);
+    IupSetHandle("IupSpinTimer", spin_timer);
+
+    iSpinLoadImages();
   }
 
   return ic;
@@ -260,7 +248,7 @@ Ihandle* IupSpin(void)
                                       SPINBOX
 **************************************************************************************/
 
-static void iSpinboxComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *expand)
+static void iSpinboxComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *children_expand)
 {
   /* update spin natural size */
   iupBaseComputeNaturalSize(ih->firstchild);
@@ -270,7 +258,7 @@ static void iSpinboxComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *e
     /* update child natural size */
     iupBaseComputeNaturalSize(ih->firstchild->brother);
 
-    *expand = ih->firstchild->brother->expand;
+    *children_expand = ih->firstchild->brother->expand;
 
     *w = ih->firstchild->brother->naturalwidth + ih->firstchild->naturalwidth;
     *h = iupMAX(ih->firstchild->brother->naturalheight, ih->firstchild->naturalheight);
@@ -332,7 +320,7 @@ static int iSpinboxCreateMethod(Ihandle* ih, void** params)
   spin->flags |= IUP_INTERNAL;
   iupChildTreeAppend(ih, spin);  /* spin will always be the firstchild */
 
-  iupAttribSetStr(spin, "_IUPSPIN_BOX", (char*)ih);  /* will be used by the callback */
+  iupAttribSet(spin, "_IUPSPIN_BOX", (char*)ih);  /* will be used by the callback */
 
   if (params)
   {

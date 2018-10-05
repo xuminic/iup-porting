@@ -33,6 +33,12 @@ void iupdrvGetFullSize(int *width, int *height);
  * \ingroup drvinfo */
 void iupdrvGetScreenSize(int *width, int *height);
 
+/** Adds the main desktop offset because of a taskbar/menubar positioning.
+ * Only usefull in Windows. In X-Windows the position of the origin 0,0 is already adjusted
+ * to be after the taskbar/menubar.
+ * \ingroup drvinfo */
+void iupdrvAddScreenOffset(int *x, int *y, int add);
+
 /** Retrieve the main desktop size when there are multiple monitors.
  * Useful only when in GTK.
  * \ingroup drvinfo */
@@ -77,26 +83,6 @@ void iupdrvGetCursorPos(int *x, int *y);
  * Must be implemented somewhere else.
  * \ingroup drvinfo */
 void* iupdrvGetDisplay(void);
-
-/** Returns the current directory.
- * \ingroup drvinfo */
-char* iupdrvGetCurrentDirectory(void);
-
-/** Changes the current directory.
- * \ingroup drvinfo */
-int iupdrvSetCurrentDirectory(const char* dir);
-
-/** Returns true if the given name is an existant file.
- * \ingroup drvinfo */
-int iupdrvIsFile(const char* name);
-
-/** Returns true if the given name is an existant directory.
- * \ingroup drvinfo */
-int iupdrvIsDirectory(const char* name);
-
-/** Creates a new direcotry.
- * \ingroup drvinfo */
-int iupdrvMakeDirectory(const char* name);
 
 /** Returns the current locale name.
  * \ingroup drvinfo */

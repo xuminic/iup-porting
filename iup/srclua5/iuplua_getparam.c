@@ -82,6 +82,10 @@ static int GetParam(lua_State *L)
       f += line_size;
       i--; /* compensate next increment */
       continue; /* notice this will go to the next i */
+    case 'h':
+      param_data[i] = malloc(sizeof(Ihandle*));
+      *(Ihandle**)(param_data[i]) = iuplua_checkihandle(L, lua_param_start); lua_param_start++;
+      break;
     case 'b':
 /*  TO DO: add this code some day:
       if (lua_isboolean(L, lua_param_start))
@@ -182,10 +186,7 @@ static int GetParamParam(lua_State *L)
 {
   Ihandle *dialog = iuplua_checkihandle(L, 1);
   int param_index = luaL_checkint(L, 2);
-  Ihandle* param;
-  char param_str[50];
-  sprintf(param_str, "PARAM%d", param_index);
-  param = (Ihandle*)IupGetAttribute(dialog, param_str);
+  Ihandle* param = (Ihandle*)IupGetAttributeId(dialog, "PARAM", param_index);
   iuplua_plugstate(L, param);
   iuplua_pushihandle(L, param);
   return 1;

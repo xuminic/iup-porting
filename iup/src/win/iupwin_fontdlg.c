@@ -18,6 +18,7 @@
 
 #include "iupwin_drv.h"
 #include "iupwin_info.h"
+#include "iupwin_str.h"
 
 
 #define IUP_FONTFAMILYCOMBOBOX        0x0470
@@ -33,13 +34,13 @@ static UINT_PTR winFontDlgHookProc(HWND hWnd, UINT uiMsg, WPARAM wParam, LPARAM 
 
     char* value = iupAttribGet(ih, "TITLE");
     if (value)
-      SetWindowText(hWnd, value);
+      SetWindowText(hWnd, iupwinStrToSystem(value));
 
     ih->handle = hWnd;
     iupDialogUpdatePosition(ih);
     ih->handle = NULL;  /* reset handle */
 
-    iupAttribSetStr(ih, "HWND", (char*)hWnd);  /* used by HELP_CB in winDialogBaseProc */
+    iupAttribSet(ih, "HWND", (char*)hWnd);  /* used by HELP_CB in winDialogBaseProc */
 
     hWndItem = GetDlgItem(hWnd, IUP_FONTFAMILYCOMBOBOX);
     SetFocus(hWndItem);
@@ -103,7 +104,7 @@ static int winFontDlgPopup(Ihandle* ih, int x, int y)
   choosefont.Flags = CF_SCREENFONTS | CF_EFFECTS | CF_INITTOLOGFONTSTRUCT;
   choosefont.lCustData = (LPARAM)ih;
 
-  if (!iupwinIs8OrNew() || iupAttribGetBoolean(ih, "WIN8_FONT_HOOK"))
+  if (!iupwinIsWin8OrNew() || iupAttribGetBoolean(ih, "WIN8_FONT_HOOK"))
   {
     choosefont.lpfnHook = (LPCFHOOKPROC)winFontDlgHookProc;
     choosefont.Flags |= CF_ENABLEHOOK;
@@ -112,7 +113,8 @@ static int winFontDlgPopup(Ihandle* ih, int x, int y)
   if (IupGetCallback(ih, "HELP_CB"))
     choosefont.Flags |= CF_SHOWHELP;
 
-  strcpy(logfont.lfFaceName, typeface);
+  iupwinStrCopy(logfont.lfFaceName, typeface, sizeof(logfont.lfFaceName));
+
   logfont.lfHeight = height_pixels;
   logfont.lfWeight = (is_bold)? FW_BOLD: FW_NORMAL;
   logfont.lfItalic = (BYTE)is_italic;
@@ -130,9 +132,9 @@ static int winFontDlgPopup(Ihandle* ih, int x, int y)
 
   if (!ChooseFont(&choosefont))
   {
-    iupAttribSetStr(ih, "VALUE", NULL);
-    iupAttribSetStr(ih, "COLOR", NULL);
-    iupAttribSetStr(ih, "STATUS", NULL);
+    iupAttribSet(ih, "VALUE", NULL);
+    iupAttribSet(ih, "COLOR", NULL);
+    iupAttribSet(ih, "STATUS", NULL);
     return IUP_NOERROR;
   }
 
@@ -147,7 +149,7 @@ static int winFontDlgPopup(Ihandle* ih, int x, int y)
   else
     height = iupWIN_PIXEL2PT(-height_pixels, res);   /* return in points */
 
-  iupAttribSetStrf(ih, "VALUE", "%s, %s%s%s%s %d", logfont.lfFaceName, 
+  iupAttribSetStrf(ih, "VALUE", "%s, %s%s%s%s %d", iupwinStrFromSystem(logfont.lfFaceName), 
                                                     is_bold?"Bold ":"", 
                                                     is_italic?"Italic ":"", 
                                                     is_underline?"Underline ":"", 
@@ -157,7 +159,7 @@ static int winFontDlgPopup(Ihandle* ih, int x, int y)
   iupAttribSetStrf(ih, "COLOR", "%d %d %d", GetRValue(choosefont.rgbColors),
                                             GetGValue(choosefont.rgbColors),
                                             GetBValue(choosefont.rgbColors));
-  iupAttribSetStr(ih, "STATUS", "1");
+  iupAttribSet(ih, "STATUS", "1");
 
   return IUP_NOERROR;
 }

@@ -18,10 +18,12 @@
 #include "iup_str.h"
 #include "iup_drvfont.h"
 #include "iup_stdcontrols.h"
+#include "iup_drv.h"
 
 #include "iupmat_def.h"
 #include "iupmat_aux.h"
 #include "iupmat_getset.h"
+#include "iupmat_numlc.h"
 
 
 int iupMatrixAuxIsFullVisibleLast(ImatLinColData *p)
@@ -30,12 +32,12 @@ int iupMatrixAuxIsFullVisibleLast(ImatLinColData *p)
 
   for(i = p->first; i <= p->last; i++)
   {
-    sum += p->sizes[i];
+    sum += p->dt[i].size;
     if (i==p->first)
       sum -= p->first_offset;
   }
 
-  if (sum > p->visible_size)
+  if (sum > p->current_visible_size)
     return 0;
   else
     return 1;
@@ -86,14 +88,14 @@ void iupMatrixAuxAdjustFirstFromLast(ImatLinColData* p)
   /* adjust "first" according to "last" */
 
   i = p->last;
-  sum = p->sizes[i];
-  while (i>p->num_noscroll && sum < p->visible_size)
+  sum = p->dt[i].size;
+  while (i>p->num_noscroll && sum < p->current_visible_size)
   {
     i--;
-    sum += p->sizes[i];
+    sum += p->dt[i].size;
   }
 
-  if (i==p->num_noscroll && sum < p->visible_size)
+  if (i==p->num_noscroll && sum < p->current_visible_size)
   {
     /* if there are room for everyone then position at start */
     p->first = p->num_noscroll;
@@ -105,7 +107,7 @@ void iupMatrixAuxAdjustFirstFromLast(ImatLinColData* p)
     p->first = i;
 
     /* position at the remaing space */
-    p->first_offset = sum - p->visible_size;
+    p->first_offset = sum - p->current_visible_size;
   }
 }
 
@@ -116,10 +118,10 @@ void iupMatrixAuxAdjustFirstFromScrollPos(ImatLinColData* p, int scroll_pos)
   sp = 0;
   for(index = p->num_noscroll; index < p->num; index++)
   {
-    sp += p->sizes[index];
+    sp += p->dt[index].size;
     if (sp > scroll_pos)
     {
-      sp -= p->sizes[index]; /* get the previous value */
+      sp -= p->dt[index].size; /* get the previous value */
       offset = scroll_pos - sp;
       break;
     }
@@ -173,7 +175,7 @@ void iupMatrixAuxUpdateScrollPos(Ihandle* ih, int m)
 
   /* "first" was changed, so update "last" and the scroll pos */
 
-  if (p->total_size <= p->visible_size)
+  if (p->total_visible_size <= p->current_visible_size)
   {
     /* the matrix is fully visible */
     p->first = p->num_noscroll;
@@ -189,26 +191,26 @@ void iupMatrixAuxUpdateScrollPos(Ihandle* ih, int m)
   /* must check if it is a valid position */
   scroll_pos = 0;
   for(i = p->num_noscroll; i < p->first; i++)
-    scroll_pos += p->sizes[i];
+    scroll_pos += p->dt[i].size;
   scroll_pos += p->first_offset;
 
-  if (scroll_pos + p->visible_size > p->total_size)
+  if (scroll_pos + p->current_visible_size > p->total_visible_size)
   {
     /* invalid condition, must recalculate so it is valid */
-    scroll_pos = p->total_size - p->visible_size;
+    scroll_pos = p->total_visible_size - p->current_visible_size;
 
     /* position first and first_offset, according to scroll pos */
     iupMatrixAuxAdjustFirstFromScrollPos(p, scroll_pos);
   }
 
-  pos = (float)scroll_pos/(float)p->total_size;
+  pos = (float)scroll_pos/(float)p->total_visible_size;
 
   /* update last */
   iupMatrixAuxUpdateLast(p);
 
   /* update scroll pos */
   if (ih->data->canvas.sb & sb)
-    IupSetfAttribute(ih, POS, "%g", (double)pos);
+    IupSetFloat(ih, POS, pos);
 }
 
 /* Calculate which is the last visible column/line of the matrix. 
@@ -217,18 +219,18 @@ void iupMatrixAuxUpdateLast(ImatLinColData *p)
 {
   int i, sum = 0;
 
-  if (p->visible_size > 0)
+  if (p->current_visible_size > 0)
   {
     /* Find which is the last column/line.
        Start in the first visible and continue adding the widths
        up to the visible size */
     for(i = p->first; i < p->num; i++)
     {
-      sum += p->sizes[i];
+      sum += p->dt[i].size;
       if (i==p->first)
         sum -= p->first_offset;
 
-      if(sum >= p->visible_size)
+      if(sum >= p->current_visible_size)
         break;
     }
 
@@ -250,7 +252,7 @@ void iupMatrixAuxUpdateLast(ImatLinColData *p)
 }
 
 /* Fill the sizes vector with the width/heigh of all the columns/lines.
-   Calculate the value of total_size */
+   Calculate the value of total_visible_size */
 static void iMatrixAuxFillSizeVec(Ihandle* ih, int m)
 {
   int i;
@@ -262,51 +264,65 @@ static void iMatrixAuxFillSizeVec(Ihandle* ih, int m)
     p = &(ih->data->columns);
 
   /* Calculate total width/height of the matrix and the width/height of each column */
-  p->total_size = 0;
+  p->total_visible_size = 0;
   for(i = 0; i < p->num; i++)
   {
     if (m == IMAT_PROCESS_LIN)
-      p->sizes[i] = iupMatrixGetLineHeight(ih, i, 1);
+      p->dt[i].size = iupMatrixGetLineHeight(ih, i, 1);
     else
-      p->sizes[i] = iupMatrixGetColumnWidth(ih, i, 1);
+      p->dt[i].size = iupMatrixGetColumnWidth(ih, i, 1);
 
     if (i >= p->num_noscroll)
-      p->total_size += p->sizes[i];
+      p->total_visible_size += p->dt[i].size;
   }
 }
 
 static void iMatrixAuxUpdateVisibleSize(Ihandle* ih, int m)
 {
-  char* D;
+  char *D, *AUTOHIDE;
   ImatLinColData *p;
-  int canvas_size, fixed_size, i;
+  int canvas_size, fixed_size, i, SB;
 
   if (m == IMAT_PROCESS_LIN)
   {
     D = "DY";
+    AUTOHIDE = "XAUTOHIDE";  /* when configuring the vertical scrollbar check if horizontal scrollbar is hidden */
+    SB = IUP_SB_HORIZ;
     p = &(ih->data->lines);
     canvas_size = ih->data->h;
   }
   else
   {
     D = "DX";
+    AUTOHIDE = "YAUTOHIDE";  /* when configuring the horizontal scrollbar check if vertical scrollbar is hidden */
+    SB = IUP_SB_VERT;
     p = &(ih->data->columns);
     canvas_size = ih->data->w;
   }
 
   fixed_size = 0;
   for (i=0; i<p->num_noscroll; i++)
-    fixed_size += p->sizes[i];
+    fixed_size += p->dt[i].size;
 
-  /* Matrix useful area is the current size minus the title area */
-  p->visible_size = canvas_size - fixed_size;
-  if (p->visible_size > p->total_size)
-    p->visible_size = p->total_size;
+  /* Matrix useful area is the current size minus the non scrollable area */
+  p->current_visible_size = canvas_size - fixed_size;
+  if (p->current_visible_size > p->total_visible_size)
+    p->current_visible_size = p->total_visible_size;
 
-  if (p->total_size)
-    IupSetfAttribute(ih, D, "%g", (double)p->visible_size/(double)p->total_size);
-  else
+  if (!p->total_visible_size || p->current_visible_size == p->total_visible_size)
     IupSetAttribute(ih, D, "1");
+  else
+  {
+    if (ih->data->limit_expand && (ih->data->canvas.sb & SB) && iupAttribGetBoolean(ih, AUTOHIDE))
+    {
+      /* Must perform an extra check or the scrollbar will be always visible */
+      int sb_size = iupdrvGetScrollbarSize();
+      if (p->current_visible_size + sb_size == p->total_visible_size)
+        p->current_visible_size = p->total_visible_size;
+    }
+
+    IupSetFloat(ih, D, (float)p->current_visible_size/(float)p->total_visible_size);
+  }
 }
 
 void iupMatrixAuxCalcSizes(Ihandle* ih)
@@ -371,7 +387,57 @@ int iupMatrixAuxCallEditionCbLinCol(Ihandle* ih, int lin, int col, int mode, int
     return IUP_IGNORE;
 
   cb = (IFniiii)IupGetCallback(ih, "EDITION_CB");
-  if(cb)
+  if (cb)
+  {
+    if (lin != 0 && ih->data->sort_has_index)
+    {
+      int index = ih->data->sort_line_index[lin];
+      if (index != 0) lin = index;
+    }
+
     return cb(ih, lin, col, mode, update);
+  }
   return IUP_DEFAULT;
+}
+
+static void iMatrixAuxCopyValue(Ihandle* ih, int lin1, int col1, int lin2, int col2)
+{
+  char* value = iupMatrixGetValueString(ih, lin1, col1);
+  iupMatrixModifyValue(ih, lin2, col2, value);
+}
+
+void iupMatrixAuxCopyLin(Ihandle* ih, int from_lin, int to_lin)
+{
+  int col, columns_num = ih->data->columns.num;
+
+  /* since we can not undo the attribute copy, disable data undo */
+  int old_undo = ih->data->undo_redo;
+  ih->data->undo_redo = 0;
+
+  for(col = 0; col < columns_num; col++)
+    iMatrixAuxCopyValue(ih, from_lin, col, to_lin, col);
+
+  ih->data->undo_redo = old_undo;
+
+  iupBaseCallValueChangedCb(ih);
+
+  iupMatrixCopyLinAttributes(ih, from_lin, to_lin);
+}
+
+void iupMatrixAuxCopyCol(Ihandle* ih, int from_col, int to_col)
+{
+  int lin, lines_num = ih->data->lines.num;
+
+  /* since we can not undo the attribute copy, disable data undo */
+  int old_undo = ih->data->undo_redo;
+  ih->data->undo_redo = 0;
+
+  for(lin = 0; lin < lines_num; lin++)
+    iMatrixAuxCopyValue(ih, lin, from_col, lin, to_col);
+
+  ih->data->undo_redo = old_undo;
+
+  iupBaseCallValueChangedCb(ih);
+
+  iupMatrixCopyColAttributes(ih, from_col, to_col);
 }
