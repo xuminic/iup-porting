@@ -262,6 +262,7 @@ int iupBaseGetScrollbar(Ihandle* ih)
     else if (iupStrEqualNoCase(value, "VERTICAL"))
       sb = IUP_SB_VERT;
   }
+  printf("[AX]iupBaseGetScrollbar: %x\n", sb);
   return sb;
 }
 

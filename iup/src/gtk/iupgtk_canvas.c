@@ -463,6 +463,7 @@ static int gtkCanvasSetDYAttrib(Ihandle* ih, const char *value)
 
     ymin = iupAttribGetFloat(ih, "YMIN");
     ymax = iupAttribGetFloat(ih, "YMAX");
+    printf("[AX]gtkCanvasSetDYAttrib: %dx%d\n", ymin, ymax);
 
     if (!iupAttribGet(ih,"LINEY"))
     {
@@ -570,6 +571,7 @@ static int gtkCanvasSetPosYAttrib(Ihandle* ih, const char *value)
     ymin = iupAttribGetFloat(ih, "YMIN");
     ymax = iupAttribGetFloat(ih, "YMAX");
     dy = iupAttribGetFloat(ih, "DY");
+    printf("[AX]gtkCanvasSetPosYAttrib: %dx%d\n", ymin, ymax);
 
     if (posy < ymin) posy = ymin;
     if (posy > (ymax - dy)) posy = ymax - dy;

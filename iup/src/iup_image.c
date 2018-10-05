@@ -598,8 +598,8 @@ static int iImageCreate(Ihandle* ih, void** params, int bpp)
   if (!params)
     return IUP_ERROR;
 
-  width = (int)((long)params[0]);
-  height = (int)((long)params[1]);
+  width = (int)(params[0]);
+  height = (int)(params[1]);
 
   iupASSERT(width>0);
   iupASSERT(height>0);
@@ -619,9 +619,9 @@ static int iImageCreate(Ihandle* ih, void** params, int bpp)
   count = width*height*channels;
   imgdata = (unsigned char *)malloc(count);
 
-  if (((long)(params[2])==-1) || ((long)(params[3])==-1)) /* compacted in one pointer */
+  if (((int)(params[2])==-1) || ((int)(params[3])==-1)) /* compacted in one pointer */
   {
-    if ((long)(params[2])!=-1)
+    if ((int)(params[2])!=-1)
       memcpy(imgdata, params[2], count);
   }
   else /* one param for each pixel/plane */
@@ -629,7 +629,7 @@ static int iImageCreate(Ihandle* ih, void** params, int bpp)
     int i;
     for(i=0; i<count; i++)
     {
-      imgdata[i] = (unsigned char)((long)(params[i+2]));
+      imgdata[i] = (unsigned char)((int)(params[i+2]));
     }
   }
 
@@ -675,8 +675,8 @@ static void iImageDestroyMethod(Ihandle* ih)
 Ihandle* IupImage(int width, int height, const unsigned char *imgdata)
 {
   void *params[4];
-  params[0] = (void*)((long)width);
-  params[1] = (void*)((long)height);
+  params[0] = (void*)width;
+  params[1] = (void*)height;
   params[2] = imgdata? (void*)imgdata: (void*)-1;
   params[3] = (void*)-1;
   return IupCreatev("image", params);
@@ -685,8 +685,8 @@ Ihandle* IupImage(int width, int height, const unsigned char *imgdata)
 Ihandle* IupImageRGB(int width, int height, const unsigned char *imgdata)
 {
   void *params[4];
-  params[0] = (void*)((long)width);
-  params[1] = (void*)((long)height);
+  params[0] = (void*)width;
+  params[1] = (void*)height;
   params[2] = imgdata? (void*)imgdata: (void*)-1;
   params[3] = (void*)-1;
   return IupCreatev("imagergb", params);
@@ -695,8 +695,8 @@ Ihandle* IupImageRGB(int width, int height, const unsigned char *imgdata)
 Ihandle* IupImageRGBA(int width, int height, const unsigned char *imgdata)
 {
   void *params[4];
-  params[0] = (void*)((long)width);
-  params[1] = (void*)((long)height);
+  params[0] = (void*)width;
+  params[1] = (void*)height;
   params[2] = imgdata? (void*)imgdata: (void*)-1;
   params[3] = (void*)-1;
   return IupCreatev("imagergba", params);

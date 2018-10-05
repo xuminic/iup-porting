@@ -784,6 +784,7 @@ static void iListGetNaturalItemsSize(Ihandle *ih, int *w, int *h)
   *h = 0;
 
   iupdrvFontGetCharSize(ih, w, h);   /* one line height, and one character width */
+  printf("[AX]iListGetNaturalItemsSize: font=%dx%d\n", *w, *h);
 
   visiblecolumns = iupAttribGetInt(ih, "VISIBLECOLUMNS");
   if (visiblecolumns)
@@ -841,7 +842,7 @@ static void iListGetNaturalItemsSize(Ihandle *ih, int *w, int *h)
 
     iupdrvListAddItemSpace(ih, h);  /* this independs from spacing */
 
-    *h += 2*ih->data->spacing;  /* this will be multiplied by the number of lines */
+    *h += 2*ih->data->spacing + 1;  /* this will be multiplied by the number of lines */
     *w += 2*ih->data->spacing;  /* include also horizontal spacing */
 
     num_lines = count;
@@ -864,6 +865,7 @@ static void iListGetNaturalItemsSize(Ihandle *ih, int *w, int *h)
         *h = max_h;
     }
   }
+  printf("[AX]iListGetNaturalItemsSize: %dx%d\n", *w, *h);
 }
 
 static void iListComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *children_expand)
@@ -876,6 +878,7 @@ static void iListComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *chil
 
   /* compute the borders space */
   iupdrvListAddBorders(ih, &natural_w, &natural_h);
+  printf("[AX]iListComputeNaturalSizeMethod: after border %dx%d\n", natural_w, natural_h);
 
   if (ih->data->is_dropdown)
   {
@@ -903,6 +906,7 @@ static void iListComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, int *chil
 
   *w = natural_w;
   *h = natural_h;
+  printf("[AX]iListComputeNaturalSizeMethod: %dx%d\n", natural_w, natural_h);
 }
 
 static void iListDestroyMethod(Ihandle* ih)
