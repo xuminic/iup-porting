@@ -263,7 +263,7 @@ void iupBaseComputeNaturalSize(Ihandle* ih)
 
   /* crop the natural size */
   iupLayoutApplyMinMaxSize(ih, &(ih->naturalwidth), &(ih->naturalheight));
-  printf("[AX]iupBaseComputeNaturalSize: %dx%d\n", ih->naturalwidth, ih->naturalheight);
+  //printf("[AX]iupBaseComputeNaturalSize: %dx%d\n", ih->naturalwidth, ih->naturalheight);
 }
 
 void iupBaseSetCurrentSize(Ihandle* ih, int w, int h, int shrink)
