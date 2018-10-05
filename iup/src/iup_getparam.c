@@ -8,12 +8,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include <assert.h>
 
 #include "iup.h"
 
 #include "iup_attrib.h"
 #include "iup_str.h"
+#include "iup_assert.h"
 #include "iup_strmessage.h"
 #include "iup_layout.h"
 #include "iup_drvfont.h"
@@ -122,13 +122,45 @@ static int iParamToggleAction_CB(Ihandle *self, int v)
   return IUP_DEFAULT;
 }
 
+static int iParamDateValueChanged_CB(Ihandle *self)
+{
+  Ihandle* param = (Ihandle*)iupAttribGetInherit(self, "PARAM");
+  Ihandle* param_box = (Ihandle*)iupAttribGetInherit(self, "PARAMBOX");
+  Iparamcb cb = (Iparamcb)IupGetCallback(param_box, "PARAM_CB");
+
+  iupAttribSetStr(param, "OLD_VALUE", iupAttribGet(param, "VALUE"));
+  iupAttribSetStr(param, "VALUE", IupGetAttribute(self, "VALUE"));
+
+  if (cb && !cb(param_box, iupAttribGetInt(param, "INDEX"), (void*)iupAttribGet(param_box, "USERDATA")))
+  {
+    /* Undo */
+    IupSetStrAttribute(self, "VALUE", iupAttribGet(param, "OLD_VALUE"));
+    iupAttribSetStr(param, "VALUE", iupAttribGet(param, "OLD_VALUE"));
+    iupAttribSet(param, "OLD_VALUE", NULL);
+    return IUP_IGNORE;
+  }
+
+  return IUP_DEFAULT;
+}
+
 static int iParamTextAction_CB(Ihandle *self, int c, char *after)
 {
   Ihandle* param = (Ihandle*)iupAttribGetInherit(self, "PARAM");
   Ihandle* param_box = (Ihandle*)iupAttribGetInherit(self, "PARAMBOX");
   Iparamcb cb = (Iparamcb)IupGetCallback(param_box, "PARAM_CB");
   Ihandle* aux = (Ihandle*)iupAttribGet(param, "AUXCONTROL");
+  int ret = IUP_DEFAULT;
   (void)c;
+
+  if (!IupGetInt(self, "MULTILINE") && (iupStrLineCount(after) > 1))
+  {
+    /* get only the first line */
+    int len;
+    iupStrNextLine(after, &len);
+    after[len] = 0;
+    IupSetStrAttribute(self, "VALUE", after);
+    ret = IUP_IGNORE;
+  }
  
   if (iupStrEqual(iupAttribGet(param, "TYPE"), "REAL"))
   {
@@ -173,7 +205,7 @@ static int iParamTextAction_CB(Ihandle *self, int c, char *after)
     }
   }
 
-  return IUP_DEFAULT;
+  return ret;
 }
 
 static int iParamValAction_CB(Ihandle *self)
@@ -672,83 +704,102 @@ static Ihandle* iParamCreateCtrlBox(Ihandle* param, const char *type)
 
     iupAttribSet(param, "TEXTEXPAND", "1");
   }
+  else if (iupStrEqual(type, "DATE"))
+  {
+    char* value;
+
+    ctrl = IupDatePick();
+    IupAppend(box, ctrl);
+
+    IupSetCallback(ctrl, "VALUECHANGED_CB", (Icallback)iParamDateValueChanged_CB);
+    IupStoreAttribute(ctrl, "VALUE", iupAttribGet(param, "VALUE"));
+
+    value = iupAttribGet(param, "SEPARATOR");
+    if (value) IupStoreAttribute(ctrl, "SEPARATOR", value);
+    value = iupAttribGet(param, "ZEROPRECED");
+    if (value) IupStoreAttribute(ctrl, "ZEROPRECED", value);
+    value = iupAttribGet(param, "MONTHSHORTNAMES");
+    if (value) IupStoreAttribute(ctrl, "MONTHSHORTNAMES", value);
+    value = iupAttribGet(param, "ORDER");
+    if (value) IupStoreAttribute(ctrl, "ORDER", value);
+  }
   else if (iupStrEqual(type, "FILE"))
   {
-      Ihandle* aux;
+    Ihandle* aux;
 
-      ctrl = IupText(NULL);
-      IupSetAttribute(ctrl, "VISIBLECOLUMNS", "15");
-      IupSetAttribute(ctrl, "EXPAND", "HORIZONTAL");
-      IupAppend(box, ctrl);
+    ctrl = IupText(NULL);
+    IupSetAttribute(ctrl, "VISIBLECOLUMNS", "15");
+    IupSetAttribute(ctrl, "EXPAND", "HORIZONTAL");
+    IupAppend(box, ctrl);
 
-      IupSetCallback(ctrl, "ACTION", (Icallback)iParamTextAction_CB);
-      IupStoreAttribute(ctrl, "VALUE", iupAttribGet(param, "VALUE"));
+    IupSetCallback(ctrl, "ACTION", (Icallback)iParamTextAction_CB);
+    IupStoreAttribute(ctrl, "VALUE", iupAttribGet(param, "VALUE"));
 
-      iupAttribSet(param, "TEXTEXPAND", "1");
-      IupSetAttribute(box,"NORMALIZESIZE","VERTICAL");
-      
-      aux = IupButton("...", "");
-      IupStoreAttribute(aux, "FONT", "Times, Bold 10");
-      IupSetAttribute(aux, "SIZE", "16x");
-      IupSetCallback(aux, "ACTION", (Icallback)iParamFileButton_CB);
-      iupAttribSet(aux, "PARAM", (char*)param);
-      iupAttribSet(aux, "CONTROL", (char*)ctrl);
-      iupAttribSet(param, "AUXCONTROL", (char*)aux);
+    iupAttribSet(param, "TEXTEXPAND", "1");
+    IupSetAttribute(box, "NORMALIZESIZE", "VERTICAL");
 
-      IupAppend(box, aux); 
+    aux = IupButton("...", "");
+    IupStoreAttribute(aux, "FONT", "Times, Bold 10");
+    IupSetAttribute(aux, "SIZE", "16x");
+    IupSetCallback(aux, "ACTION", (Icallback)iParamFileButton_CB);
+    iupAttribSet(aux, "PARAM", (char*)param);
+    iupAttribSet(aux, "CONTROL", (char*)ctrl);
+    iupAttribSet(param, "AUXCONTROL", (char*)aux);
+
+    IupAppend(box, aux);
   }
   else if (iupStrEqual(type, "COLOR"))
   {
-      Ihandle* aux;
+    Ihandle* aux;
 
-      ctrl = IupText(NULL);
-      IupSetAttribute(ctrl, "VISIBLECOLUMNS", "15");
-      IupSetAttribute(ctrl, "EXPAND", "HORIZONTAL");
-      IupAppend(box, ctrl);
+    ctrl = IupText(NULL);
+    IupSetAttribute(ctrl, "VISIBLECOLUMNS", "15");
+    IupSetAttribute(ctrl, "EXPAND", "HORIZONTAL");
+    IupAppend(box, ctrl);
 
-      IupSetCallback(ctrl, "ACTION", (Icallback)iParamTextAction_CB);
-      IupSetAttribute(ctrl, "MASK", "(/d|/d/d|1/d/d|2(0|1|2|3|4)/d|25(0|1|2|3|4|5)) (/d|/d/d|1/d/d|2(0|1|2|3|4)/d|25(0|1|2|3|4|5)) (/d|/d/d|1/d/d|2(0|1|2|3|4)/d|25(0|1|2|3|4|5)) (/d|/d/d|1/d/d|2(0|1|2|3|4)/d|25(0|1|2|3|4|5))");
-      IupStoreAttribute(ctrl, "VALUE", iupAttribGet(param, "VALUE"));
+    IupSetCallback(ctrl, "ACTION", (Icallback)iParamTextAction_CB);
+    IupSetAttribute(ctrl, "MASK", "(/d|/d/d|1/d/d|2(0|1|2|3|4)/d|25(0|1|2|3|4|5)) (/d|/d/d|1/d/d|2(0|1|2|3|4)/d|25(0|1|2|3|4|5)) (/d|/d/d|1/d/d|2(0|1|2|3|4)/d|25(0|1|2|3|4|5)) (/d|/d/d|1/d/d|2(0|1|2|3|4)/d|25(0|1|2|3|4|5))");
+    IupStoreAttribute(ctrl, "VALUE", iupAttribGet(param, "VALUE"));
 
-      iupAttribSet(param, "TEXTEXPAND", "1");
-      IupSetAttribute(box,"NORMALIZESIZE","VERTICAL");
+    iupAttribSet(param, "TEXTEXPAND", "1");
+    IupSetAttribute(box,"NORMALIZESIZE","VERTICAL");
 
-      aux = IupButton(NULL, NULL);
-      IupStoreAttribute(aux, "FONT", "Times, Bold Italic 11");
-      IupSetAttribute(aux, "SIZE", "16x");
-      IupStoreAttribute(aux, "BGCOLOR", iupAttribGet(param, "VALUE"));
-      IupSetCallback(aux, "ACTION", (Icallback)iParamColorButton_CB);
-      iupAttribSet(aux, "PARAM", (char*)param);
-      iupAttribSet(aux, "CONTROL", (char*)ctrl);
-      iupAttribSet(param, "AUXCONTROL", (char*)aux);
+    aux = IupButton(NULL, NULL);
+    IupStoreAttribute(aux, "FONT", "Times, Bold Italic 11");
+    IupSetAttribute(aux, "SIZE", "16x");
+    IupStoreAttribute(aux, "BGCOLOR", iupAttribGet(param, "VALUE"));
+    IupSetCallback(aux, "ACTION", (Icallback)iParamColorButton_CB);
+    iupAttribSet(aux, "PARAM", (char*)param);
+    iupAttribSet(aux, "CONTROL", (char*)ctrl);
+    iupAttribSet(param, "AUXCONTROL", (char*)aux);
 
-      IupAppend(box, aux); 
+    IupAppend(box, aux); 
   }
   else if (iupStrEqual(type, "FONT"))
   {
-      Ihandle* aux;
+    Ihandle* aux;
 
-      ctrl = IupText(NULL);
-      IupSetAttribute(ctrl, "VISIBLECOLUMNS", "15");
-      IupSetAttribute(ctrl, "EXPAND", "HORIZONTAL");
-      IupAppend(box, ctrl);
+    ctrl = IupText(NULL);
+    IupSetAttribute(ctrl, "VISIBLECOLUMNS", "15");
+    IupSetAttribute(ctrl, "EXPAND", "HORIZONTAL");
+    IupAppend(box, ctrl);
 
-      IupSetCallback(ctrl, "ACTION", (Icallback)iParamTextAction_CB);
-      IupStoreAttribute(ctrl, "VALUE", iupAttribGet(param, "VALUE"));
+    IupSetCallback(ctrl, "ACTION", (Icallback)iParamTextAction_CB);
+    IupStoreAttribute(ctrl, "VALUE", iupAttribGet(param, "VALUE"));
 
-      iupAttribSet(param, "TEXTEXPAND", "1");
-      IupSetAttribute(box,"NORMALIZESIZE","VERTICAL");
+    iupAttribSet(param, "TEXTEXPAND", "1");
+    IupSetAttribute(box,"NORMALIZESIZE","VERTICAL");
       
-      aux = IupButton("F", NULL);
-      IupStoreAttribute(aux, "FONT", "Times, Bold Italic 11");
-      IupSetAttribute(aux, "SIZE", "16x");
+    aux = IupButton("F", NULL);
+    IupStoreAttribute(aux, "FONT", "Times, Bold Italic 11");
+    IupSetAttribute(aux, "SIZE", "16x");
 
-      IupSetCallback(aux, "ACTION", (Icallback)iParamFontButton_CB);
-      iupAttribSet(aux, "PARAM", (char*)param);
-      iupAttribSet(aux, "CONTROL", (char*)ctrl);
-      iupAttribSet(param, "AUXCONTROL", (char*)aux);
+    IupSetCallback(aux, "ACTION", (Icallback)iParamFontButton_CB);
+    iupAttribSet(aux, "PARAM", (char*)param);
+    iupAttribSet(aux, "CONTROL", (char*)ctrl);
+    iupAttribSet(param, "AUXCONTROL", (char*)aux);
 
-      IupAppend(box, aux); 
+    IupAppend(box, aux); 
   }
   else /* INTEGER, REAL */
   {
@@ -1177,6 +1228,14 @@ static void iParamStrSetFileOptions(char* extra, Ihandle* param)
   iupAttribSetStr(param, "NOOVERWRITEPROMPT", nooverwriteprompt);
 }
 
+static void iParamStrSetDateOptions(char* extra, Ihandle* param)
+{
+  if (!extra)
+    return;
+
+  IupSetAttributes(param, extra);
+}
+
 static void iParamStrSetButtonNames(char* extra, Ihandle* param)
 {
   char *button1, *button2, *button3;
@@ -1419,6 +1478,12 @@ Ihandle* IupParamf(const char* format)
     extra = iParamStrGetExtra(line_ptr, '[', ']', &count);  line_ptr += count;
     iParamStrSetInterval(extra, param);
     break;
+  case 'd':
+    iupAttribSet(param, "TYPE", "DATE");
+    iupAttribSet(param, "DATATYPE", "STRING");
+    extra = iParamStrGetExtra(line_ptr, '[', ']', &count);  line_ptr += count;
+    iParamStrSetDateOptions(extra, param);
+    break;
   case 'f':
     iupAttribSet(param, "TYPE", "FILE");
     iupAttribSet(param, "DATATYPE", "STRING");
@@ -1454,7 +1519,10 @@ Ihandle* IupParamf(const char* format)
 
   tip = iParamStrGetExtra(line_ptr, '{', '}', &count);
   if (tip)
+  {
+    iupStrToUnix(tip);
     iupAttribSetStr(param, "TIP", tip);
+  }
 
   return param;
 }
@@ -1505,7 +1573,7 @@ int IupGetParamv(const char* title, Iparamcb action, void* user_data, const char
   Ihandle *dlg, **params;
   int i, line_size, p, count;
 
-  assert(title && format);
+  iupASSERT(title && format);
   if (!title || !format)
     return 0;
 
@@ -1518,7 +1586,7 @@ int IupGetParamv(const char* title, Iparamcb action, void* user_data, const char
     char* data_type;
 
     params[i] = IupParamf(format);
-    assert(params[i]);
+    iupASSERT(params[i]);
     if (!params[i])
     {
       free(params);
@@ -1574,8 +1642,11 @@ int IupGetParamv(const char* title, Iparamcb action, void* user_data, const char
   IupSetCallback(dlg, "PARAM_CB", (Icallback)action);
   iupAttribSet(dlg, "USERDATA", (char*)user_data);
 
-  if (action) 
+  if (action)
+  {
+    IupMap(dlg);
     action(dlg, IUP_GETPARAM_INIT, user_data);
+  }
 
   IupPopup(dlg, IUP_CENTERPARENT, IUP_CENTERPARENT);
 

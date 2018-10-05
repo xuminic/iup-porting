@@ -157,6 +157,10 @@ static char* iMatrixExFileDlg(ImatExData* matex_data, int save, const char* titl
 {
   Ihandle* dlg = IupFileDlg();
 
+  char* last_filename = IupGetAttribute(matex_data->ih, "LASTFILENAME");
+  if (last_filename)
+    IupSetStrAttribute(dlg, "FILE", last_filename);
+
   IupSetAttribute(dlg,"DIALOGTYPE", save? "SAVE": "OPEN");
   IupSetStrAttribute(dlg, "TITLE", title);
   IupSetStrAttribute(dlg,"FILTER", filter);
@@ -200,7 +204,7 @@ static int iMatrixExItemExport_CB(Ihandle* ih_item)
   {
     filter = "*.txt";
     info = "Text file";
-    extfilter = "Text file|*.txt|All Files|*.*|";
+    extfilter = "Text file|*.txt;*.csv|All Files|*.*|";
   }
 
   filename = iMatrixExFileDlg(matex_data, 1, "_@IUP_EXPORT", filter, info, extfilter);
@@ -212,6 +216,8 @@ static int iMatrixExItemExport_CB(Ihandle* ih_item)
 
     iMatrixListShowLastError(matex_data->ih);
   }
+  else
+    IupSetAttribute(matex_data->ih, "LASTFILENAME", NULL);
 
   return IUP_DEFAULT;
 }
@@ -229,8 +235,12 @@ static int iMatrixExItemImport_CB(Ihandle* ih_item)
   if (filename)
   {
     IupSetStrAttribute(matex_data->ih, "PASTEFILE", filename);
+    IupSetStrAttribute(matex_data->ih, "LASTFILENAME", filename);
+
     iMatrixListShowLastError(matex_data->ih);
   }
+  else
+    IupSetAttribute(matex_data->ih, "LASTFILENAME", NULL);
 
   return IUP_DEFAULT;
 }
@@ -245,7 +255,7 @@ static int iMatrixExItemSettings_CB(Ihandle* ih_item)
   if (sep == ';') sep_index = 1;
   else if (sep == ' ') sep_index = 2;
 
-  decimal_symbol = IupGetAttribute(matex_data->ih, "NUMERICDECIMALSYMBOL");
+  decimal_symbol = IupGetAttribute(matex_data->ih, "NUMERICDECIMALSYMBOL");  /* this will also check for global "DEFAULTDECIMALSYMBOL" */
   if (decimal_symbol)
   {
     if (decimal_symbol[0] == ',')  /* else is '.' */

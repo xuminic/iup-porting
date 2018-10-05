@@ -31,7 +31,7 @@ endif
 endif
 
 APPNAME := $(APPNAME)$(LUASFX)
-SRC = iup_lua$(LUASFX).c
+SRC = iup_lua.c
 
 ifdef NO_LUAOBJECT
   DEFINES += IUPLUA_USELH
@@ -110,9 +110,9 @@ ifdef ALL_STATIC
       
     ifndef IUPLUA_NO_IM
       ifneq ($(findstring Win, $(TEC_SYSNAME)), )
-        LIBS += cdluaim$(LUASFX)
+        LIBS += cdluaim$(LUASFX) cdim$(LUASFX)
       else
-        SLIB += $(CD_LIB)/Lua$(LUASFX)/libcdluaim$(LUASFX).a
+        SLIB += $(CD_LIB)/Lua$(LUASFX)/libcdluaim$(LUASFX).a $(CD_LIB)/libcdim.a
       endif
     endif
     ifneq ($(findstring Win, $(TEC_SYSNAME)), )
@@ -188,25 +188,20 @@ ifneq ($(findstring Win, $(TEC_SYSNAME)), )
 endif
 
 ifneq ($(findstring cygw, $(TEC_UNAME)), )
-  LIBS += readline history
 endif
 
 ifneq ($(findstring MacOS, $(TEC_UNAME)), )
-  LIBS += readline
 endif
 
 ifneq ($(findstring Linux, $(TEC_UNAME)), )
   LIBS += dl 
   #To allow late binding
   LFLAGS = -Wl,-E
-  LIBS += readline history 
-#  LIBS += curses ncurses
 endif
 
 ifneq ($(findstring BSD, $(TEC_UNAME)), )
   #To allow late binding
   LFLAGS = -Wl,-E
-  LIBS += readline history curses ncurses
 endif
 
 ifneq ($(findstring SunOS, $(TEC_UNAME)), )
@@ -218,4 +213,3 @@ ifneq ($(findstring AIX, $(TEC_UNAME)), )
   OPTFLAGS = -mminimal-toc -ansi -pedantic 
   LFLAGS = -Xlinker "-bbigtoc"
 endif
-

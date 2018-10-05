@@ -659,8 +659,20 @@ static int gtkTextSetSelectedTextAttrib(Ihandle* ih, const char* value)
 
 static char* gtkTextGetCountAttrib(Ihandle* ih)
 {
-  GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(ih->handle));
-  int count = gtk_text_buffer_get_char_count(buffer);
+  int count;
+  if (ih->data->is_multiline)
+  {
+    GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(ih->handle));
+    count = gtk_text_buffer_get_char_count(buffer);
+  }
+  else
+  {
+#if GTK_CHECK_VERSION(2, 14, 0)
+    count = gtk_entry_get_text_length(GTK_ENTRY(ih->handle));
+#else
+    count = strlen(gtk_entry_get_text(GTK_ENTRY(ih->handle)));
+#endif
+  }
   return iupStrReturnInt(count);
 }
 
@@ -1716,7 +1728,7 @@ void iupdrvTextInitClass(Iclass* ic)
 
   /* IupText Windows and GTK only */
   iupClassRegisterAttribute(ic, "ADDFORMATTAG", NULL, iupTextSetAddFormatTagAttrib, NULL, NULL, IUPAF_IHANDLENAME|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "ADDFORMATTAG_HANDLE", NULL, iupTextSetAddFormatTagHandleAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "ADDFORMATTAG_HANDLE", NULL, iupTextSetAddFormatTagHandleAttrib, NULL, NULL, IUPAF_IHANDLE | IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "ALIGNMENT", NULL, gtkTextSetAlignmentAttrib, IUPAF_SAMEASSYSTEM, "ALEFT", IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "FORMATTING", iupTextGetFormattingAttrib, iupTextSetFormattingAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "OVERWRITE", gtkTextGetOverwriteAttrib, gtkTextSetOverwriteAttrib, NULL, NULL, IUPAF_NO_INHERIT);

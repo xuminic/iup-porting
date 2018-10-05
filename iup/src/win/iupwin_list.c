@@ -1176,7 +1176,7 @@ static int winListWmCommand(Ihandle* ih, WPARAM wp, LPARAM lp)
       {
         IFni cb = (IFni)IupGetCallback(ih, "DROPDOWN_CB");
         if (cb)
-          cb(ih, HIWORD(wp)==CBN_DROPDOWN? 1: 0);
+          cb(ih, HIWORD(wp) == CBN_DROPDOWN ? 1 : 0);
         break;
       }
     case CBN_DBLCLK:
@@ -1734,7 +1734,10 @@ static void winListLayoutUpdateMethod(Ihandle *ih)
     RECT rect;
     int charheight, calc_h, win_h, win_w, voptions;
 
-    voptions = iupAttribGetInt(ih, "VISIBLEITEMS");
+    if (iupAttribGet(ih, "VISIBLEITEMS"))
+      voptions = iupAttribGetInt(ih, "VISIBLEITEMS");
+    else
+      voptions = iupAttribGetInt(ih, "VISIBLE_ITEMS");
     if (voptions <= 0)
       voptions = 1;
 

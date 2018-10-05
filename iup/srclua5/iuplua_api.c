@@ -389,6 +389,14 @@ static int Help(lua_State *L)
   return 0;
 }
 
+static int Execute(lua_State *L)
+{
+  const char *filename = luaL_checkstring(L, 1);
+  const char *parameters = luaL_optstring(L, 2, NULL);
+  IupExecute(filename, parameters);
+  return 0;
+}
+
 static int Hide(lua_State *L)
 {
   Ihandle *ih = iuplua_checkihandle(L,1);
@@ -537,15 +545,19 @@ static int ListDialog(lua_State *L)
 
 static int GetText(lua_State *L)
 {
-  char buffer[10240];
+  char* buffer;
   const char *title = luaL_checkstring(L,1);
   const char *text = luaL_checkstring(L,2);
-  iupStrCopyN(buffer, 10240, text);
-  if (IupGetText(title, buffer))
+  int maxsize = (int)luaL_optinteger(L, 3, 10240);
+  buffer = malloc(maxsize+1);
+  iupStrCopyN(buffer, maxsize, text);
+  if (IupGetText(title, buffer, maxsize))
   {
     lua_pushstring(L, buffer);
+    free(buffer);
     return 1;
   }
+  free(buffer);
   return 0;
 }
 
@@ -1048,6 +1060,7 @@ void iupluaapi_open(lua_State * L)
     {"GetLanguage", GetLanguage},
     {"GetName", GetName},
     {"Help", Help},
+    {"Execute", Execute},
     {"Hide", Hide},
     {"Load", Load},
     {"LoadBuffer", LoadBuffer},

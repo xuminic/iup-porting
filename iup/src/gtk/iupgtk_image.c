@@ -370,7 +370,7 @@ static GdkPixbuf* gtkImageRenderPixbuf(GtkIconSet* icon_set, int render_icon_siz
 {
   GdkPixbuf* pixbuf;
 
-#if GTK_CHECK_VERSION(3, 0, 0)
+#if GTK_CHECK_VERSION(3, 9, 0)
   GtkStyleContext* style_context = gtk_style_context_new();
   pixbuf = gtk_icon_set_render_icon_pixbuf(icon_set, style_context, render_icon_size);
   g_object_unref(style_context);
@@ -441,7 +441,6 @@ void* iupdrvImageLoad(const char* name, int type)
   else /* IUPIMAGE_IMAGE or IUPIMAGE_ICON */
   {
     int stock_size = 16;
-    GTK_ICON_SIZE_MENU;
     GdkPixbuf *pixbuf = NULL;
     GtkIconTheme* icon_theme;
 

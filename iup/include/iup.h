@@ -21,9 +21,9 @@ extern "C" {
 #define IUP_NAME "IUP - Portable User Interface"
 #define IUP_DESCRIPTION	"Multi-platform Toolkit for Building Graphical User Interfaces"
 #define IUP_COPYRIGHT "Copyright (C) 1994-2015 Tecgraf/PUC-Rio"
-#define IUP_VERSION "3.16"         /* bug fixes are reported only by IupVersion functions */
-#define IUP_VERSION_NUMBER 316000
-#define IUP_VERSION_DATE "2015/09/15"  /* does not include bug fix releases */
+#define IUP_VERSION "3.17"         /* bug fixes are reported only by IupVersion functions */
+#define IUP_VERSION_NUMBER 317000
+#define IUP_VERSION_DATE "2015/11/29"  /* does not include bug fix releases */
 
 typedef struct Ihandle_ Ihandle;
 typedef int (*Icallback)(Ihandle*);
@@ -52,7 +52,9 @@ void      IupRedraw        (Ihandle* ih, int children);
 void      IupRefresh       (Ihandle* ih);
 void      IupRefreshChildren(Ihandle* ih);
 
-int       IupHelp          (const char* url);
+int       IupExecute(const char *filename, const char* parameters);
+int       IupHelp(const char* url);
+
 char*     IupLoad          (const char *filename);
 char*     IupLoadBuffer    (const char *buffer);
 
@@ -234,6 +236,9 @@ Ihandle*  IupTabsv      (Ihandle* *children);
 Ihandle*  IupTree       (void);
 Ihandle*  IupLink       (const char* url, const char* title);
 Ihandle*  IupFlatButton (const char* title);
+Ihandle*  IupAnimatedLabel(Ihandle* animation);
+Ihandle*  IupDatePick   (void);
+Ihandle*  IupCalendar   (void);
 
 /* Old controls, use SPIN attribute of IupText */
 Ihandle*  IupSpin       (void);
@@ -243,6 +248,9 @@ Ihandle*  IupSpinbox    (Ihandle* child);
 /************************************************************************/
 /*                      Utilities                                       */
 /************************************************************************/
+
+/* String compare utility */
+int IupStringCompare(const char* str1, const char* str2, int casesensitive, int lexicographic);
 
 /* IupImage utility */
 int IupSaveImageAsText(Ihandle* ih, const char* file_name, const char* format, const char* name);
@@ -302,7 +310,7 @@ int  IupAlarm(const char *title, const char *msg, const char *b1, const char *b2
 int  IupScanf(const char *format, ...);
 int  IupListDialog(int type, const char *title, int size, const char** list,
                    int op, int max_col, int max_lin, int* marks);
-int  IupGetText(const char* title, char* text);
+int  IupGetText(const char* title, char* text, int maxsize);
 int  IupGetColor(int x, int y, unsigned char* r, unsigned char* g, unsigned char* b);
 
 typedef int (*Iparamcb)(Ihandle* dialog, int param_index, void* user_data);

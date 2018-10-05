@@ -6,7 +6,7 @@
 
 #---------------------------------#
 # Tecmake Version
-VERSION = 4.14
+VERSION = 4.14.1
 
 
 #---------------------------------#
@@ -26,8 +26,8 @@ TECMAKE  = $(TECMAKE_HOME)/tecmakewin.mak
 # If tecmake.bat is not used,
 # then at least define main system variables.
 
-WIN32UNAMES = vc12 vc11 vc10 vc9 vc8 vc7 vc6 owc1 bc55 bc56 bc6 gcc3 gcc4 mingw3 mingw4 dllw4 dllg4 dll dll7 dll8 dll9 dll10 dll11 dll12
-WIN64UNAMES = vc12_64 vc11_64 vc10_64 vc9_64 vc8_64 dll8_64 dll9_64 dll10_64 dll11_64 dll12_64 gcc4_64 mingw4_64 dllw4_64 dllg4_64
+WIN32UNAMES = vc14 vc12 vc11 vc10 vc9 vc8 vc7 vc6 owc1 bc55 bc56 bc6 gcc3 gcc4 mingw3 mingw4 dllw4 dllg4 dll dll7 dll8 dll9 dll10 dll11 dll12 dll14
+WIN64UNAMES = vc14_64 vc12_64 vc11_64 vc10_64 vc9_64 vc8_64 dll8_64 dll9_64 dll10_64 dll11_64 dll12_64 dll14_64 gcc4_64 mingw4_64 dllw4_64 dllg4_64
 
 ifdef TEC_UNAME
   ifneq ($(findstring $(TEC_UNAME), $(WIN32UNAMES)), )
@@ -293,7 +293,11 @@ ifdef USE_LUA53
   LIBLUA_SFX := 53
 endif
 
-TEC_UNAME_LIBLUA_DIR ?= $(TEC_UNAME_LIB_DIR)/Lua$(LIBLUA_SFX)
+ifdef USE_OLDLIBLUA
+  TEC_UNAME_LIBLUA_DIR ?= $(TEC_UNAME_LIB_DIR)
+else
+  TEC_UNAME_LIBLUA_DIR ?= $(TEC_UNAME_LIB_DIR)/Lua$(LIBLUA_SFX)
+endif
 
 # Subfolder for Lua Modules
 ifdef LUAMOD_DIR
@@ -337,6 +341,7 @@ VC9 ?= x:/lng/vc9
 VC10 ?= x:/lng/vc10
 VC11 ?= x:/lng/vc11
 VC12 ?= x:/lng/vc12
+VC14 ?= x:/lng/vc14
 OWC1 ?= x:/lng/owc1
 BC55 ?= x:/lng/bc55
 BC56 ?= x:/lng/cbuilderx
@@ -409,6 +414,10 @@ ifneq ($(findstring vc12, $(TEC_UNAME)), )
   COMPILER = $(VC12)
 endif
 
+ifneq ($(findstring vc14, $(TEC_UNAME)), )
+  COMPILER = $(VC14)
+endif
+
 ifeq "$(TEC_UNAME)" "dll"
   COMPILER = $(VC6)
 endif
@@ -445,6 +454,10 @@ endif
 
 ifneq ($(findstring dll12, $(TEC_UNAME)), )
   COMPILER = $(VC12)
+endif
+
+ifneq ($(findstring dll14, $(TEC_UNAME)), )
+  COMPILER = $(VC14)
 endif
 
 ifeq "$(COMPILER)" "$(VC6)"
@@ -500,9 +513,7 @@ ifeq "$(COMPILER)" "$(VC10)"
   NEW_VC_COMPILER = Yes
   TEC_CC = vc
   STDDEFS += -DMSVC10
-  ifdef USE_DLL
-#    GEN_MANIFEST ?= Yes
-  else
+  ifndef USE_DLL
     #there is no single thread RTL in VC10
     USE_MT = Yes
   endif
@@ -521,12 +532,9 @@ endif
 ifeq "$(COMPILER)" "$(VC11)"
   NEW_VC_COMPILER = Yes
   NEW_SDK_UM = Yes
-  UMDIR := /win8/um
   TEC_CC = vc
   STDDEFS += -DMSVC11
-  ifdef USE_DLL
-#    GEN_MANIFEST ?= Yes
-  else
+  ifndef USE_DLL
     #there is no single thread RTL in VC11
     USE_MT = Yes
   endif
@@ -537,21 +545,22 @@ ifeq "$(COMPILER)" "$(VC11)"
     PLATSDK ?= $(VC11)/WinSDK
   endif
   ifdef BUILD64
-    RESBIN := $(PLATSDK)/bin/x64
+    SDKLIBBIN := x64
   else
-    RESBIN := $(PLATSDK)/bin/x86
+    SDKLIBBIN := x86
   endif
+  RESBIN := $(PLATSDK)/bin/$(SDKLIBBIN)
+  WINSDKVERNUM := win8
+  PLATSDK_INC := $(PLATSDK)/include/shared $(PLATSDK)/include/um 
+  PLATSDK_LIB := $(PLATSDK)/lib/$(WINSDKVERNUM)/um/$(SDKLIBBIN)
 endif
 
 ifeq "$(COMPILER)" "$(VC12)"
   NEW_VC_COMPILER = Yes
   NEW_SDK_UM = Yes
-  UMDIR := /winv6.3/um
   TEC_CC = vc
   STDDEFS += -DMSVC12
-  ifdef USE_DLL
-#    GEN_MANIFEST ?= Yes
-  else
+  ifndef USE_DLL
     #there is no single thread RTL in VC12
     USE_MT = Yes
   endif
@@ -562,10 +571,42 @@ ifeq "$(COMPILER)" "$(VC12)"
     PLATSDK ?= $(VC12)/WinSDK
   endif
   ifdef BUILD64
-    RESBIN := $(PLATSDK)/bin/x64
+    SDKLIBBIN := x64
   else
-    RESBIN := $(PLATSDK)/bin/x86
+    SDKLIBBIN := x86
   endif
+  RESBIN := $(PLATSDK)/bin/$(SDKLIBBIN)
+  WINSDKVERNUM := winv6.3
+  PLATSDK_INC := $(PLATSDK)/include/shared $(PLATSDK)/include/um 
+  PLATSDK_LIB := $(PLATSDK)/lib/$(WINSDKVERNUM)/um/$(SDKLIBBIN)
+endif
+
+ifeq "$(COMPILER)" "$(VC14)"
+  NEW_VC_COMPILER = Yes
+  NEW_SDK_UM = Yes
+  TEC_CC = vc
+  STDDEFS += -DMSVC14
+  ifndef USE_DLL
+    #there is no single thread RTL in VC14
+    USE_MT = Yes
+  endif
+  ifdef VC14SDK
+    PLATSDK ?= $(VC14SDK)
+  else
+    # Not the real folder, we copied from "C:\Program Files (x86)\Windows Kits\10"
+    PLATSDK ?= $(VC14)/WinSDK
+  endif
+  ifdef BUILD64
+    SDKLIBBIN := x64
+  else
+    SDKLIBBIN := x86
+  endif
+  RESBIN := $(PLATSDK)/bin/$(SDKLIBBIN)
+  WINSDKVERNUM ?= 10.0.10240.0
+  WINSDKBASEINC := $(PLATSDK)/include/$(WINSDKVERNUM)
+  WINSDKBASELIB := $(PLATSDK)/lib/$(WINSDKVERNUM)
+  PLATSDK_INC := $(WINSDKBASEINC)/ucrt $(WINSDKBASEINC)/shared $(WINSDKBASEINC)/um
+  PLATSDK_LIB := $(WINSDKBASELIB)/ucrt/$(SDKLIBBIN) $(WINSDKBASELIB)/um/$(SDKLIBBIN)
 endif
 
 ifeq "$(TEC_CC)" "vc"
@@ -574,22 +615,13 @@ ifeq "$(TEC_CC)" "vc"
     MACHINE = X64
     GTK := $(GTK)_x64
     VCLIBBIN = /amd64
-    ifdef NEW_SDK_UM
-      SDKLIBBIN := $(UMDIR)/x64
-    else
-      SDKLIBBIN ?= /x64
-    endif
     ifdef USE_X86_CL64
       BIN = $(COMPILER)/bin/x86_amd64
     else
       BIN = $(COMPILER)/bin/amd64
     endif
   else
-    ifdef NEW_SDK_UM
-      SDKLIBBIN := $(UMDIR)/x86
-    else
-      VCLIBBIN =
-    endif
+    VCLIBBIN =
     MACHINE = X86
     BIN = $(COMPILER)/bin
   endif
@@ -600,21 +632,27 @@ ifeq "$(TEC_CC)" "vc"
   LINKER    = $(BIN)/link -nologo
   MT        = $(RESBIN)/mt -nologo
   RCC       = $(RESBIN)/rc -fo
-  ifdef NEW_SDK_UM
-    STDINCS = $(PLATSDK)/include/shared $(PLATSDK)/include/um $(COMPILER)/include
-  else
-    STDINCS = $(PLATSDK)/include $(COMPILER)/include
+  ifndef NEW_SDK_UM
+    ifdef BUILD64
+      SDKLIBBIN := /x64
+    else
+      SDKLIBBIN :=
+    endif
+    PLATSDK_LIB = $(PLATSDK)/lib$(SDKLIBBIN)
+    PLATSDK_INC = $(PLATSDK)/include
   endif
+  STDINCS = $(PLATSDK_INC) $(COMPILER)/include 
   STDFLAGS  = -c -Fo$(OBJDIR)/ -W3
   STDLFLAGS =
   DEPDEFS   = -D_WIN32 -D_M_IX86 -D_STDCALL_SUPPORTED
-  STDLIBDIR = -LIBPATH:$(COMPILER)/lib$(VCLIBBIN) -LIBPATH:$(PLATSDK)/lib$(SDKLIBBIN)
+  STDLIBDIR = $(PLATSDK_LIB) $(COMPILER)/lib$(VCLIBBIN) 
   OPTFLAGS := -O2
   DEBUGFLAGS := -Z7 -Od -GZ
   ifdef USE_ATL
     STDINCS += $(COMPILER)/atlmfc/include
-    STDLIBDIR += -LIBPATH:$(COMPILER)/atlmfc/lib$(VCLIBBIN)
+    STDLIBDIR += $(COMPILER)/atlmfc/lib$(VCLIBBIN)
   endif
+  STDLIBDIR := $(addprefix -LIBPATH:, $(STDLIBDIR))
   ifdef NEW_VC_COMPILER
     DEBUGFLAGS := -Z7 -Od -RTC1
     STDDEFS += -D_CRT_SECURE_NO_DEPRECATE

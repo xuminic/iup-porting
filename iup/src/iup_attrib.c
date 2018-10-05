@@ -803,10 +803,9 @@ void iupAttribSetHandleName(Ihandle *ih)
 
 char* iupAttribGetHandleName(Ihandle *ih)
 {
-  char str_name[100];
-  sprintf(str_name, "_IUP_NAME(%p)", ih);
-  if (IupGetHandle(str_name)==ih)
-    return iupStrReturnStr(str_name);
+  char* name = iupAttribGet(ih, "HANDLENAME");  /* IupSetHandle was called at least once */
+  if (name)
+    return iupStrReturnStr(name);
   else
     return NULL;
 }
@@ -859,7 +858,8 @@ Ihandle* IupSetAtt(const char* handle_name, Ihandle* ih, const char* name, ...)
     attr = va_arg(arg, const char*);
   }
   va_end(arg);
-  if (handle_name) IupSetHandle(handle_name, ih);
+  if (handle_name)
+    IupSetHandle(handle_name, ih);
   return ih;
 }
 
@@ -1393,4 +1393,20 @@ int IupConvertXYToPos(Ihandle* ih, int x, int y)
     return drvConvertXYToPos(ih, x, y);
 
   return -1;
+}
+
+int IupStringCompare(const char* str1, const char* str2, int casesensitive, int lexicographic)
+{
+  if (lexicographic)
+  {
+    int utf8 = IupGetInt(NULL, "UTF8MODE");
+    return iupStrCompare(str1, str2, casesensitive, utf8);
+  }
+  else
+  {
+    if (casesensitive)
+      return !iupStrEqual(str1, str2);  /* return 0 if equal */
+    else
+      return !iupStrEqualNoCase(str1, str2);  /* return 0 if equal */
+  }
 }

@@ -19,13 +19,13 @@
 #include "il.h"
 
 
-static int il_string_compare(lua_State *L)
+static int StringCompare(lua_State *L)
 {
-  const char* str1 = luaL_checkstring(L, 1);
-  const char* str2 = luaL_checkstring(L, 2);
-  int casesensitive = (int)luaL_optinteger(L, 3, 1);
-  int utf8 = IupGetInt(NULL, "UTF8MODE");
-  int ret = iupStrCompare(str1, str2, casesensitive, utf8);
+  const char* str1 = luaL_optstring(L, 1, NULL);
+  const char* str2 = luaL_optstring(L, 2, NULL);
+  int casesensitive = (int)luaL_optinteger(L, 3, 0);
+  int lexicographic = (int)luaL_optinteger(L, 4, 1);
+  int ret = IupStringCompare(str1, str2, casesensitive, lexicographic);
   lua_pushinteger(L, ret);
   return 1;
 }
@@ -43,11 +43,28 @@ static int show_error_exit_action(Ihandle* ih)
   return IUP_DEFAULT;
 }
 
+static int show_error_copy_action(Ihandle* ih)
+{
+  Ihandle* multi_text = IupGetDialogChild(ih, "TEXT");
+  IupSetAttribute(multi_text, "SELECTION", "ALL");
+  IupSetAttribute(multi_text, "CLIPBOARD", "COPY");
+  return IUP_DEFAULT;
+}
+
 void iuplua_show_error_message(const char *pname, const char* msg)
 {
-  Ihandle *multi_text, *button, *box, *dlg, *abort, *buttonbox;
+  Ihandle *multi_text, *lbl, *copy, *button, *box, *dlg, *abort, *buttonbox;
+  char* value = IupGetGlobal("LUA_ERROR_LABEL");
 
   if (!pname) pname = "Lua Error!";
+
+  lbl = IupLabel("Internal error.");
+  IupSetAttribute(lbl, "EXPAND", "HORIZONTAL");
+  if (value) IupSetStrAttribute(lbl, "TITLE", value);
+
+  copy = IupButton("Copy", NULL);
+  IupSetAttribute(copy, "PADDING", IupGetGlobal("DEFAULTBUTTONPADDING"));
+  IupSetCallback(copy, "ACTION", show_error_copy_action);
 
   button = IupButton("Continue", NULL);
   IupSetAttribute(button, "PADDING", IupGetGlobal("DEFAULTBUTTONPADDING"));
@@ -63,13 +80,14 @@ void iuplua_show_error_message(const char *pname, const char* msg)
   IupSetAttribute(multi_text, "FONT", "Courier, 12");
   IupSetAttribute(multi_text, "VISIBLELINES", "10");
   IupSetAttribute(multi_text, "VISIBLECOLUMNS", "50");
+  IupSetAttribute(multi_text, "NAME", "TEXT");
   IupSetStrAttribute(multi_text, "VALUE", msg);
 
-  buttonbox = IupHbox(button, abort, NULL);
+  buttonbox = IupHbox(copy, button, abort, NULL);
   IupSetAttribute(buttonbox, "GAP", "50");
   IupSetAttribute(IupNormalizer(button, abort, NULL), "NORMALIZE", "HORIZONTAL");
 
-  box = IupVbox(multi_text, buttonbox, NULL);
+  box = IupVbox(lbl, multi_text, buttonbox, NULL);
   IupSetAttribute(box, "ALIGNMENT", "ACENTER");
   IupSetAttribute(box, "NMARGIN", "10x10");
   IupSetAttribute(box, "GAP", "10");
@@ -184,7 +202,7 @@ int iuplua_dofile(lua_State *L, const char *filename)
 {
   int status = luaL_loadfile(L, filename);
   if (status == LUA_OK)
-    status = docall(L, 0, 0);
+    status = docall(L, 0, LUA_MULTRET);
   else if (status == LUA_ERRFILE)
   {
     char *dir = getenv("IUPLUA_DIR");
@@ -199,7 +217,7 @@ int iuplua_dofile(lua_State *L, const char *filename)
         status = luaL_loadfile(L, full_name);
         free(full_name);
         if (status == LUA_OK)
-          status = docall(L, 0, 0);
+          status = docall(L, 0, LUA_MULTRET);
       }
     }
   }
@@ -208,9 +226,9 @@ int iuplua_dofile(lua_State *L, const char *filename)
 
 int iuplua_dostring(lua_State *L, const char *s, const char *name)
 {
-  int status = luaL_loadbuffer(L, s, (int)strlen(s), name);
+  int status = luaL_loadbuffer(L, s, strlen(s), name);
   if (status == LUA_OK)
-    status = docall(L, 0, 0);
+    status = docall(L, 0, LUA_MULTRET);
   return report(L, status);
 }
 
@@ -218,20 +236,37 @@ int iuplua_dobuffer(lua_State *L, const char *s, int len, const char *name)
 {
   int status = luaL_loadbuffer(L, s, len, name);
   if (status == LUA_OK)
-    status = docall(L, 0, 0);
+    status = docall(L, 0, LUA_MULTRET);
   return report(L, status);
 }
 
 static int il_dofile(lua_State *L)
 {
+  int old_top = lua_gettop(L);
   const char* filename = luaL_checkstring(L, 1);
-  return iuplua_dofile(L, filename);
+  int status = iuplua_dofile(L, filename);
+  if (status == LUA_OK)
+  {
+    int top = lua_gettop(L);
+    return top - old_top;
+  }
+  else
+    return 0;
 }
 
 static int il_dostring(lua_State *L)
 {
-  const char* str = luaL_checkstring(L, 1);
-  return iuplua_dostring(L, str, "iup.dostring");
+  int old_top = lua_gettop(L);
+  size_t size;
+  const char* str = luaL_checklstring(L, 1, &size);
+  int status = iuplua_dobuffer(L, str, (int)size, "iup.dostring");
+  if (status == LUA_OK)
+  {
+    int top = lua_gettop(L);
+    return top - old_top;
+  }
+  else
+    return 0;
 }
 
 Ihandle *iuplua_checkihandleornil(lua_State *L, int pos)
@@ -759,6 +794,17 @@ static int SetMethod(lua_State *L)
   return 0;
 }
 
+static int IsContainer(lua_State *L)
+{
+  Ihandle *ih = iuplua_checkihandle(L, 1);
+  if (ih)
+  {        
+    lua_pushboolean(L, ih->iclass->childtype != IUP_CHILDNONE);
+    return 1;
+  }
+  return 0;
+}
+
 static int ihandle_tostring (lua_State *L) 
 {
   Ihandle *ih = iuplua_checkihandle(L, 1);
@@ -1165,6 +1211,7 @@ int iuplua_open(lua_State * L)
     {"NewClass", NewClass},
     {"SetClass", SetClass},
     {"GetClass", GetClass},
+    {"IsContainer", IsContainer},
     {"SetMethod", SetMethod},
     {"SetCallback", SetCallback},
     {"SetFunction", SetFunction},
@@ -1173,8 +1220,8 @@ int iuplua_open(lua_State * L)
     {"_ERRORMESSAGE", il_error_message},
     {"dostring", il_dostring},
     {"dofile", il_dofile},
-    {"string_compare", il_string_compare},
-    
+    { "StringCompare", StringCompare },
+
     { NULL, NULL },
   };
 
@@ -1282,6 +1329,9 @@ int iuplua_open(lua_State * L)
   iupprogressdlglua_open(L);
   iupflatbuttonlua_open(L);
   iupconfiglua_open(L);
+  iupanimatedlabellua_open(L);
+  iupcalendarlua_open(L);
+  iupdatepicklua_open(L);
 
   return 0; /* nothing in stack */
 }

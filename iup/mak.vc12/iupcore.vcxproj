@@ -86,6 +86,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\src\iup.c" />
+    <ClCompile Include="..\src\iup_animatedlabel.c" />
     <ClCompile Include="..\src\iup_array.c" />
     <ClCompile Include="..\src\iup_assert.c" />
     <ClCompile Include="..\src\iup_attrib.c" />
@@ -165,7 +166,9 @@
     <ClCompile Include="..\src\iup_zbox.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\include\iup_class_cbs.hpp" />
     <ClInclude Include="..\include\iup_config.h" />
+    <ClInclude Include="..\include\iup_plus.h" />
     <ClInclude Include="..\src\iup_array.h" />
     <ClInclude Include="..\src\iup_assert.h" />
     <ClInclude Include="..\src\iup_attrib.h" />

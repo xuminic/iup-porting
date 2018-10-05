@@ -82,7 +82,7 @@ SRCSCINTILLA += lexers/LexA68k.cxx lexers/LexAbaqus.cxx lexers/LexAda.cxx lexers
 				lexers/LexMarkdown.cxx lexers/LexMatlab.cxx lexers/LexMetapost.cxx lexers/LexMMIXAL.cxx \
 				lexers/LexModula.cxx lexers/LexMPT.cxx lexers/LexMSSQL.cxx lexers/LexMySQL.cxx \
 				lexers/LexNimrod.cxx lexers/LexNsis.cxx lexers/LexOpal.cxx lexers/LexOScript.cxx \
-				lexers/LexOthers.cxx lexers/LexPascal.cxx lexers/LexPB.cxx lexers/LexPerl.cxx \
+				lexers/LexPascal.cxx lexers/LexPB.cxx lexers/LexPerl.cxx \
 				lexers/LexPLM.cxx lexers/LexPO.cxx lexers/LexPOV.cxx lexers/LexPowerPro.cxx \
 				lexers/LexPowerShell.cxx lexers/LexProgress.cxx lexers/LexPS.cxx lexers/LexPython.cxx \
 				lexers/LexR.cxx lexers/LexRebol.cxx lexers/LexRuby.cxx lexers/LexScriptol.cxx \
@@ -92,7 +92,8 @@ SRCSCINTILLA += lexers/LexA68k.cxx lexers/LexAbaqus.cxx lexers/LexAda.cxx lexers
 				lexers/LexVerilog.cxx lexers/LexVHDL.cxx lexers/LexVisualProlog.cxx lexers/LexYAML.cxx \
         lexers/LexKVIrc.cxx lexers/LexLaTeX.cxx lexers/LexSTTXT.cxx lexers/LexRust.cxx \
         lexers/LexDMAP.cxx lexers/LexDMIS.cxx lexers/LexBibTeX.cxx lexers/LexHex.cxx lexers/LexAsm.cxx \
-        lexers/LexRegistry.cxx
+        lexers/LexRegistry.cxx lexers/LexBatch.cxx lexers/LexDiff.cxx lexers/LexErrorList.cxx \
+        lexers/LexMake.cxx lexers/LexNull.cxx lexers/LexProps.cxx
 				
 SRCSCINTILLA += lexlib/Accessor.cxx lexlib/CharacterSet.cxx lexlib/LexerBase.cxx lexlib/LexerModule.cxx \
                 lexlib/LexerNoExceptions.cxx lexlib/LexerSimple.cxx lexlib/PropSetSimple.cxx \
@@ -101,7 +102,7 @@ SRCSCINTILLA += lexlib/Accessor.cxx lexlib/CharacterSet.cxx lexlib/LexerBase.cxx
 ifdef USE_GTK
   SRCSCINTILLA += gtk/PlatGTK.cxx gtk/ScintillaGTK.cxx gtk/scintilla-marshal.c
 else
-  SRCSCINTILLA += win32/PlatWin.cxx win32/ScintillaWin.cxx
+  SRCSCINTILLA += win32/PlatWin.cxx win32/ScintillaWin.cxx win32/HanjaDic.cxx
 endif
 
 SRC = $(SRCSCINTILLA) iupsci_clipboard.c iupsci_folding.c iupsci_lexer.c iupsci_margin.c \

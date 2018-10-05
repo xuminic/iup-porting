@@ -54,9 +54,6 @@ int IupListDialog (int type, const char *title, int size, const char** list_str,
   int i, bt;
   char *m=NULL;
 
-  if (size > 999)
-    size = 999;
-
   lst = IupList(NULL);
 
   for (i=0;i<size;i++)
@@ -350,7 +347,7 @@ int IupGetFile(char* filename)
   return ret;
 }
 
-int IupGetText(const char* title, char* text)
+int IupGetText(const char* title, char* text, int maxsize)
 {
   Ihandle *ok, *cancel, *multi_text, *button_box, *dlg_box, *dlg;
   int bt;
@@ -405,7 +402,7 @@ int IupGetText(const char* title, char* text)
 
   bt = IupGetInt(dlg, "STATUS");
   if (bt==1)
-    iupStrCopyN(text, 10240, IupGetAttribute(multi_text, "VALUE"));
+    iupStrCopyN(text, maxsize, IupGetAttribute(multi_text, "VALUE"));
   else
     bt = 0; /* return 0 instead of -1 */
 
