@@ -1,20 +1,22 @@
 ------------------------------------------------------------------------------
--- DetachBox class 
+-- FlatTabs class 
 ------------------------------------------------------------------------------
 local ctrl = {
-  nick = "detachbox",
+  nick = "flattabs",
   parent = iup.BOX,
   subdir = "elem",
-  creation = "I",
-  funcname = "DetachBox",
+  creation = "-",
+  funcname = "FlatTabs",
   callback = {
-    detached_cb = "inn",
-    restored_cb = "inn",
-  }
+    tabchange_cb = "ii",
+    tabchangepos_cb = "nn",
+    tabclose_cb = "n",
+    --rightclick_cb = "n", -- already implemented in IupTree, same definition
+  },
 }
 
 function ctrl.createElement(class, param)
-  return iup.DetachBox()
+  return iup.FlatTabs()
 end
 
 iup.RegisterWidget(ctrl)
