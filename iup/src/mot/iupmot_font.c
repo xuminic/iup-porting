@@ -383,9 +383,9 @@ int iupdrvFontGetStringWidth(Ihandle* ih, const char* str)
   return XTextWidth(fontstruct, str, len);
 }
 
-static void motFontGetTextSize(ImotFont* motfont, const char* str, int *w, int *h)
+static void motFontGetTextSize(ImotFont* motfont, const char* str, int len, int *w, int *h)
 {
-  int max_w = 0;
+  int max_w = 0, line_count = 1;
 
   if (!motfont)
   {
@@ -403,39 +403,61 @@ static void motFontGetTextSize(ImotFont* motfont, const char* str, int *w, int *
   
   if (str[0])
   {
-    int len, lw;
+    int l_len, lw, sum_len = 0;
     const char *nextstr;
     const char *curstr = str;
 
     do
     {
-      nextstr = iupStrNextLine(curstr, &len);
-      if (len)
+      nextstr = iupStrNextLine(curstr, &l_len);
+      if (sum_len + l_len > len)
+        l_len = len - sum_len;
+
+      if (l_len)
       {
-        lw = XTextWidth(motfont->fontstruct, curstr, len);
+        lw = XTextWidth(motfont->fontstruct, curstr, l_len);
         max_w = iupMAX(max_w, lw);
       }
+
+      sum_len += l_len;
+      if (sum_len == len)
+        break;
+
+      if (*nextstr)
+        line_count++;
 
       curstr = nextstr;
     } while(*nextstr);
   }
 
   if (w) *w = max_w;
-  if (h) *h = motfont->charheight * iupStrLineCount(str);
+  if (h) *h = motfont->charheight * line_count;
 }
 
 void iupdrvFontGetMultiLineStringSize(Ihandle* ih, const char* str, int *w, int *h)
 {
   ImotFont* motfont = motGetFont(ih);
   if (motfont)
-    motFontGetTextSize(motfont, str, w, h);
+    motFontGetTextSize(motfont, str, str? (int)strlen(str): 0, w, h);
 }
 
-void iupdrvFontGetTextSize(const char* font, const char* str, int *w, int *h)
+void iupdrvFontGetTextSize(const char* font, const char* str, int len, int *w, int *h)
 {
   ImotFont *motfont = motFindFont(NULL, font);
   if (motfont)
-    motFontGetTextSize(motfont, str, w, h);
+    motFontGetTextSize(motfont, str, len, w, h);
+}
+
+void iupdrvFontGetFontDim(const char* font, int *max_width, int *line_height, int *ascent, int *descent)
+{
+  ImotFont *motfont = motFindFont(NULL, font);
+  if (motfont)
+  {
+    if (max_width) *max_width = motfont->fontstruct->max_bounds.width;
+    if (line_height) *line_height = motfont->fontstruct->ascent + motfont->fontstruct->descent;
+    if (ascent)    *ascent = motfont->fontstruct->ascent;
+    if (descent)   *descent = motfont->fontstruct->descent;
+  }
 }
 
 void iupdrvFontGetCharSize(Ihandle* ih, int *charwidth, int *charheight)

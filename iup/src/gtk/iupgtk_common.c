@@ -444,6 +444,17 @@ static GdkColor gtkLighterColor(GdkColor *color)
 }
 #endif
 
+#if GTK_CHECK_VERSION(3, 16, 0)
+static char* gtkGetSelectedColor(void)
+{
+  GdkRGBA rgba;
+  unsigned char r, g, b;
+  iupStrToRGB(IupGetGlobal("TXTHLCOLOR"), &r, &g, &b);
+  iupgdkRGBASet(&rgba, r, g, b);
+  return gdk_rgba_to_string(&rgba);
+}
+#endif
+
 void iupgtkSetBgColor(InativeHandle* handle, unsigned char r, unsigned char g, unsigned char b)
 {
 #if GTK_CHECK_VERSION(3, 0, 0)
@@ -472,11 +483,27 @@ void iupgtkSetBgColor(InativeHandle* handle, unsigned char r, unsigned char g, u
     
     /* style background color using CSS */
     provider = gtk_css_provider_new();
-    css = g_strdup_printf("*:not(selection) { background-color: %s; background-image: none; }"
-                          "*:hover    { background-color: %s; }"
-                          "*:active   { background-color: %s; }"
-                          "*:disabled { background-color: %s; }",
-                           bg, bg_light, bg_dark, is_txt ? bg_light : bg);
+    if (is_txt)
+    {
+      char* selected = gtkGetSelectedColor();
+
+      css = g_strdup_printf("*          { background-color: %s; }"
+                            "*:hover    { background-color: %s; }"
+                            "*:active   { background-color: %s; }"
+                            "*:selected { background-color: %s; }"
+                            "*:disabled { background-color: %s; }",
+                            bg, bg_light, bg_dark, selected, bg_light);
+
+      g_free(selected); 
+    }
+    else
+    {
+      css = g_strdup_printf("*          { background-color: %s; }"
+                            "*:hover    { background-color: %s; }"
+                            "*:active   { background-color: %s; }"
+                            "*:disabled { background-color: %s; }",
+                            bg, bg_light, bg_dark, bg);
+    }
     gtk_style_context_add_provider(gtk_widget_get_style_context(handle), GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_USER);
     gtk_css_provider_load_from_data(provider, css, -1, NULL);
     
@@ -486,13 +513,13 @@ void iupgtkSetBgColor(InativeHandle* handle, unsigned char r, unsigned char g, u
   }
 #else
   gtk_widget_override_background_color(handle, GTK_STATE_FLAG_NORMAL, &rgba);
-  gtk_widget_override_background_color(handle, GTK_STATE_ACTIVE, &dark_rgba);
-  gtk_widget_override_background_color(handle, GTK_STATE_PRELIGHT, &light_rgba);
+  gtk_widget_override_background_color(handle, GTK_STATE_FLAG_ACTIVE, &dark_rgba);  /* active */
+  gtk_widget_override_background_color(handle, GTK_STATE_FLAG_PRELIGHT, &light_rgba);  /* hover */
 
   if (is_txt)
-    gtk_widget_override_background_color(handle, GTK_STATE_INSENSITIVE, &light_rgba);
+    gtk_widget_override_background_color(handle, GTK_STATE_FLAG_INSENSITIVE, &light_rgba);  /* disabled */
   else
-    gtk_widget_override_background_color(handle, GTK_STATE_INSENSITIVE, &rgba);
+    gtk_widget_override_background_color(handle, GTK_STATE_FLAG_INSENSITIVE, &rgba);  /* disabled */
 #endif
 #else
   GtkRcStyle *rc_style;  
@@ -507,9 +534,9 @@ void iupgtkSetBgColor(InativeHandle* handle, unsigned char r, unsigned char g, u
   rc_style->base[GTK_STATE_PRELIGHT] = rc_style->bg[GTK_STATE_PRELIGHT] = rc_style->base[GTK_STATE_INSENSITIVE] = gtkLighterColor(&color);
 
   rc_style->color_flags[GTK_STATE_NORMAL] |= GTK_RC_BASE | GTK_RC_BG;
-  rc_style->color_flags[GTK_STATE_ACTIVE] |= GTK_RC_BASE | GTK_RC_BG;
-  rc_style->color_flags[GTK_STATE_PRELIGHT] |= GTK_RC_BASE | GTK_RC_BG;
-  rc_style->color_flags[GTK_STATE_INSENSITIVE] |= GTK_RC_BASE | GTK_RC_BG;
+  rc_style->color_flags[GTK_STATE_ACTIVE] |= GTK_RC_BASE | GTK_RC_BG;  /* active */
+  rc_style->color_flags[GTK_STATE_PRELIGHT] |= GTK_RC_BASE | GTK_RC_BG;  /* hover */
+  rc_style->color_flags[GTK_STATE_INSENSITIVE] |= GTK_RC_BASE | GTK_RC_BG;   /* disabled */
 
   gtk_widget_modify_style(handle, rc_style);
 #endif
@@ -523,8 +550,8 @@ void iupgtkSetFgColor(InativeHandle* handle, unsigned char r, unsigned char g, u
   iupgdkRGBASet(&rgba, r, g, b);
 
   gtk_widget_override_color(handle, GTK_STATE_FLAG_NORMAL, &rgba);
-  gtk_widget_override_color(handle, GTK_STATE_ACTIVE, &rgba);
-  gtk_widget_override_color(handle, GTK_STATE_PRELIGHT, &rgba);
+  gtk_widget_override_color(handle, GTK_STATE_FLAG_ACTIVE, &rgba);
+  gtk_widget_override_color(handle, GTK_STATE_FLAG_PRELIGHT, &rgba);
 #else
   GtkRcStyle *rc_style;  
   GdkColor color;
@@ -718,34 +745,9 @@ int iupdrvGetScrollbarSize(void)
   return size;
 }
 
-void iupdrvPaintFocusRect(Ihandle* ih, void* _gc, int x, int y, int w, int h)
-{
-#if GTK_CHECK_VERSION(3, 0, 0)
-  cairo_t* cr = (cairo_t*)_gc;
-  GtkStyleContext* context = gtk_widget_get_style_context(ih->handle);
-  gtk_render_focus(context, cr, x, y, w, h);
-#else
-  GdkWindow* window = iupgtkGetWindow(ih->handle);
-  GtkStyle *style = gtk_widget_get_style(ih->handle);
-#if GTK_CHECK_VERSION(2, 18, 0)
-  GtkStateType state = gtk_widget_get_state(ih->handle);
-#else
-  GtkStateType state = GTK_WIDGET_STATE(ih->handle);
-#endif
-  gtk_paint_focus(style, window, state, NULL, ih->handle, NULL, x, y, w, h);
-#endif
-  (void)_gc;
-}
-
 void iupdrvBaseRegisterCommonAttrib(Iclass* ic)
 {
-#ifndef GTK_MAC
-#ifdef WIN32                                 
-  iupClassRegisterAttribute(ic, "HFONT", iupgtkGetFontIdAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
-#else
-  iupClassRegisterAttribute(ic, "XFONTID", iupgtkGetFontIdAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
-#endif
-#endif
+  iupClassRegisterAttribute(ic, iupgtkGetNativeFontIdName(), iupgtkGetFontIdAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT | IUPAF_NO_STRING);
   iupClassRegisterAttribute(ic, "PANGOFONTDESC", iupgtkGetPangoFontDescAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
   iupClassRegisterAttribute(ic, "PANGOLAYOUT", iupgtkGetPangoLayoutAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
 }
@@ -824,40 +826,48 @@ gboolean iupgtkButtonEvent(GtkWidget *widget, GdkEventButton *evt, Ihandle *ih)
   return FALSE;
 }
 
+static void igtkSendKey(GdkWindow* window, GdkEventType type, guint keyval, guint state, gint keycode, gint group)
+{
+  GdkEvent* evt = gdk_event_new(type);
+
+  evt->key.window = g_object_ref(window);
+  evt->key.keyval = keyval;
+  evt->key.state = state;
+  evt->key.hardware_keycode = (guint16)keycode;
+  evt->key.group = (guint8)group;
+
+  gtk_main_do_event(evt);
+  gdk_event_free(evt);
+}
+
 void iupdrvSendKey(int key, int press)
 {
   Ihandle* focus;
+  guint keyval, state;
   gint nkeys = 0; 
   GdkKeymapKey *keys; 
-  GdkEventKey evt;
-  memset(&evt, 0, sizeof(GdkEventKey));
-  evt.send_event = TRUE;
+  GdkWindow* window;
 
   focus = IupGetFocus();
   if (!focus)
     return;
-  evt.window = iupgtkGetWindow(focus->handle);
 
-  iupdrvKeyEncode(key, &evt.keyval, &evt.state);
-  if (!evt.keyval)
+  iupdrvKeyEncode(key, &keyval, &state);
+  if (!keyval)
     return;
 
-  if (!gdk_keymap_get_entries_for_keyval(gdk_keymap_get_default(), evt.keyval, &keys, &nkeys))
+  if (!gdk_keymap_get_entries_for_keyval(gdk_keymap_get_default(), keyval, &keys, &nkeys))
     return;
-  evt.hardware_keycode = (guint16)keys[0].keycode;
-  evt.group = (guint8)keys[0].group; 
+
+  window = iupgtkGetWindow(focus->handle);
 
   if (press & 0x01)
-  {
-    evt.type = GDK_KEY_PRESS;
-    gdk_event_put((GdkEvent*)&evt);
-  }
+    igtkSendKey(window, GDK_KEY_PRESS, keyval, state, keys[0].keycode, keys[0].group);
 
   if (press & 0x02)
-  {
-    evt.type = GDK_KEY_RELEASE;
-    gdk_event_put((GdkEvent*)&evt);
-  }
+    igtkSendKey(window, GDK_KEY_RELEASE, keyval, state, keys[0].keycode, keys[0].group);
+
+  g_free(keys);
 }
 
 void iupdrvWarpPointer(int x, int y)
@@ -883,6 +893,8 @@ void iupdrvSendMouse(int x, int y, int bt, int status)
   {
     GtkWidget* grab_widget;
     gint origin_x, origin_y;
+
+    /* TODO check gdk_event_set_pointer_emulated */
 
 #if GTK_CHECK_VERSION(3, 0, 0)
     GdkDeviceManager* device_manager = gdk_display_get_device_manager(gdk_display_get_default());
@@ -1055,6 +1067,8 @@ void iupgtkClearSizeStyleCSS(GtkWidget* widget)
   gtk_css_provider_load_from_data(GTK_CSS_PROVIDER(provider), str, -1, NULL);
   gtk_style_context_add_provider(context, GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
   g_object_unref(provider);
+#else
+  (void)widget;
 #endif
 }
 

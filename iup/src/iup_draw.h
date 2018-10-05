@@ -1,5 +1,5 @@
 /** \file
- * \brief Simple Draw API.
+ * \brief Auxiliary Draw API.
  *
  * See Copyright Notice in "iup.h"
  */
@@ -12,93 +12,67 @@ extern "C"
 {
 #endif
 
-/** \defgroup draw Simple Draw API
+/** \defgroup auxdraw Auxiliary Draw API
  * \par
  * See \ref iup_draw.h
  * \ingroup util */
 
 
+#define IUP_DEG2RAD  0.01745329252  /* degrees to radians (rad = DEG2RAD * deg) */
 
-struct _IdrawCanvas;
-typedef struct _IdrawCanvas IdrawCanvas;
+/** Swap integer coordinates if c1 > c2.
+* \ingroup auxdraw */
+#define iupDrawCheckSwapCoord(_c1, _c2) { if (_c1 > _c2) { int t = _c2; _c2 = _c1; _c1 = t; } }   /* make sure _c1 is smaller than _c2 */
 
-enum{IUP_DRAW_FILL, IUP_DRAW_STROKE, IUP_DRAW_STROKE_DASH};
+long iupDrawStrToColor(const char* str, long c_def);
+long iupDrawColor(unsigned char red, unsigned char green, unsigned char blue, unsigned char alpha);
+void iupDrawCalcShadows(long bgcolor, long *light_shadow, long *mid_shadow, long *dark_shadow);
+long iupDrawColorMakeInactive(long color, long bgcolor);
 
-/** Creates a draw canvas based on an IupCanvas.
- * This will create an image for offscreen drawing.
- * \ingroup draw */
-IdrawCanvas* iupDrawCreateCanvas(Ihandle* ih);
+#define iupDrawAlpha(_c)    (unsigned char)(~(((_c) >> 24) & 0xFF))   /* 0=transparent, 255=opaque (default is opaque, internally stored as 0) */
+#define iupDrawRed(_c)      (unsigned char)(((_c) >> 16) & 0xFF)
+#define iupDrawGreen(_c)    (unsigned char)(((_c) >>  8) & 0xFF)
+#define iupDrawBlue(_c)     (unsigned char)(((_c) >>  0) & 0xFF)
 
-/** Destroys the IdrawCanvas.
- * \ingroup draw */
-void iupDrawKillCanvas(IdrawCanvas* dc);
+void iupDrawSetColor(Ihandle *ih, const char* name, long color);
+void iupDrawRaiseRect(Ihandle *ih, int x1, int y1, int x2, int y2, long light_shadow, long mid_shadow, long dark_shadow);
+void iupDrawVertSunkenMark(Ihandle *ih, int x, int y1, int y2, long light_shadow, long dark_shadow);
+void iupDrawHorizSunkenMark(Ihandle *ih, int x1, int x2, int y, long light_shadow, long dark_shadow);
+void iupDrawSunkenRect(Ihandle *ih, int x1, int y1, int x2, int y2, long light_shadow, long mid_shadow, long dark_shadow);
 
-/** Draws the ofscreen image on the screen.
- * \ingroup draw */
-void iupDrawFlush(IdrawCanvas* dc);
+void iupDrawParentBackground(IdrawCanvas* dc, Ihandle* ih);
+char* iupDrawGetTextSize(Ihandle* ih, const char* str, int len, int *w, int *h, double text_orientation);
+void iupDrawGetTextInnerBounds(int o_w, int o_h, double text_orientation, int *w, int *h);
 
-/** Rebuild the offscreen image if the canvas size has changed.
- * Automatically done in iupDrawCreateCanvas.
- * \ingroup draw */
-void iupDrawUpdateSize(IdrawCanvas* dc);
 
-/** Returns the canvas size available for drawing.
- * \ingroup draw */
-void iupDrawGetSize(IdrawCanvas* dc, int *w, int *h);
+/**********************************************************************************************************/
 
-/** Draws the parent background.
- * \ingroup draw */
-void iupDrawParentBackground(IdrawCanvas* dc);
 
-/** Draws a line.
- * \ingroup draw */
-void iupDrawLine(IdrawCanvas* dc, int x1, int y1, int x2, int y2, unsigned char r, unsigned char g, unsigned char b, int style);
+enum{ IUP_IMGPOS_LEFT, IUP_IMGPOS_RIGHT, IUP_IMGPOS_TOP, IUP_IMGPOS_BOTTOM };
 
-/** Draws a filled/hollow rectangle.
- * \ingroup draw */
-void iupDrawRectangle(IdrawCanvas* dc, int x1, int y1, int x2, int y2, unsigned char r, unsigned char g, unsigned char b, int style);
+int iupFlatGetHorizontalAlignment(const char* value);
+int iupFlatGetVerticalAlignment(const char* value);
+int iupFlatGetImagePosition(const char* value);
+char* iupFlatGetDarkerBgColor(Ihandle* ih);
+int iupDrawGetTextFlags(Ihandle* ih, const char* align_name, const char* wrap_name, const char* ellipsis_name);
 
-/** Draws a filled/hollow arc.
- * \ingroup draw */
-void iupDrawArc(IdrawCanvas* dc, int x1, int y1, int x2, int y2, double a1, double a2, unsigned char r, unsigned char g, unsigned char b, int style);
+const char* iupFlatGetImageName(Ihandle* ih, const char* baseattrib, const char* basevalue, int press, int highlight, int active, int *make_inactive);
+const char* iupFlatGetImageNameId(Ihandle* ih, const char* baseattrib, int id, const char* basevalue, int press, int highlight, int active, int *make_inactive);
 
-/** Draws a filled/hollow polygon.
- * points are arranged xyxyxy...
- * \ingroup draw */
-void iupDrawPolygon(IdrawCanvas* dc, int* points, int count, unsigned char r, unsigned char g, unsigned char b, int style);
+void iupFlatDrawBorder(IdrawCanvas* dc, int xmin, int xmax, int ymin, int ymax, int border_width, const char* color, const char* bgcolor, int active);
 
-/** Draws a text.
- * x,y is at left,top corner of the text.
- * \ingroup draw */
-void iupDrawText(IdrawCanvas* dc, const char* text, int len, int x, int y, unsigned char r, unsigned char g, unsigned char b, const char* font);
+void iupFlatDrawBox(IdrawCanvas* dc, int xmin, int xmax, int ymin, int ymax, const char* color, const char* bgcolor, int active);
 
-/** Draws an image.
- * x,y is at left,top corner of the image.
- * Returns the image size.
- * \ingroup draw */
-void iupDrawImage(IdrawCanvas* dc, const char* name, int make_inactive, int x, int y, int *img_w, int *img_h);
+void iupFlatDrawGetIconSize(Ihandle* ih, int img_position, int spacing, int horiz_padding, int vert_padding,
+                            const char* imagename, const char* title, int *w, int *h, double text_orientation);
+void iupFlatDrawIcon(Ihandle* ih, IdrawCanvas* dc, int icon_x, int icon_y, int icon_width, int icon_height,
+                     int img_position, int spacing, int horiz_alignment, int vert_alignment, int horiz_padding, int vert_padding,
+                     const char* imagename, int make_inactive, const char* title, int text_flags, double text_orientation, const char* fgcolor, const char* bgcolor, int active);
 
-/** Sets a rectangle clipping area.
- * \ingroup draw */
-void iupDrawSetClipRect(IdrawCanvas* dc, int x1, int y1, int x2, int y2);
-
-/** Removes clipping.
- * \ingroup draw */
-void iupDrawResetClip(IdrawCanvas* dc);
-
-/** Draws a selection rectangle.
- * \ingroup draw */
-void iupDrawSelectRect(IdrawCanvas* dc, int x, int y, int w, int h);
-
-/** Draws a focus rectangle.
- * \ingroup draw */
-void iupDrawFocusRect(IdrawCanvas* dc, int x, int y, int w, int h);
-
-/*
-TO DO:
-- check position and size of primitives
-*/
-
+enum { IUPDRAW_ARROW_LEFT, IUPDRAW_ARROW_RIGHT, IUPDRAW_ARROW_TOP, IUPDRAW_ARROW_BOTTOM };
+void iupFlatDrawArrow(IdrawCanvas* dc, int x, int y, int size, const char* color, const char* bgcolor, int active, int dir);
+void iupFlatDrawCheckMark(IdrawCanvas* dc, int xmin, int xmax, int ymin, int ymax, const char* color_str, const char* bgcolor, int active);
+void iupFlatDrawDrawCircle(IdrawCanvas* dc, int xc, int yc, int radius, int fill, int line_width, char *fgcolor, char *bgcolor, int active);
 
 #ifdef __cplusplus
 }

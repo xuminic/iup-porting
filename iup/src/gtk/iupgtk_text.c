@@ -34,6 +34,15 @@
 #define PANGO_WEIGHT_SEMIBOLD 600
 #endif
 
+/* TODO:
+  Replace:
+    background-gdk
+    foreground-gdk
+  By:
+    background-rgba
+    foreground-rgba
+*/
+
 void iupdrvTextAddSpin(int *w, int h)
 {
 #if GTK_CHECK_VERSION(3, 0, 0)
@@ -88,12 +97,12 @@ static void gtkTextParseParagraphFormat(Ihandle* formattag, GtkTextTag* tag)
 
     while (format)
     {
-      str = iupStrDupUntil((char**)&format, ' ');
+      str = iupStrDupUntil((const char**)&format, ' ');
       if (!str) break;
       pos = atoi(str);
       free(str);
 
-      str = iupStrDupUntil((char**)&format, ' ');
+      str = iupStrDupUntil((const char**)&format, ' ');
       if (!str) break;
 
 /*      if (iupStrEqualNoCase(str, "DECIMAL"))    unsupported for now
@@ -1112,7 +1121,7 @@ static char* gtkTextGetReadOnlyAttrib(Ihandle* ih)
 
 static int gtkTextSetBgColorAttrib(Ihandle* ih, const char* value)
 {
-  if (ih->data->is_multiline)
+  if (ih->data->is_multiline && iupStrBoolean(IupGetGlobal("SB_BGCOLOR")))
   {
     GtkScrolledWindow* scrolled_window = (GtkScrolledWindow*)iupAttribGet(ih, "_IUP_EXTRAPARENT");
     unsigned char r, g, b;
@@ -1162,6 +1171,8 @@ static int gtkTextSetCueBannerAttrib(Ihandle *ih, const char *value)
 #if GTK_CHECK_VERSION(3, 2, 0)
     gtk_entry_set_placeholder_text(GTK_ENTRY(ih->handle), iupgtkStrConvertToSystem(value));
     return 1;
+#else
+    (void)value;
 #endif
   }
   return 0;

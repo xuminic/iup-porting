@@ -286,12 +286,7 @@ int iupdrvBaseSetBgColorAttrib(Ihandle* ih, const char* value)
 {
   Pixel color = iupmotColorGetPixelStr(value);
   if (color != (Pixel)-1)
-  {
     iupmotSetBgColor(ih->handle, color);
-
-    /* update internal image cache for controls that have the IMAGE attribute */
-    iupImageUpdateParent(ih);
-  }
   return 1;
 }
 
@@ -424,16 +419,6 @@ int iupdrvBaseSetCursorAttrib(Ihandle* ih, const char* value)
   return 0;
 }
 
-#include <Xm/XmP.h>
-#include <Xm/DrawP.h>
-
-void iupdrvPaintFocusRect(Ihandle* ih, void* _gc, int x, int y, int w, int h)
-{
-  Drawable wnd = (Drawable)IupGetAttribute(ih, "XWINDOW");  /* Use IupGetAttribute to consult the native implemetation */
-  GC gc = (GC)_gc;
-  XmeDrawHighlight(iupmot_display, wnd, gc, x, y, w, h, 1);
-}
-
 void iupdrvBaseRegisterCommonAttrib(Iclass* ic)
 {
   iupClassRegisterAttribute(ic, "XMFONTLIST", iupmotGetFontListAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT|IUPAF_NO_STRING);
@@ -456,7 +441,7 @@ void iupmotSetPixmap(Ihandle* ih, const char* name, const char* prop, int make_i
   if (name)
   {
     Pixmap old_pixmap;
-    Pixmap pixmap = (Pixmap)iupImageGetImage(name, ih, make_inactive);
+    Pixmap pixmap = (Pixmap)iupImageGetImage(name, ih, make_inactive, NULL);
     if (!pixmap) 
       pixmap = XmUNSPECIFIED_PIXMAP;
     XtVaGetValues(ih->handle, prop, &old_pixmap, NULL);

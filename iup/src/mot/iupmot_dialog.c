@@ -559,7 +559,7 @@ static int motDialogSetBackgroundAttrib(Ihandle* ih, const char* value)
     return 1;
   else                                     
   {
-    Pixmap pixmap = (Pixmap)iupImageGetImage(value, ih, 0);
+    Pixmap pixmap = (Pixmap)iupImageGetImage(value, ih, 0, NULL);
     if (pixmap)
     {
       Widget dialog_manager = (Widget)iupAttribGet(ih, "_IUPMOT_DLGCONTAINER");
@@ -717,7 +717,7 @@ static int motDialogSetIconAttrib(Ihandle* ih, const char *value)
   else
   {
     Pixmap icon = (Pixmap)iupImageGetIcon(value);
-    Pixmap icon_mask = (Pixmap)iupImageGetMask(value);
+    Pixmap icon_mask = iupmotImageGetMask(value);
     if (icon)
       XtVaSetValues(ih->handle, XmNiconPixmap, icon, NULL);
     if (icon_mask)

@@ -528,13 +528,15 @@ static int gtkDialogGetMenuSize(Ihandle* ih)
 #endif
 }
 
+#define iupABS(_x) ((_x)<0? -(_x): (_x))
+
 static void gtkDialogGetWindowDecor(Ihandle* ih, int *win_border, int *win_caption)
 {
   int x, y, frame_x, frame_y;
   gdk_window_get_origin(iupgtkGetWindow(ih->handle), &x, &y);
   gdk_window_get_root_origin(iupgtkGetWindow(ih->handle), &frame_x, &frame_y);
-  *win_border = x-frame_x;
-  *win_caption = y-frame_y-*win_border;
+  *win_border = iupABS(x - frame_x);   /* For unknown reason GTK sometimes give negative results */
+  *win_caption = iupABS(y - frame_y) - *win_border;
 }
 
 void iupdrvDialogGetDecoration(Ihandle* ih, int *border, int *caption, int *menu)
@@ -1281,7 +1283,7 @@ static int gtkDialogSetOpacityAttrib(Ihandle *ih, const char *value)
 
 static int gtkDialogSetOpacityImageAttrib(Ihandle *ih, const char *value)
 {
-  GdkPixbuf* pixbuf = iupImageGetImage(value, ih, 0);
+  GdkPixbuf* pixbuf = iupImageGetImage(value, ih, 0, NULL);
   if (pixbuf)
   {
 #if GTK_CHECK_VERSION(3, 0, 0)
@@ -1359,7 +1361,7 @@ static int gtkDialogSetBackgroundAttrib(Ihandle* ih, const char* value)
   }
   else
   {
-    GdkPixbuf* pixbuf = iupImageGetImage(value, ih, 0);
+    GdkPixbuf* pixbuf = iupImageGetImage(value, ih, 0, NULL);
     if (pixbuf)
     {
 #if GTK_CHECK_VERSION(3, 0, 0)
@@ -1403,7 +1405,8 @@ static int gtkDialogSetBackgroundAttrib(Ihandle* ih, const char* value)
   return 0;
 }
 
-#if GTK_CHECK_VERSION(2, 10, 0) && !GTK_CHECK_VERSION(3, 14, 0)
+/* gtk_status_icon - deprecated in 3.14, but still available in 3.22 (must enable deprecated in config.mak) */
+#if (GTK_CHECK_VERSION(2, 10, 0) && !GTK_CHECK_VERSION(3, 14, 0)) || !defined(GTK_DISABLE_DEPRECATED)
 static int gtkDialogTaskDoubleClick(int button)
 {
   static int last_button = -1;
@@ -1515,7 +1518,7 @@ static int gtkDialogSetTrayImageAttrib(Ihandle *ih, const char *value)
   gtk_status_icon_set_from_pixbuf(status_icon, icon);
   return 1;
 }
-#endif  /* GTK_CHECK_VERSION(2, 10, 0) */
+#endif  /* gtk_status_icon */
 
 #if GTK_CHECK_VERSION(3, 4, 0)
 static int gtkDialogSetHideTitleBarAttrib(Ihandle *ih, const char *value)
@@ -1541,13 +1544,7 @@ void iupdrvDialogInitClass(Iclass* ic)
   iupClassRegisterCallback(ic, "TRAYCLICK_CB", "iii");
 
   /* Driver Dependent Attribute functions */
-#ifndef GTK_MAC
-  #ifdef WIN32                                 
-    iupClassRegisterAttribute(ic, "HWND", iupgtkGetNativeWindowHandle, NULL, NULL, NULL, IUPAF_NO_STRING|IUPAF_NO_INHERIT);
-  #else
-    iupClassRegisterAttribute(ic, "XWINDOW", iupgtkGetNativeWindowHandle, NULL, NULL, NULL, IUPAF_NO_INHERIT|IUPAF_NO_STRING);
-  #endif
-#endif
+  iupClassRegisterAttribute(ic, iupgtkGetNativeWindowHandleName(), iupgtkGetNativeWindowHandleAttrib, NULL, NULL, NULL, IUPAF_NO_INHERIT|IUPAF_NO_STRING);
 
   /* Visual */
   iupClassRegisterAttribute(ic, "BGCOLOR", NULL, iupdrvBaseSetBgColorAttrib, "DLGBGCOLOR", NULL, IUPAF_DEFAULT);  /* force new default value */
@@ -1575,7 +1572,8 @@ void iupdrvDialogInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "OPACITY", NULL, gtkDialogSetOpacityAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "OPACITYIMAGE", NULL, gtkDialogSetOpacityImageAttrib, NULL, NULL, IUPAF_NO_INHERIT);
 #endif
-#if GTK_CHECK_VERSION(2, 10, 0) && !GTK_CHECK_VERSION(3, 14, 0)
+/* gtk_status_icon - deprecated in 3.14, but still available in 3.22 (must enable deprecated in config.mak) */
+#if (GTK_CHECK_VERSION(2, 10, 0) && !GTK_CHECK_VERSION(3, 14, 0)) || !defined(GTK_DISABLE_DEPRECATED)
   iupClassRegisterAttribute(ic, "TRAY", NULL, gtkDialogSetTrayAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "TRAYIMAGE", NULL, gtkDialogSetTrayImageAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "TRAYTIP", NULL, gtkDialogSetTrayTipAttrib, NULL, NULL, IUPAF_NO_INHERIT);

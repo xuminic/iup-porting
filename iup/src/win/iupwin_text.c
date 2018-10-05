@@ -191,12 +191,12 @@ static void winTextParseParagraphFormat(Ihandle* formattag, PARAFORMAT2 *parafor
 
     while (format)
     {
-      str = iupStrDupUntil((char**)&format, ' ');
+      str = iupStrDupUntil((const char**)&format, ' ');
       if (!str) break;
       pos = atoi(str)*convert2twips;
       free(str);
 
-      str = iupStrDupUntil((char**)&format, ' ');
+      str = iupStrDupUntil((const char**)&format, ' ');
       if (!str) break;
 
       if (iupStrEqualNoCase(str, "DECIMAL"))
@@ -1714,7 +1714,13 @@ static int winTextMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *
   if (msg==WM_KEYDOWN) /* process K_ANY before text callbacks */
   {
     ret = iupwinBaseMsgProc(ih, msg, wp, lp, result);
-    if (ret) 
+    if (!iupObjectCheck(ih))
+    {
+      *result = 0;
+      return 1;
+    }
+
+    if (ret)
     {
       iupAttribSet(ih, "_IUPWIN_IGNORE_CHAR", "1");
       *result = 0;

@@ -764,7 +764,7 @@ static int motTreeSetImageExpandedAttrib(Ihandle* ih, int id, const char* value)
 
   XtVaGetValues(wItem, XmNuserData, &itemData, NULL);
   XtVaGetValues(wItem, XmNoutlineState, &itemState, NULL);
-  itemData->image_expanded = (Pixmap)iupImageGetImage(value, ih, 0);
+  itemData->image_expanded = (Pixmap)iupImageGetImage(value, ih, 0, NULL);
   if (!itemData->image_expanded)
   {
     itemData->image_expanded = XmUNSPECIFIED_PIXMAP;
@@ -772,7 +772,7 @@ static int motTreeSetImageExpandedAttrib(Ihandle* ih, int id, const char* value)
   }
   else
   {
-    itemData->image_expanded_mask = (Pixmap)iupImageGetMask(value);
+    itemData->image_expanded_mask = iupmotImageGetMask(value);
     if (!itemData->image_expanded_mask) itemData->image_expanded_mask = XmUNSPECIFIED_PIXMAP;
   }
 
@@ -803,7 +803,7 @@ static int motTreeSetImageAttrib(Ihandle* ih, int id, const char* value)
     return 0;
 
   XtVaGetValues(wItem, XmNuserData, &itemData, NULL);
-  itemData->image = (Pixmap)iupImageGetImage(value, ih, 0);
+  itemData->image = (Pixmap)iupImageGetImage(value, ih, 0, NULL);
   if (!itemData->image) 
   {
     itemData->image = XmUNSPECIFIED_PIXMAP;
@@ -811,7 +811,7 @@ static int motTreeSetImageAttrib(Ihandle* ih, int id, const char* value)
   }
   else
   {
-    itemData->image_mask = (Pixmap)iupImageGetMask(value);
+    itemData->image_mask = iupmotImageGetMask(value);
     if (!itemData->image_mask) itemData->image_mask = XmUNSPECIFIED_PIXMAP;
   }
 
@@ -856,7 +856,7 @@ static int motTreeSetImageAttrib(Ihandle* ih, int id, const char* value)
 
 static int motTreeSetImageBranchExpandedAttrib(Ihandle* ih, const char* value)
 {
-  ih->data->def_image_expanded = iupImageGetImage(value, ih, 0);
+  ih->data->def_image_expanded = iupImageGetImage(value, ih, 0, NULL);
   if (!ih->data->def_image_expanded) 
   {
     ih->data->def_image_expanded = (void*)XmUNSPECIFIED_PIXMAP;
@@ -864,7 +864,7 @@ static int motTreeSetImageBranchExpandedAttrib(Ihandle* ih, const char* value)
   }
   else
   {
-    ih->data->def_image_expanded_mask = iupImageGetMask(value);
+    ih->data->def_image_expanded_mask = (void*)iupmotImageGetMask(value);
     if (!ih->data->def_image_expanded_mask) ih->data->def_image_expanded_mask = (void*)XmUNSPECIFIED_PIXMAP;
   }
     
@@ -876,7 +876,7 @@ static int motTreeSetImageBranchExpandedAttrib(Ihandle* ih, const char* value)
 
 static int motTreeSetImageBranchCollapsedAttrib(Ihandle* ih, const char* value)
 {
-  ih->data->def_image_collapsed = iupImageGetImage(value, ih, 0);
+  ih->data->def_image_collapsed = iupImageGetImage(value, ih, 0, NULL);
   if (!ih->data->def_image_collapsed) 
   {
     ih->data->def_image_collapsed = (void*)XmUNSPECIFIED_PIXMAP;
@@ -884,7 +884,7 @@ static int motTreeSetImageBranchCollapsedAttrib(Ihandle* ih, const char* value)
   }
   else
   {
-    ih->data->def_image_collapsed_mask = iupImageGetMask(value);
+    ih->data->def_image_collapsed_mask = (void*)iupmotImageGetMask(value);
     if (!ih->data->def_image_collapsed_mask) ih->data->def_image_collapsed_mask = (void*)XmUNSPECIFIED_PIXMAP;
   }
    
@@ -896,7 +896,7 @@ static int motTreeSetImageBranchCollapsedAttrib(Ihandle* ih, const char* value)
 
 static int motTreeSetImageLeafAttrib(Ihandle* ih, const char* value)
 {
-  ih->data->def_image_leaf = iupImageGetImage(value, ih, 0);
+  ih->data->def_image_leaf = iupImageGetImage(value, ih, 0, NULL);
   if (!ih->data->def_image_leaf) 
   {
     ih->data->def_image_leaf = (void*)XmUNSPECIFIED_PIXMAP;
@@ -904,7 +904,7 @@ static int motTreeSetImageLeafAttrib(Ihandle* ih, const char* value)
   }
   else
   {
-    ih->data->def_image_leaf_mask = iupImageGetMask(value);
+    ih->data->def_image_leaf_mask = (void*)iupmotImageGetMask(value);
     if (!ih->data->def_image_leaf_mask) ih->data->def_image_leaf_mask = (void*)XmUNSPECIFIED_PIXMAP;
   }
     
@@ -1664,7 +1664,7 @@ static int motTreeSetBgColorAttrib(Ihandle* ih, const char* value)
   char* parent_value = iupBaseNativeParentGetBgColor(ih);
 
   color = iupmotColorGetPixelStr(parent_value);
-  if (color != (Pixel)-1)
+  if (color != (Pixel)-1 && iupStrBoolean(IupGetGlobal("SB_BGCOLOR")))
   {
     Widget sb = NULL;
 
@@ -2880,7 +2880,7 @@ static int motTreeMapMethod(Ihandle* ih)
   }
 
   /* Initialize the default images */
-  ih->data->def_image_leaf = iupImageGetImage(iupAttribGetStr(ih, "IMAGELEAF"), ih, 0);
+  ih->data->def_image_leaf = iupImageGetImage(iupAttribGetStr(ih, "IMAGELEAF"), ih, 0, NULL);
   if (!ih->data->def_image_leaf) 
   {
     ih->data->def_image_leaf = (void*)XmUNSPECIFIED_PIXMAP;
@@ -2888,11 +2888,11 @@ static int motTreeMapMethod(Ihandle* ih)
   }
   else
   {
-    ih->data->def_image_leaf_mask = iupImageGetMask(iupAttribGetStr(ih, "IMAGELEAF"));
+    ih->data->def_image_leaf_mask = (void*)iupmotImageGetMask(iupAttribGetStr(ih, "IMAGELEAF"));
     if (!ih->data->def_image_leaf_mask) ih->data->def_image_leaf_mask = (void*)XmUNSPECIFIED_PIXMAP;
   }
 
-  ih->data->def_image_collapsed = iupImageGetImage(iupAttribGetStr(ih, "IMAGEBRANCHCOLLAPSED"), ih, 0);
+  ih->data->def_image_collapsed = iupImageGetImage(iupAttribGetStr(ih, "IMAGEBRANCHCOLLAPSED"), ih, 0, NULL);
   if (!ih->data->def_image_collapsed) 
   {
     ih->data->def_image_collapsed = (void*)XmUNSPECIFIED_PIXMAP;
@@ -2900,11 +2900,11 @@ static int motTreeMapMethod(Ihandle* ih)
   }
   else
   {
-    ih->data->def_image_collapsed_mask = iupImageGetMask(iupAttribGetStr(ih, "IMAGEBRANCHCOLLAPSED"));
+    ih->data->def_image_collapsed_mask = (void*)iupmotImageGetMask(iupAttribGetStr(ih, "IMAGEBRANCHCOLLAPSED"));
     if (!ih->data->def_image_collapsed_mask) ih->data->def_image_collapsed_mask = (void*)XmUNSPECIFIED_PIXMAP;
   }
 
-  ih->data->def_image_expanded = iupImageGetImage(iupAttribGetStr(ih, "IMAGEBRANCHEXPANDED"), ih, 0);
+  ih->data->def_image_expanded = iupImageGetImage(iupAttribGetStr(ih, "IMAGEBRANCHEXPANDED"), ih, 0, NULL);
   if (!ih->data->def_image_expanded) 
   {
     ih->data->def_image_expanded = (void*)XmUNSPECIFIED_PIXMAP;
@@ -2912,7 +2912,7 @@ static int motTreeMapMethod(Ihandle* ih)
   }
   else
   {
-    ih->data->def_image_expanded_mask = iupImageGetMask(iupAttribGetStr(ih, "IMAGEBRANCHEXPANDED"));
+    ih->data->def_image_expanded_mask = (void*)iupmotImageGetMask(iupAttribGetStr(ih, "IMAGEBRANCHEXPANDED"));
     if (!ih->data->def_image_expanded_mask) ih->data->def_image_expanded_mask = (void*)XmUNSPECIFIED_PIXMAP;
   }
 
