@@ -139,7 +139,7 @@ static unsigned char img_bits2[] =
 ,3,3,3,3,3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
 };
 
-unsigned char img_close[16 * 16] =
+unsigned char img_plus[16 * 16] =
 {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -159,7 +159,7 @@ unsigned char img_close[16 * 16] =
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
-unsigned char img_open[16*16] =
+unsigned char img_minus[16*16] =
 {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -418,7 +418,7 @@ void ExpanderTest(void)
 {
   Ihandle *mnu, *_hbox_1, *_cnv_1, *_vbox_1, *dlg, *img, *image_open, *image_close,
     *_frm_1, *_frm_2, *_frm_3, *_frm_4, *_frm_5, *pbar, *val, *tabs, *image_high,
-    *_list_1, *_list_2, *_list_3, *_text_1, *_ml_1, *tree, *_hbox_2;
+    *_list_1, *_list_2, *_list_3, *_text_1, *_ml_1, *tree, *_hbox_2, *image_highopen;
 
   //img = IupImage(32,32, img_bits1);
   //IupSetHandle ("img1", img); 
@@ -436,14 +436,18 @@ void ExpanderTest(void)
   IupSetAttribute (img, "2", "BGCOLOR");
   IupSetAttribute (img, "3", "255 0 0");
 
-  image_open = IupImage(16, 16, img_open);
-  image_close = IupImage(16, 16, img_close);
-  image_high = IupImage(16, 16, img_close);
+  image_close = IupImage(16, 16, img_plus);
+  image_high = IupImage(16, 16, img_plus);
+  image_open = IupImage(16, 16, img_minus);
+  //image_highopen = IupImage(16, 16, img_minus);
   IupSetAttribute(image_open, "0", "BGCOLOR");
-  IupSetAttribute(image_open, "1", "192 192 192");
+  IupSetAttribute(image_open, "1", "255 255 255");
   IupSetAttribute(image_close, "0", "BGCOLOR");
-  IupSetAttribute(image_close, "1", "192 192 192");
+  IupSetAttribute(image_close, "1", "255 255 255");
+  IupSetAttribute(image_high, "0", "BGCOLOR");
   IupSetAttribute(image_high, "1", "192 192 192");
+  //IupSetAttribute(image_highopen, "0", "BGCOLOR");
+  //IupSetAttribute(image_highopen, "1", "192 192 192");
 
   mnu = IupMenu(
     IupSubmenu("IupSubmenu 1", IupMenu(
@@ -479,22 +483,30 @@ void ExpanderTest(void)
   IupSetAttribute(_frm_2,"TITLE","IupLabel");
 
 //  _frm_3 = IupFrame(
-  _frm_3 = IupExpander(
+  _frm_3 = IupExpander(IupSetAttributes(IupBackgroundBox(
     IupVbox(
       set_callbacks(IupSetAttributes(IupToggle("Toggle Text", NULL), "VALUE=ON, TIP=\"Toggle TIP\"")),
-      set_callbacks(IupSetAttributes(IupToggle(NULL, NULL), "VALUE=ON,IMAGE=img1,IMPRESS=img2")),
+      set_callbacks(IupSetAttributes(IupToggle(NULL, NULL), "VALUE=ON,IMAGE=img1,IMPRESS=img2,XXEXPAND=HORIZONTAL,SIZE=XX100x")),
       set_callbacks(IupSetAttributes(IupToggle(NULL, NULL), "VALUE=ON,IMAGE=img1")),
       IupSetAttributes(IupFrame(IupRadio(IupVbox(
         set_callbacks(IupToggle("Toggle Text", NULL)), 
         set_callbacks(IupToggle("Toggle Text", NULL)), 
         NULL))), "TITLE=IupRadio"),
-      NULL));
-  IupSetAttribute(_frm_3,"TITLE","IupToggle");
+        NULL)), "BGCOLOR=\"255 255 255\""));
+  IupSetAttribute(_frm_3,"TITLE","IupExpander");
   IupSetAttribute(_frm_3,"FORECOLOR","255 255 255");
-  IupSetAttribute(_frm_3,"BACKCOLOR","50 100 150");
-//  IupSetAttribute(_frm_3, "BARSIZE", "50");
+  IupSetAttribute(_frm_3,"BACKCOLOR","100 150 250");
+  IupSetAttribute(_frm_3, "ANIMATION", "SLIDE");
+  //  IupSetAttribute(_frm_3, "BARSIZE", "50");
+    IupSetAttribute(_frm_3, "TITLEEXPAND", "Yes");
+    IupSetAttribute(_frm_3, "HIGHCOLOR", "192 192 192");
+  //  IupSetAttribute(_frm_3, "OPENCOLOR", "0 0 192");
+  //   IupSetAttributeHandle(_frm_3, "TITLEIMAGE", image_close);
+  //   IupSetAttributeHandle(_frm_3, "TITLEIMAGEOPEN", image_open);
+  //IupSetAttributeHandle(_frm_3, "TITLEIMAGEHIGHLIGHT", image_high);
+  //IupSetAttributeHandle(_frm_3, "TITLEIMAGEOPENHIGHLIGHT", image_highopen);
 //  IupSetAttributeHandle(_frm_3, "IMAGE", image_close);
-//  IupSetAttributeHandle(_frm_3, "IMOPEN", image_open);
+//  IupSetAttributeHandle(_frm_3, "IMAGEOPEN", image_open);
 //  IupSetAttribute(_frm_3, "IMAGE", "img1");
   IupSetCallback(_frm_3, "ACTION", (Icallback)expand_cb);
   IupSetAttribute(_frm_3, "EXTRABUTTONS", "3");
@@ -508,6 +520,22 @@ void ExpanderTest(void)
   IupSetAttributeHandle(_frm_3, "IMAGEEXTRA3", image_close);
   IupSetAttributeHandle(_frm_3, "IMAGEEXTRAPRESS3", image_open);
   IupSetAttributeHandle(_frm_3, "IMAGEEXTRAHIGHLIGHT3", image_high);
+
+  if (0)
+  {
+    Ihandle* hbox = IupGetChild(IupGetChild(_frm_3, 0), 0);
+    Ihandle* expand_button = IupGetChild(hbox, 0);
+    Ihandle* title_label = IupGetChild(hbox, 1);
+    Ihandle* extra_button1 = IupGetChild(IupGetChild(hbox, 2), 0);
+    IupSetAttribute(hbox, "MARGIN", "0x0");
+    IupSetAttribute(hbox, "GAP", "0");
+    hbox = IupGetChild(hbox, 2);
+    IupSetAttribute(hbox, "MARGIN", "0x0");
+    IupSetAttribute(hbox, "GAP", "0");
+    IupSetAttribute(expand_button, "EXPAND", "VERTICAL");
+    IupSetAttribute(title_label, "EXPAND", "Yes");
+    IupSetAttribute(extra_button1, "EXPAND", "VERTICAL");
+  }
 
   _text_1 = IupText( NULL);
   IupSetAttribute(_text_1,"VALUE","Single Line Text");
@@ -560,11 +588,11 @@ void ExpanderTest(void)
   IupSetAttribute(_frm_5,"TITLE","IupList");
 
   _hbox_1 = IupHbox(
-    _frm_1,
-    _frm_2,
+//    _frm_1,
+//    _frm_2,
     _frm_3,
-    _frm_4,
-    _frm_5,
+//    _frm_4,
+//    _frm_5,
     NULL);
 
   val = IupVal(NULL);

@@ -34,6 +34,7 @@
 #define _IUPDLG_PRIVATE
 #include "iup_dialog.h"
 #include "iup_image.h"
+#include "iup_assert.h"
 
 #include "iupgtk_drv.h"
 
@@ -296,7 +297,10 @@ static gboolean gtkDialogConfigureEvent(GtkWidget *widget, GdkEventConfigure *ev
 #ifndef HILDON
   /* In hildon the menu is not a menubar */
   if (ih->data->menu && ih->data->menu->handle)
-    gtk_widget_set_size_request(ih->data->menu->handle, evt->width, -1);
+  {
+    if (evt->width > 0)
+      gtk_widget_set_size_request(ih->data->menu->handle, evt->width, -1);
+  }
 #endif
 
   if (ih->data->ignore_resize) 
@@ -423,13 +427,22 @@ static gboolean gtkDialogChildDestroyEvent(GtkWidget *widget, Ihandle *ih)
    the menu that it is inside the dialog. */
 static void gtkDialogSetChildrenPositionMethod(Ihandle* ih, int x, int y)
 {
-  int menu_h = gtkDialogGetMenuSize(ih);
+  if (ih->firstchild)
+  {
+    char* offset = iupAttribGet(ih, "CHILDOFFSET");
 
-  /* Child coordinates are relative to client left-top corner. */
-  iupBaseSetPosition(ih->firstchild, 0, menu_h);
+    /* Native container, position is reset */
+    x = 0;
+    y = 0;
 
-  (void)x;  /* Native container, position is reset */
-  (void)y;
+    if (offset) iupStrToIntInt(offset, &x, &y, 'x');
+
+    y += gtkDialogGetMenuSize(ih);
+
+    /* Child coordinates are relative to client left-top corner. */
+    if (ih->firstchild)
+      iupBaseSetPosition(ih->firstchild, x, y);
+  }
 }
 
 static void* gtkDialogGetInnerNativeContainerHandleMethod(Ihandle* ih, Ihandle* child)
@@ -494,7 +507,7 @@ static int gtkDialogMapMethod(Ihandle* ih)
     gtk_window_set_type_hint(GTK_WINDOW(ih->handle), GDK_WINDOW_TYPE_HINT_DIALOG);
 
   /* the container that will receive the child element. */
-  inner_parent = iupgtkNativeContainerNew();
+  inner_parent = iupgtkNativeContainerNew(0);
   gtk_container_add((GtkContainer*)ih->handle, inner_parent);
   gtk_widget_show(inner_parent);
 

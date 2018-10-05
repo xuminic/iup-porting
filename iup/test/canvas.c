@@ -324,18 +324,20 @@ void CanvasTest(void)
   //IupSetAttribute(image, "2", "128 0 0"); 
   //IupSetAttribute(image, "HOTSPOT", "21:10");
 
-  image = IupImage(15,15, matrx_img_cur_excel);
-  IupSetAttribute (image, "0", "BGCOLOR"); 
-  IupSetAttribute (image, "1", "0 0 0"); 
-  IupSetAttribute (image, "2", "255 255 255"); 
-  IupSetAttribute (image, "HOTSPOT", "7:7");
+  //image = IupImage(15,15, matrx_img_cur_excel);
+  //IupSetAttribute (image, "0", "BGCOLOR"); 
+  //IupSetAttribute (image, "1", "0 0 0"); 
+  //IupSetAttribute (image, "2", "255 255 255"); 
+  //IupSetAttribute (image, "HOTSPOT", "7:7");
 
   box = IupVbox(NULL);
   IupSetAttribute(box, "MARGIN", "5x5");
+//  IupSetAttribute(box, "CMARGIN", "30x30");
 
   canvas = IupCanvas(NULL);
   IupAppend(box, canvas);
   IupSetAttribute(canvas, "RASTERSIZE", "300x200");
+  IupSetAttribute(canvas, "EXPAND", "NO");
   IupSetAttribute(canvas, "TIP", "Canvas Tip");
   IupSetAttribute(canvas, "SCROLLBAR", "HORIZONTAL");
   //IupSetAttribute(canvas, "BGCOLOR", "0 255 0");
@@ -391,7 +393,7 @@ printf("IupMap\n");
   IupMap(dlg);
 printf("IupShow\n");
   IupShow(dlg);
-  IupSetAttribute(canvas, "RASTERSIZE", NULL);  /* release the minimum limitation */
+//  IupSetAttribute(canvas, "RASTERSIZE", NULL);  /* release the minimum limitation */
 }
 
 #ifndef BIG_TEST

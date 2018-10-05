@@ -133,6 +133,12 @@ static int text_cb(Ihandle* ih, int c, char *after)
   return IUP_DEFAULT;
 }
 
+static int tips_cb(Ihandle* ih, int x, int y)
+{
+  printf("TIPS_CB(%d, %d)\n", x, y);
+  return IUP_DEFAULT;
+}
+
 static int removenode(void)
 {
   Ihandle* tree = IupGetHandle("tree");
@@ -543,6 +549,7 @@ static void init_tree(void)
   //IupSetCallback(tree, "MOTION_CB",    (Icallback)motion_cb);
   IupSetCallback(tree, "NODEREMOVED_CB", (Icallback)noderemoved_cb);
   IupSetCallback(tree, "TOGGLEVALUE_CB", (Icallback)togglevalue_cb);
+  IupSetCallback(tree, "TIPS_CB", (Icallback)tips_cb);
 
   IupSetCallback(tree, "HELP_CB", (Icallback)help_cb);
 
@@ -555,7 +562,7 @@ static void init_tree(void)
 
 //  IupSetAttribute(tree, "MARKMODE",     "MULTIPLE");
 //  IupSetAttribute(tree, "SHOWRENAME",   "YES");
-//  IupSetAttribute(tree, "SHOWDRAGDROP", "YES");
+  IupSetAttribute(tree, "SHOWDRAGDROP", "YES");
   IupSetAttribute(tree, "SHOWTOGGLE",   "YES");
 //  IupSetAttribute(tree, "SHOWTOGGLE",   "3STATE");
 //  IupSetAttribute(tree, "DROPEQUALDRAG", "YES");
@@ -566,7 +573,8 @@ static void init_tree(void)
 //  IupSetAttribute(tree, "INDENTATION",   "40");
 //  IupSetAttribute(tree, "CANFOCUS", "NO");
   IupSetAttribute(tree, "TIP", "Tree Tip");
-//  IupSetAttribute(tree, "TIPBGCOLOR", "255 128 128");
+//  IupSetAttribute(tree, "INFOTIP", "No");
+  //  IupSetAttribute(tree, "TIPBGCOLOR", "255 128 128");
 //  IupSetAttribute(tree, "TIPFGCOLOR", "0 92 255");
 
   // Windows Only  

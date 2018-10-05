@@ -77,7 +77,11 @@ static GtkLabel* gtkButtonGetLabel(Ihandle* ih)
   {
     /* when both is set, button contains an GtkAlignment, 
        that contains a GtkBox, that contains a label and an image */
+#if GTK_CHECK_VERSION(3, 14, 0)
+    GtkContainer *container = (GtkContainer*)gtk_bin_get_child((GtkBin*)ih->handle);
+#else
     GtkContainer *container = (GtkContainer*)gtk_bin_get_child((GtkBin*)gtk_bin_get_child((GtkBin*)ih->handle));
+#endif
     GtkLabel* label = NULL;
     gtk_container_foreach(container, gtkButtonChildrenCb, &label);
     return label;
@@ -164,10 +168,17 @@ static int gtkButtonSetPaddingAttrib(Ihandle* ih, const char* value)
     }
     else
     {
+#if GTK_CHECK_VERSION(3, 14, 0)
+      g_object_set(G_OBJECT(ih->handle), "margin-bottom", ih->data->vert_padding, NULL);
+      g_object_set(G_OBJECT(ih->handle), "margin-top", ih->data->vert_padding, NULL);
+      g_object_set(G_OBJECT(ih->handle), "margin-left", ih->data->horiz_padding, NULL);
+      g_object_set(G_OBJECT(ih->handle), "margin-right", ih->data->horiz_padding, NULL);
+#else
       GtkAlignment* alignment = (GtkAlignment*)gtk_bin_get_child((GtkBin*)ih->handle);
       if (GTK_IS_ALIGNMENT(alignment))
         gtk_alignment_set_padding(alignment, ih->data->vert_padding, ih->data->vert_padding, 
                                              ih->data->horiz_padding, ih->data->horiz_padding);
+#endif
     }
     return 0;
   }
@@ -179,6 +190,7 @@ static int gtkButtonSetBgColorAttrib(Ihandle* ih, const char* value)
 {
   if (ih->data->type == IUP_BUTTON_TEXT)
   {
+    /* Color button */
     GtkWidget* frame = gtk_button_get_image(GTK_BUTTON(ih->handle));
     if (frame && GTK_IS_FRAME(frame))
     {
@@ -375,6 +387,24 @@ static gboolean gtkButtonEvent(GtkWidget *widget, GdkEventButton *evt, Ihandle *
   return FALSE;
 }
 
+static void gtkButtonLayoutUpdateMethod(Ihandle *ih)
+{
+  iupdrvBaseLayoutUpdateMethod(ih);
+
+  if (ih->data->type == IUP_BUTTON_TEXT)
+  {
+    /* Color button */
+    GtkWidget* frame = gtk_button_get_image(GTK_BUTTON(ih->handle));
+    if (frame && GTK_IS_FRAME(frame))
+    {
+      int x = 0, y = 0;
+      iupdrvButtonAddBorders(&x, &y);
+      if (ih->currentwidth - x > 0 && ih->currentheight - y > 0)
+        gtk_widget_set_size_request(frame, ih->currentwidth-x, ih->currentheight-y);
+    }
+  }
+}
+
 static int gtkButtonMapMethod(Ihandle* ih)
 {
   int impress;
@@ -434,7 +464,6 @@ static int gtkButtonMapMethod(Ihandle* ih)
     {
       if (iupAttribGet(ih, "BGCOLOR"))
       {
-        int x=0, y=0;
         GtkWidget* frame = gtk_frame_new(NULL);
 #if GTK_CHECK_VERSION(2, 18, 0)
         GtkWidget* drawarea = gtk_drawing_area_new();
@@ -444,8 +473,6 @@ static int gtkButtonMapMethod(Ihandle* ih)
         gtk_fixed_set_has_window(GTK_FIXED(drawarea), TRUE);
 #endif
         gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-        iupdrvButtonAddBorders(&x, &y);
-        gtk_widget_set_size_request (frame, ih->currentwidth-x, ih->currentheight-y);
         gtk_container_add(GTK_CONTAINER(frame), drawarea);
         gtk_widget_show(drawarea);
 
@@ -510,6 +537,7 @@ void iupdrvButtonInitClass(Iclass* ic)
 {
   /* Driver Dependent Class functions */
   ic->Map = gtkButtonMapMethod;
+  ic->LayoutUpdate = gtkButtonLayoutUpdateMethod;
 
   /* Driver Dependent Attribute functions */
 

@@ -119,19 +119,6 @@ void cdIupDrawHorizSunkenMark(cdCanvas *canvas, int x1, int x2, int y, long ligh
   cdCanvasLine(canvas, x1, y, x2, y);
 }
 
-void cdIupDrawFocusRect(cdCanvas *canvas, int x1, int y1, int x2, int y2)
-{
-  int old_linestyle = cdCanvasLineStyle(canvas, CD_DOTTED);
-  int old_foreground = cdCanvasForeground(canvas, CD_WHITE);
-  int old_writemode = cdCanvasWriteMode(canvas, CD_XOR);
-
-  cdCanvasRect(canvas, x1, x2, y1, y2);
-
-  cdCanvasWriteMode(canvas, old_writemode);
-  cdCanvasForeground(canvas, old_foreground);
-  cdCanvasLineStyle(canvas, old_linestyle);
-}
-
 
 /************************************************************************/
 
@@ -273,18 +260,18 @@ void cdIupDrawImage(cdCanvas *canvas, Ihandle *image, int x, int y, int w, int h
 
   /* The buffer will be destroyed in IupImage unmap */
   if (depth!=1 && make_inactive)
-    image_buffer = (unsigned char*)iupAttribGet(image, "_IUPIMAGE_CDIMAGE_INACTIVE");
+    image_buffer = (unsigned char*)iupAttribGet(image, "_IUPIMAGE_BUFFER_INACTIVE");
   else
-    image_buffer = (unsigned char*)iupAttribGet(image, "_IUPIMAGE_CDIMAGE");
+    image_buffer = (unsigned char*)iupAttribGet(image, "_IUPIMAGE_BUFFER");
 
   if (!image_buffer)
   {
     image_buffer = iUtilBuildImageBuffer(image, width, height, depth, make_inactive, bgcolor);
 
     if (depth!=1 && make_inactive)
-      iupAttribSet(image, "_IUPIMAGE_CDIMAGE_INACTIVE", (char*)image_buffer);
+      iupAttribSet(image, "_IUPIMAGE_BUFFER_INACTIVE", (char*)image_buffer);
     else
-      iupAttribSet(image, "_IUPIMAGE_CDIMAGE", (char*)image_buffer);
+      iupAttribSet(image, "_IUPIMAGE_BUFFER", (char*)image_buffer);
   }
 
   if (!image_buffer)

@@ -433,27 +433,32 @@ static int iScintillaSetStylingAttrib(Ihandle* ih, int style, const char* value)
 
 static int iScintillaSetStandardFontAttrib(Ihandle* ih, const char* value)
 {
-  int size = 0;
-  int is_bold = 0,
-    is_italic = 0, 
-    is_underline = 0,
-    is_strikeout = 0;
-  char typeface[1024];
+  if (!ih->handle)
+    return iupdrvSetStandardFontAttrib(ih, value);
+  else
+  {
+    int size = 0;
+    int is_bold = 0,
+      is_italic = 0,
+      is_underline = 0,
+      is_strikeout = 0;
+    char typeface[1024];
 
-  if (!value)
-    return 0;
-  
-  if (!iupGetFontInfo(value, typeface, &size, &is_bold, &is_italic, &is_underline, &is_strikeout))
-    return 0;
+    if (!value)
+      return 0;
 
-  iScintillaSetFontStyleAttrib(ih, 0, typeface);
-  IupScintillaSendMessage(ih, SCI_STYLESETSIZE, 0, size);
-  
-  iScintillaSetBoldStyleAttrib(ih, 0, is_bold? "Yes": "No");
-  iScintillaSetItalicStyleAttrib(ih, 0, is_italic? "Yes": "No");
-  iScintillaSetUnderlineStyleAttrib(ih, 0, is_underline? "Yes": "No");
+    if (!iupGetFontInfo(value, typeface, &size, &is_bold, &is_italic, &is_underline, &is_strikeout))
+      return 0;
 
-  return iupdrvSetStandardFontAttrib(ih, value);
+    iScintillaSetFontStyleAttrib(ih, 0, typeface);
+    IupScintillaSendMessage(ih, SCI_STYLESETSIZE, 0, size);
+
+    iScintillaSetBoldStyleAttrib(ih, 0, is_bold ? "Yes" : "No");
+    iScintillaSetItalicStyleAttrib(ih, 0, is_italic ? "Yes" : "No");
+    iScintillaSetUnderlineStyleAttrib(ih, 0, is_underline ? "Yes" : "No");
+
+    return iupdrvSetStandardFontAttrib(ih, value);
+  }
 }
 
 static int iScintillaSetFgColorAttrib(Ihandle *ih, const char *value)
@@ -472,7 +477,7 @@ void iupScintillaRegisterStyle(Iclass* ic)
 {
   iupClassRegisterAttribute(ic, "STANDARDFONT", NULL, iScintillaSetStandardFontAttrib, IUPAF_SAMEASSYSTEM, "DEFAULTFONT", IUPAF_NO_SAVE|IUPAF_NOT_MAPPED);
   iupClassRegisterAttribute(ic, "BGCOLOR", NULL, iScintillaSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "TXTBGCOLOR", IUPAF_DEFAULT);  
-  iupClassRegisterAttribute(ic, "FGCOLOR", NULL, iScintillaSetFgColorAttrib, IUPAF_SAMEASSYSTEM, "TXTFGCOLOR", IUPAF_NOT_MAPPED);  /* usually black */    
+  iupClassRegisterAttribute(ic, "FGCOLOR", NULL, iScintillaSetFgColorAttrib, IUPAF_SAMEASSYSTEM, "TXTFGCOLOR", IUPAF_DEFAULT);  /* usually black */
 
   iupClassRegisterAttribute(ic,   "STYLERESET", NULL, iScintillaSetResetDefaultStyleAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic,   "STYLECLEARALL", NULL, iScintillaSetClearAllStyleAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NO_INHERIT);

@@ -37,7 +37,16 @@
 
 static void iMatrixMouseCallMoveCb(Ihandle* ih, int lin, int col)
 {
-  IFnii cb = (IFnii)IupGetCallback(ih, "MOUSEMOVE_CB");
+  IFnii cb;
+
+  if (!ih->data->edit_hide_onfocus && ih->data->editing)
+  {
+    cb = (IFnii)IupGetCallback(ih, "EDITMOUSEMOVE_CB");
+    if (cb)
+      cb(ih, lin, col);
+  }
+
+  cb = (IFnii)IupGetCallback(ih, "MOUSEMOVE_CB");
   if (cb)
     cb(ih, lin, col);
 }
@@ -46,6 +55,17 @@ static int iMatrixMouseCallClickCb(Ihandle* ih, int press, int lin, int col, cha
 {
   IFniis cb;
 
+  if (!ih->data->edit_hide_onfocus && ih->data->editing)
+  {
+    if (press)
+      cb = (IFniis)IupGetCallback(ih, "EDITCLICK_CB");
+    else
+      cb = (IFniis)IupGetCallback(ih, "EDITRELEASE_CB");
+
+    if (cb)
+      cb(ih, lin, col, r);
+  }
+
   if (press)
     cb = (IFniis)IupGetCallback(ih, "CLICK_CB");
   else
@@ -53,13 +73,13 @@ static int iMatrixMouseCallClickCb(Ihandle* ih, int press, int lin, int col, cha
 
   if (cb)
     return cb(ih, lin, col, r);
-                       
+
   return IUP_DEFAULT;
 }
 
-static void iMatrixMouseEdit(Ihandle* ih)
+static void iMatrixMouseEdit(Ihandle* ih, int x, int y)
 {
-  if (iupMatrixEditShow(ih))
+  if (iupMatrixEditShowXY(ih, x, y))
   {
     if (ih->data->datah == ih->data->droph)
       IupSetAttribute(ih->data->datah, "SHOWDROPDOWN", "YES");
@@ -164,7 +184,7 @@ static void iMatrixMouseLeftPress(Ihandle* ih, int lin, int col, int shift, int 
 
         ret = iMatrixIsDropArea(ih, lin, col, x, y);
         if (ret==1)
-          iMatrixMouseEdit(ih);
+          iMatrixMouseEdit(ih, x, y);
         else if (ret==-1)
         {
           IFniii togglevalue_cb = (IFniii)IupGetCallback(ih, "TOGGLEVALUE_CB");
@@ -176,7 +196,7 @@ static void iMatrixMouseLeftPress(Ihandle* ih, int lin, int col, int shift, int 
       }
       else
       {
-        /* only process marks if at titles */
+        /* only process marks here if at titles */
         if (ih->data->mark_mode != IMAT_MARK_NO)
           iupMatrixMarkBlockBegin(ih, ctrl, lin, col);
       }
@@ -198,11 +218,16 @@ int iupMatrixMouseButton_CB(Ihandle* ih, int b, int press, int x, int y, char* r
   {
     ih->data->dclick = 0;
 
-    /* Sometimes the edit Focus callback is not called when the user clicks in the parent canvas, 
-       so we have to compensate that. */
-    iupAttribSet(ih, "EDITIONHIDEFOCUS", "1");
-    iupMatrixEditHide(ih);
-    iupAttribSet(ih, "EDITIONHIDEFOCUS", NULL);
+    /* Sometimes the edit Focus callback is not called when the user clicks in the parent canvas,
+    so we have to compensate that. */
+
+    if (ih->data->edit_hide_onfocus)
+    {
+      ih->data->edit_hidden_byfocus = 1;
+      iupMatrixEditHide(ih);
+      ih->data->edit_hidden_byfocus = 0;
+    }
+
     ih->data->has_focus = 1;
   }
 
@@ -218,7 +243,7 @@ int iupMatrixMouseButton_CB(Ihandle* ih, int b, int press, int x, int y, char* r
         return IUP_DEFAULT;  /* Resize of the width a of a column was started */
 
       if (lin!=-1 && col!=-1)
-        iMatrixMouseLeftPress(ih, lin, col, isshift(r), iscontrol(r), isdouble(r), x, y);
+        iMatrixMouseLeftPress(ih, lin, col, iup_isshift(r), iup_iscontrol(r), iup_isdouble(r), x, y);
     }
     else
     {
@@ -226,7 +251,7 @@ int iupMatrixMouseButton_CB(Ihandle* ih, int b, int press, int x, int y, char* r
         iupMatrixColResFinish(ih, x);
 
       if (ih->data->dclick)  /* when releasing the button from a double click */
-        iMatrixMouseEdit(ih);
+        iMatrixMouseEdit(ih, x, y);
     }
   }
   else

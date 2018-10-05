@@ -6,7 +6,7 @@
 
 #---------------------------------#
 # Tecmake Version
-VERSION = 4.12
+VERSION = 4.13
 
 
 #---------------------------------#
@@ -19,7 +19,7 @@ build: tecmake
 # System Variables Definitions
 
 ifndef TEC_UNAME
-  # Base Defintions
+  # Base Definitions
   TEC_SYSNAME:=$(shell uname -s)
   TEC_SYSVERSION:=$(shell uname -r|cut -f1 -d.)
   TEC_SYSMINOR:=$(shell uname -r|cut -f2 -d.)
@@ -96,24 +96,28 @@ ifndef TEC_UNAME
     endif
   endif
 
-  # Linux and PowerPC
   ifeq ($(TEC_SYSNAME), Linux)
+      # Linux and PowerPC
     ifeq ($(TEC_SYSARCH), ppc)
       TEC_UNAME:=$(TEC_UNAME)ppc
     endif
-  endif
 
-  # 64-bits Linux
-  ifeq ($(TEC_SYSNAME), Linux)
+    # 64-bits Linux
     ifeq ($(TEC_SYSARCH), x64)
       BUILD_64=Yes
       TEC_UNAME:=$(TEC_UNAME)_64
     endif
 
+    # Itanium Linux
     ifeq ($(TEC_SYSARCH), ia64)
       BUILD_64=Yes
       TEC_UNAME:=$(TEC_UNAME)_ia64
     endif
+    
+    # Linux Distribution
+    TEC_DISTNAME=$(shell lsb_release -is)
+    TEC_DISTVERSION=$(shell lsb_release -rs|cut -f1 -d.)
+    TEC_DIST:=$(TEC_DISTNAME)$(TEC_DISTVERSION)
   endif
 
   # 64-bits FreeBSD
@@ -242,6 +246,9 @@ endif
 
 ifndef NO_GTK_DEFAULT
   ifneq ($(findstring cygw, $(TEC_UNAME)), )
+    GTK_DEFAULT = Yes
+  endif
+  ifneq ($(findstring CentOS, $(TEC_UNAME)), )
     GTK_DEFAULT = Yes
   endif
   ifneq ($(findstring Linux, $(TEC_UNAME)), )
@@ -393,20 +400,35 @@ ifdef DBG
   endif
 endif
 
+# Suffix for Lua modules
+ifdef USE_LUA
+  LIBLUASFX := 3
+endif
+ifdef USE_LUA4
+  LIBLUASFX := 4
+endif
+ifdef USE_LUA5
+  LIBLUASFX := 5
+endif
+ifdef USE_LUA50
+  LIBLUASFX := 5
+endif
+ifdef USE_LUA51
+  LIBLUASFX := 51
+endif
+ifdef USE_LUA52
+  LIBLUASFX := 52
+endif
+ifdef USE_LUA53
+  LIBLUASFX := 53
+endif
+
+# Subfolder for Lua Modules
 ifdef LUAMOD_DIR
-  ifdef USE_LUA53
-    LUAMODSFX = 53
-  endif
-  ifdef USE_LUA52
-    LUAMODSFX = 52
-  endif
-  ifdef USE_LUA51
-    LUAMODSFX = 51
-  endif
   ifdef LUAMOD_LIB_DIR
-    TEC_UNAME_LIB_DIR := $(TEC_UNAME_LIB_DIR)/Lua$(LUAMODSFX)
+    TEC_UNAME_LIB_DIR := $(TEC_UNAME_LIB_DIR)/Lua$(LIBLUASFX)
   else
-    TEC_UNAME_DIR := $(TEC_UNAME_DIR)/Lua$(LUAMODSFX)
+    TEC_UNAME_DIR := $(TEC_UNAME_DIR)/Lua$(LIBLUASFX)
   endif
 endif
 
@@ -490,7 +512,7 @@ endif
 #  Platform specific variables
 
 # Definitions for X11
-X11_LIBS := Xmu Xt Xext X11
+X11_LIBS := Xext X11
 #X11_LIB :=
 #X11_INC :=                     #include <X11/X.h>
 
@@ -551,6 +573,27 @@ ifneq ($(findstring Linux, $(TEC_UNAME)), )
   endif
 endif
 
+ifneq ($(findstring CentOS, $(TEC_UNAME)), )
+  UNIX_LINUX = Yes
+  ifdef BUILD_64
+    ifeq ($(TEC_SYSARCH), ia64)
+      STDFLAGS += -fPIC
+      X11_LIB := /usr/X11R6/lib
+    else
+      STDFLAGS += -m64 -fPIC
+      X11_LIB := /usr/X11R6/lib64
+    endif
+  else
+    X11_LIB := /usr/X11R6/lib
+  endif
+  X11_INC := /usr/X11R6/include
+  MOTIFGL_LIB :=
+  ifdef USE_OPENMP
+    STDFLAGS += -fopenmp
+    LIBS += gomp
+  endif
+endif
+
 ifneq ($(findstring IRIX, $(TEC_UNAME)), )
   UNIX_POSIX = Yes
   ifndef NO_LOCAL_LD
@@ -558,7 +601,7 @@ ifneq ($(findstring IRIX, $(TEC_UNAME)), )
   endif
   STDLDFLAGS := -elf -shared -rdata_shared -soname lib$(TARGETNAME).so
   RANLIB := /bin/true
-  X11_LIBS := Xmu Xt X11
+  X11_LIBS := X11
   ifdef BUILD_64
     ifdef USE_CC
       STDFLAGS += -64 -KPIC
@@ -591,7 +634,7 @@ ifneq ($(findstring HP-UX, $(TEC_UNAME)), )
   UNIX_POSIX = Yes
   NO_DYNAMIC ?= Yes
   MOTIF_INC := /usr/include/Motif2.1
-  X11_LIBS := Xt Xext X11
+  X11_LIBS := Xext X11
   OPENGL_LIB := /opt/graphics/OpenGL/lib
   OPENGL_INC := /opt/graphics/OpenGL/include
   STDDEFS := -DTEC_UNAME=$(TEC_UNAME) -DTEC_SYSNAME=$(TEC_SYSNAME) -D$(TEC_BYTEORDER) -D$(TEC_WORDSIZE) -DFUNCPROTO=15
@@ -640,7 +683,7 @@ endif
 
 ifneq ($(findstring MacOS, $(TEC_UNAME)), )
   UNIX_BSD = Yes
-  X11_LIBS := Xmu Xp Xt Xext X11
+  X11_LIBS := Xp Xext X11
   X11_LIB := /usr/X11R6/lib
   X11_INC := /usr/X11R6/include
   MOTIF_INC := /usr/OpenMotif/include
@@ -703,26 +746,26 @@ LUA53 ?= $(TECTOOLS_HOME)/lua53
 
 ifdef USE_LUA
   LUA_SUFFIX ?=
-  LIBLUASUFX := 3
+  LIBLUASFX := 3
 endif
 
 ifdef USE_LUA4
   LUA_SUFFIX ?= 4
-  LIBLUASUFX := 4
+  LIBLUASFX := 4
   override USE_LUA = Yes
   LUA := $(LUA4)
 endif
 
 ifdef USE_LUA5
   LUA_SUFFIX ?= 5
-  LIBLUASUFX := 5
+  LIBLUASFX := 5
   override USE_LUA = Yes
   LUA := $(LUA5)
 endif
 
 ifdef USE_LUA50
   LUA_SUFFIX ?= 50
-  LIBLUASUFX := 5
+  LIBLUASFX := 5
   override USE_LUA = Yes
   LUA := $(LUA50)
   NO_LUALIB := Yes
@@ -730,7 +773,7 @@ endif
 
 ifdef USE_LUA51
   LUA_SUFFIX ?= 5.1
-  LIBLUASUFX := 51
+  LIBLUASFX := 51
   override USE_LUA = Yes
   LUA := $(LUA51)
   NO_LUALIB := Yes
@@ -738,7 +781,7 @@ endif
 
 ifdef USE_LUA52
   LUA_SUFFIX ?= 52
-  LIBLUASUFX := 52
+  LIBLUASFX := 52
   override USE_LUA = Yes
   LUA := $(LUA52)
   NO_LUALIB := Yes
@@ -746,10 +789,13 @@ endif
 
 ifdef USE_LUA53
   LUA_SUFFIX ?= 53
-  LIBLUASUFX := 53
+  LIBLUASFX := 53
   override USE_LUA = Yes
   LUA := $(LUA53)
   NO_LUALIB := Yes
+  ifneq ($(findstring CentOS5, $(TEC_DIST)), )
+    DEFINES += LUA_C89_NUMBERS
+  endif
 endif
 
 ifdef USE_IUP
@@ -791,9 +837,9 @@ ifdef USE_IUPCONTROLS
   
   ifdef USE_IUPLUA
     ifdef USE_STATIC
-      SLIB += $(IUP_LIB)/libiupluacontrols$(LIBLUASUFX).a
+      SLIB += $(IUP_LIB)/libiupluacontrols$(LIBLUASFX).a
     else
-      LIBS += iupluacontrols$(LIBLUASUFX)
+      LIBS += iupluacontrols$(LIBLUASFX)
     endif
     override USE_CDLUA = Yes
   endif
@@ -813,9 +859,9 @@ ifdef USE_IUPGLCONTROLS
   
   ifdef USE_IUPLUA
     ifdef USE_STATIC
-      SLIB += $(IUP_LIB)/libiupluaglcontrols$(LIBLUASUFX).a
+      SLIB += $(IUP_LIB)/libiupluaglcontrols$(LIBLUASFX).a
     else
-      LIBS += iupluaglcontrols$(LIBLUASUFX)
+      LIBS += iupluaglcontrols$(LIBLUASFX)
     endif
   endif
   
@@ -830,9 +876,9 @@ ifdef USE_IMLUA
   override USE_IM = Yes
   IM_LIB ?= $(IM)/lib/$(TEC_UNAME_LIB_DIR)
   ifdef USE_STATIC
-    SLIB += $(IM_LIB)/libimlua$(LIBLUASUFX).a
+    SLIB += $(IM_LIB)/libimlua$(LIBLUASFX).a
   else
-    LIBS += imlua$(LIBLUASUFX)
+    LIBS += imlua$(LIBLUASFX)
   endif
 endif
 
@@ -840,9 +886,9 @@ ifdef USE_CDLUA
   override USE_CD = Yes
   CD_LIB ?= $(CD)/lib/$(TEC_UNAME_LIB_DIR)
   ifdef USE_STATIC
-    SLIB += $(CD_LIB)/libcdlua$(LIBLUASUFX).a
+    SLIB += $(CD_LIB)/libcdlua$(LIBLUASFX).a
   else
-    LIBS += cdlua$(LIBLUASUFX)
+    LIBS += cdlua$(LIBLUASFX)
   endif
 endif
 
@@ -852,20 +898,20 @@ ifdef USE_IUPLUA
   
   ifdef USE_STATIC
     ifdef USE_CD
-      SLIB += $(IUP_LIB)/libiupluacd$(LIBLUASUFX).a
+      SLIB += $(IUP_LIB)/libiupluacd$(LIBLUASFX).a
     endif
     ifdef USE_OPENGL
-      SLIB += $(IUP_LIB)/libiupluagl$(LIBLUASUFX).a
+      SLIB += $(IUP_LIB)/libiupluagl$(LIBLUASFX).a
     endif
-    SLIB += $(IUP_LIB)/libiuplua$(LIBLUASUFX).a
+    SLIB += $(IUP_LIB)/libiuplua$(LIBLUASFX).a
   else
     ifdef USE_CD
-      LIBS += iupluacd$(LIBLUASUFX)
+      LIBS += iupluacd$(LIBLUASFX)
     endif
     ifdef USE_OPENGL
-      LIBS += iupluagl$(LIBLUASUFX)
+      LIBS += iupluagl$(LIBLUASFX)
     endif
-    LIBS += iuplua$(LIBLUASUFX)
+    LIBS += iuplua$(LIBLUASFX)
   endif
 endif
 
@@ -1055,7 +1101,7 @@ ifdef LINK_FREETYPE
   FREETYPE = freetype
   ifneq ($(findstring cygw, $(TEC_UNAME)), )
     # To be compatible with the existing DLLs of cygwin
-    FREETYPE = freetype-6
+    #FREETYPE = freetype-6
   endif
   
   ifndef NO_ZLIB
@@ -1118,7 +1164,7 @@ ifdef USE_MOTIF
   ifndef NO_OVERRIDE
     override USE_X11 = Yes
   endif
-  LIBS += Xm
+  LIBS += Xm Xt
   LDIR += $(MOTIF_LIB)
   STDINCS += $(MOTIF_INC)
   ifneq ($(findstring Linux, $(TEC_UNAME)), )

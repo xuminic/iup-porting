@@ -24,6 +24,7 @@
 #include "iup_dialog.h"
 #include "iup_drvinfo.h"
 #include "iup_drv.h"
+#include "iup_assert.h"
 
 #include "iupwin_drv.h"
 #include "iupwin_handle.h"
@@ -103,19 +104,20 @@ void iupdrvReparent(Ihandle* ih)
 
 void iupdrvBaseLayoutUpdateMethod(Ihandle *ih)
 {
-  SetWindowPos(ih->handle, NULL, ih->x, ih->y, ih->currentwidth, ih->currentheight,
-               SWP_NOZORDER|SWP_NOACTIVATE|SWP_NOOWNERZORDER);
+  if (ih->currentwidth > 0 && ih->currentheight > 0)
+    SetWindowPos(ih->handle, NULL, ih->x, ih->y, ih->currentwidth, ih->currentheight,
+                 SWP_NOZORDER|SWP_NOACTIVATE|SWP_NOOWNERZORDER);
 }
 
 void iupdrvRedrawNow(Ihandle *ih)
 {
-  /* REDRAW Now */
+  /* REDRAW Now - IupRedraw */
   RedrawWindow(ih->handle,NULL,NULL,RDW_ERASE|RDW_INVALIDATE|RDW_INTERNALPAINT|RDW_UPDATENOW);
 }
 
 void iupdrvPostRedraw(Ihandle *ih)
 {
-  /* Post a REDRAW */
+  /* Post a REDRAW - IupUpdate */
   /* can NOT use RDW_NOCHILDREN because IupList has internal children that needs to be redraw */
   RedrawWindow(ih->handle,NULL,NULL,RDW_ERASE|RDW_INVALIDATE|RDW_INTERNALPAINT);  
 }
@@ -146,38 +148,33 @@ void iupwinTrackMouseLeave(Ihandle* ih)
   mouse.cbSize = sizeof(TRACKMOUSEEVENT);
   mouse.dwFlags = TME_LEAVE;
   mouse.hwndTrack = ih->handle;
-  mouse.dwHoverTime = HOVER_DEFAULT;  /* unused */
+  mouse.dwHoverTime = 0;
   TrackMouseEvent(&mouse);
 }
 
-static void winCallEnterLeaveWindow(Ihandle *ih, int enter)
+void iupwinTrackMouseHover(Ihandle* ih)
 {
-  Icallback enter_cb = IupGetCallback(ih, "ENTERWINDOW_CB");
-  Icallback leave_cb = IupGetCallback(ih, "LEAVEWINDOW_CB");
+  TRACKMOUSEEVENT mouse;
+  mouse.cbSize = sizeof(TRACKMOUSEEVENT);
+  mouse.dwFlags = TME_HOVER | TME_LEAVE;
+  mouse.hwndTrack = ih->handle;
+  mouse.dwHoverTime = 10;
+  TrackMouseEvent(&mouse);
+}
 
-  if (!enter_cb && !leave_cb)
-    return;
+static Ihandle* iupwinGetTrackMouseLeave(void)
+{
+  Ihandle* ih = NULL;
 
-  if (enter)
-  {
-    if (!iupAttribGetInt(ih, "_IUPWIN_ENTERWIN"))
-    {
-      /* must be called so WM_MOUSELEAVE can also be called */
-      iupwinTrackMouseLeave(ih);
+  TRACKMOUSEEVENT mouse;
+  mouse.cbSize = sizeof(TRACKMOUSEEVENT);
+  mouse.dwFlags = TME_QUERY | TME_LEAVE;
+  TrackMouseEvent(&mouse);
 
-      iupAttribSet(ih, "_IUPWIN_ENTERWIN", "1");
+  if (mouse.hwndTrack)
+    ih = iupwinHandleGet(mouse.hwndTrack);
 
-      if (enter_cb)
-        enter_cb(ih);
-    }
-  }
-  else 
-  {
-    iupAttribSet(ih, "_IUPWIN_ENTERWIN", NULL);
-
-    if (leave_cb)
-      leave_cb(ih);
-  }
+  return ih;
 }
 
 void iupwinMergeStyle(Ihandle* ih, DWORD old_mask, DWORD value)
@@ -255,11 +252,33 @@ int iupwinBaseMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *resu
       break;
     }
   case WM_MOUSELEAVE:
-    winCallEnterLeaveWindow(ih, 0);
-    break;
+    {
+      Icallback leave_cb = IupGetCallback(ih, "LEAVEWINDOW_CB");
+
+      iupAttribSet(ih, "_IUPWIN_ENTERWIN", NULL);
+
+      if (leave_cb)
+        leave_cb(ih);
+      break;
+    }
+  case WM_MOUSEHOVER:
+    {
+      Icallback enter_cb = IupGetCallback(ih, "ENTERWINDOW_CB");
+      if (enter_cb)
+        enter_cb(ih);
+      break;
+    }
   case WM_MOUSEMOVE:
-    winCallEnterLeaveWindow(ih, 1);
-    break;
+    {
+      if (!iupAttribGet(ih, "_IUPWIN_ENTERWIN"))
+      {
+        /* must be called so WM_MOUSEHOVER and WM_MOUSELEAVE will be called */
+        iupwinTrackMouseHover(ih);
+
+        iupAttribSet(ih, "_IUPWIN_ENTERWIN", "1");
+      }
+      break;
+    }
   case WM_KEYDOWN:
   case WM_SYSKEYDOWN:
     if (!iupwinKeyEvent(ih, (int)wp, 1))
@@ -921,8 +940,8 @@ HWND iupwinCreateWindowEx(HWND hParent, LPCTSTR lpClassName, DWORD dwExStyle, DW
     dwStyle,                      /* window style */
     0,                            /* x-position */
     0,                            /* y-position */
-    CW_USEDEFAULT,                /* default width to avoid 0 */
-    CW_USEDEFAULT,                /* default height to avoid 0 */
+    10,                           /* horizontal size - set this to avoid initial size problems */
+    10,                           /* vertical size */
     hParent,                      /* window parent */
     (HMENU)serial,                /* child identifier */
     iupwin_hinstance,             /* instance of app. */

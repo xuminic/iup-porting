@@ -103,7 +103,9 @@ struct _IcontrolData
   Ihandle* texth;   /* Text handle                    */
   Ihandle* droph;   /* Dropdown handle                */
   Ihandle* datah;   /* Current active edition element, may be equal to texth or droph */
-  int editing;
+  int editing,
+    edit_hide_onfocus, edit_lin, edit_col,
+    edit_hidden_byfocus;  /* Used by MatrixList */
 
   cdCanvas* cd_canvas;
 
@@ -134,8 +136,7 @@ struct _IcontrolData
   /* ColRes AUX */
   int colres_dragging,   /* indicates if it is being made a column resize  */
       colres_drag_col,   /* column being resized, handler is at right of the column */
-      colres_drag_col_start_x, /* handler start position */
-      colres_drag_col_last_x;  /* previous position */
+      colres_drag_col_start_x; /* handler start position */
   long colres_color;
 
   /* Mark AUX */

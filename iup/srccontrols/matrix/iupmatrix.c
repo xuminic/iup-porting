@@ -246,6 +246,12 @@ static int iMatrixSetCaretAttrib(Ihandle* ih, const char* value)
   return 1;
 }
 
+static int iMatrixSetInsertAttrib(Ihandle* ih, const char* value)
+{
+  IupStoreAttribute(ih->data->texth, "INSERT", value);
+  return 1;
+}
+
 static char* iMatrixGetCaretAttrib(Ihandle* ih)
 {
   return IupGetAttribute(ih->data->texth, "CARET");
@@ -358,6 +364,36 @@ static int iMatrixSetMarkMultipleAttrib(Ihandle* ih, const char* value)
 static char* iMatrixGetMarkMultipleAttrib(Ihandle* ih)
 {
   return iupStrReturnBoolean (ih->data->mark_multiple); 
+}
+
+static int iMatrixSetEditHideOnFocusAttrib(Ihandle* ih, const char* value)
+{
+  if (iupStrBoolean(value))
+    ih->data->edit_hide_onfocus = 1;
+  else
+    ih->data->edit_hide_onfocus = 0;
+  return 0;
+}
+
+static char* iMatrixGetEditHideOnFocusAttrib(Ihandle* ih)
+{
+  return iupStrReturnBoolean(ih->data->edit_hide_onfocus);
+}
+
+static char* iMatrixGetEditCellAttrib(Ihandle* ih)
+{
+  if (ih->data->editing)
+    return iupStrReturnIntInt(ih->data->edit_lin, ih->data->edit_col, ':');
+  else
+    return NULL;
+}
+
+static char* iMatrixGetEditTextAttrib(Ihandle* ih)
+{
+  if (ih->data->editing)
+    return iupStrReturnBoolean(ih->data->datah == ih->data->texth);
+  else
+    return NULL;
 }
 
 static int iMatrixSetEditModeAttrib(Ihandle* ih, const char* value)
@@ -793,7 +829,7 @@ static int iMatrixSetSizeAttrib(Ihandle* ih, int pos, const char* value)
   (void)value;
   ih->data->need_calcsize = 1;
   IupUpdate(ih);  /* post a redraw */
-  return 1;
+  return 1;  /* always save in the hash table, so when FONT is changed SIZE can be updated */
 }
 
 static char* iMatrixGetWidthAttrib(Ihandle* ih, int col)
@@ -847,6 +883,13 @@ static char* iMatrixGetIdValueAttrib(Ihandle* ih, int lin, int col)
 {
   if (iupMatrixCheckCellPos(ih, lin, col))
     return iupMatrixGetValue(ih, lin, col);
+  return NULL;
+}
+
+static char* iMatrixGetCellAttrib(Ihandle* ih, int lin, int col)
+{
+  if (iupMatrixCheckCellPos(ih, lin, col))
+    return iupMatrixGetValueDisplay(ih, lin, col);
   return NULL;
 }
 
@@ -1290,11 +1333,8 @@ static char* iMatrixGetMaskDataAttrib(Ihandle* ih)
 
 static int iMatrixSetActiveAttrib(Ihandle* ih, const char* value)
 {
-  if (!iupStrBoolean(value))
-  {
-    if (ih->data->editing || iupMatrixEditIsVisible(ih))  /* redundant check, left for historical reasons */
+  if (!iupStrBoolean(value) && ih->data->editing)
       iupMatrixEditHide(ih);
-  }
 
   iupBaseSetActiveAttrib(ih, value);
   iupMatrixDraw(ih, 1);
@@ -1303,11 +1343,8 @@ static int iMatrixSetActiveAttrib(Ihandle* ih, const char* value)
 
 static int iMatrixSetVisibleAttrib(Ihandle* ih, const char* value)
 {
-  if (!iupStrBoolean(value))
-  {
-    if (ih->data->editing || iupMatrixEditIsVisible(ih))  /* redundant check, left for historical reasons */
-      iupMatrixEditHide(ih);
-  }
+  if (!iupStrBoolean(value) && ih->data->editing)
+    iupMatrixEditHide(ih);
 
   return iupBaseSetVisibleAttrib(ih, value);
 }
@@ -1350,7 +1387,14 @@ static int iMatrixResize_CB(Ihandle* ih)
   cdCanvasGetSize(ih->data->cd_canvas, &ih->data->w, &ih->data->h, NULL, NULL);
 
   if (old_w != ih->data->w || old_h != ih->data->h)
-    iupMatrixEditHide(ih);
+  {
+    if (ih->data->edit_hide_onfocus)
+    {
+      ih->data->edit_hidden_byfocus = 1;
+      iupMatrixEditHide(ih);
+      ih->data->edit_hidden_byfocus = 0;
+    }
+  }
 
   ih->data->need_calcsize = 1;
 
@@ -1428,6 +1472,7 @@ static int iMatrixCreateMethod(Ihandle* ih, void **params)
   ih->data->mark_col1 = -1;
   ih->data->mark_lin2 = -1;
   ih->data->mark_col2 = -1;
+  ih->data->edit_hide_onfocus = 1;
 
   return IUP_NOERROR;
 }
@@ -1653,6 +1698,9 @@ Iclass* iupMatrixNewClass(void)
   iupClassRegisterCallback(ic, "COLRESIZE_CB", "i");
   iupClassRegisterCallback(ic, "TOGGLEVALUE_CB", "iii");
   iupClassRegisterCallback(ic, "RESIZEMATRIX_CB", "ii");
+  iupClassRegisterCallback(ic, "EDITCLICK_CB", "iis");
+  iupClassRegisterCallback(ic, "EDITRELEASE_CB", "iis");
+  iupClassRegisterCallback(ic, "EDITMOUSEMOVE_CB", "ii");
   /* --- Drawing --- */
   iupClassRegisterCallback(ic, "BGCOLOR_CB", "iiIII");
   iupClassRegisterCallback(ic, "FGCOLOR_CB", "iiIII");
@@ -1688,7 +1736,7 @@ Iclass* iupMatrixNewClass(void)
 
   /* IupMatrix Attributes - CELL */
   iupClassRegisterAttributeId2(ic, "IDVALUE", iMatrixGetIdValueAttrib, iMatrixSetIdValueAttrib, IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "FOCUS_CELL", iMatrixGetFocusCellAttrib, iMatrixSetFocusCellAttrib, IUPAF_SAMEASSYSTEM, "1:1", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT); /* can be NOT mapped */
+  iupClassRegisterAttribute(ic, "FOCUS_CELL", iMatrixGetFocusCellAttrib, iMatrixSetFocusCellAttrib, IUPAF_SAMEASSYSTEM, "1:1", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT); /* can be NOT mapped */
   iupClassRegisterAttribute(ic, "VALUE", iMatrixGetValueAttrib, iMatrixSetValueAttrib, NULL, NULL, IUPAF_NO_SAVE|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId2(ic, "BGCOLOR", iMatrixGetBgColorAttrib, iMatrixSetBgColorAttrib, IUPAF_NOT_MAPPED);
   iupClassRegisterAttributeId2(ic, "FGCOLOR", NULL, iMatrixSetFgColorAttrib, IUPAF_NOT_MAPPED);
@@ -1702,6 +1750,7 @@ Iclass* iupMatrixNewClass(void)
   iupClassRegisterAttributeId2(ic, "CELLSIZE", iMatrixGetCellSizeAttrib, NULL, IUPAF_READONLY);
   iupClassRegisterAttributeId2(ic, "CELLBGCOLOR", iMatrixGetCellBgColorAttrib, NULL, IUPAF_READONLY);
   iupClassRegisterAttributeId2(ic, "CELLFGCOLOR", iMatrixGetCellFgColorAttrib, NULL, IUPAF_READONLY);
+  iupClassRegisterAttributeId2(ic, "CELL", iMatrixGetCellAttrib, NULL, IUPAF_READONLY | IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId2(ic, "TOGGLEVALUE", NULL, (IattribSetId2Func)iMatrixSetNeedRedraw, IUPAF_NO_INHERIT);
 
   /* IupMatrix Attributes - COLUMN */
@@ -1761,9 +1810,14 @@ Iclass* iupMatrixNewClass(void)
 
   /* IupMatrix Attributes - EDITION */
   iupClassRegisterAttribute(ic, "CARET", iMatrixGetCaretAttrib, iMatrixSetCaretAttrib, NULL, NULL, IUPAF_NO_SAVE|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "SELECTION", iMatrixGetSelectionAttrib, iMatrixSetSelectionAttrib, NULL, NULL, IUPAF_NO_SAVE|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "INSERT", NULL, iMatrixSetInsertAttrib, NULL, NULL, IUPAF_WRITEONLY | IUPAF_NO_SAVE | IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "SELECTION", iMatrixGetSelectionAttrib, iMatrixSetSelectionAttrib, NULL, NULL, IUPAF_NO_SAVE | IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "MULTILINE", iMatrixGetMultilineAttrib, iMatrixSetMultilineAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "MASK", NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "EDITHIDEONFOCUS", iMatrixGetEditHideOnFocusAttrib, iMatrixSetEditHideOnFocusAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "EDITCELL", iMatrixGetEditCellAttrib, NULL, NULL, NULL, IUPAF_READONLY | IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "EDITTEXT", iMatrixGetEditTextAttrib, NULL, NULL, NULL, IUPAF_READONLY | IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "EDITVALUE", NULL, NULL, NULL, NULL, IUPAF_READONLY | IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
 
   /* IupMatrix Attributes - GENERAL */
   iupClassRegisterAttribute(ic, "USETITLESIZE", iMatrixGetUseTitleSizeAttrib, iMatrixSetUseTitleSizeAttrib, IUPAF_SAMEASSYSTEM, "NO", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);

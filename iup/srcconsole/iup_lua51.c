@@ -3,6 +3,11 @@
 ** See Copyright Notice in lua.h
 */
 
+#if 0
+/* To check for memory leaks */
+#define VLD_MAX_DATA_DUMP 80
+#include <vld.h>
+#endif
 
 #include <signal.h>
 #include <stdio.h>
@@ -400,6 +405,9 @@ static void iuplua_openlibs (lua_State *L) {
   lua_setglobal(L, "_COPYRIGHT");  /* set global _COPYRIGHT */
 
 #ifdef USE_STATIC
+  /* disable require */
+  dostring(L, "function require() end ", "static_require");
+
   /* iuplua initialization */
   iuplua_open(L);
 
