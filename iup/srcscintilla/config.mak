@@ -11,11 +11,13 @@ ifdef DBG
   endif
 endif  
 
+DEF_FILE = iup_scintilla.def
+
 INCLUDES =  ../include ../src .
 LDIR = ../lib/$(TEC_UNAME)
 LIBS = iup
 
-DEFINES += STATIC_BUILD SCI_LEXER SCI_NAMESPACE
+DEFINES += STATIC_BUILD SCI_LEXER 
 
 # Supported only in Windows and GTK
 
@@ -33,18 +35,19 @@ endif
 
 ifdef USE_GTK
   CHECK_GTK = Yes
+  DEFINES += NO_CXX11_REGEX
   DEFINES += GTK GTK_DISABLE_DEPRECATED 
   ifdef USE_GTK3
     DEFINES += GDK_DISABLE_DEPRECATED GSEAL_ENABLE G_HAVE_ISO_VARARGS
   endif
-  INCLUDES += ../src/gtk ../srcscintilla/lexlib ../srcscintilla/src ../srcscintilla/include ../srcscintilla/gtk
+  INCLUDES += ../src/gtk lexlib src include gtk
   INCLUDES += gtk
   ifneq ($(findstring cygw, $(TEC_UNAME)), )
     INCLUDES += $(GTK)/include/cairo
     LIBS += pangocairo-1.0 cairo
   endif
 else
-  INCLUDES += ../src/win ../srcscintilla/lexlib ../srcscintilla/src ../srcscintilla/include ../srcscintilla/win32
+  INCLUDES += ../src/win lexlib src include win32
   INCLUDES += win
   LIBS += imm32
   DEFINES += UNICODE
@@ -93,7 +96,7 @@ SRCSCINTILLA += lexers/LexA68k.cxx lexers/LexAbaqus.cxx lexers/LexAda.cxx lexers
         lexers/LexKVIrc.cxx lexers/LexLaTeX.cxx lexers/LexSTTXT.cxx lexers/LexRust.cxx \
         lexers/LexDMAP.cxx lexers/LexDMIS.cxx lexers/LexBibTeX.cxx lexers/LexHex.cxx lexers/LexAsm.cxx \
         lexers/LexRegistry.cxx lexers/LexBatch.cxx lexers/LexDiff.cxx lexers/LexErrorList.cxx \
-        lexers/LexMake.cxx lexers/LexNull.cxx lexers/LexProps.cxx
+        lexers/LexMake.cxx lexers/LexNull.cxx lexers/LexProps.cxx lexers/LexJSON.cxx
 				
 SRCSCINTILLA += lexlib/Accessor.cxx lexlib/CharacterSet.cxx lexlib/LexerBase.cxx lexlib/LexerModule.cxx \
                 lexlib/LexerNoExceptions.cxx lexlib/LexerSimple.cxx lexlib/PropSetSimple.cxx \

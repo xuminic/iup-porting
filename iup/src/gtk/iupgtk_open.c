@@ -235,11 +235,12 @@ static void gtkUpdateGlobalColors(GtkWidget* dialog, GtkWidget* text)
 
   context = gtk_widget_get_style_context(text);
 
-  gtk_style_context_get_background_color(context, GTK_STATE_FLAG_NORMAL, &color);
-  gtkSetGlobalColorAttrib("TXTBGCOLOR", &color);
-
   gtk_style_context_get_color(context, GTK_STATE_FLAG_NORMAL, &color);
   gtkSetGlobalColorAttrib("TXTFGCOLOR", &color);
+
+  gtk_style_context_get_background_color(context, GTK_STATE_FLAG_NORMAL, &color);
+  if (color.alpha == 0) { color.red = 1; color.green = 1; color.blue = 1; }  /* TODO: workaround for GTK > 3.14 */
+  gtkSetGlobalColorAttrib("TXTBGCOLOR", &color);
 
   gtk_style_context_get_background_color(context, GTK_STATE_FLAG_SELECTED, &color);
   gtkSetGlobalColorAttrib("TXTHLCOLOR", &color);
@@ -361,3 +362,12 @@ void iupdrvClose(void)
 {
   iupgtkStrRelease();
 }
+
+/* TODO:  (deprecated)
+
+foreground-gdk => -rgba
+background-gdk
+
+gtk_widget_reparent has been deprecated since version 3.14 and should not be used in newly-written code.
+Use gtk_container_remove() and gtk_container_add().
+*/

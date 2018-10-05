@@ -129,7 +129,7 @@
     <ClCompile Include="..\src\gtk\iupgtk_calendar.c">
       <Filter>src_controls</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\gtk\iupgtk_datepick.c">
+    <ClCompile Include="..\src\iup_datepick.c">
       <Filter>src_controls</Filter>
     </ClCompile>
   </ItemGroup>

@@ -102,7 +102,16 @@ static void gtkTabsUpdatePagePadding(Ihandle* ih)
   {
     GtkWidget* tab_label = (GtkWidget*)iupAttribGet(child, "_IUPGTK_TABLABEL");
     if (tab_label)
+    {
+#if GTK_CHECK_VERSION(3, 14, 0)
+      g_object_set(G_OBJECT(tab_label), "margin-bottom", ih->data->vert_padding, NULL);
+      g_object_set(G_OBJECT(tab_label), "margin-top", ih->data->vert_padding, NULL);
+      g_object_set(G_OBJECT(tab_label), "margin-left", ih->data->horiz_padding, NULL);
+      g_object_set(G_OBJECT(tab_label), "margin-right", ih->data->horiz_padding, NULL);
+#else
       gtk_misc_set_padding((GtkMisc*)tab_label, ih->data->horiz_padding, ih->data->vert_padding);
+#endif
+    }
   }
 }
 
@@ -112,7 +121,7 @@ static void gtkTabsUpdatePagePadding(Ihandle* ih)
 /* ------------------------------------------------------------------------- */
 
 
-static int gtkTabsSetPaddingAttrib(Ihandle* ih, const char* value)
+static int gtkTabsSetTabPaddingAttrib(Ihandle* ih, const char* value)
 {
   iupStrToIntInt(value, &ih->data->horiz_padding, &ih->data->vert_padding, 'x');
 
@@ -222,9 +231,9 @@ int iupdrvTabsIsTabVisible(Ihandle* child, int pos)
   return iupgtkIsVisible(tab_page);
 }
 
-static int gtkTabsSetStandardFontAttrib(Ihandle* ih, const char* value)
+static int gtkTabsSetFontAttrib(Ihandle* ih, const char* value)
 {
-  iupdrvSetStandardFontAttrib(ih, value);
+  iupdrvSetFontAttrib(ih, value);
   if (ih->handle)
     gtkTabsUpdatePageFont(ih);
   return 1;
@@ -624,7 +633,7 @@ void iupdrvTabsInitClass(Iclass* ic)
   iupClassRegisterCallback(ic, "TABCLOSE_CB", "i");
 
   /* Common */
-  iupClassRegisterAttribute(ic, "STANDARDFONT", NULL, gtkTabsSetStandardFontAttrib, IUPAF_SAMEASSYSTEM, "DEFAULTFONT", IUPAF_NO_SAVE|IUPAF_NOT_MAPPED);
+  iupClassRegisterAttribute(ic, "FONT", NULL, gtkTabsSetFontAttrib, IUPAF_SAMEASSYSTEM, "DEFAULTFONT", IUPAF_NOT_MAPPED);  /* inherited */
 
   /* Visual */
   iupClassRegisterAttribute(ic, "BGCOLOR", NULL, gtkTabsSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_DEFAULT);
@@ -636,7 +645,7 @@ void iupdrvTabsInitClass(Iclass* ic)
   iupClassRegisterAttributeId(ic, "TABTITLE", iupTabsGetTitleAttrib, gtkTabsSetTabTitleAttrib, IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "TABIMAGE", NULL, gtkTabsSetTabImageAttrib, IUPAF_IHANDLENAME|IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "TABVISIBLE", iupTabsGetTabVisibleAttrib, gtkTabsSetTabVisibleAttrib, IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "PADDING", iupTabsGetPaddingAttrib, gtkTabsSetPaddingAttrib, IUPAF_SAMEASSYSTEM, "0x0", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "TABPADDING", iupTabsGetTabPaddingAttrib, gtkTabsSetTabPaddingAttrib, IUPAF_SAMEASSYSTEM, "0x0", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 
   /* NOT supported */
   iupClassRegisterAttribute(ic, "MULTILINE", NULL, NULL, NULL, NULL, IUPAF_NOT_SUPPORTED|IUPAF_DEFAULT);

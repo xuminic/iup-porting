@@ -49,7 +49,7 @@ SRC = iup_array.c iup_callback.c iup_dlglist.c iup_attrib.c iup_focus.c iup_font
       iup_sbox.c iup_scrollbox.c iup_normalizer.c iup_tree.c iup_split.c iup_layoutdlg.c \
       iup_recplay.c iup_progressdlg.c iup_expander.c iup_open.c iup_table.c iup_canvas.c \
       iup_gridbox.c iup_detachbox.c iup_backgroundbox.c iup_linefile.c iup_config.c \
-      iup_flatbutton.c iup_animatedlabel.c
+      iup_flatbutton.c iup_animatedlabel.c iup_draw.c
 
 ifdef USE_HAIKU
   # Since Haiku has no GTK and no Motif, we can only use the native implementation
@@ -65,11 +65,11 @@ ifdef USE_HAIKU
          haiku/iuphaiku_tips.c haiku/iuphaiku_toggle.cpp haiku/iuphaiku_tree.cpp \
          haiku/iuphaiku_val.cpp gtk/iupgtk_draw_cairo.c gtk/iupgtk_key.c
   INCLUDES += haiku
-#  DEFINES += _WIN32_WINNT=$(WIN32VER) _WIN32_IE=$(WIN32VER) WINVER=$(WIN32VER) NOTREEVIEW
+#  DEFINES += 
 else
 ifdef USE_GTK
   CHECK_GTK = Yes
-  #DEFINES += GTK_DISABLE_DEPRECATED 
+  DEFINES += GTK_DISABLE_DEPRECATED 
   ifdef USE_GTK3
     DEFINES += GDK_DISABLE_DEPRECATED GSEAL_ENABLE
   endif
@@ -107,7 +107,7 @@ ifdef USE_GTK
   
   ifdef USE_HILDON
     DEFINES += HILDON
-    INCLUDES += /usr/include/hildon-1
+    STDINCS += /usr/include/hildon-1
     LIBS += hildon-1
   endif
 else

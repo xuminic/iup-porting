@@ -723,7 +723,7 @@ static void iPlotPropertiesAddParamBox(Ihandle* ih, Ihandle* parent, iPlotAttrib
   while (attribs[count].name)
   {
     sprintf(format, "%s%%%s%s%s\n", attribs[count].label, attribs[count].type, attribs[count].extra, attribs[count].tip);
-    params[count] = IupParamf(format);
+    params[count] = IupParam(format);
 
     if (attribs[count].name[0] != 0)
     {
@@ -741,11 +741,14 @@ static void iPlotPropertiesAddParamBox(Ihandle* ih, Ihandle* parent, iPlotAttrib
     count++;
   }
 
-  params[count] = IupParamf("%u[,,_@IUP_CLOSE]");
+  params[count] = IupParam("%u[,,_@IUP_CLOSE]");
   count++;
+  params[count] = NULL;
 
-  Ihandle* parambox = IupParamBox(parent, params, count);
+  Ihandle* parambox = IupParamBoxv(params);
   IupSetCallback(parambox, "PARAM_CB", (Icallback)iPlotPropertiesParam_CB);
+
+  IupAppend(parent, parambox);
 
   count = IupGetInt(parambox, "PARAMCOUNT");
   for (int i = 0; i < count; i++)
@@ -836,8 +839,6 @@ static int iPlotDatasetProperties_CB(Ihandle* ih_item)
   strcpy(name, ds_name);
 
   const char* ds_color = IupGetAttribute(ih, "DS_COLOR");
-  if (!ds_color)
-    ds_color = ds_color;
   char color[30];
   strcpy(color, ds_color);
 
@@ -856,16 +857,28 @@ static int iPlotDatasetProperties_CB(Ihandle* ih_item)
 
   int marksize = IupGetInt(ih, "DS_MARKSIZE");
 
+  int barOutline = IupGetInt(ih, "DS_BAROUTLINE");
+
+  const char* ds_barOutlineColor = IupGetAttribute(ih, "DS_BAROUTLINECOLOR");
+  char barOutlineColor[30];
+  strcpy(barOutlineColor, ds_barOutlineColor);
+
+  int barSpacing = IupGetInt(ih, "DS_BARSPACING");
+
   char format[1024] =
     "_@IUP_NAME%s\n"
     "_@IUP_COLOR%c\n"
-    "_@IUP_MODE%l|_@IUP_LINES|_@IUP_MARKS|_@IUP_MARKSLINES|_@IUP_AREA_@IUP_BARS|_@IUP_STEMS|_@IUP_MARKSSTEMS|_@IUP_HORIZONTALBARS|_@IUP_MULTIBARS|_@IUP_STEPS|_@IUP_ERRORBARS|\n"
+    "_@IUP_MODE%l|_@IUP_LINES|_@IUP_MARKS|_@IUP_MARKSLINES|_@IUP_AREA|_@IUP_BARS|_@IUP_STEMS|_@IUP_MARKSSTEMS|_@IUP_HORIZONTALBARS|_@IUP_MULTIBARS|_@IUP_STEPS|_@IUP_ERRORBARS|\n"
     "_@IUP_LINESTYLE%l|_@IUP_CONTINUOUS|_@IUP_DASHED|_@IUP_DOTTED|_@IUP_DASH_DOT|_@IUP_DASH_DOT_DOT|\n"
     "_@IUP_LINEWIDTH%i[1,,]\n"
     "_@IUP_MARKSTYLE%l|_@IUP_PLUS|_@IUP_STAR|_@IUP_CIRCLE|_@IUP_X|_@IUP_BOX|_@IUP_DIAMOND|_@IUP_HOLLOW_CIRCLE|_@IUP_HOLLOW_BOX|_@IUP_HOLLOW_DIAMOND|\n"
-    "_@IUP_MARKSIZE%i[1,,]\n";
+    "_@IUP_MARKSIZE%i[1,,]\n"
+    "_@IUP_BARSPACING%i[0,100]\n"
+    "_@IUP_BAROUTLINE%b[false,true]\n"
+    "_@IUP_BAROUTLINECOLOR%c\n";
 
-  if (!IupGetParam("_@IUP_DATASETPROPERTIESDLG", NULL, NULL, format, name, color, &mode, &linestyle, &linewidth, &markstyle, &marksize, NULL))
+  if (!IupGetParam("_@IUP_DATASETPROPERTIESDLG", NULL, NULL, format, 
+                   name, color, &mode, &linestyle, &linewidth, &markstyle, &marksize, &barSpacing, &barOutline, barOutlineColor, NULL))
     return IUP_DEFAULT;
 
   IupSetStrAttribute(ih, "DS_NAME", name);
@@ -883,6 +896,15 @@ static int iPlotDatasetProperties_CB(Ihandle* ih_item)
   IupSetStrAttribute(ih, "DS_MARKSTYLE", ds_markstyle);
 
   IupSetInt(ih, "DS_MARKSIZE", marksize);
+
+  if (barOutline == 1)
+    IupSetAttribute(ih, "DS_BAROUTLINE", "Yes");
+  else
+    IupSetAttribute(ih, "DS_BAROUTLINE", "No");
+
+  IupSetInt(ih, "DS_BARSPACING", barSpacing);
+
+  IupSetStrAttribute(ih, "DS_BAROUTLINECOLOR", barOutlineColor);
 
   IupSetAttribute(ih, "REDRAW", NULL);
 
@@ -2407,7 +2429,7 @@ static void iPlotSetClassUpdate(Iclass* ic)
     IupSetLanguageString("IUP_HORIZONTALBARS", "Horizontal Bars");
     IupSetLanguageString("IUP_MULTIBARS", "Multiple Bars");
     IupSetLanguageString("IUP_ERRORBARS", "Error Bars");
-    IupSetLanguageString("IUP_STEP", "Step");
+    IupSetLanguageString("IUP_STEPS", "Steps");
     IupSetLanguageString("IUP_LINESTYLE", "Line Style:");
     IupSetLanguageString("IUP_CONTINUOUS", "Continuous");
     IupSetLanguageString("IUP_DASHED", "Dashed");
@@ -2416,6 +2438,9 @@ static void iPlotSetClassUpdate(Iclass* ic)
     IupSetLanguageString("IUP_DASH_DOT_DOT", "Dash Dot Dot");
     IupSetLanguageString("IUP_LINEWIDTH", "Line Width:");
     IupSetLanguageString("IUP_MARKSTYLE", "Mark Style:");
+    IupSetLanguageString("IUP_BAROUTLINE", "Bar Outline:");
+    IupSetLanguageString("IUP_BARSPACING", "Bar Spacing:");
+    IupSetLanguageString("IUP_BAROUTLINECOLOR", "Bar Outline Color:");
     IupSetLanguageString("IUP_PLUS", "Plus");
     IupSetLanguageString("IUP_STAR", "Star");
     IupSetLanguageString("IUP_CIRCLE", "Circle");
@@ -2528,7 +2553,7 @@ static void iPlotSetClassUpdate(Iclass* ic)
     IupSetLanguageString("IUP_HORIZONTALBARS", "Barras Horizontais");
     IupSetLanguageString("IUP_MULTIBARS", "Barras Múltiplas");
     IupSetLanguageString("IUP_ERRORBARS", "Barras de Erro");
-    IupSetLanguageString("IUP_STEP", "Degrau");
+    IupSetLanguageString("IUP_STEPS", "Degraus");
     IupSetLanguageString("IUP_LINESTYLE", "Estilo de Linha:");
     IupSetLanguageString("IUP_CONTINUOUS", "Contínuo");
     IupSetLanguageString("IUP_DASHED", "Tracejada");
@@ -2537,6 +2562,9 @@ static void iPlotSetClassUpdate(Iclass* ic)
     IupSetLanguageString("IUP_DASH_DOT_DOT", "Traço Ponto Ponto");
     IupSetLanguageString("IUP_LINEWIDTH", "Largura de Linha:");
     IupSetLanguageString("IUP_MARKSTYLE", "Estilo de Marca:");
+    IupSetLanguageString("IUP_BAROUTLINE", "Moldura da Barra:");
+    IupSetLanguageString("IUP_BARSPACING", "Espaçamento da Barra:");
+    IupSetLanguageString("IUP_BAROUTLINECOLOR", "Cor da Moldura da Barra:");
     IupSetLanguageString("IUP_PLUS", "Mais");
     IupSetLanguageString("IUP_STAR", "Estrela");
     IupSetLanguageString("IUP_CIRCLE", "Círculo");
@@ -2645,6 +2673,7 @@ static void iPlotSetClassUpdate(Iclass* ic)
       IupSetLanguageString("IUP_MINOR", "SecundÃ¡rio:");
       IupSetLanguageString("IUP_ROTATE", "RotaÃ§Ã£o:");
       IupSetLanguageString("IUP_ANGLE", "Ã‚ngulo:");
+      IupSetLanguageString("IUP_BARSPACING", "EspaÃ§amento da Barra:");
     }
   }
 }

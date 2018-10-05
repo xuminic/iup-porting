@@ -11,11 +11,13 @@ ifdef DBG
   endif
 endif  
 
+DEF_FILE = iup_scintilla.def
+
 INCLUDES =  ../include ../src .
 LDIR = ../lib/$(TEC_UNAME)
 LIBS = iup
 
-DEFINES += STATIC_BUILD SCI_LEXER SCI_NAMESPACE
+DEFINES += STATIC_BUILD SCI_LEXER
 
 # Supported only in Windows and GTK
 
@@ -33,6 +35,7 @@ endif
 
 ifdef USE_GTK
   CHECK_GTK = Yes
+  DEFINES += NO_CXX11_REGEX
   DEFINES += GTK GTK_DISABLE_DEPRECATED 
   ifdef USE_GTK3
     DEFINES += GDK_DISABLE_DEPRECATED GSEAL_ENABLE G_HAVE_ISO_VARARGS
