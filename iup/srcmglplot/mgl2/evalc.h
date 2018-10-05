@@ -27,21 +27,21 @@ class MGL_EXPORT mglFormulaC					// ������ ��� �����
 {
 public:
 	/// Evaluates the formula for 'x','r'=\a x, 'y','n'=\a y, 'z','t'=\a z, 'u'=\a u
-	dual Calc(dual x,dual y=0,dual z=0,dual u=0) const;
+	dual Calc(dual x,dual y=0,dual z=0,dual u=0) const MGL_FUNC_PURE;
 	/// Evaluates the formula for 'x, y, z, u, v, w'
-	dual Calc(dual x,dual y,dual z,dual u,dual v,dual w) const;
+	dual Calc(dual x,dual y,dual z,dual u,dual v,dual w) const MGL_FUNC_PURE;
 	/// Evaluates the formula for variables var
-	dual Calc(const dual var[MGL_VS]) const;
+	dual Calc(const dual var[MGL_VS]) const MGL_FUNC_PURE;
 	/// Return error code
-	int GetError() const;
+	inline int GetError() const	{	return Error;	}
 	/// Parse the formula str and create formula-tree
 	mglFormulaC(const char *str);
 	/// Clean up formula-tree
 	virtual ~mglFormulaC();
 protected:
-	dual CalcIn(const dual *a1) const;
+	dual CalcIn(const dual *a1) const MGL_FUNC_PURE;
 	mglFormulaC *Left,*Right;	// first and second argument of the function
-	int Kod;						// the function ID
+	int Kod;					// the function ID
 	dual Res;					// the number or the variable ID
 	static int Error;
 };

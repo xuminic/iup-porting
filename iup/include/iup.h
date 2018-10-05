@@ -19,11 +19,11 @@ extern "C" {
 
 
 #define IUP_NAME "IUP - Portable User Interface"
-#define IUP_COPYRIGHT  "Copyright (C) 1994-2014 Tecgraf, PUC-Rio."
+#define IUP_COPYRIGHT  "Copyright (C) 1994-2015 Tecgraf, PUC-Rio."
 #define IUP_DESCRIPTION	"Multi-platform toolkit for building graphical user interfaces."
-#define IUP_VERSION "3.12"         /* bug fixes are reported only by IupVersion functions */
-#define IUP_VERSION_NUMBER 312000
-#define IUP_VERSION_DATE "2014/11/19"  /* does not include bug fix releases */
+#define IUP_VERSION "3.13"         /* bug fixes are reported only by IupVersion functions */
+#define IUP_VERSION_NUMBER 313000
+#define IUP_VERSION_DATE "2015/02/04"  /* does not include bug fix releases */
 
 typedef struct Ihandle_ Ihandle;
 typedef int (*Icallback)(Ihandle*);
@@ -307,6 +307,8 @@ int  IupGetColor(int x, int y, unsigned char* r, unsigned char* g, unsigned char
 typedef int (*Iparamcb)(Ihandle* dialog, int param_index, void* user_data);
 int IupGetParam(const char* title, Iparamcb action, void* user_data, const char* format,...);
 int IupGetParamv(const char* title, Iparamcb action, void* user_data, const char* format, int param_count, int param_extra, void** param_data);
+Ihandle* IupParamf(const char* format);
+Ihandle* IupParamBox(Ihandle* parent, Ihandle** params, int count);
 
 Ihandle* IupLayoutDialog(Ihandle* dialog);
 Ihandle* IupElementPropertiesDialog(Ihandle* elem);
@@ -393,11 +395,13 @@ enum{IUP_SBUP,   IUP_SBDN,    IUP_SBPGUP,   IUP_SBPGDN,    IUP_SBPOSV, IUP_SBDRA
 /************************************************************************/
 /*                      Pre-Defined Masks                               */
 /************************************************************************/
-#define IUP_MASK_FLOAT    "[+/-]?(/d+/.?/d*|/./d+)"
-#define IUP_MASK_UFLOAT   "(/d+/.?/d*|/./d+)"
-#define IUP_MASK_EFLOAT   "[+/-]?(/d+/.?/d*|/./d+)([eE][+/-]?/d+)?"
-#define IUP_MASK_INT      "[+/-]?/d+"
-#define IUP_MASK_UINT     "/d+"
+#define IUP_MASK_FLOAT       "[+/-]?(/d+/.?/d*|/./d+)"
+#define IUP_MASK_UFLOAT            "(/d+/.?/d*|/./d+)"
+#define IUP_MASK_EFLOAT      "[+/-]?(/d+/.?/d*|/./d+)([eE][+/-]?/d+)?"
+#define IUP_MASK_FLOATCOMMA  "[+/-]?(/d+/,?/d*|/,/d+)"
+#define IUP_MASK_UFLOATCOMMA       "(/d+/,?/d*|/,/d+)"
+#define IUP_MASK_INT          "[+/-]?/d+"
+#define IUP_MASK_UINT               "/d+"
 
 /* Old definitions for backward compatibility */
 #define IUPMASK_FLOAT     IUP_MASK_FLOAT
@@ -410,10 +414,14 @@ enum{IUP_SBUP,   IUP_SBDN,    IUP_SBPGUP,   IUP_SBPGDN,    IUP_SBPOSV, IUP_SBDRA
 /************************************************************************/
 /*                   IupGetParam Callback situations                    */
 /************************************************************************/
-#define IUP_GETPARAM_OK     -1
-#define IUP_GETPARAM_INIT   -2
-#define IUP_GETPARAM_CANCEL -3
-#define IUP_GETPARAM_HELP   -4
+#define IUP_GETPARAM_BUTTON1 -1
+#define IUP_GETPARAM_INIT    -2
+#define IUP_GETPARAM_BUTTON2 -3
+#define IUP_GETPARAM_BUTTON3 -4
+#define IUP_GETPARAM_CLOSE   -5
+#define IUP_GETPARAM_OK     IUP_GETPARAM_BUTTON1
+#define IUP_GETPARAM_CANCEL IUP_GETPARAM_BUTTON2
+#define IUP_GETPARAM_HELP   IUP_GETPARAM_BUTTON3
 
 
 /************************************************************************/
@@ -437,7 +445,7 @@ int IupMain (int argc, char** argv); /* In C++ we have to declare the prototype 
 #endif
 
 /******************************************************************************
-* Copyright (C) 1994-2014 Tecgraf, PUC-Rio.
+* Copyright (C) 1994-2015 Tecgraf, PUC-Rio.
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the

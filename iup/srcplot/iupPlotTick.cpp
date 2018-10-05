@@ -184,7 +184,9 @@ bool iupPlotTickIterLinear::CalculateSpacing (double inParRange, double inDivGue
   ioTick.mMinorDivision = 5;
 
   // Calculated only once for Linear scale
-  iPlotMakeFormatString(ioTick.mMajorSpan, ioTick.mFormatString);
+  if (ioTick.mFormatAuto)
+    iPlotMakeFormatString(ioTick.mMajorSpan, ioTick.mFormatString);
+
   return true;
 }
 
@@ -250,7 +252,8 @@ bool iupPlotTickIterLog::GetNextTick (double &outTick, bool &outIsMajorTick, cha
   outIsMajorTick = (mCount%mAxis->mTick.mMinorDivision == 0);
 
   // Calculated in every interation for Log scale
-  if (outFormatString) iPlotMakeFormatString(outTick, outFormatString);
+  if (outFormatString && mAxis->mTick.mFormatAuto) 
+    iPlotMakeFormatString(outTick, outFormatString);
 
   double theBase = mAxis->mLogBase;
   double theLogNow = iupPlotLog(mCurrentTick, theBase);

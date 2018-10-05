@@ -380,7 +380,7 @@ void GLCanvasCubeTest(void)
 
   glabel = IupGLLabel("Label");
 //  IupSetAttribute(glabel, "FGCOLOR", "255 255 255");
-  IupSetAttribute(glabel, "FONT", "Arial, 18");
+  IupSetAttribute(glabel, "FONT", "Helvetica, 24");
   IupSetAttributeHandle(glabel, "IMAGE", load_image_Tecgraf());
 
   gbutton1 = IupGLButton("Button");
@@ -546,6 +546,8 @@ void GLCanvasCubeTest(void)
     IupSetAttributes(gframe3, "MOVEABLE=Yes, POSITION=\"550,200\", MOVETOTOP=Yes"),
     IupSetAttributes(vbox3, "MOVEABLE=Yes, POSITION=\"250,350\""),
     NULL);
+    
+  IupSetAttribute(canvas, "DEPTH_SIZE", "16");
 
   image_open = IupImage(16, 16, img_open);
   image_close = IupImage(16, 16, img_close);
@@ -581,7 +583,7 @@ void GLCanvasCubeTest(void)
   IupSetAttribute(canvas, "MARGIN", "10x10");
 
   box = IupVbox(canvas, NULL);
-  IupSetAttribute(box, "MARGIN", "5x5");
+  IupSetAttribute(box, "MARGIN", "25x25");
 
   dlg = IupDialog(box);
   IupSetAttribute(dlg, "TITLE", "IupGLCanvas Test");

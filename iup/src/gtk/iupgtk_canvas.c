@@ -203,6 +203,10 @@ static gboolean gtkCanvasScrollEvent(GtkWidget *widget, GdkEventScroll *evt, Iha
 {    
   /* occurs only for the mouse wheel. Not related to the scrollbars */
   IFnfiis wcb = (IFnfiis)IupGetCallback(ih, "WHEEL_CB");
+
+  if (evt->direction > GDK_SCROLL_RIGHT)
+    return TRUE;
+
   if (wcb)
   {
     int delta = evt->direction==GDK_SCROLL_UP||evt->direction==GDK_SCROLL_LEFT? 1: -1;
@@ -411,13 +415,14 @@ static int gtkCanvasSetDXAttrib(Ihandle* ih, const char *value)
           gtk_widget_hide(sb_horiz);
           gtkCanvasUpdateChildLayout(ih, 1);
         }
+
+        iupAttribSet(ih, "XHIDDEN", "YES");
       }
       else
         gtk_widget_set_sensitive(sb_horiz, FALSE);
 
       ih->data->posx = (float)xmin;
       gtkCanvasAdjustmentSetValue(ih, sb_horiz_adjust, xmin);
-      return 1;
     }
     else
     {
@@ -427,7 +432,6 @@ static int gtkCanvasSetDXAttrib(Ihandle* ih, const char *value)
         gtkCanvasUpdateChildLayout(ih, 1);
       }
       gtk_widget_set_sensitive(sb_horiz, TRUE);
-    }
 
 #if GTK_CHECK_VERSION(2, 14, 0)
     {
@@ -437,7 +441,6 @@ static int gtkCanvasSetDXAttrib(Ihandle* ih, const char *value)
       gtk_adjustment_configure(sb_horiz_adjust, dvalue, xmin, xmax, linex, page_size, dx);
     }
 #else
-    {
       sb_horiz_adjust->lower = xmin;
       sb_horiz_adjust->upper = xmax;
       sb_horiz_adjust->step_increment = linex;
@@ -447,11 +450,12 @@ static int gtkCanvasSetDXAttrib(Ihandle* ih, const char *value)
       sb_horiz_adjust->page_increment = sb_horiz_adjust->page_size;
 
       gtk_adjustment_changed(sb_horiz_adjust);
-    }
 #endif
+      iupAttribSet(ih, "XHIDDEN", "NO");
 
-    if (value_changed)
-      gtk_adjustment_value_changed(sb_horiz_adjust);
+      if (value_changed)
+        gtk_adjustment_value_changed(sb_horiz_adjust);
+    }
   }
   return 1;
 }
@@ -493,13 +497,14 @@ static int gtkCanvasSetDYAttrib(Ihandle* ih, const char *value)
           gtk_widget_hide(sb_vert);
           gtkCanvasUpdateChildLayout(ih, 1);
         }
+        
+        iupAttribSet(ih, "YHIDDEN", "YES");
       }
       else
         gtk_widget_set_sensitive(sb_vert, FALSE);
 
       ih->data->posy = (float)ymin;
       gtkCanvasAdjustmentSetValue(ih, sb_vert_adjust, ymin);
-      return 1;
     }
     else
     {
@@ -509,7 +514,6 @@ static int gtkCanvasSetDYAttrib(Ihandle* ih, const char *value)
         gtkCanvasUpdateChildLayout(ih, 1);
       }
       gtk_widget_set_sensitive(sb_vert, TRUE);
-    }
 
 #if GTK_CHECK_VERSION(2, 14, 0)
     {
@@ -519,7 +523,6 @@ static int gtkCanvasSetDYAttrib(Ihandle* ih, const char *value)
       gtk_adjustment_configure(sb_vert_adjust, dvalue, ymin, ymax, liney, page_size, dy);
     }
 #else
-    {
       sb_vert_adjust->lower = ymin;
       sb_vert_adjust->upper = ymax;
       sb_vert_adjust->step_increment = liney;
@@ -529,11 +532,12 @@ static int gtkCanvasSetDYAttrib(Ihandle* ih, const char *value)
       sb_vert_adjust->page_increment = sb_vert_adjust->page_size;
 
       gtk_adjustment_changed(sb_vert_adjust);
-    }
 #endif
+      iupAttribSet(ih, "YHIDDEN", "NO");
 
-    if (value_changed)
-      gtk_adjustment_value_changed(sb_vert_adjust);
+      if (value_changed)
+        gtk_adjustment_value_changed(sb_vert_adjust);
+    }
   }
   return 1;
 }
@@ -699,11 +703,11 @@ static int gtkCanvasMapMethod(Ihandle* ih)
 
   g_signal_connect(G_OBJECT(ih->handle), "focus-in-event",     G_CALLBACK(iupgtkFocusInOutEvent), ih);
   g_signal_connect(G_OBJECT(ih->handle), "focus-out-event",    G_CALLBACK(iupgtkFocusInOutEvent), ih);
-  g_signal_connect(G_OBJECT(ih->handle), "key-press-event",    G_CALLBACK(iupgtkKeyPressEvent), ih);
+  g_signal_connect(G_OBJECT(ih->handle), "key-press-event",    G_CALLBACK(iupgtkKeyPressEvent),   ih);
   g_signal_connect(G_OBJECT(ih->handle), "key-release-event",  G_CALLBACK(iupgtkKeyReleaseEvent), ih);
   g_signal_connect(G_OBJECT(ih->handle), "enter-notify-event", G_CALLBACK(iupgtkEnterLeaveEvent), ih);
   g_signal_connect(G_OBJECT(ih->handle), "leave-notify-event", G_CALLBACK(iupgtkEnterLeaveEvent), ih);
-  g_signal_connect(G_OBJECT(ih->handle), "show-help",          G_CALLBACK(iupgtkShowHelp), ih);
+  g_signal_connect(G_OBJECT(ih->handle), "show-help",          G_CALLBACK(iupgtkShowHelp),        ih);
 
 #if GTK_CHECK_VERSION(3, 0, 0)
   g_signal_connect(G_OBJECT(ih->handle), "draw",               G_CALLBACK(gtkCanvasDraw), ih);
@@ -721,8 +725,9 @@ static int gtkCanvasMapMethod(Ihandle* ih)
   gtk_widget_add_events(ih->handle, GDK_EXPOSURE_MASK|
     GDK_POINTER_MOTION_MASK|GDK_POINTER_MOTION_HINT_MASK|
     GDK_BUTTON_PRESS_MASK|GDK_BUTTON_RELEASE_MASK|GDK_BUTTON_MOTION_MASK|
-    GDK_KEY_PRESS_MASK|GDK_KEY_RELEASE_MASK|
-    GDK_ENTER_NOTIFY_MASK|GDK_LEAVE_NOTIFY_MASK|
+    GDK_KEY_PRESS_MASK | GDK_KEY_RELEASE_MASK | 
+    GDK_SCROLL_MASK |  /* Added for GTK3, but it seems to work ok for GTK2 */
+    GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK |
     GDK_FOCUS_CHANGE_MASK|GDK_STRUCTURE_MASK);
 
   /* To receive keyboard events, you will need to set the GTK_CAN_FOCUS flag on the drawing area. */

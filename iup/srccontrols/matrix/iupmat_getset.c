@@ -7,7 +7,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <locale.h>
 
 #include "iup.h"
 #include "iupcbs.h"
@@ -45,56 +44,19 @@ int iupMatrixCheckCellPos(Ihandle* ih, int lin, int col)
 
 void iupMatrixModifyValue(Ihandle* ih, int lin, int col, const char* value)
 {
-  /* This is a one call only. It is useful to support READONLY 
+  /* Called when modifying multiple cells in a sequence.
+     It is useful to support READONLY 
      and cell read-only by returning IUP_IGNORE. 
      Here is the only place where both mode=1 and update=1. 
-     Called when a processing is modifying several cells.
      */
   if (iupMatrixAuxCallEditionCbLinCol(ih, lin, col, 1, 1) != IUP_IGNORE)
     iupMatrixSetValue(ih, lin, col, value, -1);    /* call value_edit_cb, but NO numeric conversion */
 }
 
-static int iMatrixSetLocale(Ihandle* ih)
-{
-  char* decimal = iupAttribGet(ih, "NUMERICDECIMALSYMBOL");
-  if (decimal)
-  {
-    struct lconv* locale_info = localeconv();
-    if (locale_info->decimal_point[0] != decimal[0])
-    {
-      iupAttribSetStr(ih, "_IUP_OLD_LOCALE", setlocale(LC_NUMERIC, NULL));
-      if (decimal[0] == '.')
-      {
-        setlocale(LC_NUMERIC, "en-US");
-        return 1;
-      }
-      else if (decimal[0] == ',')
-      {
-        setlocale(LC_NUMERIC, "pt-BR");
-        return 1;
-      }
-    }
-  }
-  return 0;
-}
-
-static void iMatrixResetLocale(Ihandle* ih)
-{
-  char* old_locale = iupAttribGet(ih, "_IUP_OLD_LOCALE");
-  if (old_locale)
-  {
-    setlocale(LC_NUMERIC, old_locale);
-    iupAttribSet(ih, "_IUP_OLD_LOCALE", NULL);
-  }
-}
-
 static char* iMatrixSetValueNumeric(Ihandle* ih, int lin, int col, const char* value, int convert)
 {
-  int ret, locale_set;
   double number;
-  locale_set = iMatrixSetLocale(ih);
-  ret = iupStrToDouble(value, &number);
-  iMatrixResetLocale(ih);
+  int ret = iupStrToDoubleLocale(value, &number, IupGetAttribute(ih, "NUMERICDECIMALSYMBOL"));
   if (ret)
   {
     IFniid setvalue_cb;
@@ -110,9 +72,9 @@ static char* iMatrixSetValueNumeric(Ihandle* ih, int lin, int col, const char* v
       setvalue_cb(ih, lin, col, number);
       return NULL;
     }
-    else if (locale_set || (convert && ih->data->numeric_columns[col].unit_shown != ih->data->numeric_columns[col].unit))
+    else if (ret==2 || (convert && ih->data->numeric_columns[col].unit_shown != ih->data->numeric_columns[col].unit))
     {
-      /* only use the number if a conversion occurred */
+      /* only use the number if locale was set or a conversion occurred */
       sprintf(ih->data->numeric_buffer_set, IUP_DOUBLE2STR, number);
       value = ih->data->numeric_buffer_set;
     }
@@ -126,7 +88,7 @@ void iupMatrixSetValue(Ihandle* ih, int lin, int col, const char* value, int use
   /* NOTICE: this function is NOT called before map */
   char* old_value = NULL;
 
-  if (ih->data->undo_redo) old_value = iupMatrixGetValueString(ih, lin, col);
+  if (ih->data->undo_redo) old_value = iupMatrixGetValue(ih, lin, col);
 
   if (lin != 0 && ih->data->sort_has_index)
   {
@@ -166,15 +128,11 @@ void iupMatrixSetValue(Ihandle* ih, int lin, int col, const char* value, int use
     ih->data->need_calcsize = 1;
 }
 
-double iupMatrixGetValueNumber(Ihandle* ih, int lin, int col)
+static char* iMatrixGetValueText(Ihandle* ih, int lin, int col)
 {
   char* value;
-  double number;
 
-  if (lin==0)
-    return 0;
-
-  if (ih->data->sort_has_index)
+  if (lin != 0 && ih->data->sort_has_index)
   {
     int index = ih->data->sort_line_index[lin];
     if (index != 0) lin = index;
@@ -188,6 +146,22 @@ double iupMatrixGetValueNumber(Ihandle* ih, int lin, int col)
   }
   else
     value = ih->data->cells[lin][col].value;
+
+  return value;
+}
+
+double iupMatrixGetValueNumeric(Ihandle* ih, int lin, int col)
+{
+  sIFniis translate_cb;
+  double number;
+
+  /* here lin!=0 */
+
+  char* value = iMatrixGetValueText(ih, lin, col);
+
+  translate_cb = (sIFniis)IupGetCallback(ih, "TRANSLATEVALUE_CB");
+  if (translate_cb)
+    value = translate_cb(ih, lin, col, value);
 
   if (!value)
   {
@@ -203,60 +177,28 @@ double iupMatrixGetValueNumber(Ihandle* ih, int lin, int col)
       return 0;
   }
 
+  if (ih->data->numeric_columns[col].unit_shown!=ih->data->numeric_columns[col].unit) 
+    number = ih->data->numeric_convert_func(number, ih->data->numeric_columns[col].quantity,
+                                                    ih->data->numeric_columns[col].unit, /* from */
+                                                    ih->data->numeric_columns[col].unit_shown);  /* to */
+
   return number;
 }
 
-char* iupMatrixGetValueText(Ihandle* ih, int lin, int col)
+char* iupMatrixGetValue(Ihandle* ih, int lin, int col)
 {  
-  char* value;
+  char* value = iMatrixGetValueText(ih, lin, col);
 
-  if (lin==0)
-    return NULL;
-
-  if (ih->data->sort_has_index)
-  {
-    int index = ih->data->sort_line_index[lin];
-    if (index != 0) lin = index;
-  }
-
-  if (ih->data->callback_mode)
-  {
-    /* only called in callback mode */
-    sIFnii value_cb = (sIFnii)IupGetCallback(ih, "VALUE_CB");
-    value = value_cb(ih, lin, col);
-  }
-  else
-    value = ih->data->cells[lin][col].value;
-
-  return value;
-}
-
-char* iupMatrixGetValueString(Ihandle* ih, int lin, int col)
-{  
-  char* value;
-
-  if (lin!=0 && ih->data->sort_has_index)
-  {
-    int index = ih->data->sort_line_index[lin];
-    if (index != 0) lin = index;
-  }
-
-  if (ih->data->callback_mode)
-  {
-    /* only called in callback mode */
-    sIFnii value_cb = (sIFnii)IupGetCallback(ih, "VALUE_CB");
-    value = value_cb(ih, lin, col);
-  }
-  else
-    value = ih->data->cells[lin][col].value;
+  /* no translation here */
 
   if (!value && lin!=0 && ih->data->numeric_columns && ih->data->numeric_columns[col].flags & IMAT_IS_NUMERIC)
   {
     dIFnii getvalue_cb = (dIFnii)IupGetCallback(ih, "NUMERICGETVALUE_CB");
     if (getvalue_cb)
     {
+      /* no formating and no convertion here */
       double number = getvalue_cb(ih, lin, col);
-      sprintf(ih->data->numeric_buffer_get, IUP_DOUBLE2STR, number);
+      sprintf(ih->data->numeric_buffer_get, IUP_DOUBLE2STR, number);  /* maximum precision */
       return ih->data->numeric_buffer_get;
     }
   }
@@ -271,50 +213,48 @@ char* iupMatrixGetNumericFormatDef(Ihandle* ih)
   {
     int prec = IupGetInt(NULL, "DEFAULTPRECISION");
     if (prec == 2)
-      format = "%.2lf";
+      format = "%.2f";
     else
     {
       static char f[30];
-      sprintf(f, "%%.%dlf", prec);
+      sprintf(f, "%%.%df", prec);
       format = f;
     }
   }
   return format;
 }
 
-static char* iMatrixGetValueNumericDisplay(Ihandle* ih, int lin, int col, const char* value)
+static char* iMatrixGetValueNumericTitle(Ihandle* ih, int col, const char* value)
+{
+  char *format = NULL;
+
+  /* here lin==0 */
+
+  if (ih->data->numeric_columns[col].flags & IMAT_HAS_FORMATTITLE)
+    format = iupAttribGetId(ih, "NUMERICFORMATTITLE", col);
+
+  if (format)
+  {
+    char* unit_symbol = IupGetAttributeId(ih, "NUMERICUNITSYMBOLSHOWN", col);
+    if (unit_symbol)
+    {
+      if (value)
+        sprintf(ih->data->numeric_buffer_get, format, value, unit_symbol);
+      else
+        sprintf(ih->data->numeric_buffer_get, format, unit_symbol);
+      return ih->data->numeric_buffer_get;
+    }
+  }
+
+  return (char*)value;
+}
+
+static char* iMatrixGetValueNumericFormatted(Ihandle* ih, int lin, int col, const char* value)
 {
   char *format=NULL;
   double number;
 
-  if (lin==0)
-  {
-    if (ih->data->numeric_columns[col].flags & IMAT_HAS_FORMATTITLE)
-      format = iupAttribGetId(ih, "NUMERICFORMATTITLE", col);
-
-    if (format)
-    {
-      char* unit_symbol = IupGetAttributeId(ih, "NUMERICUNITSYMBOLSHOWN", col);
-      if (unit_symbol)
-      {
-        if (value)
-          sprintf(ih->data->numeric_buffer_get, format, value, unit_symbol);
-        else
-          sprintf(ih->data->numeric_buffer_get, format, unit_symbol);
-        return ih->data->numeric_buffer_get;
-      }
-    }
-
-    return (char*)value;
-  }
-
-  /* from here lin!=0 */
-
-  if (ih->data->numeric_columns[col].flags & IMAT_HAS_FORMAT)
-    format = iupAttribGetId(ih, "NUMERICFORMAT", col);
-
-  if (format == NULL)
-    format = iupMatrixGetNumericFormatDef(ih);
+  /* here lin!=0 */
 
   if (!value)
   {
@@ -335,38 +275,38 @@ static char* iMatrixGetValueNumericDisplay(Ihandle* ih, int lin, int col, const 
                                                     ih->data->numeric_columns[col].unit, /* from */
                                                     ih->data->numeric_columns[col].unit_shown);  /* to */
 
-  iMatrixSetLocale(ih);
-  sprintf(ih->data->numeric_buffer_get, format, number);
-  iMatrixResetLocale(ih);
+  if (ih->data->numeric_columns[col].flags & IMAT_HAS_FORMAT)
+    format = iupAttribGetId(ih, "NUMERICFORMAT", col);
+
+  if (format == NULL)
+    format = iupMatrixGetNumericFormatDef(ih);
+
+  iupStrPrintfDoubleLocale(ih->data->numeric_buffer_get, format, number, IupGetAttribute(ih, "NUMERICDECIMALSYMBOL"));
   return ih->data->numeric_buffer_get;
 }
 
-char* iupMatrixGetValue (Ihandle* ih, int lin, int col)
+char* iupMatrixGetValueDisplay(Ihandle* ih, int lin, int col)
 {  
-  /* NOTICE: this function is CAN BE called before map */
+  /* NOTICE: this function CAN BE called before map */
   if (!ih->handle)
     return iupAttribGetId2(ih, "", lin, col);
   else
   {
-    char* value;
+    sIFniis translate_cb;
 
-    if (lin != 0 && ih->data->sort_has_index)
-    {
-      int index = ih->data->sort_line_index[lin];
-      if (index != 0) lin = index;
-    }
+    char* value = iMatrixGetValueText(ih, lin, col);
 
-    if (ih->data->callback_mode)
-    {
-      /* only called in callback mode */
-      sIFnii value_cb = (sIFnii)IupGetCallback(ih, "VALUE_CB");
-      value = value_cb(ih, lin, col);
-    }
-    else
-      value = ih->data->cells[lin][col].value;
+    translate_cb = (sIFniis)IupGetCallback(ih, "TRANSLATEVALUE_CB");
+    if (translate_cb)
+      value = translate_cb(ih, lin, col, value);
 
     if (ih->data->numeric_columns && ih->data->numeric_columns[col].flags & IMAT_IS_NUMERIC)
-      return iMatrixGetValueNumericDisplay(ih, lin, col, value);
+    {
+      if (lin == 0)
+        return iMatrixGetValueNumericTitle(ih, col, value);
+      else
+        return iMatrixGetValueNumericFormatted(ih, lin, col, value);
+    }
     else
       return value;
   }
@@ -698,7 +638,7 @@ int iupMatrixGetColumnWidth(Ihandle* ih, int col, int use_value)
         int lin, max_width = 0;
         for(lin = 0; lin < ih->data->lines.num; lin++)
         {
-          char* title_value = iupMatrixGetValue(ih, lin, 0);
+          char* title_value = iupMatrixGetValueDisplay(ih, lin, 0);
           if (title_value)
           {
             iupdrvFontGetMultiLineStringSize(ih, title_value, &width, NULL);
@@ -711,7 +651,7 @@ int iupMatrixGetColumnWidth(Ihandle* ih, int col, int use_value)
     }
     else if (ih->data->use_title_size && (col>0 && col<ih->data->columns.num))
     {
-      char* title_value = iupMatrixGetValue(ih, 0, col);
+      char* title_value = iupMatrixGetValueDisplay(ih, 0, col);
       if (title_value)
         iupdrvFontGetMultiLineStringSize(ih, title_value, &width, NULL);
     }
@@ -767,7 +707,7 @@ int iupMatrixGetLineHeight(Ihandle* ih, int lin, int use_value)
         int col, max_height = 0;
         for(col = 0; col < ih->data->columns.num; col++)
         {
-          char* title_value = iupMatrixGetValue(ih, 0, col);
+          char* title_value = iupMatrixGetValueDisplay(ih, 0, col);
           if (title_value && title_value[0])
           {
             iupdrvFontGetMultiLineStringSize(ih, title_value, NULL, &height);
@@ -780,7 +720,7 @@ int iupMatrixGetLineHeight(Ihandle* ih, int lin, int use_value)
     }
     else if (ih->data->use_title_size && (lin>0 && lin<ih->data->lines.num))
     {
-      char* title_value = iupMatrixGetValue(ih, lin, 0);
+      char* title_value = iupMatrixGetValueDisplay(ih, lin, 0);
       if (title_value && title_value[0])
         iupdrvFontGetMultiLineStringSize(ih, title_value, NULL, &height);
     }

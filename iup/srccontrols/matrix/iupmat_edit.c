@@ -33,6 +33,8 @@ static void iMatrixEditUpdateValue(Ihandle* ih)
 {
   char *value = iupMatrixEditGetValue(ih);
 
+  iupAttribSet(ih, "CELL_EDITED", "Yes");
+
   if (ih->data->undo_redo) iupAttribSetClassObject(ih, "UNDOPUSHBEGIN", "EDITCELL");
 
   iupMatrixSetValue(ih, ih->data->lines.focus_cell, ih->data->columns.focus_cell, value, 1);
@@ -41,11 +43,13 @@ static void iMatrixEditUpdateValue(Ihandle* ih)
 
   iupBaseCallValueChangedCb(ih);
 
+  iupAttribSet(ih, "CELL_EDITED", NULL);
+
   iupMatrixPrepareDrawData(ih);
   iupMatrixDrawCells(ih, ih->data->lines.focus_cell, ih->data->columns.focus_cell, ih->data->lines.focus_cell, ih->data->columns.focus_cell);
 }
 
-static int iMatrixEditCallEditionCb(Ihandle* ih, int mode, int update)
+static int iMatrixEditCallEditionCbUpdateValue(Ihandle* ih, int mode, int update)
 {
   int ret = iupMatrixAuxCallEditionCbLinCol(ih, ih->data->lines.focus_cell, ih->data->columns.focus_cell, mode, update);
 
@@ -57,7 +61,7 @@ static int iMatrixEditCallEditionCb(Ihandle* ih, int mode, int update)
 
 static int iMatrixEditFinish(Ihandle* ih, int setfocus, int update, int accept_ignore)
 {
-  if (IupGetInt(ih->data->datah, "VISIBLE"))
+  if (ih->data->editing)
   {
     int ret;
 
@@ -66,11 +70,13 @@ static int iMatrixEditFinish(Ihandle* ih, int setfocus, int update, int accept_i
       return IUP_DEFAULT;
 
     iupAttribSet(ih, "_IUPMAT_CALL_EDITION", "1");
-    ret = iMatrixEditCallEditionCb(ih, 0, update);
+    ret = iMatrixEditCallEditionCbUpdateValue(ih, 0, update);
     iupAttribSet(ih, "_IUPMAT_CALL_EDITION", NULL);
 
     if (ret == IUP_IGNORE && accept_ignore)
       return IUP_IGNORE;
+
+    ih->data->editing = 0;
 
     iupAttribSet(ih, "_IUPMAT_IGNOREFOCUS", "1");
 
@@ -123,7 +129,7 @@ static int iMatrixMenuItemAction(Ihandle* ih)
 
   IupStoreAttribute(ih_menu, "VALUE", t);
 
-  iMatrixEditCallEditionCb(ih_matrix, 0, 1);  /* always update, similar to iMatrixEditConfirm */
+  iMatrixEditCallEditionCbUpdateValue(ih_matrix, 0, 1);  /* always update, similar to iMatrixEditConfirm */
   iupMatrixDrawUpdate(ih_matrix);
 
   return IUP_DEFAULT;
@@ -164,7 +170,7 @@ static int iMatrixEditCallMenuDropCb(Ihandle* ih, int lin, int col)
   {
     Ihandle* menu = IupMenu(NULL);
     int ret;
-    char* value = iupMatrixGetValue(ih, lin, col);
+    char* value = iupMatrixGetValueDisplay(ih, lin, col);
     if (!value) value = "";
 
     iupAttribSet(menu, "PREVIOUSVALUE", value);
@@ -207,7 +213,7 @@ static int iMatrixEditCallDropdownCb(Ihandle* ih, int lin, int col)
   if(cb)
   {
     int ret;
-    char* value = iupMatrixGetValue(ih, lin, col);
+    char* value = iupMatrixGetValueDisplay(ih, lin, col);
     if (!value) value = "";
 
     IupStoreAttribute(ih->data->droph, "PREVIOUSVALUE", value);
@@ -259,7 +265,7 @@ static void iMatrixEditChooseElement(Ihandle* ih)
 
     /* dropdown values are set by the user in DROP_CB.
     text value is set here from cell contents. */
-    value = iupMatrixGetValue(ih, ih->data->lines.focus_cell, ih->data->columns.focus_cell);
+    value = iupMatrixGetValueDisplay(ih, ih->data->lines.focus_cell, ih->data->columns.focus_cell);
     if (!value) value = "";
     IupStoreAttribute(ih->data->texth, "VALUE", value);
     IupStoreAttribute(ih->data->texth, "PREVIOUSVALUE", value);
@@ -330,20 +336,21 @@ int iupMatrixEditShow(Ihandle* ih)
   if (ih->data->columns.num <= 1 || ih->data->lines.num <= 1)
     return 0;
 
-  /* not active */
-  if(!IupGetInt(ih, "ACTIVE"))
-    return 0;
-
-  /* already visible */
-  if(IupGetInt(ih->data->datah, "VISIBLE"))
+  /* already editing, not active, already visible */
+  /* redundant check, left for historical reasons */
+  if (ih->data->editing ||
+      !IupGetInt(ih, "ACTIVE") ||
+      IupGetInt(ih->data->datah, "VISIBLE"))
     return 0;
 
   /* notify application */
-  if (iMatrixEditCallEditionCb(ih, 1, 0) == IUP_IGNORE)  /* only place where mode=1 */
+  if (iMatrixEditCallEditionCbUpdateValue(ih, 1, 0) == IUP_IGNORE)  /* only place where mode=1 */
     return 0;
 
   if (iMatrixEditCallMenuDropCb(ih, ih->data->lines.focus_cell, ih->data->columns.focus_cell))
     return 0;
+
+  ih->data->editing = 1;
 
   /* select edit control */
   iMatrixEditChooseElement(ih);

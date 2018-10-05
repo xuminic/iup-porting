@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "iupPlot.h"
+#include "iup_cdutil.h"
 
 
 static inline void iPlotSetLine(cdCanvas* canvas, int inLineStyle, int inLineWidth)
@@ -109,7 +110,7 @@ bool iupPlotGrid::DrawX(iupPlotTickIterBase* inTickIter, iupPlotTrafoBase* inTra
 
     while (inTickIter->GetNextTick(theX, theIsMajorTick, NULL))
     {          
-      if (theIsMajorTick) 
+      if ((theIsMajorTick && mMajor) || (!theIsMajorTick && !mMajor))
       {
         double theScreenX = inTrafo->Transform(theX);
         cdfCanvasLine(canvas, theScreenX, inRect.mY, theScreenX, inRect.mY + inRect.mHeight-1);
@@ -136,7 +137,7 @@ bool iupPlotGrid::DrawY(iupPlotTickIterBase* inTickIter, iupPlotTrafoBase* inTra
 
     while (inTickIter->GetNextTick(theY, theIsMajorTick, NULL))
     {            
-      if (theIsMajorTick) 
+      if ((theIsMajorTick && mMajor) || (!theIsMajorTick && !mMajor))
       {
         double theScreenY = inTrafo->Transform(theY);
         cdfCanvasLine(canvas, inRect.mX, theScreenY, inRect.mX + inRect.mWidth - 1, theScreenY);
@@ -249,10 +250,11 @@ bool iupPlotAxis::DrawXTick(double inX, double inScreenY, bool inMajor, const ch
     if (mTick.mShowNumber)
     {
       char theBuf[128];
-      sprintf(theBuf, inFormatString, inX);
+      iupStrPrintfDoubleLocale(theBuf, inFormatString, inX, IupGetGlobal("DEFAULTDECIMALSYMBOL"));
+
       double theScreenY = inScreenY - theTickSize - mTick.mMinorSize;  // Use minor size as spacing
       if (mTick.mRotateNumber)
-        iPlotDrawRotatedText(canvas, theScreenX, theScreenY, 90, CD_EAST, theBuf);
+        iPlotDrawRotatedText(canvas, theScreenX, theScreenY, mTick.mRotateNumberAngle, CD_EAST, theBuf);
       else
         iPlotDrawText(canvas, theScreenX, theScreenY, CD_NORTH, theBuf);
     }
@@ -368,10 +370,11 @@ bool iupPlotAxis::DrawYTick(double inY, double inScreenX, bool inMajor, const ch
     if (mTick.mShowNumber)
     {
       char theBuf[128];
-      sprintf(theBuf, inFormatString, inY);
+      iupStrPrintfDoubleLocale(theBuf, inFormatString, inY, IupGetGlobal("DEFAULTDECIMALSYMBOL"));
+
       double theScreenX = inScreenX - theTickSize - mTick.mMinorSize;  // Use minor size as spacing
       if (mTick.mRotateNumber)
-        iPlotDrawRotatedText(canvas, theScreenX, theScreenY, 90, CD_SOUTH, theBuf);
+        iPlotDrawRotatedText(canvas, theScreenX, theScreenY, mTick.mRotateNumberAngle, CD_SOUTH, theBuf);
       else
         iPlotDrawText(canvas, theScreenX, theScreenY, CD_EAST, theBuf);
     }
@@ -383,7 +386,7 @@ bool iupPlotAxis::DrawYTick(double inY, double inScreenX, bool inMajor, const ch
   return true;
 }
 
-void iupPlot::DrawCrossPointsH(const iupPlotRect &inRect, const iupPlotDataBase *inXData, const iupPlotDataBase *inYData, cdCanvas* canvas) const
+void iupPlot::DrawCrossSamplesH(const iupPlotRect &inRect, const iupPlotDataBase *inXData, const iupPlotDataBase *inYData, cdCanvas* canvas) const
 {
   int theCount = inXData->GetCount();
   if (theCount == 0)
@@ -426,11 +429,11 @@ void iupPlot::DrawCrossHairH(const iupPlotRect &inRect, cdCanvas* canvas) const
 
     cdCanvasSetForeground(canvas, dataset->mColor);
 
-    DrawCrossPointsH(inRect, theXData, theYData, canvas);
+    DrawCrossSamplesH(inRect, theXData, theYData, canvas);
   }
 }
 
-void iupPlot::DrawCrossPointsV(const iupPlotRect &inRect, const iupPlotDataBase *inXData, const iupPlotDataBase *inYData, cdCanvas* canvas) const
+void iupPlot::DrawCrossSamplesV(const iupPlotRect &inRect, const iupPlotDataBase *inXData, const iupPlotDataBase *inYData, cdCanvas* canvas) const
 {
   int theCount = inXData->GetCount();
   if (theCount == 0)
@@ -473,7 +476,7 @@ void iupPlot::DrawCrossHairV(const iupPlotRect &inRect, cdCanvas* canvas) const
 
     cdCanvasSetForeground(canvas, dataset->mColor);
 
-    DrawCrossPointsV(inRect, theXData, theYData, canvas);
+    DrawCrossSamplesV(inRect, theXData, theYData, canvas);
   }
 }
 
@@ -492,7 +495,7 @@ void iupPlot::SetTitleFont(cdCanvas* canvas) const
   SetFont(canvas, mTitle.mFontStyle, theFontSize);
 }
 
-void iupPlot::DrawPlotTitle(cdCanvas* canvas) const
+void iupPlot::DrawTitle(cdCanvas* canvas) const
 {
   if (mTitle.GetText()) 
   {
@@ -500,22 +503,47 @@ void iupPlot::DrawPlotTitle(cdCanvas* canvas) const
 
     SetTitleFont(canvas);
 
-    // do not depend on theMargin
-    int theX = mViewport.mWidth / 2;
-    int theY = mViewport.mHeight - 5;  // add small spacing
-
     cdCanvasTextAlignment(canvas, CD_NORTH);
-    cdCanvasText(canvas, theX, theY, mTitle.GetText());
+    cdCanvasText(canvas, mTitle.mPosX, cdCanvasInvertYAxis(canvas, mTitle.mPosY), mTitle.GetText());
   }
 }
 
-void iupPlot::DrawPlotBackground(cdCanvas* canvas) const
+void iupPlot::DrawBackground(cdCanvas* canvas) const
 {
   cdCanvasSetForeground(canvas, mBackColor);
   cdCanvasBox(canvas, 0, mViewport.mWidth - 1, 0, mViewport.mHeight - 1);
 }
 
-bool iupPlot::DrawLegend (const iupPlotRect &inRect, cdCanvas* canvas) const 
+void iupPlot::DrawInactive(cdCanvas* canvas) const
+{
+  long inactive_color = cdEncodeAlpha(CD_GRAY, 96);
+  cdCanvasSetForeground(canvas, inactive_color);
+  cdCanvasBox(canvas, 0, mViewport.mWidth - 1, 0, mViewport.mHeight - 1);
+}
+
+void iupPlot::DrawBackgroundImage(cdCanvas* canvas) const
+{
+  Ihandle* image = IupGetHandle(mBackImage);
+  if (image)
+  {
+    double theScreenMinX = mAxisX.mTrafo->Transform(mBackImageMinX);
+    double theScreenMinY = mAxisY.mTrafo->Transform(mBackImageMinY);
+    double theScreenMaxX = mAxisX.mTrafo->Transform(mBackImageMaxX);
+    double theScreenMaxY = mAxisY.mTrafo->Transform(mBackImageMaxY);
+
+    double theScreenW = theScreenMaxX - theScreenMinX + 1;
+    double theScreenH = theScreenMaxY - theScreenMinY + 1;
+
+    int theX = iupPlotRound(theScreenMinX);
+    int theY = iupPlotRound(theScreenMinY);
+    int theW = iupPlotRound(theScreenW);
+    int theH = iupPlotRound(theScreenH);
+
+    cdIupDrawImage(canvas, image, theX, theY, theW, theH, 0, mBackColor);
+  }
+}
+
+bool iupPlot::DrawLegend(const iupPlotRect &inRect, cdCanvas* canvas, iupPlotRect &ioPos) const
 {
   if (mLegend.mShow)
   {
@@ -555,42 +583,62 @@ bool iupPlot::DrawLegend (const iupPlotRect &inRect, cdCanvas* canvas) const
 
     theMaxWidth += 2 * theMargin;
 
-    int theScreenX = inRect.mX;
-    int theScreenY = inRect.mY;
+    int theScreenX, theScreenY;
 
-    switch (mLegend.mPosition)
+    if (mLegend.mPosition == IUP_PLOT_XY)
     {
-    case IUP_PLOT_TOPLEFT:
-      theScreenX += 2;
-      theScreenY += inRect.mHeight - theTotalHeight - 2;
-      break;
-    case IUP_PLOT_BOTTOMLEFT:
-      theScreenX += 2;
-      theScreenY += 2;
-      break;
-    case IUP_PLOT_BOTTOMRIGHT:
-      theScreenX += inRect.mWidth - theMaxWidth - 2;
-      theScreenY += 2;
-      break;
-    case IUP_PLOT_BOTTOMCENTER:
-      theScreenX += (inRect.mWidth - theMaxWidth) / 2;
-      theScreenY = theFontHeight / 4;
-      break;
-    default: // IUP_PLOT_TOPRIGHT
-      theScreenX += inRect.mWidth - theMaxWidth - 2;
-      theScreenY += inRect.mHeight - theTotalHeight - 2;
-      break;
+      theScreenX = ioPos.mX;
+      theScreenY = cdCanvasInvertYAxis(canvas, ioPos.mY);
+    }
+    else
+    {
+      theScreenX = inRect.mX;
+      theScreenY = inRect.mY;
+
+      switch (mLegend.mPosition)
+      {
+      case IUP_PLOT_TOPLEFT:
+        theScreenX += 2;
+        theScreenY += inRect.mHeight - theTotalHeight - 2;
+        break;
+      case IUP_PLOT_BOTTOMLEFT:
+        theScreenX += 2;
+        theScreenY += 2;
+        break;
+      case IUP_PLOT_BOTTOMRIGHT:
+        theScreenX += inRect.mWidth - theMaxWidth - 2;
+        theScreenY += 2;
+        break;
+      case IUP_PLOT_BOTTOMCENTER:
+        theScreenX += (inRect.mWidth - theMaxWidth) / 2;
+        theScreenY = theFontHeight / 4;
+        break;
+      default: // IUP_PLOT_TOPRIGHT
+        theScreenX += inRect.mWidth - theMaxWidth - 2;
+        theScreenY += inRect.mHeight - theTotalHeight - 2;
+        break;
+      }
+
+      ioPos.mX = theScreenX;
+      ioPos.mY = cdCanvasInvertYAxis(canvas, theScreenY);
     }
 
-    cdCanvasClipArea(canvas, theScreenX, theScreenX + theMaxWidth - 1, 
+    ioPos.mWidth = theMaxWidth;
+    ioPos.mHeight = theTotalHeight;
+
+    // Clip to the legend box
+    cdCanvasClipArea(canvas, theScreenX, theScreenX + theMaxWidth - 1,
                              theScreenY, theScreenY + theTotalHeight - 1);
 
-    cdCanvasSetForeground(canvas, mLegend.mBoxBackColor);
-    iPlotDrawBox(canvas, theScreenX+1, theScreenY+1, theMaxWidth-2, theTotalHeight-2);
+    if (mLegend.mBoxShow)
+    {
+      cdCanvasSetForeground(canvas, mLegend.mBoxBackColor);
+      iPlotDrawBox(canvas, theScreenX + 1, theScreenY + 1, theMaxWidth - 2, theTotalHeight - 2);
 
-    cdCanvasSetForeground(canvas, mLegend.mBoxColor);
-    iPlotSetLine(canvas, mLegend.mBoxLineStyle, mLegend.mBoxLineWidth);
-    iPlotDrawRect(canvas, theScreenX, theScreenY, theMaxWidth, theTotalHeight);
+      cdCanvasSetForeground(canvas, mLegend.mBoxColor);
+      iPlotSetLine(canvas, mLegend.mBoxLineStyle, mLegend.mBoxLineWidth);
+      iPlotDrawRect(canvas, theScreenX, theScreenY, theMaxWidth, theTotalHeight);
+    }
 
     for (ds = 0; ds < mDataSetListCount; ds++)
     {
@@ -599,7 +647,7 @@ bool iupPlot::DrawLegend (const iupPlotRect &inRect, cdCanvas* canvas) const
       cdCanvasSetForeground(canvas, dataset->mColor);
 
       int theLegendX = theScreenX + theMargin;
-      int theLegendY = theScreenY + (mDataSetListCount-1 - ds)*theFontHeight + theMargin;
+      int theLegendY = theScreenY + (mDataSetListCount - 1 - ds)*theFontHeight + theMargin;
 
       theLegendY += theFontHeight / 2;
 
@@ -612,7 +660,7 @@ bool iupPlot::DrawLegend (const iupPlotRect &inRect, cdCanvas* canvas) const
       {
         iPlotSetLine(canvas, dataset->mLineStyle, dataset->mLineWidth);
         cdCanvasLine(canvas, theLegendX, theLegendY - theFontHeight / 8,
-                             theLegendX + theLineSpace - 3, theLegendY - theFontHeight / 8);
+                     theLegendX + theLineSpace - 3, theLegendY - theFontHeight / 8);
       }
 
       iPlotDrawText(canvas, theLegendX + theLineSpace, theLegendY, CD_WEST, dataset->GetName());
@@ -631,7 +679,7 @@ void iupPlotDataSet::DrawDataLine(const iupPlotTrafoBase *inTrafoX, const iupPlo
   int theCount = mDataX->GetCount();
   cdCanvasBegin(canvas, CD_OPEN_LINES);
 
-  for (int i = 0; i < theCount; i++) 
+  for (int i = 0; i < theCount; i++)
   {
     double theX = mDataX->GetSample(i);
     double theY = mDataY->GetSample(i);
@@ -640,6 +688,12 @@ void iupPlotDataSet::DrawDataLine(const iupPlotTrafoBase *inTrafoX, const iupPlo
 
     if (inNotify)
       inNotify->cb(inNotify->ih, inNotify->ds, i, theX, theY, (int)mSelection->GetSampleBool(i));
+
+    if (mSegment && mSegment->GetSampleBool(i))
+    {
+      cdCanvasEnd(canvas);
+      cdCanvasBegin(canvas, CD_OPEN_LINES);
+    }
 
     cdfCanvasVertex(canvas, theScreenX, theScreenY);
   }
@@ -682,6 +736,12 @@ void iupPlotDataSet::DrawDataMarkLine(const iupPlotTrafoBase *inTrafoX, const iu
     // No worry that will be drawn before the polygon, they both have the same color
     cdCanvasMark(canvas, iupPlotRound(theScreenX), iupPlotRound(theScreenY));
 
+    if (mSegment && mSegment->GetSampleBool(i))
+    {
+      cdCanvasEnd(canvas);
+      cdCanvasBegin(canvas, CD_OPEN_LINES);
+    }
+
     cdfCanvasVertex(canvas, theScreenX, theScreenY);
   }
 
@@ -692,6 +752,8 @@ void iupPlotDataSet::DrawDataArea(const iupPlotTrafoBase *inTrafoX, const iupPlo
 {
   int theCount = mDataX->GetCount();
   cdCanvasBegin(canvas, CD_FILL);
+  double theScreenY0 = inTrafoY->Transform(0);
+  double theLastX = 0;
 
   for (int i = 0; i < theCount; i++) 
   {
@@ -704,18 +766,20 @@ void iupPlotDataSet::DrawDataArea(const iupPlotTrafoBase *inTrafoX, const iupPlo
       inNotify->cb(inNotify->ih, inNotify->ds, i, theX, theY, (int)mSelection->GetSampleBool(i));
 
     if (i == 0) 
+      cdfCanvasVertex(canvas, theScreenX, theScreenY0);
+
+    if (mSegment && mSegment->GetSampleBool(i))
     {
-      double theScreenY0 = inTrafoY->Transform(0);
+      cdfCanvasVertex(canvas, theLastX,   theScreenY0);
       cdfCanvasVertex(canvas, theScreenX, theScreenY0);
     }
 
     cdfCanvasVertex(canvas, theScreenX, theScreenY);
 
     if (i == theCount-1)
-    {
-      double theScreenY0 = inTrafoY->Transform(0);
       cdfCanvasVertex(canvas, theScreenX, theScreenY0);
-    }
+
+    theLastX = theScreenX;
   }
 
   cdCanvasEnd(canvas);

@@ -36,8 +36,10 @@
 #ifndef IUPLUA_NO_CD
 #include "iupcontrols.h"
 #include "iupluacontrols.h"
-#include "iup_pplot.h"
-#include "iuplua_pplot.h"
+#include "iupmatrixex.h"
+#include "iupluamatrixex.h"
+#include "iup_plot.h"
+#include "iuplua_plot.h"
 #include <cd.h>
 #include <cdlua.h>
 #include <cdluaiup.h>
@@ -127,7 +129,7 @@ static int report (lua_State *L, int status) {
 static int traceback (lua_State *L) {
   if (!lua_isstring(L, 1))  /* 'message' not a string? */
     return 1;  /* keep it intact */
-  lua_getglobal(L, "debug");
+  lua_getfield(L, LUA_GLOBALSINDEX, "debug");
   if (!lua_istable(L, -1)) {
     lua_pop(L, 1);
     return 1;
@@ -203,7 +205,7 @@ static int dolibrary (lua_State *L, const char *name) {
 
 static const char *get_prompt (lua_State *L, int firstline) {
   const char *p;
-  lua_getglobal(L, firstline ? "_PROMPT" : "_PROMPT2");
+  lua_getfield(L, LUA_GLOBALSINDEX, firstline ? "_PROMPT" : "_PROMPT2");
   p = lua_tostring(L, -1);
   if (p == NULL) p = (firstline ? LUA_PROMPT : LUA_PROMPT2);
   lua_pop(L, 1);  /* remove global */
@@ -425,7 +427,8 @@ static void iuplua_openlibs (lua_State *L) {
 #endif
 #ifndef IUPLUA_NO_CD
   iupcontrolslua_open(L);
-  iup_pplotlua_open(L);
+  iupmatrixexlua_open(L);
+  iup_plotlua_open(L);
   cdlua_open(L);
   cdluaiup_open(L);
   cdInitContextPlus();

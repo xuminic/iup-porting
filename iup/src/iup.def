@@ -157,6 +157,8 @@ IupGetParam
 IupGetParamv
 iupGetParamType
 iupGetParamCount
+IupParamf
+IupParamBox
 IupNormalizer
 IupNormalizerv
 IupGetClassType
@@ -298,6 +300,7 @@ iupStrReturnIntInt
 iupStrReturnFloat
 iupStrReturnDouble
 iupStrReturnStrStr
+iupStrGetFormatPrecision
 iupStrReplace
 iupStrProcessMnemonic
 iupStrFindMnemonic
@@ -334,6 +337,8 @@ iupStrBoolean
 iupStrFalse
 iupStrRemove
 iupStrInsert
+iupStrPrintfDoubleLocale
+iupStrToDoubleLocale
 iupSetFontStyleAttrib
 iupSetFontSizeAttrib
 iupSetFontFaceAttrib
@@ -345,6 +350,7 @@ iupObjectCheck
 iupMaskDestroy
 iupMaskCreateInt
 iupMaskCreateFloat
+iupMaskCreateReal
 iupMaskCreate
 iupMaskCheck
 iupMaskGetStr

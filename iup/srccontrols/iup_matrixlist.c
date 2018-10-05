@@ -677,7 +677,7 @@ static char* iMatrixListGetTitleAttrib(Ihandle* ih)
   if (!ih->handle)
     return iupAttribGetId2(ih, "", 0, mtxList->label_col);
   else
-    return iupMatrixGetValueString(ih, 0, mtxList->label_col);
+    return iupMatrixGetValue(ih, 0, mtxList->label_col);
 }
 
 static int iMatrixListSetIdValueAttrib(Ihandle* ih, int lin, const char* value)
@@ -694,7 +694,7 @@ static char* iMatrixListGetIdValueAttrib(Ihandle* ih, int lin)
   ImatrixListData* mtxList = (ImatrixListData*)iupAttribGet(ih, "_IUPMTXLIST_DATA");
 
   if (iupMatrixCheckCellPos(ih, lin, mtxList->label_col))
-    return iupMatrixGetValueString(ih, lin, mtxList->label_col);
+    return iupMatrixGetValue(ih, lin, mtxList->label_col);
   return NULL;
 }
 
@@ -708,7 +708,7 @@ static int iMatrixListSetValueAttrib(Ihandle* ih, const char* value)
   if (ih->data->columns.num <= 1 || ih->data->lines.num <= 1)
     return 0;
 
-  if (IupGetInt(ih->data->datah, "VISIBLE"))
+  if (ih->data->editing)
     IupStoreAttribute(ih->data->datah, "VALUE", value);
   else 
     iupMatrixSetValue(ih, ih->data->lines.focus_cell, mtxList->label_col, value, 0);
@@ -725,10 +725,10 @@ static char* iMatrixListGetValueAttrib(Ihandle* ih)
   if (ih->data->columns.num <= 1 || ih->data->lines.num <= 1)
     return NULL;
 
-  if (IupGetInt(ih->data->datah, "VISIBLE"))
+  if (ih->data->editing)
     return iupMatrixEditGetValue(ih);
   else 
-    return iupMatrixGetValueString(ih, ih->data->lines.focus_cell, mtxList->label_col);
+    return iupMatrixGetValue(ih, ih->data->lines.focus_cell, mtxList->label_col);
 }
 
 static int iMatrixListSetAppendItemAttrib(Ihandle* ih, const char* value)
@@ -967,7 +967,7 @@ static int iMatrixListDrawImageCol(Ihandle *ih, ImatrixListData* mtxList, int li
     x /= 2; x += x1;
     y /= 2; y += y2;
 
-    cdIupDrawImage(cnv, image, x, y, make_inactive, bgcolor);
+    cdIupDrawImage(cnv, image, x, y, 0, 0, make_inactive, bgcolor);
   }
 
   return IUP_DEFAULT;  /* draw nothing more */

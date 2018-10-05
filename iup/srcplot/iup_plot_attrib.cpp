@@ -31,26 +31,6 @@
 #endif
 
 
-static char* iupStrReturnColor(long color)
-{
-  unsigned char r, g, b, a;
-  cdDecodeColor(color, &r, &g, &b);
-  a = cdDecodeAlpha(color);
-  return iupStrReturnRGBA(r, g, b, a);
-}
-
-static int iupStrToColor(const char* str, long *color)
-{
-  unsigned char r, g, b, a;
-  if (iupStrToRGBA(str, &r, &g, &b, &a))
-  {
-    *color = cdEncodeColor(r, g, b);
-    *color = cdEncodeAlpha(*color, a);
-    return 1;
-  }
-  return 0;
-}
-
 static void iPlotCheckCurrentDataSet(Ihandle* ih)
 {
   int count = ih->data->current_plot->mDataSetListCount;
@@ -89,6 +69,39 @@ static void iPlotPlotRemove(Ihandle* ih, int p)
   iupPlotUpdateViewports(ih);
 }
 
+static char* iupStrReturnColor(long color)
+{
+  unsigned char r, g, b, a;
+  cdDecodeColor(color, &r, &g, &b);
+  a = cdDecodeAlpha(color);
+  return iupStrReturnRGBA(r, g, b, a);
+}
+
+static int iupStrToColor(const char* str, long *color)
+{
+  unsigned char r, g, b, a;
+  if (iupStrToRGBA(str, &r, &g, &b, &a))
+  {
+    *color = cdEncodeColor(r, g, b);
+    *color = cdEncodeAlpha(*color, a);
+    return 1;
+  }
+  return 0;
+}
+
+static long iPlotGetColor(Ihandle* ih, const char* value, const char* default_attrib)
+{
+  long color = 0;
+  if (iupStrToColor(value, &color))
+    return color;
+  else
+  {
+    value = IupGetAttribute(ih, default_attrib);
+    iupStrToColor(value, &color);
+    return color;
+  }
+}
+
 static int iPlotGetCDFontStyle(const char* value)
 {
   if (!value)
@@ -106,15 +119,27 @@ static int iPlotGetCDFontStyle(const char* value)
   return -1;
 }
 
-static char* iPlotGetPlotFontSize(int size)
+static int iPlotGetCDFontSize(const char* value)
+{
+  if (!value)
+    return 0;
+
+  int ii;
+  if (iupStrToInt(value, &ii))
+    return ii;
+
+  return 0;
+}
+
+static char* iPlotGetPlotFontSize(Ihandle* ih, int size)
 {
   if (size)
     return iupStrReturnInt(size);
   else
-    return NULL;
+    return IupGetAttribute(ih, "FONTSIZE");
 }
 
-static char* iPlotGetPlotFontStyle(int style)
+static char* iPlotGetPlotFontStyle(Ihandle* ih, int style)
 {
   if (style >= CD_PLAIN && style <= CD_BOLD_ITALIC)
   {
@@ -122,7 +147,7 @@ static char* iPlotGetPlotFontStyle(int style)
     return (char*)style_str[style];
   }
   else
-    return NULL;
+    return IupGetAttribute(ih, "FONTSTYLE");
 }
 
 static char* iPlotGetPlotPenStyle(int style)
@@ -133,7 +158,7 @@ static char* iPlotGetPlotPenStyle(int style)
     return (char*)style_str[style];
   }
   else
-    return NULL;
+    return "CONTINUOUS";   /* should never happen */
 }
 
 static int iPlotGetCDPenStyle(const char* value)
@@ -160,7 +185,7 @@ static char* iPlotGetPlotMarkStyle(int style)
     return (char*)style_str[style];
   }
   else
-    return NULL;
+    return "X"; /* should never happen */
 }
 
 static int iPlotGetCDMarkStyle(const char* value)
@@ -269,8 +294,10 @@ static int iPlotSetLegendPosAttrib(Ihandle* ih, const char* value)
     ih->data->current_plot->mLegend.mPosition = IUP_PLOT_BOTTOMRIGHT;
   else if (iupStrEqualNoCase(value, "BOTTOMCENTER"))
     ih->data->current_plot->mLegend.mPosition = IUP_PLOT_BOTTOMCENTER;
-  else
+  else if (iupStrEqualNoCase(value, "TOPRIGHT"))
     ih->data->current_plot->mLegend.mPosition = IUP_PLOT_TOPRIGHT;
+  else if (iupStrEqualNoCase(value, "XY"))
+    ih->data->current_plot->mLegend.mPosition = IUP_PLOT_XY;
 
   ih->data->current_plot->mRedraw = true;
   return 0;
@@ -278,18 +305,110 @@ static int iPlotSetLegendPosAttrib(Ihandle* ih, const char* value)
 
 static char* iPlotGetLegendPosAttrib(Ihandle* ih)
 {
-  const char* legendpos_str[4] = {"TOPLEFT", "TOPRIGHT", "BOTTOMLEFT", "BOTTOMRIGHT"};
+  const char* legendpos_str[] = { "TOPRIGHT", "TOPLEFT", "BOTTOMRIGHT", "BOTTOMLEFT", "BOTTOMCENTER", "XY" };
   return (char*)legendpos_str[ih->data->current_plot->mLegend.mPosition];
+}
+
+static int iPlotSetBackImageAttrib(Ihandle* ih, const char* value)
+{
+  if (ih->data->current_plot->mBackImage) free(ih->data->current_plot->mBackImage);
+  ih->data->current_plot->mBackImage = iupStrDup(value);
+  ih->data->current_plot->mRedraw = true;
+  return 0;
+}
+
+static char* iPlotGetBackImageAttrib(Ihandle* ih)
+{
+  return ih->data->current_plot->mBackImage;
+}
+
+static int iPlotSetLegendPosXYAttrib(Ihandle* ih, const char* value)
+{
+  int x, y;
+  if (iupStrToIntInt(value, &x, &y, ',') == 2)
+  {
+    ih->data->current_plot->mLegend.mPosition = IUP_PLOT_XY;
+    ih->data->current_plot->mLegend.mPos.mX = x;
+    ih->data->current_plot->mLegend.mPos.mY = y;
+  }
+
+  ih->data->current_plot->mRedraw = true;
+  return 0;
+}
+
+static char* iPlotGetLegendPosXYAttrib(Ihandle* ih)
+{
+  return iupStrReturnIntInt(ih->data->current_plot->mLegend.mPos.mX, ih->data->current_plot->mLegend.mPos.mY, ',');
+}
+
+static int iPlotSetBackImageXMinAttrib(Ihandle* ih, const char* value)
+{
+  double xx;
+  if (iupStrToDouble(value, &xx))
+  {
+    ih->data->current_plot->mBackImageMinX = xx;
+    ih->data->current_plot->mRedraw = true;
+  }
+  return 0;
+}
+
+static int iPlotSetBackImageYMinAttrib(Ihandle* ih, const char* value)
+{
+  double xx;
+  if (iupStrToDouble(value, &xx))
+  {
+    ih->data->current_plot->mBackImageMinY = xx;
+    ih->data->current_plot->mRedraw = true;
+  }
+  return 0;
+}
+
+static char* iPlotGetBackImageXMinAttrib(Ihandle* ih)
+{
+  return iupStrReturnDouble(ih->data->current_plot->mBackImageMinX);
+}
+
+static char* iPlotGetBackImageYMinAttrib(Ihandle* ih)
+{
+  return iupStrReturnDouble(ih->data->current_plot->mBackImageMinY);
+}
+
+static int iPlotSetBackImageXMaxAttrib(Ihandle* ih, const char* value)
+{
+  double xx;
+  if (iupStrToDouble(value, &xx))
+  {
+    ih->data->current_plot->mBackImageMaxX = xx;
+    ih->data->current_plot->mRedraw = true;
+  }
+  return 0;
+}
+
+static int iPlotSetBackImageYMaxAttrib(Ihandle* ih, const char* value)
+{
+  double xx;
+  if (iupStrToDouble(value, &xx))
+  {
+    ih->data->current_plot->mBackImageMaxY = xx;
+    ih->data->current_plot->mRedraw = true;
+  }
+  return 0;
+}
+
+static char* iPlotGetBackImageXMaxAttrib(Ihandle* ih)
+{
+  return iupStrReturnDouble(ih->data->current_plot->mBackImageMaxX);
+}
+
+static char* iPlotGetBackImageYMaxAttrib(Ihandle* ih)
+{
+  return iupStrReturnDouble(ih->data->current_plot->mBackImageMaxY);
 }
 
 static int iPlotSetBackColorAttrib(Ihandle* ih, const char* value)
 {
-  long color;
-  if (iupStrToColor(value, &color))
-  {
-    ih->data->current_plot->mBackColor = color;
-    ih->data->current_plot->mRedraw = true;
-  }
+  ih->data->current_plot->mBackColor = iPlotGetColor(ih, value, "BGCOLOR");
+  ih->data->current_plot->mRedraw = true;
   return 0;
 }
 
@@ -303,10 +422,12 @@ static int iPlotSetBGColorAttrib(Ihandle* ih, const char* value)
   long color;
   if (iupStrToColor(value, &color))
   {
+    /* must manually reset all colors */
     for (int p = 0; p<ih->data->plot_list_count; p++)
     {
       ih->data->plot_list[p]->mLegend.mBoxBackColor = color;
       ih->data->plot_list[p]->mBackColor = color;
+
       ih->data->plot_list[p]->mRedraw = true;
     }
   }
@@ -318,6 +439,7 @@ static int iPlotSetFGColorAttrib(Ihandle* ih, const char* value)
   long color;
   if (iupStrToColor(value, &color))
   {
+    /* must manually reset all colors */
     for (int p = 0; p<ih->data->plot_list_count; p++)
     {
       ih->data->plot_list[p]->mBox.mColor = color;
@@ -325,6 +447,7 @@ static int iPlotSetFGColorAttrib(Ihandle* ih, const char* value)
       ih->data->plot_list[p]->mAxisY.mColor = color;
       ih->data->plot_list[p]->mLegend.mBoxColor = color;
       ih->data->plot_list[p]->mTitle.mColor = color;
+
       ih->data->plot_list[p]->mRedraw = true;
     }
   }
@@ -359,12 +482,14 @@ static int iPlotSetStandardFontAttrib(Ihandle* ih, const char* value)
 
   for (int p = 0; p < ih->data->plot_list_count; p++)
   {
+    /* store the default attributes in local members to speed up */
     ih->data->plot_list[p]->mDefaultFontSize = size;
     ih->data->plot_list[p]->mDefaultFontStyle = style;
     ih->data->plot_list[p]->mAxisX.mDefaultFontSize = size;
     ih->data->plot_list[p]->mAxisX.mDefaultFontStyle = style;
     ih->data->plot_list[p]->mAxisY.mDefaultFontSize = size;
     ih->data->plot_list[p]->mAxisY.mDefaultFontStyle = style;
+
     ih->data->plot_list[p]->mRedraw = true;
   }
 
@@ -373,12 +498,8 @@ static int iPlotSetStandardFontAttrib(Ihandle* ih, const char* value)
 
 static int iPlotSetTitleColorAttrib(Ihandle* ih, const char* value)
 {
-  long color;
-  if (iupStrToColor(value, &color))
-  {
-    ih->data->current_plot->mTitle.mColor = color;
-    ih->data->current_plot->mRedraw = true;
-  }
+  ih->data->current_plot->mTitle.mColor = iPlotGetColor(ih, value, "FGCOLOR");
+  ih->data->current_plot->mRedraw = true;
   return 0;
 }
 
@@ -401,79 +522,156 @@ static char* iPlotGetTitleAttrib(Ihandle* ih)
 
 static int iPlotSetTitleFontSizeAttrib(Ihandle* ih, const char* value)
 {
-  int ii;
-  if (iupStrToInt(value, &ii))
-  {
-    ih->data->current_plot->mTitle.mFontSize = ii;
-    ih->data->current_plot->mRedraw = true;
-  }
+  ih->data->current_plot->mTitle.mFontSize = iPlotGetCDFontSize(value);
+  ih->data->current_plot->mRedraw = true;
   return 0;
 }
 
 static char* iPlotGetTitleFontSizeAttrib(Ihandle* ih)
 {
-  return iPlotGetPlotFontSize(ih->data->current_plot->mTitle.mFontSize);
+  int theFontSize = ih->data->current_plot->mTitle.mFontSize;
+  if (theFontSize == 0)
+  {
+    int size = IupGetInt(ih, "FONTSIZE");
+    if (size > 0) size += 6;
+    else size -= 8;
+
+    theFontSize = size;
+  }
+
+  return iPlotGetPlotFontSize(ih, theFontSize);
 }
 
 static int iPlotSetTitleFontStyleAttrib(Ihandle* ih, const char* value)
 {
-  int style = iPlotGetCDFontStyle(value);
-  if (style != -1)
-  {
-    ih->data->current_plot->mTitle.mFontStyle = style;
-    ih->data->current_plot->mRedraw = true;
-  }
+  ih->data->current_plot->mTitle.mFontStyle = iPlotGetCDFontStyle(value);
+  ih->data->current_plot->mRedraw = true;
   return 0;
 }
 
 static char* iPlotGetTitleFontStyleAttrib(Ihandle* ih)
 {
-  return iPlotGetPlotFontStyle(ih->data->current_plot->mTitle.mFontStyle);
+  return iPlotGetPlotFontStyle(ih, ih->data->current_plot->mTitle.mFontStyle);
+}
+
+static int iPlotSetTitlePosAutoAttrib(Ihandle* ih, const char* value)
+{
+  if (iupStrBoolean(value))
+    ih->data->current_plot->mTitle.mAutoPos = true;
+  else 
+    ih->data->current_plot->mTitle.mAutoPos = false;
+
+  ih->data->current_plot->mRedraw = true;
+  return 0;
+}
+
+static char* iPlotGetTitlePosAutoAttrib(Ihandle* ih)
+{
+  return iupStrReturnBoolean(ih->data->current_plot->mTitle.mAutoPos);
+}
+
+static int iPlotSetTitlePosXYAttrib(Ihandle* ih, const char* value)
+{
+  int x, y;
+  if (iupStrToIntInt(value, &x, &y, ',') == 2)
+  {
+    ih->data->current_plot->mTitle.mAutoPos = false;
+    ih->data->current_plot->mTitle.mPosX = x;
+    ih->data->current_plot->mTitle.mPosY = y;
+    ih->data->current_plot->mRedraw = true;
+  }
+  return 0;
+}
+
+static char* iPlotGetTitlePosXYAttrib(Ihandle* ih)
+{
+  return iupStrReturnIntInt(ih->data->current_plot->mTitle.mPosX, ih->data->current_plot->mTitle.mPosY, ',');
 }
 
 static int iPlotSetLegendFontSizeAttrib(Ihandle* ih, const char* value)
 {
-  int xx;
-  if (!iupStrToInt(value, &xx))
-    return 0;
-
-  ih->data->current_plot->mLegend.mFontSize = xx;
+  ih->data->current_plot->mLegend.mFontSize = iPlotGetCDFontSize(value);
   ih->data->current_plot->mRedraw = true;
   return 0;
 }
 
 static int iPlotSetLegendFontStyleAttrib(Ihandle* ih, const char* value)
 {
-  int style = iPlotGetCDFontStyle(value);
-  if (style == -1)
-    return 0;
-
-  ih->data->current_plot->mLegend.mFontStyle = style;
+  ih->data->current_plot->mLegend.mFontStyle = iPlotGetCDFontStyle(value);
   ih->data->current_plot->mRedraw = true;
   return 0;
 }
 
 static char* iPlotGetLegendFontStyleAttrib(Ihandle* ih)
 {
-  return iPlotGetPlotFontStyle(ih->data->current_plot->mLegend.mFontStyle);
+  return iPlotGetPlotFontStyle(ih, ih->data->current_plot->mLegend.mFontStyle);
 }
 
 static char* iPlotGetLegendFontSizeAttrib(Ihandle* ih)
 {
-  return iPlotGetPlotFontSize(ih->data->current_plot->mLegend.mFontSize);
+  return iPlotGetPlotFontSize(ih, ih->data->current_plot->mLegend.mFontSize);
+}
+
+static int iPlotSetMarginLeftAutoAttrib(Ihandle* ih, const char* value)
+{
+  ih->data->current_plot->mMarginAuto.mLeft = iupStrBoolean(value);
+  return 0;
+}
+
+static int iPlotSetMarginRightAutoAttrib(Ihandle* ih, const char* value)
+{
+  ih->data->current_plot->mMarginAuto.mRight = iupStrBoolean(value);
+  return 0;
+}
+
+static int iPlotSetMarginTopAutoAttrib(Ihandle* ih, const char* value)
+{
+  ih->data->current_plot->mMarginAuto.mTop = iupStrBoolean(value);
+  return 0;
+}
+
+static int iPlotSetMarginBottomAutoAttrib(Ihandle* ih, const char* value)
+{
+  ih->data->current_plot->mMarginAuto.mBottom = iupStrBoolean(value);
+  return 0;
+}
+
+static char* iPlotGetMarginLeftAutoAttrib(Ihandle* ih)
+{
+  return iupStrReturnBoolean(ih->data->current_plot->mMarginAuto.mLeft);
+}
+
+static char* iPlotGetMarginRightAutoAttrib(Ihandle* ih)
+{
+  return iupStrReturnBoolean(ih->data->current_plot->mMarginAuto.mRight);
+}
+
+static char* iPlotGetMarginTopAutoAttrib(Ihandle* ih)
+{
+  return iupStrReturnBoolean(ih->data->current_plot->mMarginAuto.mTop);
+}
+
+static char* iPlotGetMarginBottomAutoAttrib(Ihandle* ih)
+{
+  return iupStrReturnBoolean(ih->data->current_plot->mMarginAuto.mBottom);
 }
 
 static int iPlotSetMarginLeftAttrib(Ihandle* ih, const char* value)
 {
   if (iupStrEqualNoCase(value, "AUTO"))
-    ih->data->current_plot->mMarginAuto.mLeft = 1;
-
-  int ii;
-  if (iupStrToInt(value, &ii))
   {
-    ih->data->current_plot->mMarginAuto.mLeft = 0;
-    ih->data->current_plot->mMargin.mLeft = ii;
+    ih->data->current_plot->mMarginAuto.mLeft = 1;
     ih->data->current_plot->mRedraw = true;
+  }
+  else
+  {
+    int ii;
+    if (iupStrToInt(value, &ii))
+    {
+      ih->data->current_plot->mMarginAuto.mLeft = 0;
+      ih->data->current_plot->mMargin.mLeft = ii;
+      ih->data->current_plot->mRedraw = true;
+    }
   }
   return 0;
 }
@@ -481,14 +679,19 @@ static int iPlotSetMarginLeftAttrib(Ihandle* ih, const char* value)
 static int iPlotSetMarginRightAttrib(Ihandle* ih, const char* value)
 {
   if (iupStrEqualNoCase(value, "AUTO"))
-    ih->data->current_plot->mMarginAuto.mRight = 1;
-
-  int ii;
-  if (iupStrToInt(value, &ii))
   {
-    ih->data->current_plot->mMarginAuto.mRight = 0;
-    ih->data->current_plot->mMargin.mRight = ii;
+    ih->data->current_plot->mMarginAuto.mRight = 1;
     ih->data->current_plot->mRedraw = true;
+  }
+  else
+  {
+    int ii;
+    if (iupStrToInt(value, &ii))
+    {
+      ih->data->current_plot->mMarginAuto.mRight = 0;
+      ih->data->current_plot->mMargin.mRight = ii;
+      ih->data->current_plot->mRedraw = true;
+    }
   }
   return 0;
 }
@@ -496,14 +699,19 @@ static int iPlotSetMarginRightAttrib(Ihandle* ih, const char* value)
 static int iPlotSetMarginTopAttrib(Ihandle* ih, const char* value)
 {
   if (iupStrEqualNoCase(value, "AUTO"))
-    ih->data->current_plot->mMarginAuto.mTop = 1;
-
-  int ii;
-  if (iupStrToInt(value, &ii))
   {
-    ih->data->current_plot->mMarginAuto.mTop = 0;
-    ih->data->current_plot->mMargin.mTop = ii;
+    ih->data->current_plot->mMarginAuto.mTop = 1;
     ih->data->current_plot->mRedraw = true;
+  }
+  else
+  {
+    int ii;
+    if (iupStrToInt(value, &ii))
+    {
+      ih->data->current_plot->mMarginAuto.mTop = 0;
+      ih->data->current_plot->mMargin.mTop = ii;
+      ih->data->current_plot->mRedraw = true;
+    }
   }
   return 0;
 }
@@ -511,14 +719,19 @@ static int iPlotSetMarginTopAttrib(Ihandle* ih, const char* value)
 static int iPlotSetMarginBottomAttrib(Ihandle* ih, const char* value)
 {
   if (iupStrEqualNoCase(value, "AUTO"))
-    ih->data->current_plot->mMarginAuto.mBottom = 1;
-
-  int ii;
-  if (iupStrToInt(value, &ii))
   {
-    ih->data->current_plot->mMarginAuto.mBottom = 0;
-    ih->data->current_plot->mMargin.mBottom = ii;
+    ih->data->current_plot->mMarginAuto.mBottom = 1;
     ih->data->current_plot->mRedraw = true;
+  }
+  else
+  {
+    int ii;
+    if (iupStrToInt(value, &ii))
+    {
+      ih->data->current_plot->mMarginAuto.mBottom = 0;
+      ih->data->current_plot->mMargin.mBottom = ii;
+      ih->data->current_plot->mRedraw = true;
+    }
   }
   return 0;
 }
@@ -541,6 +754,45 @@ static char* iPlotGetMarginTopAttrib(Ihandle* ih)
 static char* iPlotGetMarginBottomAttrib(Ihandle* ih)
 {
   return iupStrReturnInt(ih->data->current_plot->mMargin.mBottom);
+}
+
+static int iPlotSetGridAttrib(Ihandle* ih, const char* value)
+{
+  if (iupStrEqualNoCase(value, "VERTICAL"))  /* vertical grid - X axis  */
+  {
+    ih->data->current_plot->mGrid.mShowX = true;
+    ih->data->current_plot->mGrid.mShowY = false;
+  }
+  else if (iupStrEqualNoCase(value, "HORIZONTAL")) /* horizontal grid - Y axis */
+  {
+    ih->data->current_plot->mGrid.mShowY = true;
+    ih->data->current_plot->mGrid.mShowX = false;
+  }
+  else if (iupStrEqualNoCase(value, "YES"))
+  {
+    ih->data->current_plot->mGrid.mShowX = true;
+    ih->data->current_plot->mGrid.mShowY = true;
+  }
+  else
+  {
+    ih->data->current_plot->mGrid.mShowY = false;
+    ih->data->current_plot->mGrid.mShowX = false;
+  }
+
+  ih->data->current_plot->mRedraw = true;
+  return 0;
+}
+
+static char* iPlotGetGridAttrib(Ihandle* ih)
+{
+  if (ih->data->current_plot->mGrid.mShowX && ih->data->current_plot->mGrid.mShowY)
+    return "YES";
+  else if (ih->data->current_plot->mGrid.mShowY)
+    return "HORIZONTAL";
+  else if (ih->data->current_plot->mGrid.mShowX)
+    return "VERTICAL";
+  else
+    return "NO";
 }
 
 static int iPlotSetGridColorAttrib(Ihandle* ih, const char* value)
@@ -596,6 +848,98 @@ static char* iPlotGetGridLineWidthAttrib(Ihandle* ih)
   return iupStrReturnInt(ih->data->current_plot->mGrid.mLineWidth);
 }
 
+static int iPlotSetGridMinorAttrib(Ihandle* ih, const char* value)
+{
+  if (iupStrEqualNoCase(value, "VERTICAL"))  /* vertical grid - X axis  */
+  {
+    ih->data->current_plot->mGridMinor.mShowX = true;
+    ih->data->current_plot->mGridMinor.mShowY = false;
+  }
+  else if (iupStrEqualNoCase(value, "HORIZONTAL")) /* horizontal grid - Y axis */
+  {
+    ih->data->current_plot->mGridMinor.mShowY = true;
+    ih->data->current_plot->mGridMinor.mShowX = false;
+  }
+  else if (iupStrEqualNoCase(value, "YES"))
+  {
+    ih->data->current_plot->mGridMinor.mShowX = true;
+    ih->data->current_plot->mGridMinor.mShowY = true;
+  }
+  else
+  {
+    ih->data->current_plot->mGridMinor.mShowY = false;
+    ih->data->current_plot->mGridMinor.mShowX = false;
+  }
+
+  ih->data->current_plot->mRedraw = true;
+  return 0;
+}
+
+static char* iPlotGetGridMinorAttrib(Ihandle* ih)
+{
+  if (ih->data->current_plot->mGridMinor.mShowX && ih->data->current_plot->mGridMinor.mShowY)
+    return "YES";
+  else if (ih->data->current_plot->mGridMinor.mShowY)
+    return "HORIZONTAL";
+  else if (ih->data->current_plot->mGridMinor.mShowX)
+    return "VERTICAL";
+  else
+    return "NO";
+}
+
+static int iPlotSetGridMinorColorAttrib(Ihandle* ih, const char* value)
+{
+  long color;
+  if (iupStrToColor(value, &color))
+  {
+    ih->data->current_plot->mGridMinor.mColor = color;
+    ih->data->current_plot->mRedraw = true;
+  }
+  return 0;
+}
+
+static char* iPlotGetGridMinorColorAttrib(Ihandle* ih)
+{
+  return iupStrReturnColor(ih->data->current_plot->mGridMinor.mColor);
+}
+
+static int iPlotSetGridMinorLineStyleAttrib(Ihandle* ih, const char* value)
+{
+  ih->data->current_plot->mGridMinor.mLineStyle = iPlotGetCDPenStyle(value);
+  ih->data->current_plot->mRedraw = true;
+  return 0;
+}
+
+static char* iPlotGetGridMinorLineStyleAttrib(Ihandle* ih)
+{
+  return iPlotGetPlotPenStyle(ih->data->current_plot->mGridMinor.mLineStyle);
+}
+
+static int iPlotSetGridMinorLineWidthAttrib(Ihandle* ih, const char* value)
+{
+  int ii;
+
+  if (ih->data->current_plot->mCurrentDataSet <  0 ||
+      ih->data->current_plot->mCurrentDataSet >= ih->data->current_plot->mDataSetListCount)
+      return 0;
+
+  if (iupStrToInt(value, &ii))
+  {
+    ih->data->current_plot->mGridMinor.mLineWidth = ii;
+    ih->data->current_plot->mRedraw = true;
+  }
+  return 0;
+}
+
+static char* iPlotGetGridMinorLineWidthAttrib(Ihandle* ih)
+{
+  if (ih->data->current_plot->mCurrentDataSet < 0 ||
+      ih->data->current_plot->mCurrentDataSet >= ih->data->current_plot->mDataSetListCount)
+      return NULL;
+
+  return iupStrReturnInt(ih->data->current_plot->mGridMinor.mLineWidth);
+}
+
 static int iPlotSetLegendBoxLineStyleAttrib(Ihandle* ih, const char* value)
 {
   ih->data->current_plot->mLegend.mBoxLineStyle = iPlotGetCDPenStyle(value);
@@ -617,12 +961,8 @@ static int iPlotSetBoxLineStyleAttrib(Ihandle* ih, const char* value)
 
 static int iPlotSetBoxColorAttrib(Ihandle* ih, const char* value)
 {
-  long color;
-  if (iupStrToColor(value, &color))
-  {
-    ih->data->current_plot->mBox.mColor = color;
-    ih->data->current_plot->mRedraw = true;
-  }
+  ih->data->current_plot->mBox.mColor = iPlotGetColor(ih, value, "FGCOLOR");
+  ih->data->current_plot->mRedraw = true;
   return 0;
 }
 
@@ -647,14 +987,26 @@ static char* iPlotGetBoxAttrib(Ihandle* ih)
   return iupStrReturnBoolean(ih->data->current_plot->mBox.mShow);
 }
 
+static int iPlotSetLegendBoxAttrib(Ihandle* ih, const char* value)
+{
+  if (iupStrBoolean(value))
+    ih->data->current_plot->mLegend.mBoxShow = true;
+  else
+    ih->data->current_plot->mLegend.mBoxShow = false;
+
+  ih->data->current_plot->mRedraw = true;
+  return 0;
+}
+
+static char* iPlotGetLegendBoxAttrib(Ihandle* ih)
+{
+  return iupStrReturnBoolean(ih->data->current_plot->mLegend.mBoxShow);
+}
+
 static int iPlotSetLegendBoxColorAttrib(Ihandle* ih, const char* value)
 {
-  long color;
-  if (iupStrToColor(value, &color))
-  {
-    ih->data->current_plot->mLegend.mBoxColor = color;
-    ih->data->current_plot->mRedraw = true;
-  }
+  ih->data->current_plot->mLegend.mBoxColor = iPlotGetColor(ih, value, "FGCOLOR");
+  ih->data->current_plot->mRedraw = true;
   return 0;
 }
 
@@ -665,12 +1017,8 @@ static char* iPlotGetLegendBoxBackColorAttrib(Ihandle* ih)
 
 static int iPlotSetLegendBoxBackColorAttrib(Ihandle* ih, const char* value)
 {
-  long color;
-  if (iupStrToColor(value, &color))
-  {
-    ih->data->current_plot->mLegend.mBoxBackColor = color;
-    ih->data->current_plot->mRedraw = true;
-  }
+  ih->data->current_plot->mLegend.mBoxBackColor = iPlotGetColor(ih, value, "BGCOLOR");
+  ih->data->current_plot->mRedraw = true;
   return 0;
 }
 
@@ -732,45 +1080,6 @@ static char* iPlotGetBoxLineWidthAttrib(Ihandle* ih)
       return NULL;
 
   return iupStrReturnInt(ih->data->current_plot->mBox.mLineWidth);
-}
-
-static int iPlotSetGridAttrib(Ihandle* ih, const char* value)
-{
-  if (iupStrEqualNoCase(value, "VERTICAL"))  /* vertical grid - X axis  */
-  {
-    ih->data->current_plot->mGrid.mShowX = true;
-    ih->data->current_plot->mGrid.mShowY = false;
-  }
-  else if (iupStrEqualNoCase(value, "HORIZONTAL")) /* horizontal grid - Y axis */
-  {
-    ih->data->current_plot->mGrid.mShowY = true;
-    ih->data->current_plot->mGrid.mShowX = false;
-  }
-  else if (iupStrEqualNoCase(value, "YES"))
-  {
-    ih->data->current_plot->mGrid.mShowX = true;
-    ih->data->current_plot->mGrid.mShowY = true;
-  }
-  else
-  {
-    ih->data->current_plot->mGrid.mShowY = false;
-    ih->data->current_plot->mGrid.mShowX = false;
-  }
-
-  ih->data->current_plot->mRedraw = true;
-  return 0;
-}
-
-static char* iPlotGetGridAttrib(Ihandle* ih)
-{
-  if (ih->data->current_plot->mGrid.mShowX && ih->data->current_plot->mGrid.mShowY)
-    return "YES";
-  else if (ih->data->current_plot->mGrid.mShowY)
-    return "HORIZONTAL";
-  else if (ih->data->current_plot->mGrid.mShowX)
-    return "VERTICAL";
-  else
-    return "NO";
 }
 
 static int iPlotSetCurrentAttrib(Ihandle* ih, const char* value)
@@ -935,7 +1244,7 @@ static int iPlotSetPlotRemoveAttrib(Ihandle* ih, const char* value)
   if (ih->data->plot_list_count == 1)
     return 0;
 
-  if (!value)
+  if (!value || iupStrEqualNoCase(value, "CURRENT"))
   {
     iPlotPlotRemove(ih, ih->data->current_plot_index);
     return 0;
@@ -1051,7 +1360,7 @@ static char* iPlotGetCanvasAttrib(Ihandle* ih)
 
 static int iPlotSetRemoveAttrib(Ihandle* ih, const char* value)
 {
-  if (!value)
+  if (!value || iupStrEqualNoCase(value, "CURRENT"))
   {
     ih->data->current_plot->RemoveDataSet(ih->data->current_plot->mCurrentDataSet);
     ih->data->current_plot->mRedraw = true;
@@ -1211,6 +1520,28 @@ static char* iPlotGetDSNameAttrib(Ihandle* ih)
 
   iupPlotDataSet* dataset = ih->data->current_plot->mDataSetList[ih->data->current_plot->mCurrentDataSet];
   return iupStrReturnStr(dataset->GetName());
+}
+
+static int iPlotSetDSUserDataAttrib(Ihandle* ih, const char* value)
+{
+  if (ih->data->current_plot->mCurrentDataSet <  0 ||
+      ih->data->current_plot->mCurrentDataSet >= ih->data->current_plot->mDataSetListCount)
+      return 0;
+
+  iupPlotDataSet* dataset = ih->data->current_plot->mDataSetList[ih->data->current_plot->mCurrentDataSet];
+  dataset->mUserData = (void*)value;
+  ih->data->current_plot->mRedraw = true;
+  return 0;
+}
+
+static char* iPlotGetDSUserDataAttrib(Ihandle* ih)
+{
+  if (ih->data->current_plot->mCurrentDataSet < 0 ||
+      ih->data->current_plot->mCurrentDataSet >= ih->data->current_plot->mDataSetListCount)
+      return NULL;
+
+  iupPlotDataSet* dataset = ih->data->current_plot->mDataSetList[ih->data->current_plot->mCurrentDataSet];
+  return (char*)dataset->mUserData;
 }
 
 static int iPlotSetDSColorAttrib(Ihandle* ih, const char* value)
@@ -1422,25 +1753,17 @@ static char* iPlotGetAxisYLabelCenteredAttrib(Ihandle* ih)
 
 static int iPlotSetAxisXColorAttrib(Ihandle* ih, const char* value)
 {
-  long color;
-  if (iupStrToColor(value, &color))
-  {
-    iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
-    axis->mColor = color;
-    ih->data->current_plot->mRedraw = true;
-  }
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
+  axis->mColor = iPlotGetColor(ih, value, "FGCOLOR");
+  ih->data->current_plot->mRedraw = true;
   return 0;
 }
 
 static int iPlotSetAxisYColorAttrib(Ihandle* ih, const char* value)
 {
-  long color;
-  if (iupStrToColor(value, &color))
-  {
-    iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
-    axis->mColor = color;
-    ih->data->current_plot->mRedraw = true;
-  }
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
+  axis->mColor = iPlotGetColor(ih, value, "FGCOLOR");
+  ih->data->current_plot->mRedraw = true;
   return 0;
 }
 
@@ -1828,74 +2151,58 @@ static char* iPlotGetAxisYScaleAttrib(Ihandle* ih)
 
 static int iPlotSetAxisXFontSizeAttrib(Ihandle* ih, const char* value)
 {
-  int ii;
-  if (iupStrToInt(value, &ii))
-  {
-    iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
-    axis->mFontSize = ii;
-    ih->data->current_plot->mRedraw = true;
-  }
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
+  axis->mFontSize = iPlotGetCDFontSize(value);
+  ih->data->current_plot->mRedraw = true;
   return 0;
 }
 
 static int iPlotSetAxisYFontSizeAttrib(Ihandle* ih, const char* value)
 {
-  int ii;
-  if (iupStrToInt(value, &ii))
-  {
-    iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
-    axis->mFontSize = ii;
-    ih->data->current_plot->mRedraw = true;
-  }
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
+  axis->mFontSize = iPlotGetCDFontSize(value);
+  ih->data->current_plot->mRedraw = true;
   return 0;
 }
 
 static char* iPlotGetAxisXFontSizeAttrib(Ihandle* ih)
 {
   iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
-  return iPlotGetPlotFontSize(axis->mFontSize);
+  return iPlotGetPlotFontSize(ih, axis->mFontSize);
 }
 
 static char* iPlotGetAxisYFontSizeAttrib(Ihandle* ih)
 {
   iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
-  return iPlotGetPlotFontSize(axis->mFontSize);
+  return iPlotGetPlotFontSize(ih, axis->mFontSize);
 }
 
 static int iPlotSetAxisXFontStyleAttrib(Ihandle* ih, const char* value)
 {
-  int style = iPlotGetCDFontStyle(value);
-  if (style != -1)
-  {
-    iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
-    axis->mFontStyle = style;
-    ih->data->current_plot->mRedraw = true;
-  }
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
+  axis->mFontStyle = iPlotGetCDFontStyle(value);
+  ih->data->current_plot->mRedraw = true;
   return 0;
 }
 
 static int iPlotSetAxisYFontStyleAttrib(Ihandle* ih, const char* value)
 {
-  int style = iPlotGetCDFontStyle(value);
-  if (style != -1)
-  {
-    iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
-    axis->mFontStyle = style;
-    ih->data->current_plot->mRedraw = true;
-  }
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
+  axis->mFontStyle = iPlotGetCDFontStyle(value);
+  ih->data->current_plot->mRedraw = true;
   return 0;
 }
 
 static char* iPlotGetAxisXFontStyleAttrib(Ihandle* ih)
 {
   iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
-  return iPlotGetPlotFontStyle(axis->mFontStyle);
+  return iPlotGetPlotFontStyle(ih, axis->mFontStyle);
 }
 
 static char* iPlotGetAxisYFontStyleAttrib(Ihandle* ih)
 {
   iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
-  return iPlotGetPlotFontStyle(axis->mFontStyle);
+  return iPlotGetPlotFontStyle(ih, axis->mFontStyle);
 }
 
 static int iPlotSetAxisXArrowAttrib(Ihandle* ih, const char* value)
@@ -2052,25 +2359,17 @@ static char* iPlotGetAxisYTickMajorSizeAttrib(Ihandle* ih)
 
 static int iPlotSetAxisXTickFontSizeAttrib(Ihandle* ih, const char* value)
 {
-  int ii;
-  if (iupStrToInt(value, &ii))
-  {
-    iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
-    axis->mTick.mFontSize = ii;
-    ih->data->current_plot->mRedraw = true;
-  }
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
+  axis->mTick.mFontSize = iPlotGetCDFontSize(value);
+  ih->data->current_plot->mRedraw = true;
   return 0;
 }
 
 static int iPlotSetAxisYTickFontSizeAttrib(Ihandle* ih, const char* value)
 {
-  int ii;
-  if (iupStrToInt(value, &ii))
-  {
-    iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
-    axis->mTick.mFontSize = ii;
-    ih->data->current_plot->mRedraw = true;
-  }
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
+  axis->mTick.mFontSize = iPlotGetCDFontSize(value);
+  ih->data->current_plot->mRedraw = true;
   return 0;
 }
 
@@ -2078,62 +2377,85 @@ static char* iPlotGetAxisXTickFontSizeAttrib(Ihandle* ih)
 {
   iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
 
-  return iPlotGetPlotFontSize(axis->mTick.mFontSize);
+  return iPlotGetPlotFontSize(ih, axis->mTick.mFontSize);
 }
 
 static char* iPlotGetAxisYTickFontSizeAttrib(Ihandle* ih)
 {
   iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
-
-  return iPlotGetPlotFontSize(axis->mTick.mFontSize);
+  return iPlotGetPlotFontSize(ih, axis->mTick.mFontSize);
 }
 
 static int iPlotSetAxisXTickFontStyleAttrib(Ihandle* ih, const char* value)
 {
-  int style = iPlotGetCDFontStyle(value);
-  if (style != -1)
-  {
-    iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
-    axis->mTick.mFontStyle = style;
-    ih->data->current_plot->mRedraw = true;
-  }
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
+  axis->mTick.mFontStyle = iPlotGetCDFontStyle(value);
+  ih->data->current_plot->mRedraw = true;
   return 0;
 }
 
 static int iPlotSetAxisYTickFontStyleAttrib(Ihandle* ih, const char* value)
 {
-  int style = iPlotGetCDFontStyle(value);
-  if (style != -1)
-  {
-    iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
-    axis->mTick.mFontStyle = style;
-    ih->data->current_plot->mRedraw = true;
-  }
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
+  axis->mTick.mFontStyle = iPlotGetCDFontStyle(value);
+  ih->data->current_plot->mRedraw = true;
   return 0;
 }
 
 static char* iPlotGetAxisXTickFontStyleAttrib(Ihandle* ih)
 {
   iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
-
-  return iPlotGetPlotFontSize(axis->mTick.mFontStyle);
+  return iPlotGetPlotFontSize(ih, axis->mTick.mFontStyle);
 }
 
 static char* iPlotGetAxisYTickFontStyleAttrib(Ihandle* ih)
 {
   iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
+  return iPlotGetPlotFontSize(ih, axis->mTick.mFontStyle);
+}
 
-  return iPlotGetPlotFontSize(axis->mTick.mFontStyle);
+static int iPlotSetAxisXTickFormatAutoAttrib(Ihandle* ih, const char* value)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
+  axis->mTick.mFormatAuto = iupStrBoolean(value)? true: false;
+  ih->data->current_plot->mRedraw = true;
+  return 0;
+}
+
+static int iPlotSetAxisYTickFormatAutoAttrib(Ihandle* ih, const char* value)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
+  axis->mTick.mFormatAuto = iupStrBoolean(value)? true: false;
+  ih->data->current_plot->mRedraw = true;
+  return 0;
+}
+
+static char* iPlotGetAxisXTickFormatAutoAttrib(Ihandle* ih)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
+  return iupStrReturnBoolean(axis->mTick.mFormatAuto);
+}
+
+static char* iPlotGetAxisYTickFormatAutoAttrib(Ihandle* ih)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
+  return iupStrReturnBoolean(axis->mTick.mFormatAuto);
 }
 
 static int iPlotSetAxisXTickFormatAttrib(Ihandle* ih, const char* value)
 {
   iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
 
-  if (value && value[0]!=0)
+  if (value && value[0] != 0)
+  {
     strcpy(axis->mTick.mFormatString, value);
+    axis->mTick.mFormatAuto = false;
+  }
   else
+  {
     strcpy(axis->mTick.mFormatString, "%.0f");
+    axis->mTick.mFormatAuto = true;
+  }
 
   ih->data->current_plot->mRedraw = true;
   return 0;
@@ -2143,12 +2465,54 @@ static int iPlotSetAxisYTickFormatAttrib(Ihandle* ih, const char* value)
 {
   iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
 
-  if (value && value[0]!=0)
+  if (value && value[0] != 0)
+  {
     strcpy(axis->mTick.mFormatString, value);
+    axis->mTick.mFormatAuto = false;
+  }
   else
+  {
     strcpy(axis->mTick.mFormatString, "%.0f");
+    axis->mTick.mFormatAuto = true;
+  }
 
   ih->data->current_plot->mRedraw = true;
+  return 0;
+}
+
+static int iPlotSetAxisXTickFormatPrecisionAttrib(Ihandle* ih, const char* value)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
+
+  int precision;
+  if (iupStrToInt(value, &precision))
+  {
+    sprintf(axis->mTick.mFormatString, "%%.%df", precision);
+    axis->mTick.mFormatAuto = false;
+  }
+  else
+  {
+    strcpy(axis->mTick.mFormatString, "%.0f");
+    axis->mTick.mFormatAuto = true;
+  }
+  return 0;
+}
+
+static int iPlotSetAxisYTickFormatPrecisionAttrib(Ihandle* ih, const char* value)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
+
+  int precision;
+  if (iupStrToInt(value, &precision))
+  {
+    sprintf(axis->mTick.mFormatString, "%%.%df", precision);
+    axis->mTick.mFormatAuto = false;
+  }
+  else
+  {
+    strcpy(axis->mTick.mFormatString, "%.0f");
+    axis->mTick.mFormatAuto = true;
+  }
   return 0;
 }
 
@@ -2162,6 +2526,94 @@ static char* iPlotGetAxisYTickFormatAttrib(Ihandle* ih)
 {
   iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
   return iupStrReturnStr(axis->mTick.mFormatString);
+}
+
+static char* iPlotGetAxisXTickFormatPrecisionAttrib(Ihandle* ih)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
+  int precision = iupStrGetFormatPrecision(axis->mTick.mFormatString);
+  return iupStrReturnInt(precision);
+}
+
+static char* iPlotGetAxisYTickFormatPrecisionAttrib(Ihandle* ih)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
+  int precision = iupStrGetFormatPrecision(axis->mTick.mFormatString);
+  return iupStrReturnInt(precision);
+}
+
+static int iPlotSetAxisXTipFormatAttrib(Ihandle* ih, const char* value)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
+
+  if (value && value[0] != 0)
+    strcpy(axis->mTipFormatString, value);
+  else
+    strcpy(axis->mTipFormatString, "%.2f");
+
+  return 0;
+}
+
+static int iPlotSetAxisYTipFormatAttrib(Ihandle* ih, const char* value)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
+
+  if (value && value[0] != 0)
+    strcpy(axis->mTipFormatString, value);
+  else
+    strcpy(axis->mTipFormatString, "%.2f");
+
+  return 0;
+}
+
+static int iPlotSetAxisXTipFormatPrecisionAttrib(Ihandle* ih, const char* value)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
+
+  int precision;
+  if (iupStrToInt(value, &precision))
+    sprintf(axis->mTipFormatString, "%%.%df", precision);
+  else
+    strcpy(axis->mTipFormatString, "%.2f");
+  return 0;
+}
+
+static int iPlotSetAxisYTipFormatPrecisionAttrib(Ihandle* ih, const char* value)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
+
+  int precision;
+  if (iupStrToInt(value, &precision))
+    sprintf(axis->mTipFormatString, "%%.%df", precision);
+  else
+    strcpy(axis->mTipFormatString, "%.2f");
+  return 0;
+}
+
+static char* iPlotGetAxisXTipFormatAttrib(Ihandle* ih)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
+  return iupStrReturnStr(axis->mTipFormatString);
+}
+
+static char* iPlotGetAxisYTipFormatAttrib(Ihandle* ih)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
+  return iupStrReturnStr(axis->mTipFormatString);
+}
+
+static char* iPlotGetAxisXTipFormatPrecisionAttrib(Ihandle* ih)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
+  int precision = iupStrGetFormatPrecision(axis->mTipFormatString);
+  return iupStrReturnInt(precision);
+}
+
+static char* iPlotGetAxisYTipFormatPrecisionAttrib(Ihandle* ih)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
+  int precision = iupStrGetFormatPrecision(axis->mTipFormatString);
+  return iupStrReturnInt(precision);
 }
 
 static int iPlotSetAxisXTickAttrib(Ihandle* ih, const char* value)
@@ -2282,6 +2734,40 @@ static char* iPlotGetAxisYTickRotateNumberAttrib(Ihandle* ih)
   iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
 
   return iupStrReturnBoolean(axis->mTick.mRotateNumber);
+}
+
+static int iPlotSetAxisXTickRotateNumberAngleAttrib(Ihandle* ih, const char* value)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
+
+  if (iupStrToDouble(value, &(axis->mTick.mRotateNumberAngle)))
+    ih->data->current_plot->mRedraw = true;
+
+  return 0;
+}
+
+static int iPlotSetAxisYTickRotateNumberAngleAttrib(Ihandle* ih, const char* value)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
+
+  if (iupStrToDouble(value, &(axis->mTick.mRotateNumberAngle)))
+    ih->data->current_plot->mRedraw = true;
+
+  return 0;
+}
+
+static char* iPlotGetAxisXTickRotateNumberAngleAttrib(Ihandle* ih)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
+
+  return iupStrReturnDouble(axis->mTick.mRotateNumberAngle);
+}
+
+static char* iPlotGetAxisYTickRotateNumberAngleAttrib(Ihandle* ih)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
+
+  return iupStrReturnDouble(axis->mTick.mRotateNumberAngle);
 }
 
 static int iPlotSetAxisXTickMajorSpanAttrib(Ihandle* ih, const char* value)
@@ -2413,34 +2899,53 @@ void iupPlotRegisterAttributes(Iclass* ic)
   iupClassRegisterAttribute(ic, "USE_IMAGERGB", NULL, iPlotSetUseImageRGBAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "USE_CONTEXTPLUS", NULL, iPlotSetUseContextPlusAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "MENUCONTEXT", NULL, NULL, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "MENUITEMPROPERTIES", NULL, NULL, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SHOWMENUCONTEXT", NULL, iPlotSetShowMenuContextAttrib, NULL, NULL, IUPAF_WRITEONLY | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "TIPFORMAT", NULL, NULL, IUPAF_SAMEASSYSTEM, "%s (%s, %s)", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
 
+  iupClassRegisterAttribute(ic, "MARGINLEFTAUTO", iPlotGetMarginLeftAutoAttrib, iPlotSetMarginLeftAutoAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "MARGINRIGHTAUTO", iPlotGetMarginRightAutoAttrib, iPlotSetMarginRightAutoAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "MARGINTOPAUTO", iPlotGetMarginTopAutoAttrib, iPlotSetMarginTopAutoAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "MARGINBOTTOMAUTO", iPlotGetMarginBottomAutoAttrib, iPlotSetMarginBottomAutoAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "MARGINLEFT", iPlotGetMarginLeftAttrib, iPlotSetMarginLeftAttrib, IUPAF_SAMEASSYSTEM, "AUTO", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "MARGINRIGHT", iPlotGetMarginRightAttrib, iPlotSetMarginRightAttrib, IUPAF_SAMEASSYSTEM, "AUTO", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "MARGINTOP", iPlotGetMarginTopAttrib, iPlotSetMarginTopAttrib, IUPAF_SAMEASSYSTEM, "AUTO", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "MARGINBOTTOM", iPlotGetMarginBottomAttrib, iPlotSetMarginBottomAttrib, IUPAF_SAMEASSYSTEM, "AUTO", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
 
   iupClassRegisterAttribute(ic, "BACKCOLOR", iPlotGetBackColorAttrib, iPlotSetBackColorAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "BACKIMAGE", iPlotGetBackImageAttrib, iPlotSetBackImageAttrib, NULL, NULL, IUPAF_IHANDLENAME | IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "BACKIMAGE_XMIN", iPlotGetBackImageXMinAttrib, iPlotSetBackImageXMinAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "BACKIMAGE_YMIN", iPlotGetBackImageYMinAttrib, iPlotSetBackImageYMinAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "BACKIMAGE_XMAX", iPlotGetBackImageXMaxAttrib, iPlotSetBackImageXMaxAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "BACKIMAGE_YMAX", iPlotGetBackImageYMaxAttrib, iPlotSetBackImageYMaxAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
 
   iupClassRegisterAttribute(ic, "TITLE", iPlotGetTitleAttrib, iPlotSetTitleAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "TITLECOLOR", iPlotGetTitleColorAttrib, iPlotSetTitleColorAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "TITLEFONTSIZE", iPlotGetTitleFontSizeAttrib, iPlotSetTitleFontSizeAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "TITLEFONTSTYLE", iPlotGetTitleFontStyleAttrib, iPlotSetTitleFontStyleAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "TITLEPOSAUTO", iPlotGetTitlePosAutoAttrib, iPlotSetTitlePosAutoAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "TITLEPOSXY", iPlotGetTitlePosXYAttrib, iPlotSetTitlePosXYAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
 
   iupClassRegisterAttribute(ic, "LEGEND", iPlotGetLegendAttrib, iPlotSetLegendAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
-      iupClassRegisterAttribute(ic, "LEGENDSHOW", iPlotGetLegendAttrib, iPlotSetLegendAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  /*OLD*/iupClassRegisterAttribute(ic, "LEGENDSHOW", iPlotGetLegendAttrib, iPlotSetLegendAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "LEGENDPOS", iPlotGetLegendPosAttrib, iPlotSetLegendPosAttrib, IUPAF_SAMEASSYSTEM, "TOPRIGHT", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "LEGENDPOSXY", iPlotGetLegendPosXYAttrib, iPlotSetLegendPosXYAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "LEGENDFONTSIZE", iPlotGetLegendFontSizeAttrib, iPlotSetLegendFontSizeAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "LEGENDFONTSTYLE", iPlotGetLegendFontStyleAttrib, iPlotSetLegendFontStyleAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "LEGENDBOX", iPlotGetLegendBoxAttrib, iPlotSetLegendBoxAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "LEGENDBOXCOLOR", iPlotGetLegendBoxColorAttrib, iPlotSetLegendBoxColorAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "LEGENDBOXBACKCOLOR", iPlotGetLegendBoxBackColorAttrib, iPlotSetLegendBoxBackColorAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "LEGENDBOXLINESTYLE", iPlotGetLegendBoxLineStyleAttrib, iPlotSetLegendBoxLineStyleAttrib, IUPAF_SAMEASSYSTEM, "CONTINUOUS", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "LEGENDBOXLINEWIDTH", iPlotGetLegendBoxLineWidthAttrib, iPlotSetLegendBoxLineWidthAttrib, IUPAF_SAMEASSYSTEM, "1", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
 
-  iupClassRegisterAttribute(ic, "GRIDCOLOR", iPlotGetGridColorAttrib, iPlotSetGridColorAttrib, IUPAF_SAMEASSYSTEM, "200 200 200", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "GRID", iPlotGetGridAttrib, iPlotSetGridAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "GRID", iPlotGetGridAttrib, iPlotSetGridAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "GRIDCOLOR", iPlotGetGridColorAttrib, iPlotSetGridColorAttrib, IUPAF_SAMEASSYSTEM, "200 200 200", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "GRIDLINESTYLE", iPlotGetGridLineStyleAttrib, iPlotSetGridLineStyleAttrib, IUPAF_SAMEASSYSTEM, "CONTINUOUS", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "GRIDLINEWIDTH", iPlotGetGridLineWidthAttrib, iPlotSetGridLineWidthAttrib, IUPAF_SAMEASSYSTEM, "1", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "GRIDMINOR", iPlotGetGridMinorAttrib, iPlotSetGridMinorAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "GRIDMINORCOLOR", iPlotGetGridMinorColorAttrib, iPlotSetGridMinorColorAttrib, IUPAF_SAMEASSYSTEM, "200 200 200", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "GRIDMINORLINESTYLE", iPlotGetGridMinorLineStyleAttrib, iPlotSetGridMinorLineStyleAttrib, IUPAF_SAMEASSYSTEM, "CONTINUOUS", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "GRIDMINORLINEWIDTH", iPlotGetGridMinorLineWidthAttrib, iPlotSetGridMinorLineWidthAttrib, IUPAF_SAMEASSYSTEM, "1", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
 
   iupClassRegisterAttribute(ic, "BOX", iPlotGetBoxAttrib, iPlotSetBoxAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "BOXCOLOR", iPlotGetBoxColorAttrib, iPlotSetBoxColorAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
@@ -2452,11 +2957,12 @@ void iupPlotRegisterAttributes(Iclass* ic)
   iupClassRegisterAttribute(ic, "DS_MARKSTYLE", iPlotGetDSMarkStyleAttrib, iPlotSetDSMarkStyleAttrib, IUPAF_SAMEASSYSTEM, "X", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "DS_MARKSIZE", iPlotGetDSMarkSizeAttrib, iPlotSetDSMarkSizeAttrib, IUPAF_SAMEASSYSTEM, "7", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "DS_NAME", iPlotGetDSNameAttrib, iPlotSetDSNameAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
-    iupClassRegisterAttribute(ic, "DS_LEGEND", iPlotGetDSNameAttrib, iPlotSetDSNameAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  /*OLD*/iupClassRegisterAttribute(ic, "DS_LEGEND", iPlotGetDSNameAttrib, iPlotSetDSNameAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "DS_COLOR", iPlotGetDSColorAttrib, iPlotSetDSColorAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "DS_MODE", iPlotGetDSModeAttrib, iPlotSetDSModeAttrib, IUPAF_SAMEASSYSTEM, "LINE", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "DS_REMOVE", NULL, iPlotSetDSRemoveAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "DS_COUNT", iPlotGetDSCountAttrib, NULL, NULL, NULL, IUPAF_READONLY|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "DS_USERDATA", iPlotGetDSUserDataAttrib, iPlotSetDSUserDataAttrib, NULL, NULL, IUPAF_NO_STRING | IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
 
   iupClassRegisterAttribute(ic, "AXS_X", iPlotGetAxisXAttrib, iPlotSetAxisXAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_Y", iPlotGetAxisYAttrib, iPlotSetAxisYAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
@@ -2472,8 +2978,8 @@ void iupPlotRegisterAttributes(Iclass* ic)
 
   iupClassRegisterAttribute(ic, "AXS_XLINEWIDTH", iPlotGetAxisXLineWidthAttrib, iPlotSetAxisXLineWidthAttrib, IUPAF_SAMEASSYSTEM, "1", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_YLINEWIDTH", iPlotGetAxisYLineWidthAttrib, iPlotSetAxisYLineWidthAttrib, IUPAF_SAMEASSYSTEM, "1", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "AXS_XCOLOR", iPlotGetAxisXColorAttrib, iPlotSetAxisXColorAttrib, IUPAF_SAMEASSYSTEM, "0 0 0", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "AXS_YCOLOR", iPlotGetAxisYColorAttrib, iPlotSetAxisYColorAttrib, IUPAF_SAMEASSYSTEM, "0 0 0", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_XCOLOR", iPlotGetAxisXColorAttrib, iPlotSetAxisXColorAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_YCOLOR", iPlotGetAxisYColorAttrib, iPlotSetAxisYColorAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_XAUTOMIN", iPlotGetAxisXAutoMinAttrib, iPlotSetAxisXAutoMinAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_YAUTOMIN", iPlotGetAxisYAutoMinAttrib, iPlotSetAxisYAutoMinAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_XAUTOMAX", iPlotGetAxisXAutoMaxAttrib, iPlotSetAxisXAutoMaxAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
@@ -2488,44 +2994,55 @@ void iupPlotRegisterAttributes(Iclass* ic)
   iupClassRegisterAttribute(ic, "AXS_YCROSSORIGIN", iPlotGetAxisYCrossOriginAttrib, iPlotSetAxisYCrossOriginAttrib, IUPAF_SAMEASSYSTEM, "NO", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_XSCALE", iPlotGetAxisXScaleAttrib, iPlotSetAxisXScaleAttrib, IUPAF_SAMEASSYSTEM, "LIN", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_YSCALE", iPlotGetAxisYScaleAttrib, iPlotSetAxisYScaleAttrib, IUPAF_SAMEASSYSTEM, "LIN", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "AXS_XARROW", iPlotGetAxisXArrowAttrib, iPlotSetAxisXArrowAttrib, IUPAF_SAMEASSYSTEM, "0 0 0", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "AXS_YARROW", iPlotGetAxisYArrowAttrib, iPlotSetAxisYArrowAttrib, IUPAF_SAMEASSYSTEM, "0 0 0", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_XARROW", iPlotGetAxisXArrowAttrib, iPlotSetAxisXArrowAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_YARROW", iPlotGetAxisYArrowAttrib, iPlotSetAxisYArrowAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
 
   iupClassRegisterAttribute(ic, "AXS_XTICK", iPlotGetAxisXTickAttrib, iPlotSetAxisXTickAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_YTICK", iPlotGetAxisYTickAttrib, iPlotSetAxisYTickAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
 
   iupClassRegisterAttribute(ic, "AXS_XTICKSIZEAUTO", iPlotGetAxisXAutoTickSizeAttrib, iPlotSetAxisXAutoTickSizeAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_YTICKSIZEAUTO", iPlotGetAxisYAutoTickSizeAttrib, iPlotSetAxisYAutoTickSizeAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
-      iupClassRegisterAttribute(ic, "AXS_XAUTOTICKSIZE", iPlotGetAxisXAutoTickSizeAttrib, iPlotSetAxisXAutoTickSizeAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
-      iupClassRegisterAttribute(ic, "AXS_YAUTOTICKSIZE", iPlotGetAxisYAutoTickSizeAttrib, iPlotSetAxisYAutoTickSizeAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  /*OLD*/iupClassRegisterAttribute(ic, "AXS_XAUTOTICKSIZE", iPlotGetAxisXAutoTickSizeAttrib, iPlotSetAxisXAutoTickSizeAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  /*OLD*/iupClassRegisterAttribute(ic, "AXS_YAUTOTICKSIZE", iPlotGetAxisYAutoTickSizeAttrib, iPlotSetAxisYAutoTickSizeAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_XTICKMINORSIZE", iPlotGetAxisXTickSizeAttrib, iPlotSetAxisXTickSizeAttrib, IUPAF_SAMEASSYSTEM, "5", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_YTICKMINORSIZE", iPlotGetAxisYTickSizeAttrib, iPlotSetAxisYTickSizeAttrib, IUPAF_SAMEASSYSTEM, "5", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
-      iupClassRegisterAttribute(ic, "AXS_XTICKSIZE", iPlotGetAxisXTickSizeAttrib, iPlotSetAxisXTickSizeAttrib, IUPAF_SAMEASSYSTEM, "5", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
-      iupClassRegisterAttribute(ic, "AXS_YTICKSIZE", iPlotGetAxisYTickSizeAttrib, iPlotSetAxisYTickSizeAttrib, IUPAF_SAMEASSYSTEM, "5", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  /*OLD*/iupClassRegisterAttribute(ic, "AXS_XTICKSIZE", iPlotGetAxisXTickSizeAttrib, iPlotSetAxisXTickSizeAttrib, IUPAF_SAMEASSYSTEM, "5", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  /*OLD*/iupClassRegisterAttribute(ic, "AXS_YTICKSIZE", iPlotGetAxisYTickSizeAttrib, iPlotSetAxisYTickSizeAttrib, IUPAF_SAMEASSYSTEM, "5", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_XTICKMAJORSIZE", iPlotGetAxisXTickMajorSizeAttrib, iPlotSetAxisXTickMajorSizeAttrib, IUPAF_SAMEASSYSTEM, "8", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_YTICKMAJORSIZE", iPlotGetAxisYTickMajorSizeAttrib, iPlotSetAxisYTickMajorSizeAttrib, IUPAF_SAMEASSYSTEM, "8", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
 
   iupClassRegisterAttribute(ic, "AXS_XTICKAUTO", iPlotGetAxisXAutoTickAttrib, iPlotSetAxisXAutoTickAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_YTICKAUTO", iPlotGetAxisYAutoTickAttrib, iPlotSetAxisYAutoTickAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
-      iupClassRegisterAttribute(ic, "AXS_XAUTOTICK", iPlotGetAxisXAutoTickAttrib, iPlotSetAxisXAutoTickAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
-      iupClassRegisterAttribute(ic, "AXS_YAUTOTICK", iPlotGetAxisYAutoTickAttrib, iPlotSetAxisYAutoTickAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  /*OLD*/iupClassRegisterAttribute(ic, "AXS_XAUTOTICK", iPlotGetAxisXAutoTickAttrib, iPlotSetAxisXAutoTickAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  /*OLD*/iupClassRegisterAttribute(ic, "AXS_YAUTOTICK", iPlotGetAxisYAutoTickAttrib, iPlotSetAxisYAutoTickAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_XTICKMAJORSPAN", iPlotGetAxisXTickMajorSpanAttrib, iPlotSetAxisXTickMajorSpanAttrib, IUPAF_SAMEASSYSTEM, "1", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_YTICKMAJORSPAN", iPlotGetAxisYTickMajorSpanAttrib, iPlotSetAxisYTickMajorSpanAttrib, IUPAF_SAMEASSYSTEM, "1", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_XTICKMINORDIVISION", iPlotGetAxisXTickDivisionAttrib, iPlotSetAxisXTickDivisionAttrib, IUPAF_SAMEASSYSTEM, "5", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_YTICKMINORDIVISION", iPlotGetAxisYTickDivisionAttrib, iPlotSetAxisYTickDivisionAttrib, IUPAF_SAMEASSYSTEM, "5", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
-      iupClassRegisterAttribute(ic, "AXS_XTICKDIVISION", iPlotGetAxisXTickDivisionAttrib, iPlotSetAxisXTickDivisionAttrib, IUPAF_SAMEASSYSTEM, "5", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
-      iupClassRegisterAttribute(ic, "AXS_YTICKDIVISION", iPlotGetAxisYTickDivisionAttrib, iPlotSetAxisYTickDivisionAttrib, IUPAF_SAMEASSYSTEM, "5", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  /*OLD*/iupClassRegisterAttribute(ic, "AXS_XTICKDIVISION", iPlotGetAxisXTickDivisionAttrib, iPlotSetAxisXTickDivisionAttrib, IUPAF_SAMEASSYSTEM, "5", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  /*OLD*/iupClassRegisterAttribute(ic, "AXS_YTICKDIVISION", iPlotGetAxisYTickDivisionAttrib, iPlotSetAxisYTickDivisionAttrib, IUPAF_SAMEASSYSTEM, "5", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
 
   iupClassRegisterAttribute(ic, "AXS_XTICKNUMBER", iPlotGetAxisXTickNumberAttrib, iPlotSetAxisXTickNumberAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_YTICKNUMBER", iPlotGetAxisYTickNumberAttrib, iPlotSetAxisYTickNumberAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_XTICKROTATENUMBER", iPlotGetAxisXTickRotateNumberAttrib, iPlotSetAxisXTickRotateNumberAttrib, IUPAF_SAMEASSYSTEM, "NO", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_YTICKROTATENUMBER", iPlotGetAxisYTickRotateNumberAttrib, iPlotSetAxisYTickRotateNumberAttrib, IUPAF_SAMEASSYSTEM, "NO", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_XTICKROTATENUMBERANGLE", iPlotGetAxisXTickRotateNumberAngleAttrib, iPlotSetAxisXTickRotateNumberAngleAttrib, IUPAF_SAMEASSYSTEM, "90", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_YTICKROTATENUMBERANGLE", iPlotGetAxisYTickRotateNumberAngleAttrib, iPlotSetAxisYTickRotateNumberAngleAttrib, IUPAF_SAMEASSYSTEM, "90", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_XTICKFORMATAUTO", iPlotGetAxisXTickFormatAutoAttrib, iPlotSetAxisXTickFormatAutoAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_YTICKFORMATAUTO", iPlotGetAxisYTickFormatAutoAttrib, iPlotSetAxisYTickFormatAutoAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_XTICKFORMAT", iPlotGetAxisXTickFormatAttrib, iPlotSetAxisXTickFormatAttrib, IUPAF_SAMEASSYSTEM, "%.0f", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_YTICKFORMAT", iPlotGetAxisYTickFormatAttrib, iPlotSetAxisYTickFormatAttrib, IUPAF_SAMEASSYSTEM, "%.0f", IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "AXS_XTICKFONTSIZE", iPlotGetAxisXTickFontSizeAttrib, iPlotSetAxisXTickFontSizeAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_XTICKFORMATPRECISION", iPlotGetAxisXTickFormatPrecisionAttrib, iPlotSetAxisXTickFormatPrecisionAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_YTICKFORMATPRECISION", iPlotGetAxisYTickFormatPrecisionAttrib, iPlotSetAxisYTickFormatPrecisionAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_XTICKFONTSIZE", iPlotGetAxisXTickFontSizeAttrib, iPlotSetAxisXTickFontSizeAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_YTICKFONTSIZE", iPlotGetAxisYTickFontSizeAttrib, iPlotSetAxisYTickFontSizeAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_XTICKFONTSTYLE", iPlotGetAxisXTickFontStyleAttrib, iPlotSetAxisXTickFontStyleAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_YTICKFONTSTYLE", iPlotGetAxisYTickFontStyleAttrib, iPlotSetAxisYTickFontStyleAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+
+  iupClassRegisterAttribute(ic, "AXS_XTIPFORMAT", iPlotGetAxisXTipFormatAttrib, iPlotSetAxisXTipFormatAttrib, IUPAF_SAMEASSYSTEM, "%.2f", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_YTIPFORMAT", iPlotGetAxisYTipFormatAttrib, iPlotSetAxisYTipFormatAttrib, IUPAF_SAMEASSYSTEM, "%.2f", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_XTIPFORMATPRECISION", iPlotGetAxisXTipFormatPrecisionAttrib, iPlotSetAxisXTipFormatPrecisionAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_YTIPFORMATPRECISION", iPlotGetAxisYTipFormatPrecisionAttrib, iPlotSetAxisYTipFormatPrecisionAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
 
   iupClassRegisterAttribute(ic, "REMOVE", NULL, iPlotSetRemoveAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "CLEAR", NULL, iPlotSetClearAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
@@ -2537,5 +3054,9 @@ void iupPlotRegisterAttributes(Iclass* ic)
   iupClassRegisterAttribute(ic, "PLOT_COUNT", iPlotGetPlotCountAttrib, iPlotSetPlotCountAttrib, NULL, NULL, IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "PLOT_REMOVE", NULL, iPlotSetPlotRemoveAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "PLOT_INSERT", NULL, iPlotSetPlotInsertAttrib, NULL, NULL, IUPAF_WRITEONLY|IUPAF_NOT_MAPPED|IUPAF_NO_INHERIT);
+
+  iupClassRegisterAttribute(ic, "FORMULA_MIN", NULL, NULL, IUPAF_SAMEASSYSTEM, "0", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "FORMULA_MAX", NULL, NULL, IUPAF_SAMEASSYSTEM, "1", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "FORMULA_PARAMETRIC", NULL, NULL, IUPAF_SAMEASSYSTEM, "No", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
 }
 

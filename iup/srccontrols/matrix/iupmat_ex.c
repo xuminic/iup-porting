@@ -33,9 +33,9 @@
 char* iupMatrixExGetCellValue(Ihandle* ih, int lin, int col, int convert)
 {
   if (convert)
-    return iupMatrixGetValue(ih, lin, col);  /* Display value */
+    return iupMatrixGetValueDisplay(ih, lin, col);  /* Display value */
   else
-    return iupMatrixGetValueString(ih, lin, col);  /* Internal value (Maximum Precision) */
+    return iupMatrixGetValue(ih, lin, col);  /* Internal value (Maximum Precision) */
 }
 
 /* Exported to IupMatrixEx */
@@ -93,9 +93,9 @@ static int iMatrixSetNumericFormatPrecisionAttrib(Ihandle* ih, int col, const ch
   if (iupStrToInt(value, &precision))
   {
     if (col == IUP_INVALID_ID)
-      IupSetStrf(ih, "NUMERICFORMATDEF", "%%.%dlf", precision);
+      IupSetStrf(ih, "NUMERICFORMATDEF", "%%.%df", precision);
     else
-      IupSetStrfId(ih, "NUMERICFORMAT", col, "%%.%dlf", precision);
+      IupSetStrfId(ih, "NUMERICFORMAT", col, "%%.%df", precision);
   }
   else
   {
@@ -107,24 +107,12 @@ static int iMatrixSetNumericFormatPrecisionAttrib(Ihandle* ih, int col, const ch
   return 0;
 }
 
-static int iMatrixGetPrecisionFromFormat (const char* format)
+static char* iMatrixGetNumericDecimalSymbolAttrib(Ihandle* ih)
 {
-  int precision;
-  while (*format)
-  {
-    if (*format=='.')
-     break;
-    format++;
-  }
-
-  if (*format!='.')
-    return -1;
-
-  format++;
-  if (iupStrToInt(format, &precision))
-    return precision;
-
-  return -1;
+  char* value = iupAttribGet(ih, "NUMERICDECIMALSYMBOL");
+  if (!value)
+    value = IupGetGlobal("DEFAULTDECIMALSYMBOL");
+  return value;
 }
 
 static char* iMatrixGetNumericFormatPrecisionAttrib(Ihandle* ih, int col)
@@ -137,7 +125,7 @@ static char* iMatrixGetNumericFormatPrecisionAttrib(Ihandle* ih, int col)
   if (!value)
     return NULL;
 
-  precision = iMatrixGetPrecisionFromFormat(value);
+  precision = iupStrGetFormatPrecision(value);
   if (precision == -1)
     return NULL;
 
@@ -232,6 +220,8 @@ static int iMatrixSetSortColumnAttrib(Ihandle* ih, int col, const char* value)
   int* sort_line_index;
   IFniii sort_cb;
 
+  /* Notice that sort_line_index[0] is always 0 */
+
   if (!ih->data->sort_line_index)
     ih->data->sort_line_index = (int*)calloc(ih->data->lines.num_alloc, sizeof(int));
   sort_line_index = ih->data->sort_line_index;
@@ -283,6 +273,9 @@ static int iMatrixSetSortColumnAttrib(Ihandle* ih, int col, const char* value)
 
   iupAttribSetStrf(ih, "SORTCOLUMNINTERVAL", "%d,%d", lin1, lin2);
 
+  if (lin1 < 1) lin1 = 1;
+  if (lin2 < lin1) lin2 = lin1;
+
   ascending = iupStrEqualNoCase(iupAttribGetStr(ih, "SORTCOLUMNORDER"), "ASCENDING");
   
   sort_cb = (IFniii)IupGetCallback(ih, "SORTCOLUMNCOMPARE_CB");
@@ -302,7 +295,7 @@ static int iMatrixSetSortColumnAttrib(Ihandle* ih, int col, const char* value)
       for (lin=lin1; lin<=lin2; lin++)
       {
         sort_line_number[lin-lin1].lin = sort_line_index[lin]!=0? sort_line_index[lin]: lin;
-        sort_line_number[lin-lin1].number = iupMatrixGetValueNumber(ih, lin, col);
+        sort_line_number[lin-lin1].number = iupMatrixGetValueNumeric(ih, lin, col);
       }
 
       qsort(sort_line_number,lin2-lin1+1,sizeof(ImatSortNumber), iMatrixCompareNumberFunc);
@@ -324,7 +317,7 @@ static int iMatrixSetSortColumnAttrib(Ihandle* ih, int col, const char* value)
       for (lin=lin1; lin<=lin2; lin++)
       {
         sort_line_text[lin-lin1].lin = sort_line_index[lin]!=0? sort_line_index[lin]: lin;
-        sort_line_text[lin-lin1].text = iupMatrixGetValueText(ih, lin, col);
+        sort_line_text[lin-lin1].text = iupMatrixGetValueDisplay(ih, lin, col);
 
         if (ih->data->callback_mode)
           sort_line_text[lin-lin1].text = iupStrDup(sort_line_text[lin-lin1].text);
@@ -386,7 +379,7 @@ void iupMatrixRegisterEx(Iclass* ic)
   iupClassRegisterAttributeId(ic, "NUMERICUNITINDEX", NULL, iMatrixSetNumericUnitIndexAttrib, IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "NUMERICUNITSHOWNINDEX", NULL, iMatrixSetNumericUnitShownIndexAttrib, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "NUMERICFORMATDEF", NULL, NULL, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "NUMERICDECIMALSYMBOL", NULL, NULL, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "NUMERICDECIMALSYMBOL", iMatrixGetNumericDecimalSymbolAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
 
   iupClassRegisterCallback(ic, "NUMERICGETVALUE_CB", "ii=d");
   iupClassRegisterCallback(ic, "NUMERICSETVALUE_CB", "iid");

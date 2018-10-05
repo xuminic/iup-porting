@@ -16,6 +16,7 @@
 #include "iup.h"
 #include "iupcontrols.h"
 #include "iup_plot.h"
+#include "iupim.h"
 
 #include <cd.h>
 #include <cdiup.h>
@@ -94,8 +95,22 @@ static void InitPlots(void)
   IupSetAttribute(plot[0], "AXS_XCROSSORIGIN", "Yes");
   IupSetAttribute(plot[0], "AXS_YCROSSORIGIN", "Yes");
 
-  IupSetAttribute(plot[0], "GRAPHICSMODE", "OPENGL");
+//  IupSetAttribute(plot[0], "GRAPHICSMODE", "OPENGL");
 //  IupSetAttribute(plot[0], "GRAPHICSMODE", "IMAGERGB");
+//  IupSetAttribute(plot[0], "ACTIVE", "No");
+
+  if (0)
+  {
+    Ihandle* image = IupLoadImage("../test/corsega.tif");
+    if (image)
+    {
+      IupSetAttributeHandle(plot[0], "BACKIMAGE", image);
+      IupSetAttribute(plot[0], "BACKIMAGE_XMIN", "-100");
+      IupSetAttribute(plot[0], "BACKIMAGE_XMAX", "150");
+      IupSetAttribute(plot[0], "BACKIMAGE_YMIN", "-2");
+      IupSetAttribute(plot[0], "BACKIMAGE_YMAX", "2");
+    }
+  }
 
   theFac = 1.0/(100*100*100);
   IupPlotBegin(plot[0], 0);
@@ -131,8 +146,8 @@ static void InitPlots(void)
       py[theI] = y;
       count++;
     }
-    //IupPlotAddPoints(plot[0], index, px, py, count);
-    IupPlotInsertPoints(plot[0], index, 100, px, py, count);
+    //IupPlotAddSamples(plot[0], index, px, py, count);
+    IupPlotInsertSamples(plot[0], index, 100, px, py, count);
   }
 
   IupSetAttribute(plot[0], "DS_LEGEND", "Curve 1");
@@ -599,8 +614,12 @@ void PlotTest(void)
   IupPlotOpen();     /* init IupPlot library */
 
   /* create plots */
-  for (ii=0; ii<MAXPLOT; ii++)
+  for (ii = 0; ii < MAXPLOT; ii++)
+  {
     plot[ii] = IupPlot();
+
+    IupSetAttribute(plot[ii], "MENUITEMPROPERTIES", "Yes");
+  }
 
   /* left panel: plot control
      Y zooming               */

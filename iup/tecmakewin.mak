@@ -6,7 +6,7 @@
 
 #---------------------------------#
 # Tecmake Version
-VERSION = 4.9
+VERSION = 4.12
 
 
 #---------------------------------#
@@ -265,6 +265,9 @@ ifdef DBG
 endif
 
 ifdef LUAMOD_DIR
+  ifdef USE_LUA53
+    LUAMODSFX = 53
+  endif
   ifdef USE_LUA52
     LUAMODSFX = 52
   endif
@@ -925,6 +928,7 @@ IM    ?= $(TECTOOLS_HOME)/im
 LUA   ?= $(TECTOOLS_HOME)/lua
 LUA51 ?= $(TECTOOLS_HOME)/lua5.1
 LUA52 ?= $(TECTOOLS_HOME)/lua52
+LUA53 ?= $(TECTOOLS_HOME)/lua53
 
 
 #---------------------------------#
@@ -977,6 +981,14 @@ ifdef USE_LUA52
   NO_LUALIB := Yes
 endif
 
+ifdef USE_LUA53
+  LUA_SUFFIX ?= 53
+  LIBLUASUFX := 53
+  override USE_LUA = Yes
+  LUA := $(LUA53)
+  NO_LUALIB := Yes
+endif
+
 ifdef USE_IUP
   override USE_IUP3 = Yes
 endif
@@ -1020,6 +1032,15 @@ ifdef USE_IUPCONTROLS
     override USE_CDLUA = Yes
   endif
   LIBS += iupcontrols
+endif
+
+ifdef USE_IUPGLCONTROLS
+  override USE_OPENGL = Yes
+  override USE_IUP = Yes
+  ifdef USE_IUPLUA
+    LIBS += iupluaglcontrols$(LIBLUASUFX)
+  endif
+  LIBS += iupglcontrols ftgl
 endif
 
 ifdef USE_IMLUA
@@ -1501,7 +1522,7 @@ endif
 
 
 #---------------------------------#
-# Rule to add a manifest file to the generted binary
+# Rule to add a manifest file to the generated binary
 .PHONY: addmanifest
 addmanifest:
   ifdef NEW_VC_COMPILER

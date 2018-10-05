@@ -1,3 +1,3 @@
 @echo off
-REM Script generated automatically by tecmake v4.11
+REM Script generated automatically by tecmake v4.12
 ..\bin\Win64\ledc.exe %*

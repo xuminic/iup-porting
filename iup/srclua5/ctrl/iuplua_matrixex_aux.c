@@ -11,6 +11,7 @@
 #include "iupmatrixex.h"
 
 #include "iuplua.h"
+#include "iupluamatrixex.h"
 #include "il.h"
 
 #include "iup_attrib.h"

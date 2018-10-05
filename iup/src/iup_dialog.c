@@ -121,9 +121,6 @@ static void iDialogAdjustPos(Ihandle *ih, int *x, int *y)
     }
   }
 
-  if (*x == IUP_MOUSEPOS || *y == IUP_MOUSEPOS)
-    iupdrvAddScreenOffset(&cursor_x, &cursor_y, -1);  /* de-compensate for add offset bellow */
-
   switch (*x)
   {
   case IUP_CENTERPARENT:
@@ -681,6 +678,12 @@ static char* iDialogGetRasterSizeAttrib(Ihandle* ih)
   return iupStrReturnIntInt(width, height, 'x');
 }
 
+static int iDialogSetNActiveAttrib(Ihandle* ih, const char* value)
+{
+  iupdrvSetActive(ih, iupStrBoolean(value));
+  return 0;
+}
+
 static int iDialogSetVisibleAttrib(Ihandle* ih, const char* value)
 {
   if (iupStrBoolean(value))
@@ -742,7 +745,6 @@ static char* iDialogGetXAttrib(Ihandle *ih)
 {
   int x = 0;
   iupdrvDialogGetPosition(ih, NULL, &x, NULL);
-  iupdrvAddScreenOffset(&x, NULL, -1);
   return iupStrReturnInt(x);
 }
 
@@ -750,7 +752,6 @@ static char* iDialogGetYAttrib(Ihandle *ih)
 {
   int y = 0;
   iupdrvDialogGetPosition(ih, NULL, NULL, &y);
-  iupdrvAddScreenOffset(NULL, &y, -1);
   return iupStrReturnInt(y);
 }
 
@@ -758,7 +759,6 @@ static char* iDialogGetScreenPositionAttrib(Ihandle *ih)
 {
   int x = 0, y = 0;
   iupdrvDialogGetPosition(ih, NULL, &x, &y);
-  iupdrvAddScreenOffset(&x, &y, -1);
   return iupStrReturnIntInt(x, y, ',');
 }
 
@@ -864,6 +864,9 @@ Iclass* iupDialogNewClass(void)
 
   /* Visual */
   iupBaseRegisterVisualAttrib(ic);
+
+  /* Dialog only */
+  iupClassRegisterAttribute(ic, "NACTIVE", iupBaseGetActiveAttrib, iDialogSetNActiveAttrib, IUPAF_SAMEASSYSTEM, "YES", IUPAF_DEFAULT | IUPAF_NO_INHERIT);
 
   /* Drag&Drop */
   iupdrvRegisterDragDropAttrib(ic);

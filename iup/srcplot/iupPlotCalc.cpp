@@ -78,13 +78,57 @@ void iupPlotAxis::GetTickNumberSize(cdCanvas* canvas, int *outWitdh, int *outHei
   if (outWitdh)  *outWitdh = theTickFontWidth * iPlotGetPrecisionNumChar(mTick.mAutoSpacing, mTick.mFormatString, mMin, mMax);
 }
 
+void iupPlot::CalculateTitlePos()
+{
+  // it does not depend on theMargin
+  if (mTitle.mAutoPos)
+  {
+    mTitle.mPosX = mViewport.mWidth / 2;
+    mTitle.mPosY = 5;  // add small spacing
+  }
+}
+
+bool iupPlot::CheckInsideTitle(cdCanvas* canvas, int x, int y)
+{
+  // it does not depend on theMargin
+  if (mTitle.GetText())
+  {
+    SetTitleFont(canvas);
+
+    cdCanvasTextAlignment(canvas, CD_NORTH);
+
+    int xmin, xmax, ymin, ymax;
+    cdCanvasGetTextBox(canvas, mTitle.mPosX, cdCanvasInvertYAxis(canvas, mTitle.mPosY), mTitle.GetText(), &xmin, &xmax, &ymin, &ymax);
+
+    if (x >= xmin && x <= xmax && 
+        y >= ymin && y <= ymax)
+      return true;
+  }
+
+  return false;
+}
+
+bool iupPlot::CheckInsideLegend(cdCanvas* canvas, int x, int y)
+{
+  if (mLegend.mShow)
+  {
+    int theY = cdCanvasInvertYAxis(canvas, mLegend.mPos.mY);
+
+    if (x >= mLegend.mPos.mX && x < mLegend.mPos.mX + mLegend.mPos.mWidth &&
+        y >= theY            && y < theY + mLegend.mPos.mHeight)
+      return true;
+  }
+
+  return false;
+}
+
 void iupPlot::CalculateMargins(cdCanvas* canvas)
 {
   if (mMarginAuto.mTop)
   {
     mMargin.mTop = 0;
 
-    if (mTitle.GetText())
+    if (mTitle.GetText() && mTitle.mAutoPos)
     {
       SetTitleFont(canvas);
 
