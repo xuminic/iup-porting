@@ -6,8 +6,8 @@ endif
 
 # quick decision of which GTK is available
 ifndef  USE_GTK2
-  gtkver := $(shell pkg-config gtk+-3.0 --cflags)
-  ifeq ($(gtkver), )
+  gtkver := $(shell pkg-config gtk+-2.0 --cflags)
+  ifneq ($(gtkver), )
     export USE_GTK2=1
   endif
 endif
