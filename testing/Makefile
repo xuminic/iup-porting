@@ -11,7 +11,7 @@ LIBS	= -L$(IUPDIR)/lib -liup `pkg-config gtk+-2.0 --libs`
 CFLAGS	= -Wall -O3
 
 TARGET	= iup_thread_sync_idler2  iup_thread_sync_idler  iup_thread_sync_timer \
-	  splitbox
+	  splitbox list
 
 all: $(TARGET)
 
