@@ -3,6 +3,7 @@
 
 //#define CFG_RESIZE_EVENT
 //#define CFG_INITIAL_SIZE	"800x600"
+#define CFG_SCROLLBOX
 
 
 static char	*setlist[] = {
@@ -53,15 +54,23 @@ static void ListTest(void)
 	ih_list = IupList(NULL);
 	IupSetAttribute(ih_list, "EXPAND", "YES");
 	IupSetAttribute(ih_list, "MULTIPLE", "YES");
-	IupSetAttribute(ih_list, "SCROLLBAR", "YES");
 	IupSetAttribute(ih_list, "ALIGNMENT", "ARIGHT");
 	IupSetAttribute(ih_list, "CANFOCUS", "YES");
+#ifndef	CFG_SCROLLBOX
+	IupSetAttribute(ih_list, "SCROLLBAR", "YES");
 	IupSetAttribute(ih_list, "AUTOHIDE", "NO");
+#endif
 	for (i = 0; setlist[i]; i++) {
 		IupSetStrAttributeId(ih_list, "", i+1, setlist[i]);
 	}
 
+#ifdef	CFG_SCROLLBOX
+	sbox = IupScrollBox(ih_list);
+	dlgmain = IupDialog(sbox);
+#else
 	dlgmain = IupDialog(ih_list);
+#endif
+
 	IupSetAttribute(dlgmain, "TITLE", "IupList Example");
 #ifdef	CFG_INITIAL_SIZE
 	IupSetAttribute(dlgmain, "RASTERSIZE", CFG_INITIAL_SIZE);
