@@ -70,10 +70,13 @@ static void ListTest(void)
 #else
 	dlgmain = IupDialog(ih_list);
 #endif
-
 	IupSetAttribute(dlgmain, "TITLE", "IupList Example");
+	IupSetAttribute(dlgmain, "SHRINK", "YES");
+	
+
 #ifdef	CFG_INITIAL_SIZE
-	IupSetAttribute(dlgmain, "RASTERSIZE", CFG_INITIAL_SIZE);
+	//IupSetAttribute(dlgmain, "RASTERSIZE", CFG_INITIAL_SIZE);
+	IupSetAttribute(dlgmain, "SIZE", "HALF");
 #endif
 #ifdef	CFG_RESIZE_EVENT
 	IupSetCallback(dlgmain, "RESIZE_CB", (Icallback) event_resize);
