@@ -37,7 +37,8 @@ static char	*setlist[] = {
 static	Ihandle	*dlgmain, *list_upper, *list_lower, *splitbox;
 
 #ifdef	CFG_SCROLLBOX
-static	Ihandle	*sbox_upper, *sbox_lower, *sbox_hori;
+static	Ihandle	*sbox_upper, *sbox_lower; 
+//static	Ihandle	*sbox_hori;
 #endif
 
 #ifdef	CFG_RESIZE_EVENT
