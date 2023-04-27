@@ -238,22 +238,12 @@ static int iPlotSetRedrawAttrib(Ihandle* ih, const char* value)
     only_current = 0, // redraw all plots
     reset_redraw = 1;  // always render
 
-  if (ih->data->graphics_mode == IUP_PLOT_OPENGL)
+  if (iupStrEqualNoCase(value, "NOFLUSH"))
+    flush = 0;
+  else if (iupStrEqualNoCase(value, "CURRENT"))
   {
-    // in OpenGL mode must:
-    flush = 1;  // always flush
-    only_current = 0;  // redraw all plots
-    reset_redraw = 1;  // always render
-  }
-  else
-  {
-    if (iupStrEqualNoCase(value, "NOFLUSH"))
-      flush = 0;
-    else if (iupStrEqualNoCase(value, "CURRENT"))
-    {
-      flush = 0;  // same as NOFLUSH
-      only_current = 1;
-    }
+    flush = 0;  // same as NOFLUSH
+    only_current = 1;
   }
 
   iupPlotRedraw(ih, flush, only_current, reset_redraw);
@@ -750,6 +740,19 @@ static char* iPlotGetMarginTopAttrib(Ihandle* ih)
 static char* iPlotGetMarginBottomAttrib(Ihandle* ih)
 {
   return iupStrReturnInt(ih->data->current_plot->mBack.mMargin.mBottom);
+}
+
+static int iPlotSetPaddingAttrib(Ihandle* ih, const char* value)
+{
+  iupStrToIntInt(value, &ih->data->current_plot->mBack.mHorizPadding, &ih->data->current_plot->mBack.mVertPadding, 'x');
+  if (ih->handle)
+    iupdrvRedrawNow(ih);
+  return 0;
+}
+
+static char* iPlotGetPaddingAttrib(Ihandle* ih)
+{
+  return iupStrReturnIntInt(ih->data->current_plot->mBack.mHorizPadding, ih->data->current_plot->mBack.mVertPadding, 'x');
 }
 
 static int iPlotSetGridAttrib(Ihandle* ih, const char* value)
@@ -1280,6 +1283,17 @@ static char* iPlotGetSyncViewAttrib(Ihandle* ih)
   return iupStrReturnBoolean(ih->data->sync_view);
 }
 
+static int iPlotSetMergeViewAttrib(Ihandle* ih, const char* value)
+{
+  ih->data->merge_view = iupStrBoolean(value);
+  return 0;
+}
+
+static char* iPlotGetMergeViewAttrib(Ihandle* ih)
+{
+  return iupStrReturnBoolean(ih->data->merge_view);
+}
+
 static int iPlotSetReadOnlyAttrib(Ihandle* ih, const char* value)
 {
   ih->data->read_only = iupStrBoolean(value);
@@ -1352,20 +1366,21 @@ static int iPlotSetUseContextPlusAttrib(Ihandle* ih, const char* value)
 static int iPlotSetShowMenuContextAttrib(Ihandle* ih, const char* value)
 {
   int screen_x = 0, screen_y = 0;
-  iupStrToIntInt(value, &screen_x, &screen_y, ',');
+  if (iupStrToIntInt(value, &screen_x, &screen_y, ',') == 2)
+  {
+    int sx, sy;
+    IupGetIntInt(ih, "SCREENPOSITION", &sx, &sy);
 
-  int sx, sy;
-  IupGetIntInt(ih, "SCREENPOSITION", &sx, &sy);
+    int x = screen_x - sx;
+    int y = screen_y - sy;
 
-  int x = screen_x - sx;
-  int y = screen_y - sy;
+    y = ih->currentheight - 1 - y;
 
-  y = ih->currentheight - 1 - y;
+    x -= ih->data->current_plot->mViewport.mX;
+    y -= ih->data->current_plot->mViewport.mY;
 
-  x -= ih->data->current_plot->mViewport.mX;
-  y -= ih->data->current_plot->mViewport.mY;
-
-  iupPlotShowMenuContext(ih, screen_x, screen_y, x, y);
+    iupPlotShowMenuContext(ih, screen_x, screen_y, x, y);
+  }
   return 0;
 }
 
@@ -2587,14 +2602,52 @@ static char* iPlotGetAxisYReverseAttrib(Ihandle* ih)
   return iupStrReturnBoolean(axis->mReverse);
 }
 
+static int iPlotSetAxisXReverseTicksLabelAttrib(Ihandle* ih, const char* value)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
+
+  if (iupStrBoolean(value))
+    axis->mReverseTicksLabel = true;
+  else
+    axis->mReverseTicksLabel = false;
+
+  ih->data->current_plot->mRedraw = true;
+  return 0;
+}
+
+static int iPlotSetAxisYReverseTicksLabelAttrib(Ihandle* ih, const char* value)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
+
+  if (iupStrBoolean(value))
+    axis->mReverseTicksLabel = true;
+  else
+    axis->mReverseTicksLabel = false;
+
+  ih->data->current_plot->mRedraw = true;
+  return 0;
+}
+
+static char* iPlotGetAxisXReverseTicksLabelAttrib(Ihandle* ih)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
+  return iupStrReturnBoolean(axis->mReverseTicksLabel);
+}
+
+static char* iPlotGetAxisYReverseTicksLabelAttrib(Ihandle* ih)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
+  return iupStrReturnBoolean(axis->mReverseTicksLabel);
+}
+
 static int iPlotSetAxisXCrossOriginAttrib(Ihandle* ih, const char* value)
 {
   iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
 
   if (iupStrBoolean(value))
-    axis->mCrossOrigin = true;
+    axis->mPosition = IUP_PLOT_CROSSORIGIN;
   else
-    axis->mCrossOrigin = false;
+    axis->mPosition = IUP_PLOT_START;
 
   ih->data->current_plot->mRedraw = true;
   return 0;
@@ -2605,9 +2658,9 @@ static int iPlotSetAxisYCrossOriginAttrib(Ihandle* ih, const char* value)
   iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
 
   if (iupStrBoolean(value))
-    axis->mCrossOrigin = true;
+    axis->mPosition = IUP_PLOT_CROSSORIGIN;
   else
-    axis->mCrossOrigin = false;
+    axis->mPosition = IUP_PLOT_START;
 
   ih->data->current_plot->mRedraw = true;
   return 0;
@@ -2617,14 +2670,58 @@ static char* iPlotGetAxisXCrossOriginAttrib(Ihandle* ih)
 {
   iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
 
-  return iupStrReturnBoolean(axis->mCrossOrigin);
+  return iupStrReturnBoolean(axis->mPosition == IUP_PLOT_CROSSORIGIN);
 }
 
 static char* iPlotGetAxisYCrossOriginAttrib(Ihandle* ih)
 {
   iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
 
-  return iupStrReturnBoolean(axis->mCrossOrigin);
+  return iupStrReturnBoolean(axis->mPosition == IUP_PLOT_CROSSORIGIN);
+}
+
+static int iPlotSetAxisXPositionAttrib(Ihandle* ih, const char* value)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
+
+  if (iupStrEqualNoCase(value, "CROSSORIGIN"))
+    axis->mPosition = IUP_PLOT_CROSSORIGIN;
+  else if(iupStrEqualNoCase(value, "END"))
+    axis->mPosition = IUP_PLOT_END;
+  else
+    axis->mPosition = IUP_PLOT_START;
+
+  ih->data->current_plot->mRedraw = true;
+  return 0;
+}
+
+static int iPlotSetAxisYPositionAttrib(Ihandle* ih, const char* value)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
+
+  if (iupStrEqualNoCase(value, "CROSSORIGIN"))
+    axis->mPosition = IUP_PLOT_CROSSORIGIN;
+  else if (iupStrEqualNoCase(value, "END"))
+    axis->mPosition = IUP_PLOT_END;
+  else
+    axis->mPosition = IUP_PLOT_START;
+
+  ih->data->current_plot->mRedraw = true;
+  return 0;
+}
+
+static char* iPlotGetAxisXPositionAttrib(Ihandle* ih)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisX;
+  const char* originpos_str[] = { "START", "CROSSORIGIN", "END" };
+  return (char*)originpos_str[axis->mPosition];
+}
+
+static char* iPlotGetAxisYPositionAttrib(Ihandle* ih)
+{
+  iupPlotAxis* axis = &ih->data->current_plot->mAxisY;
+  const char* originpos_str[] = { "START", "CROSSORIGIN", "END" };
+  return (char*)originpos_str[axis->mPosition];
 }
 
 static int iPlotSetAxisXScaleAttrib(Ihandle* ih, const char* value)
@@ -3021,7 +3118,7 @@ static int iPlotSetAxisXTickFormatAttrib(Ihandle* ih, const char* value)
   }
   else
   {
-    strcpy(axis->mTick.mFormatString, "%.0f");
+    strcpy(axis->mTick.mFormatString, IUP_PLOT_DEF_NUMBERFORMAT);
     axis->mTick.mFormatAuto = true;
   }
 
@@ -3040,7 +3137,7 @@ static int iPlotSetAxisYTickFormatAttrib(Ihandle* ih, const char* value)
   }
   else
   {
-    strcpy(axis->mTick.mFormatString, "%.0f");
+    strcpy(axis->mTick.mFormatString, IUP_PLOT_DEF_NUMBERFORMAT);
     axis->mTick.mFormatAuto = true;
   }
 
@@ -3060,7 +3157,7 @@ static int iPlotSetAxisXTickFormatPrecisionAttrib(Ihandle* ih, const char* value
   }
   else
   {
-    strcpy(axis->mTick.mFormatString, "%.0f");
+    strcpy(axis->mTick.mFormatString, IUP_PLOT_DEF_NUMBERFORMAT);
     axis->mTick.mFormatAuto = true;
   }
   return 0;
@@ -3078,7 +3175,7 @@ static int iPlotSetAxisYTickFormatPrecisionAttrib(Ihandle* ih, const char* value
   }
   else
   {
-    strcpy(axis->mTick.mFormatString, "%.0f");
+    strcpy(axis->mTick.mFormatString, IUP_PLOT_DEF_NUMBERFORMAT);
     axis->mTick.mFormatAuto = true;
   }
   return 0;
@@ -3117,7 +3214,7 @@ static int iPlotSetAxisXTipFormatAttrib(Ihandle* ih, const char* value)
   if (value && value[0] != 0)
     strcpy(axis->mTipFormatString, value);
   else
-    strcpy(axis->mTipFormatString, "%.2f");
+    strcpy(axis->mTipFormatString, IUP_PLOT_DEF_TIPFORMAT);
 
   return 0;
 }
@@ -3129,7 +3226,7 @@ static int iPlotSetAxisYTipFormatAttrib(Ihandle* ih, const char* value)
   if (value && value[0] != 0)
     strcpy(axis->mTipFormatString, value);
   else
-    strcpy(axis->mTipFormatString, "%.2f");
+    strcpy(axis->mTipFormatString, IUP_PLOT_DEF_TIPFORMAT);
 
   return 0;
 }
@@ -3142,7 +3239,7 @@ static int iPlotSetAxisXTipFormatPrecisionAttrib(Ihandle* ih, const char* value)
   if (iupStrToInt(value, &precision))
     sprintf(axis->mTipFormatString, "%%.%df", precision);
   else
-    strcpy(axis->mTipFormatString, "%.2f");
+    strcpy(axis->mTipFormatString, IUP_PLOT_DEF_TIPFORMAT);
   return 0;
 }
 
@@ -3154,7 +3251,7 @@ static int iPlotSetAxisYTipFormatPrecisionAttrib(Ihandle* ih, const char* value)
   if (iupStrToInt(value, &precision))
     sprintf(axis->mTipFormatString, "%%.%df", precision);
   else
-    strcpy(axis->mTipFormatString, "%.2f");
+    strcpy(axis->mTipFormatString, IUP_PLOT_DEF_TIPFORMAT);
   return 0;
 }
 
@@ -3461,6 +3558,7 @@ void iupPlotRegisterAttributes(Iclass* ic)
   iupClassRegisterAttribute(ic, "ANTIALIAS", iPlotGetAntialiasAttrib, iPlotSetAntialiasAttrib, IUPAF_SAMEASSYSTEM, "No", IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "REDRAW", NULL, iPlotSetRedrawAttrib, NULL, NULL, IUPAF_WRITEONLY | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SYNCVIEW", iPlotGetSyncViewAttrib, iPlotSetSyncViewAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "MERGEVIEW", iPlotGetMergeViewAttrib, iPlotSetMergeViewAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "READONLY", iPlotGetReadOnlyAttrib, iPlotSetReadOnlyAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "CANVAS", iPlotGetCanvasAttrib, NULL, NULL, NULL, IUPAF_READONLY | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "GRAPHICSMODE", iPlotGetGraphicsModeAttrib, iPlotSetGraphicsModeAttrib, IUPAF_SAMEASSYSTEM, "NATIVEPLUS", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
@@ -3482,6 +3580,7 @@ void iupPlotRegisterAttributes(Iclass* ic)
   iupClassRegisterAttribute(ic, "MARGINRIGHT", iPlotGetMarginRightAttrib, iPlotSetMarginRightAttrib, IUPAF_SAMEASSYSTEM, "AUTO", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "MARGINTOP", iPlotGetMarginTopAttrib, iPlotSetMarginTopAttrib, IUPAF_SAMEASSYSTEM, "AUTO", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "MARGINBOTTOM", iPlotGetMarginBottomAttrib, iPlotSetMarginBottomAttrib, IUPAF_SAMEASSYSTEM, "AUTO", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "PADDING", iPlotGetPaddingAttrib, iPlotSetPaddingAttrib, IUPAF_SAMEASSYSTEM, "5x5", IUPAF_NOT_MAPPED);
 
   iupClassRegisterAttribute(ic, "BACKCOLOR", iPlotGetBackColorAttrib, iPlotSetBackColorAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "BACKIMAGE", iPlotGetBackImageAttrib, iPlotSetBackImageAttrib, NULL, NULL, IUPAF_IHANDLENAME | IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
@@ -3586,8 +3685,12 @@ void iupPlotRegisterAttributes(Iclass* ic)
   iupClassRegisterAttribute(ic, "AXS_YMAX", iPlotGetAxisYMaxAttrib, iPlotSetAxisYMaxAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_XREVERSE", iPlotGetAxisXReverseAttrib, iPlotSetAxisXReverseAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_YREVERSE", iPlotGetAxisYReverseAttrib, iPlotSetAxisYReverseAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_XREVERSETICKSLABEL", iPlotGetAxisXReverseTicksLabelAttrib, iPlotSetAxisXReverseTicksLabelAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_YREVERSETICKSLABEL", iPlotGetAxisYReverseTicksLabelAttrib, iPlotSetAxisYReverseTicksLabelAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_XCROSSORIGIN", iPlotGetAxisXCrossOriginAttrib, iPlotSetAxisXCrossOriginAttrib, IUPAF_SAMEASSYSTEM, "NO", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_YCROSSORIGIN", iPlotGetAxisYCrossOriginAttrib, iPlotSetAxisYCrossOriginAttrib, IUPAF_SAMEASSYSTEM, "NO", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_XPOSITION", iPlotGetAxisXPositionAttrib, iPlotSetAxisXPositionAttrib, IUPAF_SAMEASSYSTEM, "START", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_YPOSITION", iPlotGetAxisYPositionAttrib, iPlotSetAxisYPositionAttrib, IUPAF_SAMEASSYSTEM, "START", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_XSCALE", iPlotGetAxisXScaleAttrib, iPlotSetAxisXScaleAttrib, IUPAF_SAMEASSYSTEM, "LIN", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_YSCALE", iPlotGetAxisYScaleAttrib, iPlotSetAxisYScaleAttrib, IUPAF_SAMEASSYSTEM, "LIN", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_XARROW", iPlotGetAxisXArrowAttrib, iPlotSetAxisXArrowAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
@@ -3626,8 +3729,8 @@ void iupPlotRegisterAttributes(Iclass* ic)
   iupClassRegisterAttribute(ic, "AXS_YTICKROTATENUMBERANGLE", iPlotGetAxisYTickRotateNumberAngleAttrib, iPlotSetAxisYTickRotateNumberAngleAttrib, IUPAF_SAMEASSYSTEM, "90", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_XTICKFORMATAUTO", iPlotGetAxisXTickFormatAutoAttrib, iPlotSetAxisXTickFormatAutoAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_YTICKFORMATAUTO", iPlotGetAxisYTickFormatAutoAttrib, iPlotSetAxisYTickFormatAutoAttrib, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "AXS_XTICKFORMAT", iPlotGetAxisXTickFormatAttrib, iPlotSetAxisXTickFormatAttrib, IUPAF_SAMEASSYSTEM, "%.0f", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "AXS_YTICKFORMAT", iPlotGetAxisYTickFormatAttrib, iPlotSetAxisYTickFormatAttrib, IUPAF_SAMEASSYSTEM, "%.0f", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_XTICKFORMAT", iPlotGetAxisXTickFormatAttrib, iPlotSetAxisXTickFormatAttrib, IUPAF_SAMEASSYSTEM, IUP_PLOT_DEF_NUMBERFORMAT, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_YTICKFORMAT", iPlotGetAxisYTickFormatAttrib, iPlotSetAxisYTickFormatAttrib, IUPAF_SAMEASSYSTEM, IUP_PLOT_DEF_NUMBERFORMAT, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_XTICKFORMATPRECISION", iPlotGetAxisXTickFormatPrecisionAttrib, iPlotSetAxisXTickFormatPrecisionAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_YTICKFORMATPRECISION", iPlotGetAxisYTickFormatPrecisionAttrib, iPlotSetAxisYTickFormatPrecisionAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_XTICKFONTSIZE", iPlotGetAxisXTickFontSizeAttrib, iPlotSetAxisXTickFontSizeAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
@@ -3635,8 +3738,8 @@ void iupPlotRegisterAttributes(Iclass* ic)
   iupClassRegisterAttribute(ic, "AXS_XTICKFONTSTYLE", iPlotGetAxisXTickFontStyleAttrib, iPlotSetAxisXTickFontStyleAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_YTICKFONTSTYLE", iPlotGetAxisYTickFontStyleAttrib, iPlotSetAxisYTickFontStyleAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
 
-  iupClassRegisterAttribute(ic, "AXS_XTIPFORMAT", iPlotGetAxisXTipFormatAttrib, iPlotSetAxisXTipFormatAttrib, IUPAF_SAMEASSYSTEM, "%.2f", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "AXS_YTIPFORMAT", iPlotGetAxisYTipFormatAttrib, iPlotSetAxisYTipFormatAttrib, IUPAF_SAMEASSYSTEM, "%.2f", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_XTIPFORMAT", iPlotGetAxisXTipFormatAttrib, iPlotSetAxisXTipFormatAttrib, IUPAF_SAMEASSYSTEM, IUP_PLOT_DEF_TIPFORMAT, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "AXS_YTIPFORMAT", iPlotGetAxisYTipFormatAttrib, iPlotSetAxisYTipFormatAttrib, IUPAF_SAMEASSYSTEM, IUP_PLOT_DEF_TIPFORMAT, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_XTIPFORMATPRECISION", iPlotGetAxisXTipFormatPrecisionAttrib, iPlotSetAxisXTipFormatPrecisionAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_YTIPFORMATPRECISION", iPlotGetAxisYTipFormatPrecisionAttrib, iPlotSetAxisYTipFormatPrecisionAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
 

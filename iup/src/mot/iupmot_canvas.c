@@ -288,7 +288,8 @@ static int motCanvasSetDXAttrib(Ihandle* ih, const char *value)
       {
         if (XtIsManaged(sb_horiz))
         {
-          iupAttribSet(ih, "SB_RESIZE", "YES");
+          if (iupdrvIsVisible(ih))
+            iupAttribSet(ih, "SB_RESIZE", "YES");
           XtUnmanageChild(sb_horiz);
           motCanvasUpdateScrollLayout(ih);
         }
@@ -305,7 +306,8 @@ static int motCanvasSetDXAttrib(Ihandle* ih, const char *value)
     {
       if (!XtIsManaged(sb_horiz))
       {
-        iupAttribSet(ih, "SB_RESIZE", "YES");
+        if (iupdrvIsVisible(ih))
+          iupAttribSet(ih, "SB_RESIZE", "YES");
         XtManageChild(sb_horiz);
         motCanvasUpdateScrollLayout(ih);
       }
@@ -341,6 +343,9 @@ static int motCanvasSetPosXAttrib(Ihandle* ih, const char *value)
     xmin = iupAttribGetDouble(ih, "XMIN");
     xmax = iupAttribGetDouble(ih, "XMAX");
     dx = iupAttribGetDouble(ih, "DX");
+
+    if (dx >= xmax - xmin)
+      return 0;
 
     if (posx < xmin) posx = xmin;
     if (posx > (xmax - dx)) posx = xmax - dx;
@@ -396,7 +401,8 @@ static int motCanvasSetDYAttrib(Ihandle* ih, const char *value)
       {
         if (XtIsManaged(sb_vert))
         {
-          iupAttribSet(ih, "SB_RESIZE", "YES");
+          if (iupdrvIsVisible(ih))
+            iupAttribSet(ih, "SB_RESIZE", "YES");
           XtUnmanageChild(sb_vert);
           motCanvasUpdateScrollLayout(ih);
         }
@@ -413,7 +419,8 @@ static int motCanvasSetDYAttrib(Ihandle* ih, const char *value)
     {
       if (!XtIsManaged(sb_vert))
       {
-        iupAttribSet(ih, "SB_RESIZE", "YES");
+        if (iupdrvIsVisible(ih))
+          iupAttribSet(ih, "SB_RESIZE", "YES");
         XtManageChild(sb_vert);
         motCanvasUpdateScrollLayout(ih);
       }
@@ -449,6 +456,9 @@ static int motCanvasSetPosYAttrib(Ihandle* ih, const char *value)
     ymin = iupAttribGetDouble(ih, "YMIN");
     ymax = iupAttribGetDouble(ih, "YMAX");
     dy = iupAttribGetDouble(ih, "DY");
+
+    if (dy >= ymax - ymin)
+      return 0;
 
     if (posy < ymin) posy = ymin;
     if (posy > (ymax - dy)) posy = ymax - dy;

@@ -218,7 +218,7 @@ static void iFlatScrollBarDrawVertical(Ihandle* sb_vert, IdrawCanvas* dc, int ac
 
   if (show_transparent)
   {
-    iupFlatDrawBox(dc, 2, sb_size - 1 - 2, 0, height-1, fgcolor_drag, bgcolor, active);
+    iupFlatDrawBox(dc, 0, sb_size - 1, 0, height-1, fgcolor_drag, bgcolor, active);
     return;
   }
 
@@ -1184,7 +1184,6 @@ int iupFlatScrollBarCreate(Ihandle* ih)
   IupSetCallback(sb_horiz, "WHEEL_CB", (Icallback)iFlatScrollBarWheel_CB);
   iupAttribSetInt(sb_horiz, "_IUP_PRESSED_HANDLER", SB_NONE);
   iupAttribSetInt(sb_horiz, "_IUP_HIGHLIGHT_HANDLER", SB_NONE);
-  iupAttribSet(sb_horiz, "DRAWUSEGDI", "YES");  /* to avoid redraw glitches in children on Windows */
 
   iChildTreeInsertFirst(ih, sb_horiz);  /* sb_horiz will always be the firstchild->brother */
   sb_horiz->flags |= IUP_INTERNAL;
@@ -1203,7 +1202,6 @@ int iupFlatScrollBarCreate(Ihandle* ih)
   IupSetCallback(sb_vert, "WHEEL_CB", (Icallback)iFlatScrollBarWheel_CB);
   iupAttribSetInt(sb_vert, "_IUP_PRESSED_HANDLER", SB_NONE);
   iupAttribSetInt(sb_vert, "_IUP_HIGHLIGHT_HANDLER", SB_NONE);
-  iupAttribSet(sb_vert, "DRAWUSEGDI", "YES");  /* to avoid redraw glitches in children on Windows */
 
   iChildTreeInsertFirst(ih, sb_vert);  /* sb_vert will always be the firstchild */
   sb_vert->flags |= IUP_INTERNAL;

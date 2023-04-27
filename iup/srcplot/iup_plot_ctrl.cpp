@@ -18,6 +18,7 @@
 #include <cdiup.h>
 #include <cdprint.h>
 #include <cdsvg.h>
+#include <cdirgb.h>
 #include <cdemf.h>
 #include <cdwmf.h>
 #include <cdcgm.h>
@@ -35,6 +36,7 @@
 #include "iup_assert.h"
 #include "iup_predialogs.h"
 #include "iup_linefile.h"
+#include "iup_image.h"
 
 #include "iup_plot_ctrl.h"
 
@@ -71,7 +73,15 @@ static int iPlotCopyAsMetafile_CB(Ihandle* self)
   int w, h;
   IupGetIntInt(ih, "DRAWSIZE", &w, &h);
   sprintf(StrData, "%dx%d", w, h);
-  cdCanvas* cd_canvas = cdCreateCanvas(CD_CLIPBOARD, StrData);
+  cdCanvas* cd_canvas;
+  if (ih->data->graphics_mode == IUP_PLOT_NATIVEPLUS)
+  {
+    int old_plus = cdUseContextPlus(1);
+    cd_canvas = cdCreateCanvas(CD_CLIPBOARD, StrData);
+    cdUseContextPlus(old_plus);
+  }
+  else
+    cd_canvas = cdCreateCanvas(CD_CLIPBOARD, StrData);
   IupPlotPaintTo(ih, cd_canvas);
   cdKillCanvas(cd_canvas);
   return IUP_DEFAULT;
@@ -83,10 +93,23 @@ static int iPlotCopyAsImage_CB(Ihandle* self)
   char StrData[100];
   int w, h;
   IupGetIntInt(ih, "DRAWSIZE", &w, &h);
-  sprintf(StrData, "%dx%d -b", w, h);
-  cdCanvas* cd_canvas = cdCreateCanvas(CD_CLIPBOARD, StrData);
+  double res = IupGetDouble(NULL, "SCREENDPI") / 25.4;
+  int plane_size = w*h;
+  unsigned char* data = (unsigned char*)malloc(plane_size * 4);
+  if (!data)
+    return IUP_DEFAULT;
+
+  sprintf(StrData, "%dx%d %p %p %p %p -r%g -a", w, h, data, data + plane_size, data + 2 * plane_size, data + 3 * plane_size, res);
+  cdCanvas* cd_canvas = cdCreateCanvas(CD_IMAGERGB, StrData);
   IupPlotPaintTo(ih, cd_canvas);
   cdKillCanvas(cd_canvas);
+
+  Ihandle *clipboard = IupClipboard();
+  IupSetAttribute(clipboard, "IMAGE", NULL);
+  IupSetAttribute(clipboard, "NATIVEIMAGE", (char*)iupdrvImageCreateImageRaw(w, h, 32, NULL, 0, data));
+  IupDestroy(clipboard);
+
+  free(data);
   return IUP_DEFAULT;
 }
 
@@ -172,7 +195,17 @@ static int iPlotExportEMF_CB(Ihandle* self)
     int w, h;
     IupGetIntInt(ih, "DRAWSIZE", &w, &h);
     sprintf(StrData, "%s %dx%d", filename, w, h);
-    cdCanvas* cd_canvas = cdCreateCanvas(CD_EMF, StrData);
+
+    cdCanvas* cd_canvas;
+    if (ih->data->graphics_mode == IUP_PLOT_NATIVEPLUS)
+    {
+      int old_plus = cdUseContextPlus(1);
+      cd_canvas = cdCreateCanvas(CD_EMF, StrData);
+      cdUseContextPlus(old_plus);
+    }
+    else
+      cd_canvas = cdCreateCanvas(CD_EMF, StrData);
+
     if (cd_canvas)
     {
       IupPlotPaintTo(ih, cd_canvas);
@@ -210,7 +243,15 @@ static int iPlotExportWMF_CB(Ihandle* self)
 static int iPlotPrint_CB(Ihandle* self)
 {
   Ihandle* ih = (Ihandle*)IupGetAttribute(self, "PLOT");
-  cdCanvas* cd_canvas = cdCreateCanvas(CD_PRINTER, (void*)"Plot -d");
+  cdCanvas* cd_canvas;
+  if (ih->data->graphics_mode == IUP_PLOT_NATIVEPLUS)
+  {
+    int old_plus = cdUseContextPlus(1);
+    cd_canvas = cdCreateCanvas(CD_PRINTER, (void*)"Plot -d");
+    cdUseContextPlus(old_plus);
+  }
+  else
+    cd_canvas = cdCreateCanvas(CD_PRINTER, (void*)"Plot -d");
   IupPlotPaintTo(ih, cd_canvas);
   cdKillCanvas(cd_canvas);
   return IUP_DEFAULT;
@@ -219,8 +260,8 @@ static int iPlotPrint_CB(Ihandle* self)
 static double iPlotDataSetValuesNumericGetValue_CB(Ihandle *ih_matrix, int lin, int col)
 {
   Ihandle* ih = (Ihandle*)IupGetAttribute(ih_matrix, "PLOT");
-  int plot_current = IupGetInt(ih_matrix, "PLOT_CURRENT");
-  int ds = IupGetInt(ih_matrix, "DS");
+  int plot_current = iupAttribGetInt(ih_matrix, "_IUP_PLOT_CURRENT");
+  int ds = iupAttribGetInt(ih_matrix, "_IUP_DS");
 
   // make sure we are changing the right plot
   IupSetInt(ih, "PLOT_CURRENT", plot_current);
@@ -251,8 +292,8 @@ static double iPlotDataSetValuesNumericGetValue_CB(Ihandle *ih_matrix, int lin, 
 static char* iPlotDataSetValuesValue_CB(Ihandle *ih_matrix, int lin, int col)
 {
   Ihandle* ih = (Ihandle*)IupGetAttribute(ih_matrix, "PLOT");
-  int plot_current = IupGetInt(ih_matrix, "PLOT_CURRENT");
-  int ds = IupGetInt(ih_matrix, "DS");
+  int plot_current = iupAttribGetInt(ih_matrix, "_IUP_PLOT_CURRENT");
+  int ds = iupAttribGetInt(ih_matrix, "_IUP_DS");
 
   IupSetInt(ih, "PLOT_CURRENT", plot_current);
   IupSetInt(ih, "CURRENT", ds);
@@ -284,8 +325,8 @@ static char* iPlotDataSetValuesValue_CB(Ihandle *ih_matrix, int lin, int col)
 static int iPlotDataSetValuesNumericSetValue_CB(Ihandle* ih_matrix, int lin, int col, double new_value)
 {
   Ihandle* ih = (Ihandle*)IupGetAttribute(ih_matrix, "PLOT");
-  int plot_current = IupGetInt(ih_matrix, "PLOT_CURRENT");
-  int ds = IupGetInt(ih_matrix, "DS");
+  int plot_current = iupAttribGetInt(ih_matrix, "_IUP_PLOT_CURRENT");
+  int ds = iupAttribGetInt(ih_matrix, "_IUP_DS");
   int sample_index = lin - 1;
   double x, y;
 
@@ -320,8 +361,8 @@ static int iPlotDataSetValuesNumericSetValue_CB(Ihandle* ih_matrix, int lin, int
 static int iPlotDataSetValuesValueEdit_CB(Ihandle* ih_matrix, int lin, int col, char* new_value)
 {
   Ihandle* ih = (Ihandle*)IupGetAttribute(ih_matrix, "PLOT");
-  int plot_current = IupGetInt(ih_matrix, "PLOT_CURRENT");
-  int ds = IupGetInt(ih_matrix, "DS");
+  int plot_current = iupAttribGetInt(ih_matrix, "_IUP_PLOT_CURRENT");
+  int ds = iupAttribGetInt(ih_matrix, "_IUP_DS");
   int sample_index = lin - 1;
 
   IupSetInt(ih, "PLOT_CURRENT", plot_current);
@@ -363,8 +404,9 @@ static int iPlotDataSetValuesButton_CB(Ihandle*)
 static int iPlotDataSetValues_CB(Ihandle* ih_item)
 {
   Ihandle* ih = (Ihandle*)IupGetAttribute(ih_item, "PLOT");
-  int plot_current = IupGetInt(ih_item, "PLOT_CURRENT");
-  int ds = IupGetInt(ih_item, "DS");
+  Ihandle* ih_menu = IupGetParent(ih_item);
+  int plot_current = iupAttribGetInt(ih_menu, "_IUP_PLOT_CURRENT");
+  int ds = iupAttribGetInt(ih_menu, "_IUP_DS");
 
   IupSetInt(ih, "PLOT_CURRENT", plot_current);
   IupSetInt(ih, "CURRENT", ds);
@@ -436,8 +478,8 @@ static int iPlotDataSetValues_CB(Ihandle* ih_item)
   IupSetCallback(button, "ACTION", (Icallback)iPlotDataSetValuesButton_CB);
 
   IupSetAttribute(matrix, "PLOT", (char*)ih);
-  IupSetInt(matrix, "PLOT_CURRENT", plot_current);
-  IupSetInt(matrix, "DS", ds);
+  iupAttribSetInt(matrix, "_IUP_PLOT_CURRENT", plot_current);
+  iupAttribSetInt(matrix, "_IUP_DS", ds);
 
   IupPopup(dlg, IUP_CENTER, IUP_CENTER);
 
@@ -532,12 +574,14 @@ static const char* iplot_fontstyle_list[] = { "", "BOLD", "ITALIC", "BOLDITALIC"
 static const char* iplot_legendpos_list[] = { "TOPRIGHT", "TOPLEFT", "BOTTOMRIGHT", "BOTTOMLEFT", "BOTTOMCENTER", "XY", NULL };
 static const char* iplot_grid_list[] = { "NO", "YES", "HORIZONTAL", "VERTICAL", NULL };
 static const char* iplot_scale_list[] = { "LIN", "LOG10", "LOG2", "LOGN", NULL };
+static const char* iplot_axispos_list[] = { "START", "CROSSORIGIN", "END", NULL };
 
 static const char* iplot_linestyle_extra = { "|_@IUP_CONTINUOUS|_@IUP_DASHED|_@IUP_DOTTED|_@IUP_DASH_DOT|_@IUP_DASH_DOT_DOT|" };
 static const char* iplot_fontstyle_extra = { "|_@IUP_PLAIN|_@IUP_BOLD|_@IUP_ITALIC|_@IUP_BOLDITALIC|" };
 static const char* iplot_legendpos_extra = { "|_@IUP_TOPRIGHT|_@IUP_TOPLEFT|_@IUP_BOTTOMRIGHT|_@IUP_BOTTOMLEFT|_@IUP_BOTTOMCENTER|_@IUP_XY|" };
 static const char* iplot_grid_extra = { "|_@IUP_NO|_@IUP_YES|_@IUP_HORIZONTAL|_@IUP_VERTICAL|" };
 static const char* iplot_scale_extra = { "|_@IUP_LINEAR|_@IUP_LOG10|_@IUP_LOG2|_@IUP_LOGN|" };
+static const char* iplot_axispos_extra = { "|_@IUP_START|_@IUP_CROSSORIGIN|_@IUP_END|" };
 
 static int iPlotCheckBool(Ihandle* param)
 {
@@ -555,7 +599,7 @@ static int iPlotCheckAuto2(Ihandle* param)
   return !iupAttribGetBoolean(param, "VALUE");
 }
 
-static int iPlotCheckAutoXY(Ihandle* param)  // Simply to be able to distiguish from other iPlotCheckAuto
+static int iPlotCheckAutoXY(Ihandle* param)  // Simply to be able to distinguish from other iPlotCheckAuto
 {
   return !iupAttribGetBoolean(param, "VALUE");
 }
@@ -577,6 +621,7 @@ static iPlotAttribParam iplot_background_attribs[] = {
   { "MARGINBOTTOMAUTO", iPlotCheckAuto, "_@IUP_BOTTOM", "b", "[ ,Auto]", "", NULL },
   { "MARGINBOTTOM", NULL, "\t_@IUP_VALUE", "i", "", "", NULL },
   { "", NULL, "", "t", NULL, NULL, NULL },
+  { "PADDING", NULL, "_@IUP_PADDING", "s", "[+/-]?/d+[x][+/-]?/d+", "{_@IUP_INTERNALMARGIN}", NULL },
   { "BACKCOLOR", NULL, "_@IUP_COLOR", "c", "", "", NULL },
   { NULL, NULL, NULL, NULL, NULL, NULL, NULL }
 };
@@ -645,7 +690,8 @@ static iPlotAttribParam iplot_axisX_attribs[] = {
   { "AXS_XMAX", NULL, "\t_@IUP_VALUE", "R", "", "", NULL },
   { "AXS_XSCALE", NULL, "_@IUP_SCALE", "l", iplot_scale_extra, "", iplot_scale_list },
   { "AXS_XREVERSE", NULL, "_@IUP_REVERSE", "b", "", "", NULL },
-  { "AXS_XCROSSORIGIN", NULL, "_@IUP_CROSSORIGIN", "b", "", "", NULL },
+  { "AXS_XPOSITION", NULL, "_@IUP_POSITION", "l", iplot_axispos_extra, "", iplot_axispos_list },
+  { "AXS_XREVERSETICKSLABEL", NULL, "_@IUP_REVERSETICKSLABEL", "b", "", "", NULL },
   { NULL, NULL, NULL, NULL, NULL, NULL, NULL }
 };
 
@@ -661,7 +707,8 @@ static iPlotAttribParam iplot_axisY_attribs[] = {
   { "AXS_YMAX", NULL, "\t_@IUP_VALUE", "R", "", "", NULL },
   { "AXS_YSCALE", NULL, "_@IUP_SCALE", "l", iplot_scale_extra, "", iplot_scale_list },
   { "AXS_YREVERSE", NULL, "_@IUP_REVERSE", "b", "", "", NULL },
-  { "AXS_YCROSSORIGIN", NULL, "_@IUP_CROSSORIGIN", "b", "", "", NULL },
+  { "AXS_YPOSITION", NULL, "_@IUP_POSITION", "l", iplot_axispos_extra, "", iplot_axispos_list },
+  { "AXS_YREVERSETICKSLABEL", NULL, "_@IUP_REVERSETICKSLABEL", "b", "", "", NULL },
   { NULL, NULL, NULL, NULL, NULL, NULL, NULL }
 };
 
@@ -835,6 +882,11 @@ static void iPlotPropertiesCheckParam(Ihandle* parambox, Ihandle* param, int par
 static void iPlotPropertiesInit(Ihandle* parambox)
 {
   Ihandle* ih = (Ihandle*)IupGetAttribute(parambox, "PLOT");
+  Ihandle* zbox = IupGetParent(parambox);
+
+  int plot_current = iupAttribGetInt(zbox, "_IUP_PLOT_CURRENT");
+  // make sure we are accessing the right plot
+  IupSetInt(ih, "PLOT_CURRENT", plot_current);
 
   int i, count = IupGetInt(parambox, "PARAMCOUNT");
   for (i = 0; i < count; i++)
@@ -857,8 +909,9 @@ static void iPlotPropertiesInit(Ihandle* parambox)
 static void iPlotPropertiesResetChanges(Ihandle* parambox)
 {
   Ihandle* ih = (Ihandle*)IupGetAttribute(parambox, "PLOT");
+  Ihandle* zbox = IupGetParent(parambox);
 
-  int plot_current = IupGetInt(parambox, "PLOT_CURRENT");
+  int plot_current = iupAttribGetInt(zbox, "_IUP_PLOT_CURRENT");
   // make sure we are changing the right plot
   IupSetInt(ih, "PLOT_CURRENT", plot_current);
 
@@ -892,8 +945,9 @@ static void iPlotPropertiesResetChanges(Ihandle* parambox)
 static void iPlotPropertiesApplyChanges(Ihandle* parambox)
 {
   Ihandle* ih = (Ihandle*)IupGetAttribute(parambox, "PLOT");
+  Ihandle* zbox = IupGetParent(parambox);
 
-  int plot_current = IupGetInt(parambox, "PLOT_CURRENT");
+  int plot_current = iupAttribGetInt(zbox, "_IUP_PLOT_CURRENT");
   // make sure we are changing the right plot
   IupSetInt(ih, "PLOT_CURRENT", plot_current);
 
@@ -1004,7 +1058,7 @@ static int iPlotPropertiesClose_CB(Ihandle* dlg)
   return IUP_CLOSE;
 }
 
-static void iPlotPropertiesAddParamBox(Ihandle* ih, Ihandle* parent, iPlotAttribParam* attribs)
+static void iPlotPropertiesAddParamBox(Ihandle* ih, Ihandle* zbox, iPlotAttribParam* attribs)
 {
   Ihandle* params[50];
   int count = 0;
@@ -1038,7 +1092,7 @@ static void iPlotPropertiesAddParamBox(Ihandle* ih, Ihandle* parent, iPlotAttrib
   Ihandle* parambox = IupParamBoxv(params);
   IupSetCallback(parambox, "PARAM_CB", (Icallback)iPlotPropertiesParam_CB);
 
-  IupAppend(parent, parambox);
+  IupAppend(zbox, parambox);
 
   count = IupGetInt(parambox, "PARAMCOUNT");
   for (int i = 0; i < count; i++)
@@ -1052,8 +1106,8 @@ static int iPlotProperties_CB(Ihandle* ih_item)
 {
   Ihandle* ih = (Ihandle*)IupGetAttribute(ih_item, "PLOT");
   Ihandle* parent = IupGetDialog(ih);
-
-  int plot_current = IupGetInt(ih_item, "PLOT_CURRENT");
+  Ihandle* ih_menu = IupGetParent(ih_item);
+  int plot_current = iupAttribGetInt(ih_menu, "_IUP_PLOT_CURRENT");
   IupSetInt(ih, "PLOT_CURRENT", plot_current);
 
   Ihandle* tree = IupTree();
@@ -1081,7 +1135,7 @@ static int iPlotProperties_CB(Ihandle* ih_item)
   iPlotPropertiesAddParamBox(ih, zbox, iplot_axisYticksnumber_attribs);  /* 14 */
 
   IupSetAttribute(zbox, "PLOT", (char*)ih);
-  IupSetInt(zbox, "PLOT_CURRENT", plot_current);
+  iupAttribSetInt(zbox, "_IUP_PLOT_CURRENT", plot_current);
 
   Ihandle* dlg = IupDialog(IupHbox(tree, zbox, NULL));
   IupSetAttributeHandle(dlg, "PARENTDIALOG", parent);
@@ -1137,8 +1191,9 @@ static int setparent_param_cb(Ihandle* param_dialog, int param_index, void* user
 static int iPlotDataSetProperties_CB(Ihandle* ih_item)
 {
   Ihandle* ih = (Ihandle*)IupGetAttribute(ih_item, "PLOT");
-  int plot_current = IupGetInt(ih_item, "PLOT_CURRENT");
-  int ds = IupGetInt(ih_item, "DS");
+  Ihandle* ih_menu = IupGetParent(ih_item);
+  int plot_current = iupAttribGetInt(ih_menu, "_IUP_PLOT_CURRENT");
+  int ds = iupAttribGetInt(ih_menu, "_IUP_DS");
   char name[100];
 
   IupSetInt(ih, "PLOT_CURRENT", plot_current);
@@ -1271,7 +1326,7 @@ static Ihandle* iPlotCreateMenuContext(Ihandle* ih, int x, int y)
     IupSubmenu("_@IUP_COPY",
     IupMenu(
     IupSetCallbacks(IupItem("Metafile", NULL), "ACTION", iPlotCopyAsMetafile_CB, NULL),
-    IupSetCallbacks(IupItem("Bitmap", NULL), "ACTION", iPlotCopyAsImage_CB, NULL),
+    IupSetCallbacks(IupItem("Image", NULL), "ACTION", iPlotCopyAsImage_CB, NULL),
     NULL)),
     IupSubmenu("_@IUP_EXPORT",
     IupMenu(
@@ -1305,7 +1360,7 @@ static Ihandle* iPlotCreateMenuContext(Ihandle* ih, int x, int y)
         ((ih->data->current_plot->mHighlightMode == IUP_PLOT_HIGHLIGHT_CURVE || ih->data->current_plot->mHighlightMode == IUP_PLOT_HIGHLIGHT_BOTH) && ih->data->current_plot->FindDataSetSegment((double)x, (double)y, ds, ds_name, sample1, rx1, ry1, sample2, rx2, ry2)))
     {
       // save plot info because it may have changed by the time the callback is called
-      IupSetInt(menu, "DS", ds);
+      iupAttribSetInt(menu, "_IUP_DS", ds);
 
       IupSetAttribute(itemProp, "ACTIVE", "YES");
       if (itemVal) IupSetAttribute(itemVal, "ACTIVE", "YES");
@@ -1317,7 +1372,7 @@ static Ihandle* iPlotCreateMenuContext(Ihandle* ih, int x, int y)
     }
 
     // save plot info because it may have changed by the time the callback is called
-    IupSetInt(menu, "PLOT_CURRENT", ih->data->current_plot_index);
+    iupAttribSetInt(menu, "_IUP_PLOT_CURRENT", ih->data->current_plot_index);
   }
 
   IupSetAttribute(menu, "PLOT", (char*)ih);
@@ -1351,8 +1406,18 @@ void iupPlotSetPlotCurrent(Ihandle* ih, int p)
 
 void iupPlotRedraw(Ihandle* ih, int flush, int only_current, int reset_redraw)
 {
-  if (flush && ih->data->graphics_mode == IUP_PLOT_OPENGL)
+  if (ih->data->graphics_mode == IUP_PLOT_OPENGL)
+  {
     IupGLMakeCurrent(ih);
+
+    // in OpenGL mode must:
+    flush = 1;  // always flush
+    only_current = 0;  // redraw all plots
+    reset_redraw = 1;  // always render
+  }
+
+  if (ih->data->sync_view || ih->data->merge_view)
+    only_current = 0;  // draw all plots
 
   cdCanvasActivate(ih->data->cd_canvas);
 
@@ -1360,31 +1425,83 @@ void iupPlotRedraw(Ihandle* ih, int flush, int only_current, int reset_redraw)
   {
     if (reset_redraw)
       ih->data->current_plot->mRedraw = true;
+
+    ih->data->current_plot->PrepareRender(ih->data->cd_canvas);
     ih->data->current_plot->Render(ih->data->cd_canvas);
   }
   else
   {
     int old_current = ih->data->current_plot_index;
-    for (int p = 0; p < ih->data->plot_list_count; p++)
+    int p;
+
+    for (p = 0; p < ih->data->plot_list_count; p++)
     {
-      // Set current because of the draw callbacks
       iupPlotSetPlotCurrent(ih, p);
 
       if (reset_redraw)
         ih->data->current_plot->mRedraw = true;
+
+      ih->data->current_plot->PrepareRender(ih->data->cd_canvas);
+
+      ih->data->current_plot->mBack.mTransparent = false;
+    }
+
+    if (ih->data->merge_view)
+    {
+      iupPlotSetPlotCurrent(ih, 0);
+      iupPlot* plot0 = ih->data->current_plot;
+
+      /* compute the margin that all plots can fit */
+      for (p = 1; p < ih->data->plot_list_count; p++)
+      {
+        iupPlotSetPlotCurrent(ih, p);
+
+        if (ih->data->current_plot->mBack.mMargin.mLeft > plot0->mBack.mMargin.mLeft)
+          plot0->mBack.mMargin.mLeft = ih->data->current_plot->mBack.mMargin.mLeft;
+        if (ih->data->current_plot->mBack.mMargin.mRight > plot0->mBack.mMargin.mRight)
+          plot0->mBack.mMargin.mRight = ih->data->current_plot->mBack.mMargin.mRight;
+        if (ih->data->current_plot->mBack.mMargin.mTop > plot0->mBack.mMargin.mTop)
+          plot0->mBack.mMargin.mTop = ih->data->current_plot->mBack.mMargin.mTop;
+        if (ih->data->current_plot->mBack.mMargin.mBottom > plot0->mBack.mMargin.mBottom)
+          plot0->mBack.mMargin.mBottom = ih->data->current_plot->mBack.mMargin.mBottom;
+
+        if (ih->data->current_plot->mRedraw)
+          plot0->mRedraw = true;
+      }
+
+      /* all the plots get the same margin */
+      for (p = 1; p < ih->data->plot_list_count; p++)
+      {
+        iupPlotSetPlotCurrent(ih, p);
+
+        ih->data->current_plot->mBack.mMargin.mLeft = plot0->mBack.mMargin.mLeft;
+        ih->data->current_plot->mBack.mMargin.mRight = plot0->mBack.mMargin.mRight;
+        ih->data->current_plot->mBack.mMargin.mTop = plot0->mBack.mMargin.mTop;
+        ih->data->current_plot->mBack.mMargin.mBottom = plot0->mBack.mMargin.mBottom;
+
+        ih->data->current_plot->mBack.mTransparent = true;
+
+        if (plot0->mRedraw)
+          ih->data->current_plot->mRedraw = true;
+      }
+    }
+
+    for (p = 0; p < ih->data->plot_list_count; p++)
+    {
+      iupPlotSetPlotCurrent(ih, p);
+
       ih->data->current_plot->Render(ih->data->cd_canvas);
     }
+
     iupPlotSetPlotCurrent(ih, old_current);
   }
 
   // Do the flush once
   if (flush)
-  {
     cdCanvasFlush(ih->data->cd_canvas);
 
-    if (ih->data->graphics_mode == IUP_PLOT_OPENGL)
-      IupGLSwapBuffers(ih);
-  }
+  if (ih->data->graphics_mode == IUP_PLOT_OPENGL)
+    IupGLSwapBuffers(ih);
 }
 
 static int iPlotAction_CB(Ihandle* ih)
@@ -1393,14 +1510,6 @@ static int iPlotAction_CB(Ihandle* ih)
   int flush = 1,  // always flush
     only_current = 0,  // redraw all plots
     reset_redraw = 0; // render only if necessary
-
-  if (ih->data->graphics_mode == IUP_PLOT_OPENGL)
-  {
-    // in OpenGL mode must:
-    flush = 1;  // always flush
-    only_current = 0;  // redraw all plots
-    reset_redraw = 1;  // always render
-  }
 
   iupPlotRedraw(ih, flush, only_current, reset_redraw);
 
@@ -1417,6 +1526,7 @@ void iupPlotUpdateViewports(Ihandle* ih)
   int numcol = ih->data->numcol;
   if (numcol > ih->data->plot_list_count) numcol = ih->data->plot_list_count;
   int numlin = ih->data->plot_list_count / numcol;
+
   int pw = w / numcol;
   int ph = h / numlin;
 
@@ -1426,6 +1536,14 @@ void iupPlotUpdateViewports(Ihandle* ih)
     int col = p % numcol;
     int px = col * pw;
     int py = lin * ph;
+
+    if (ih->data->merge_view)
+    {
+      px = 0;
+      py = 0;
+      pw = w;
+      ph = h;
+    }
 
     ih->data->plot_list[p]->SetViewport(px, py, pw, ph);
   }
@@ -1449,24 +1567,11 @@ static void iPlotRedrawInteract(Ihandle *ih)
 {
   // when interacting
   int flush = 0, // flush if necessary
-    only_current = 1, // draw all plots if sync
+    only_current = 1, 
     reset_redraw = 0;  // render only if necessary
 
-  if (ih->data->graphics_mode == IUP_PLOT_OPENGL)
-  {
-    // in OpenGL mode must:
-    flush = 1;  // always flush
-    only_current = 0;  // redraw all plots
-    reset_redraw = 1;  // always render
-  }
-  else
-  {
-    if (ih->data->current_plot->mRedraw)
-      flush = 1;
-
-    if (ih->data->sync_view)
-      only_current = 0;
-  }
+  if (ih->data->current_plot->mRedraw)
+    flush = 1;
 
   iupPlotRedraw(ih, flush, only_current, reset_redraw);
 }
@@ -1566,14 +1671,14 @@ void iupPlotSetZoom(Ihandle *ih, int dir)
 {
   if (dir > 0)
   {
-    int x = ih->data->current_plot->mViewport.mX + ih->data->current_plot->mViewport.mWidth / 2;
-    int y = ih->data->current_plot->mViewport.mY + ih->data->current_plot->mViewport.mHeight / 2;
+    int x = ih->data->current_plot->mViewport.mWidth / 2;
+    int y = ih->data->current_plot->mViewport.mHeight / 2;
     iPlotZoom(ih, x, y, 1);
   }
   else if (dir < 0)
   {
-    int x = ih->data->current_plot->mViewport.mX + ih->data->current_plot->mViewport.mWidth / 2;
-    int y = ih->data->current_plot->mViewport.mY + ih->data->current_plot->mViewport.mHeight / 2;
+    int x = ih->data->current_plot->mViewport.mWidth / 2;
+    int y = ih->data->current_plot->mViewport.mHeight / 2;
     iPlotZoom(ih, x, y, -1);
   }
   else
@@ -1643,7 +1748,7 @@ static void iPlotScrollTo(Ihandle *ih, int x, int y)
   iPlotRedrawInteract(ih);
 }
 
-static int iPlotFindPlot(Ihandle* ih, int x, int &y)
+static int iPlotFindPlot(Ihandle* ih, int x, int &y, char* status)
 {
   int w, h;
 
@@ -1656,6 +1761,23 @@ static int iPlotFindPlot(Ihandle* ih, int x, int &y)
   // Notice that this change is returned to the callback
   cdCanvasOrigin(ih->data->cd_canvas, 0, 0);
   y = cdCanvasInvertYAxis(ih->data->cd_canvas, y);
+
+  if (ih->data->plot_list_count == 1)
+    return 0;
+
+  if (ih->data->merge_view)
+  {
+    if (ih->data->plot_list_count > 1 && iup_isshift(status))
+      return 1;
+
+    if (ih->data->plot_list_count > 2 && iup_iscontrol(status))
+      return 2;
+
+    if (ih->data->plot_list_count > 3 && iup_isalt(status))
+      return 3;
+
+    return 0;
+  }
 
   int numcol = ih->data->numcol;
   if (numcol > ih->data->plot_list_count) numcol = ih->data->plot_list_count;
@@ -1676,7 +1798,7 @@ static int iPlotFindPlot(Ihandle* ih, int x, int &y)
 static int iPlotButton_CB(Ihandle* ih, int button, int press, int x, int y, char* status)
 {
   int screen_x = x, screen_y = y;
-  int index = iPlotFindPlot(ih, x, y);
+  int index = iPlotFindPlot(ih, x, y, status);
   if (index < 0)
   {
     iPlotRedrawInteract(ih);
@@ -1726,7 +1848,7 @@ static int iPlotButton_CB(Ihandle* ih, int button, int press, int x, int y, char
             ih->data->last_pos_moving = 1;
           }
           else if (ih->data->current_plot->mLegend.mPosition == IUP_PLOT_XY &&
-                   ih->data->current_plot->CheckInsideLegend(ih->data->cd_canvas, x, y))
+                   ih->data->current_plot->CheckInsideLegend(x, y))
           {
             ih->data->last_pos_x = ih->data->current_plot->mLegend.mPos.mX;
             ih->data->last_pos_y = ih->data->current_plot->mLegend.mPos.mY;
@@ -1808,7 +1930,7 @@ static int iPlotMotion_CB(Ihandle* ih, int x, int y, char *status)
   if (iupStrEqualNoCase(IupGetAttribute(ih, "CURSOR"), "HAND"))
     IupSetAttribute(ih, "CURSOR", NULL);
 
-  int index = iPlotFindPlot(ih, x, y);
+  int index = iPlotFindPlot(ih, x, y, status);
   if (index < 0)
     return IUP_DEFAULT;
 
@@ -1839,7 +1961,7 @@ static int iPlotMotion_CB(Ihandle* ih, int x, int y, char *status)
       ih->data->current_plot->CheckInsideTitle(ih->data->cd_canvas, x, y))
       IupSetAttribute(ih, "CURSOR", "HAND");
   else if (ih->data->current_plot->mLegend.mPosition == IUP_PLOT_XY &&
-           ih->data->current_plot->CheckInsideLegend(ih->data->cd_canvas, x, y))
+           ih->data->current_plot->CheckInsideLegend(x, y))
            IupSetAttribute(ih, "CURSOR", "HAND");
 
   /////////////// SELECTION, TITLE MOVE and LEGEND MOVE
@@ -2000,7 +2122,7 @@ static int iPlotMotion_CB(Ihandle* ih, int x, int y, char *status)
   {
     redraw = true;
 
-    if (ih->data->show_cross_hair == IUP_PLOT_CROSSHORIZ)
+    if (ih->data->show_cross_hair == IUP_PLOT_CROSSHAIR_HORIZ)
     {
       ih->data->current_plot->mCrossHairH = true;
       ih->data->current_plot->mCrossHairX = x;
@@ -2023,7 +2145,7 @@ static int iPlotMotion_CB(Ihandle* ih, int x, int y, char *status)
 
 static int iPlotWheel_CB(Ihandle *ih, float delta, int x, int y, char* status)
 {
-  int index = iPlotFindPlot(ih, x, y);
+  int index = iPlotFindPlot(ih, x, y, status);
   if (index < 0)
     return IUP_DEFAULT;
 
@@ -2059,11 +2181,11 @@ static int iPlotKeyPress_CB(Ihandle* ih, int c, int press)
 
   if (c == K_cH || c == K_cV)
   {
-    int new_show_cross_hair = IUP_PLOT_CROSSHORIZ;
-    if (c == K_cV) new_show_cross_hair = IUP_PLOT_CROSSVERT;
+    int new_show_cross_hair = IUP_PLOT_CROSSHAIR_HORIZ;
+    if (c == K_cV) new_show_cross_hair = IUP_PLOT_CROSSHAIR_VERT;
 
     if (ih->data->show_cross_hair == new_show_cross_hair)
-      ih->data->show_cross_hair = IUP_PLOT_CROSSNONE;
+      ih->data->show_cross_hair = IUP_PLOT_CROSSHAIR_NONE;
     else
       ih->data->show_cross_hair = new_show_cross_hair;
 
@@ -2081,7 +2203,7 @@ static int iPlotKeyPress_CB(Ihandle* ih, int c, int press)
       }
     }
 
-    if (ih->data->show_cross_hair != IUP_PLOT_CROSSNONE)  // was shown, leave it there as reference
+    if (ih->data->show_cross_hair != IUP_PLOT_CROSSHAIR_NONE)  // was shown, leave it there as reference
       iPlotRedrawInteract(ih);
 
     return IUP_IGNORE;  /* ignore processed keys */
@@ -2092,15 +2214,15 @@ static int iPlotKeyPress_CB(Ihandle* ih, int c, int press)
 
   if (c == K_plus)
   {
-    int x = ih->data->current_plot->mViewport.mX + ih->data->current_plot->mViewport.mWidth / 2;
-    int y = ih->data->current_plot->mViewport.mY + ih->data->current_plot->mViewport.mHeight / 2;
+    int x = ih->data->current_plot->mViewport.mWidth / 2;
+    int y = ih->data->current_plot->mViewport.mHeight / 2;
     iPlotZoom(ih, x, y, 1);
     return IUP_IGNORE;  /* ignore processed keys */
   }
   else if (c == K_minus)
   {
-    int x = ih->data->current_plot->mViewport.mX + ih->data->current_plot->mViewport.mWidth / 2;
-    int y = ih->data->current_plot->mViewport.mY + ih->data->current_plot->mViewport.mHeight / 2;
+    int x = ih->data->current_plot->mViewport.mWidth / 2;
+    int y = ih->data->current_plot->mViewport.mHeight / 2;
     iPlotZoom(ih, x, y, -1);
     return IUP_IGNORE;  /* ignore processed keys */
   }
@@ -2947,6 +3069,7 @@ static void iPlotSetClassUpdate(Iclass* ic)
     IupSetLanguageString("IUP_CLOSE", "Close");
 
     IupSetLanguageString("IUP_BACKGROUND", "Background");
+    IupSetLanguageString("IUP_PADDING", "Padding");
     IupSetLanguageString("IUP_TITLE", "Title");
     IupSetLanguageString("IUP_LEGEND", "Legend");
     IupSetLanguageString("IUP_LEGENDBOX", "Legend Box");
@@ -2966,6 +3089,7 @@ static void iPlotSetClassUpdate(Iclass* ic)
     IupSetLanguageString("IUP_CHANGESNOTAPPLIEDAPPLY", "Changes Not Applied. Apply?");
 
     IupSetLanguageString("IUP_MARGIN", "Margin");
+    IupSetLanguageString("IUP_INTERNALMARGIN", "Internal Margin");
     IupSetLanguageString("IUP_LEFT", "Left:");
     IupSetLanguageString("IUP_RIGHT", "Right:");
     IupSetLanguageString("IUP_TOP", "Top:");
@@ -2991,8 +3115,11 @@ static void iPlotSetClassUpdate(Iclass* ic)
     IupSetLanguageString("IUP_MIN", "Min:");
     IupSetLanguageString("IUP_MAX", "Max:");
     IupSetLanguageString("IUP_REVERSE", "Reverse:");
-    IupSetLanguageString("IUP_CROSSORIGIN", "Cross Origin:");
+    IupSetLanguageString("IUP_REVERSETICKSLABEL", "Reverse Ticks&&Label:");
     IupSetLanguageString("IUP_CENTERED", "Centered:");
+    IupSetLanguageString("IUP_CROSSORIGIN", "Cross Origin");
+    IupSetLanguageString("IUP_START", "Start");
+    IupSetLanguageString("IUP_END", "End");
 
     IupSetLanguageString("IUP_SCALE", "Scale:");
     IupSetLanguageString("IUP_LINEAR", "Linear");
@@ -3081,6 +3208,7 @@ static void iPlotSetClassUpdate(Iclass* ic)
     IupSetLanguageString("IUP_CLOSE", "Fechar");
 
     IupSetLanguageString("IUP_BACKGROUND", "Fundo");
+    IupSetLanguageString("IUP_PADDING", "Preenchimento");
     IupSetLanguageString("IUP_TITLE", "TÌtulo");
     IupSetLanguageString("IUP_LEGEND", "Legenda");
     IupSetLanguageString("IUP_LEGENDBOX", "Caixa da Legenda");
@@ -3100,6 +3228,7 @@ static void iPlotSetClassUpdate(Iclass* ic)
     IupSetLanguageString("IUP_CHANGESNOTAPPLIEDAPPLY", "ModificaÁıes n„o aplicadas. Aplicar?");
 
     IupSetLanguageString("IUP_MARGIN", "Margem");
+    IupSetLanguageString("IUP_INTERNALMARGIN", "Margem Interna");
     IupSetLanguageString("IUP_LEFT", "Esquerda:");
     IupSetLanguageString("IUP_RIGHT", "Direita:");
     IupSetLanguageString("IUP_TOP", "Superior:");
@@ -3125,8 +3254,11 @@ static void iPlotSetClassUpdate(Iclass* ic)
     IupSetLanguageString("IUP_MIN", "Min:");
     IupSetLanguageString("IUP_MAX", "Max:");
     IupSetLanguageString("IUP_REVERSE", "Reverso:");
-    IupSetLanguageString("IUP_CROSSORIGIN", "Origem Cruzada:");
+    IupSetLanguageString("IUP_REVERSETICKSLABEL", "Reverter Marcas&&Etiqueta:");
     IupSetLanguageString("IUP_CENTERED", "Centrado:");
+    IupSetLanguageString("IUP_CROSSORIGIN", "Cruza Origem");
+    IupSetLanguageString("IUP_START", "InÌcio");
+    IupSetLanguageString("IUP_END", "Fim");
 
     IupSetLanguageString("IUP_SCALE", "Escala:");
     IupSetLanguageString("IUP_LINEAR", "Linear");
@@ -3176,6 +3308,7 @@ static void iPlotSetClassUpdate(Iclass* ic)
       IupSetLanguageString("IUP_BARSPACING", "Espa√ßamento da Barra:");
       IupSetLanguageString("IUP_AREATRANSPARENCY", "Transpar√™ncia de √Årea:");
       IupSetLanguageString("IUP_PIESTARTANGLE", "√Çngulo de In√≠cio da Torta:");
+      IupSetLanguageString("IUP_START", "In√≠cio");
     }
   }
   else if (iupStrEqualNoCase(IupGetGlobal("LANGUAGE"), "SPANISH"))
@@ -3245,6 +3378,7 @@ static void iPlotSetClassUpdate(Iclass* ic)
     IupSetLanguageString("IUP_CLOSE", "Cerrar");
 
     IupSetLanguageString("IUP_BACKGROUND", "Fondo");
+    IupSetLanguageString("IUP_PADDING", "Relleno");
     IupSetLanguageString("IUP_TITLE", "TÌtulo");
     IupSetLanguageString("IUP_LEGEND", "Leyenda");
     IupSetLanguageString("IUP_LEGENDBOX", "Caja de Leyenda");
@@ -3264,6 +3398,7 @@ static void iPlotSetClassUpdate(Iclass* ic)
     IupSetLanguageString("IUP_CHANGESNOTAPPLIEDAPPLY", "Hay Modificaciones. øAplicarlas?");
 
     IupSetLanguageString("IUP_MARGIN", "Margen");
+    IupSetLanguageString("IUP_INTERNALMARGIN", "Margen Interno");
     IupSetLanguageString("IUP_LEFT", "Izquierdo:");
     IupSetLanguageString("IUP_RIGHT", "Derecho:");
     IupSetLanguageString("IUP_TOP", "Superior:");
@@ -3288,9 +3423,12 @@ static void iPlotSetClassUpdate(Iclass* ic)
     IupSetLanguageString("IUP_SHOWARROW", "Mostrar Flecha:");
     IupSetLanguageString("IUP_MIN", "MÌnimo:");
     IupSetLanguageString("IUP_MAX", "M·ximo:");
-    IupSetLanguageString("IUP_REVERSE", "Invertir:");
-    IupSetLanguageString("IUP_CROSSORIGIN", "Cruzar Origen:");
+    IupSetLanguageString("IUP_REVERSE", "Revertir:");
+    IupSetLanguageString("IUP_REVERSETICKSLABEL", "Revertir Marcas&&Etiqueta:");
     IupSetLanguageString("IUP_CENTERED", "Centrado:");
+    IupSetLanguageString("IUP_CROSSORIGIN", "Cruza Origen");
+    IupSetLanguageString("IUP_START", "Comienzo");
+    IupSetLanguageString("IUP_END", "Fin");
 
     IupSetLanguageString("IUP_SCALE", "Escala:");
     IupSetLanguageString("IUP_LINEAR", "Lineal");

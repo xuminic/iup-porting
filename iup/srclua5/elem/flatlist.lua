@@ -1,21 +1,25 @@
 ------------------------------------------------------------------------------
--- Dial class 
+-- FlatList class 
 ------------------------------------------------------------------------------
 local ctrl = {
-  nick = "dial",
+  nick = "flatlist",
   parent = iup.WIDGET,
-  creation = "S",
   subdir = "elem",
+  creation = "",
+  funcname = "FlatList",
   callback = {
-    mousemove_cb = "d",         -- must repeat this callback because of its non-exclusive name
---    button_press_cb = "d",    -- already registered by the val
---    button_release_cb = "d",  -- already registered by the val
-  },
-}
+     flat_action = "snn", 
+--     multiselect_cb = "s",
+--     dblclick_cb = "ns",
+--     flat_button_cb = "nnnns",
+     flat_motion_cb = "nns",
+--     flat_focus_cb = "n",
+   }
+} 
 
 function ctrl.createElement(class, param)
-   return iup.Dial(param[1])
+  return iup.FlatList()
 end
-
+   
 iup.RegisterWidget(ctrl)
 iup.SetClass(ctrl, "iupWidget")

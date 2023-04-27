@@ -173,6 +173,7 @@ static void gtkCanvasAdjustVertValueChanged(GtkAdjustment *adjustment, Ihandle *
   ymin = iupAttribGetDouble(ih, "YMIN");
   ymax = iupAttribGetDouble(ih, "YMAX");
   dy = iupAttribGetDouble(ih, "DY");
+
   if (posy < ymin) posy = ymin;
   if (posy > ymax-dy) posy = ymax-dy;
   ih->data->posy = posy;
@@ -444,7 +445,8 @@ static int gtkCanvasSetDXAttrib(Ihandle* ih, const char *value)
       {
         if (iupgtkIsVisible(sb_horiz))
         {
-          iupAttribSet(ih, "SB_RESIZE", "YES");
+          if (iupdrvIsVisible(ih))
+            iupAttribSet(ih, "SB_RESIZE", "YES");
           gtk_widget_hide(sb_horiz);
           gtkCanvasUpdateChildLayout(ih, 1);
         }
@@ -461,7 +463,8 @@ static int gtkCanvasSetDXAttrib(Ihandle* ih, const char *value)
     {
       if (!iupgtkIsVisible(sb_horiz))
       {
-        iupAttribSet(ih, "SB_RESIZE", "YES");
+        if (iupdrvIsVisible(ih))
+          iupAttribSet(ih, "SB_RESIZE", "YES");
         gtk_widget_show(sb_horiz);
         gtkCanvasUpdateChildLayout(ih, 1);
       }
@@ -530,7 +533,8 @@ static int gtkCanvasSetDYAttrib(Ihandle* ih, const char *value)
       {
         if (iupgtkIsVisible(sb_vert))
         {
-          iupAttribSet(ih, "SB_RESIZE", "YES");
+          if (iupdrvIsVisible(ih))
+            iupAttribSet(ih, "SB_RESIZE", "YES");
           gtk_widget_hide(sb_vert);
           gtkCanvasUpdateChildLayout(ih, 1);
         }
@@ -547,7 +551,8 @@ static int gtkCanvasSetDYAttrib(Ihandle* ih, const char *value)
     {
       if (!iupgtkIsVisible(sb_vert))
       {
-        iupAttribSet(ih, "SB_RESIZE", "YES");
+        if (iupdrvIsVisible(ih))
+          iupAttribSet(ih, "SB_RESIZE", "YES");
         gtk_widget_show(sb_vert);
         gtkCanvasUpdateChildLayout(ih, 1);
       }
@@ -596,6 +601,9 @@ static int gtkCanvasSetPosXAttrib(Ihandle* ih, const char *value)
     xmax = iupAttribGetDouble(ih, "XMAX");
     dx = iupAttribGetDouble(ih, "DX");
 
+    if (dx >= xmax - xmin)
+      return 0;
+
     if (posx < xmin) posx = xmin;
     if (posx > (xmax - dx)) posx = xmax - dx;
     ih->data->posx = posx;
@@ -621,6 +629,9 @@ static int gtkCanvasSetPosYAttrib(Ihandle* ih, const char *value)
     ymin = iupAttribGetDouble(ih, "YMIN");
     ymax = iupAttribGetDouble(ih, "YMAX");
     dy = iupAttribGetDouble(ih, "DY");
+
+    if (dy >= ymax - ymin)
+      return 0;
 
     if (posy < ymin) posy = ymin;
     if (posy > (ymax - dy)) posy = ymax - dy;
