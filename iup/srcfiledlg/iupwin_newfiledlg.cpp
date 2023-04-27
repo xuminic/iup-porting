@@ -101,7 +101,7 @@ IFACEMETHODIMP winNewFileDlgEventHandler::OnFileOk(IFileDialog *pfd)
         if (SUCCEEDED(hr))
         {
           PWSTR pszFilePath = NULL;
-          HRESULT hr = psi->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+          hr = psi->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
           if (SUCCEEDED(hr))
           {
             filename = iupwinStrFromSystemFilename(pszFilePath);
@@ -121,7 +121,7 @@ IFACEMETHODIMP winNewFileDlgEventHandler::OnFileOk(IFileDialog *pfd)
           hr = psiaResult->GetItemAt(0, &psi); // get a selected item from the IShellItemArray
           if (SUCCEEDED(hr))
           {
-            HRESULT hr = psi->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+            hr = psi->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
             if (SUCCEEDED(hr))
             {
               filename = iupwinStrFromSystemFilename(pszFilePath);
@@ -135,7 +135,7 @@ IFACEMETHODIMP winNewFileDlgEventHandler::OnFileOk(IFileDialog *pfd)
     else
     {
       IFileSaveDialog *pfsd;
-      HRESULT hr = pfd->QueryInterface(IID_PPV_ARGS(&pfsd));
+      hr = pfd->QueryInterface(IID_PPV_ARGS(&pfsd));
       if (SUCCEEDED(hr))
       {
         IShellItem *psi;
@@ -143,7 +143,7 @@ IFACEMETHODIMP winNewFileDlgEventHandler::OnFileOk(IFileDialog *pfd)
         if (SUCCEEDED(hr))
         {
           PWSTR pszFilePath = NULL;
-          HRESULT hr = psi->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
+          hr = psi->GetDisplayName(SIGDN_FILESYSPATH, &pszFilePath);
           if (SUCCEEDED(hr))
           {
             filename = iupwinStrFromSystemFilename(pszFilePath);
@@ -188,7 +188,7 @@ IFACEMETHODIMP winNewFileDlgEventHandler::OnSelectionChange(IFileDialog *pfd)
     if (SUCCEEDED(hr))
     {
       SFGAOF attr;
-      HRESULT hr = psi->GetAttributes(SFGAO_FILESYSTEM | SFGAO_FOLDER, &attr);
+      hr = psi->GetAttributes(SFGAO_FILESYSTEM | SFGAO_FOLDER, &attr);
       if (SUCCEEDED(hr) && (attr & SFGAO_FILESYSTEM))
       {
         PWSTR pszFilePath = NULL;
@@ -350,7 +350,7 @@ static COMDLG_FILTERSPEC *winNewFileDlgCreateFilterSpecs(char *name, int *size)
       filter++;
     }
 
-    if (!filter)
+    if (*filter == 0)
       break;
 
     name = ++filter;
@@ -366,7 +366,7 @@ static COMDLG_FILTERSPEC *winNewFileDlgCreateFilterSpecs(char *name, int *size)
       filter++;
     }
 
-    if (!filter)
+    if (*filter == 0)
       break;
 
     i++;
@@ -622,7 +622,7 @@ static int winNewFileDlgPopup(Ihandle *ih, int x, int y)
     char name[4096] = "";
     static char dir[4096] = "";
     IShellItem *si;
-    TCHAR *wname, *wdir;
+    TCHAR *wname, *wdir = L"";
     iupStrFileNameSplit(value, dir, name);
     if (name[0] != 0)
       wname = iupwinStrToSystemFilename(name);
@@ -630,13 +630,14 @@ static int winNewFileDlgPopup(Ihandle *ih, int x, int y)
       wname = iupwinStrToSystemFilename(value);
     if (dir[0] != 0)
       wdir = iupwinStrToSystemFilename(dir);
-    else
+    else if (directory)
       wdir = iupwinStrToSystemFilename(directory);
     winNewFileDlgStrReplacePathSlash(wdir);
     pfd->SetFileName(wname);
     si = winNewFileDlgParseName(wdir);
     if (si)
       pfd->SetFolder(si);
+    if (directory) free(directory);
   }
   else if (directory)
   {
@@ -690,6 +691,7 @@ static int winNewFileDlgPopup(Ihandle *ih, int x, int y)
           iupAttribSetStr(ih, "DIRECTORY", dir);
 
           iupAttribSetStrId(ih, "MULTIVALUE", 0, dir);  /* same as directory, includes last separator */
+          free(dir);
 
           if (iupAttribGetBoolean(ih, "MULTIVALUEPATH"))
             dir_len = 0;
@@ -699,8 +701,6 @@ static int winNewFileDlgPopup(Ihandle *ih, int x, int y)
           iupAttribSetStr(ih, "VALUE", filename);  /* here value is not separated by '|' */
 
           iupAttribSetInt(ih, "MULTIVALUECOUNT", 2);
-          free(dir);
-          CoTaskMemFree(pszFilePath);
 
           if (winIsFile(pszFilePath))  /* check if file exists */
           {
@@ -712,6 +712,8 @@ static int winNewFileDlgPopup(Ihandle *ih, int x, int y)
             iupAttribSet(ih, "FILEEXIST", "NO");
             iupAttribSet(ih, "STATUS", "1");
           }
+
+          CoTaskMemFree(pszFilePath);
         }
         else
           iupAttribSet(ih, "STATUS", "-1");
@@ -719,7 +721,7 @@ static int winNewFileDlgPopup(Ihandle *ih, int x, int y)
         psiResult->Release();
       }
     }
-    else
+    else if (opfd != NULL) /* MULTIPLEFILES=Yes (so DIALOGTYPE=OPEN) */
     {
       IShellItemArray *psiaResult;
 
@@ -793,13 +795,15 @@ static int winNewFileDlgPopup(Ihandle *ih, int x, int y)
 
                 if (iupAttribGetBoolean(ih, "MULTIVALUEPATH"))
                 {
-                  char* value = iupAttribGet(ih, "VALUE");
                   char nameid[100];
                   char *fname = iupStrFileGetTitle(filename);
+                  value = iupAttribGet(ih, "VALUE");
+
                   sprintf(nameid, "MULTIVALUE%d", i + 1);
                   iupAttribSetStrf(ih, nameid, "%s%s", dir, fname);
 
                   iupAttribSetStrf(ih, "VALUE", "%s%s|", value, iupAttribGetId(ih, "MULTIVALUE", i + 1));
+                  free(fname);
                 }
                 else
                 {
@@ -809,7 +813,7 @@ static int winNewFileDlgPopup(Ihandle *ih, int x, int y)
                     iupAttribSetStrf(ih, "VALUE", "%s|", filename);
                   else
                   {
-                    char* value = iupAttribGet(ih, "VALUE");
+                    value = iupAttribGet(ih, "VALUE");
                     iupAttribSetStrf(ih, "VALUE", "%s%s|", value, filename);
                   }
                 }
@@ -857,6 +861,9 @@ extern "C" {
    once called it will replace regular IupFileDlg */
 int IupNewFileDlgOpen(void)
 {
+  if (!IupIsOpened())
+    return IUP_ERROR;
+
   if (IupGetGlobal("_IUP_NEWFILEDLG_OPEN"))
     return IUP_OPENED;
 

@@ -216,6 +216,12 @@ static gboolean gtkCanvasScrollEvent(GtkWidget *widget, GdkEventScroll *evt, Iha
   if (evt->direction > GDK_SCROLL_RIGHT)
     return TRUE;
 
+  if (iupAttribGetBoolean(ih, "WHEELDROPFOCUS"))
+  {
+    Ihandle* ih_focus = IupGetFocus();
+    iupAttribSetClassObject(ih_focus, "SHOWDROPDOWN", "NO");
+  }
+
   if (wcb)
   {
     int delta = evt->direction==GDK_SCROLL_UP||evt->direction==GDK_SCROLL_LEFT? 1: -1;
@@ -669,6 +675,7 @@ static int gtkCanvasSetBgColorAttrib(Ihandle* ih, const char* value)
     /* enable automatic double buffering */
     gtk_widget_set_double_buffered(ih->handle, TRUE);
     gtk_widget_set_double_buffered(sb_win, TRUE);
+
     return iupdrvBaseSetBgColorAttrib(ih, value);
   }
   else
@@ -683,10 +690,12 @@ static int gtkCanvasSetBgColorAttrib(Ihandle* ih, const char* value)
     {
       gtk_widget_set_double_buffered(ih->handle, FALSE);
       gtk_widget_set_double_buffered(sb_win, FALSE);
+
 #if !GTK_CHECK_VERSION(3, 0, 0)
       gdk_window_set_back_pixmap(iupgtkGetWindow(ih->handle), NULL, FALSE);
 #endif
     }
+
     iupAttribSet(ih, "_IUPGTK_NO_BGCOLOR", "1");
     return 1;
   }

@@ -1,5 +1,6 @@
 
 #include <stdlib.h>
+#include <string.h>
 
 #include <lua.h>
 #include <lauxlib.h>
@@ -113,15 +114,21 @@ static void iuplua_openlibs(lua_State *L)
 #endif
 }
 
-static int item_help_action_cb(void)
+static int item_iup_action_cb(void)
 {
   IupHelp("http://www.tecgraf.puc-rio.br/iup");
   return IUP_DEFAULT;
 }
 
+static int item_help_action_cb(void)
+{
+  IupHelp("http://www.tecgraf.puc-rio.br/iup/index.html?url=iupluascripter.html");
+  return IUP_DEFAULT;
+}
+
 static int item_about_action_cb(void)
 {
-  IupMessage("About", "   IupLua Scripter\n\nAutors:\n   Camilo Freire\n   Antonio Scuri");
+  IupVersionShow();
   return IUP_DEFAULT;
 }
 
@@ -172,9 +179,11 @@ int main(int argc, char **argv)
 
   IupSetAttribute(main_dialog, "SUBTITLE", "IupLuaScripter");
   IupSetAttributeHandle(main_dialog, "CONFIG", config);
-
+  IupSetAttribute(main_dialog, "PROJECTEXT", "luasc");
+  
   menu = IupGetAttributeHandle(main_dialog, "MENU");
   IupAppend(menu, IupSubmenu("&Help", IupMenu(
+    IupSetCallbacks(IupItem("&IUP...", NULL), "ACTION", (Icallback)item_iup_action_cb, NULL),
     IupSetCallbacks(IupItem("&Help...", NULL), "ACTION", (Icallback)item_help_action_cb, NULL),
     IupSetCallbacks(IupItem("&About...", NULL), "ACTION", (Icallback)item_about_action_cb, NULL),
     NULL)));
@@ -186,7 +195,10 @@ int main(int argc, char **argv)
   for (i = 1; i < argc; i++)
   {
     const char* filename = argv[i];
-    IupSetStrAttribute(main_dialog, "OPENFILE", filename);
+    if (strstr(filename, ".luasc"))
+      IupSetStrAttribute(main_dialog, "OPENPROJECT", filename);
+    else
+      IupSetStrAttribute(main_dialog, "OPENFILE", filename);
   }
 
   IupSetGlobal("EXITLOOP", "NO");

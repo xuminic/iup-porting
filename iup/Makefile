@@ -1,29 +1,9 @@
 ifeq ($(OS), Windows_NT)
   WINLIBS = iupole iupfiledlg
-  export MINGW4=/c/mingw
-  export TEC_UNAME=mingw4
 endif
 
-# quick decision which GTK is available
-ifndef  USE_GTK2
-gtkver := $(shell pkg-config gtk+-3.0 --cflags)
-ifeq ($(gtkver), )
-  export USE_GTK2=1
-endif
-endif
-
-
-.PHONY: do_all iup iupgtk iupmot iupcd iupcontrols iupgl iupglcontrols iup_plot iup_mglplot iup_scintilla iupim iupimglib ledc iupview iuplua5 iupluaconsole iupluascripter iupole iupfiledlg iupweb iuptuio
-do_all: iup iupimglib $(WINLIBS)
-	cp ./lib/*/*.a ./lib
-
-clean:
-	rm -rf ./lib/* ./obj/*
-
-.PHONY: install
-install:
-	cp -f  ./lib/*.a ../../libmingw/lib
-	cp -af ./include/* ../../libmingw/include/iup
+.PHONY: do_all iup iupgtk iupmot iupcd iupcontrols iupgl iupglcontrols iup_plot iup_mglplot iup_scintilla iupim iupimglib ledc iupview iupvled iuplua5 iupluaconsole iupluascripter iupole iupfiledlg iupweb iuptuio
+do_all: iup iupcd iupcontrols iupgl iupglcontrols iup_plot iup_mglplot iup_scintilla iupim iupimglib $(WINLIBS) iupweb iuptuio ledc iupview iupvled iuplua5 iupluaconsole iupluascripter
 
 iup iupgtk iupmot:
 	@$(MAKE) --no-print-directory -C ./src/ $@
@@ -63,3 +43,5 @@ ledc:
 	@$(MAKE) --no-print-directory -C ./srcledc/
 iupview: iupcontrols iup
 	@$(MAKE) --no-print-directory -C ./srcview/
+iupvled: iupcontrols iup
+	@$(MAKE) --no-print-directory -C ./srcvled/

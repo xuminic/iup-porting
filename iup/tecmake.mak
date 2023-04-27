@@ -6,7 +6,7 @@
 
 #---------------------------------#
 # Tecmake Version
-VERSION = 4.17
+VERSION = 4.19
 
 
 #---------------------------------#
@@ -328,6 +328,13 @@ RANLIB   := $(TEC_TOOLCHAIN)ranlib
 AR       := $(TEC_TOOLCHAIN)ar
 DEBUGGER := $(TEC_TOOLCHAIN)gdb
 RCC      := $(TEC_TOOLCHAIN)windres
+
+ifdef USE_EMSCRIPTEN
+CC       := $(TEC_TOOLCHAIN)emcc
+CPPC     := $(TEC_TOOLCHAIN)em++
+RANLIB   := $(TEC_TOOLCHAIN)emranlib
+AR       := $(TEC_TOOLCHAIN)emar
+endif
 
 # Remote build script
 REMOTE  = $(TECMAKE_HOME)/remote
@@ -1220,7 +1227,7 @@ endif
 
 ifdef LINK_WEBKIT
   ifneq ($(findstring Linux5, $(TEC_UNAME)), )
-    LIBS += webkitgtk-3.0
+    LIBS += webkit2gtk-4.0
   else 
     ifneq ($(findstring Linux4, $(TEC_UNAME)), )
       LIBS += webkitgtk-3.0
@@ -1320,6 +1327,16 @@ ifdef USE_MOTIF
   endif
 endif
 
+ifdef USE_EMSCRIPTEN
+  EMSCRIPTEN = emscripten
+  #EMSCRIPTEN = src/emscripten
+  EMFLAGS += --js-library $(EMSCRIPTEN)/iupemscripten_common.js 
+             --js-library $(EMSCRIPTEN)/iupemscripten_dialog.js 
+             --js-library $(EMSCRIPTEN)/iupemscripten_button.js
+  STDFLAGS += $(EMFLAGS)
+  STDLDFLAGS += $(EMFLAGS)
+endif
+
 ifdef USE_GTK
   ifdef USE_GTK3
     GTKSFX:=3
@@ -1382,7 +1399,6 @@ ifdef USE_GTK
     
     STDINCS += $(GTK)/include/atk-1.0 $(GTK)/include/gtk-$(GTKSFX).0 $(GTK)/include/gdk-pixbuf-2.0 
     STDINCS += $(GTK)/include/cairo $(GTK)/include/pango-1.0 $(GTK)/include/glib-2.0
-    STDINCS += $(GTK)/include/harfbuzz
 
     ifeq ($(TEC_SYSARCH), x64)
       STDINCS += $(GTK)/lib64/glib-2.0/include 

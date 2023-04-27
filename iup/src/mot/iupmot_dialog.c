@@ -406,7 +406,22 @@ int iupdrvDialogSetPlacement(Ihandle* ih)
   {
     if (old_state == IUP_MAXIMIZE || old_state == IUP_MINIMIZE)
       ih->data->show_state = IUP_RESTORE;
+
+    if (iupAttribGetBoolean(ih, "CUSTOMFRAMESIMULATE") && iupDialogCustomFrameRestore(ih))
+    {
+      ih->data->show_state = IUP_RESTORE;
+      return 1;
+    }
+
     return 0;
+  }
+
+  if (iupAttribGetBoolean(ih, "CUSTOMFRAMESIMULATE") && iupStrEqualNoCase(placement, "MAXIMIZED"))
+  {
+    iupDialogCustomFrameMaximize(ih);
+    iupAttribSet(ih, "PLACEMENT", NULL); /* reset to NORMAL */
+    ih->data->show_state = IUP_MAXIMIZE;
+    return 1;
   }
 
   if (iupStrEqualNoCase(placement, "MINIMIZED"))
@@ -517,21 +532,28 @@ static int motDialogSetTitleAttrib(Ihandle* ih, const char* value)
     value = "";
 
   iupmotSetTitle(ih->handle, value);
+
+  if (iupAttribGetBoolean(ih, "CUSTOMFRAME") || iupAttribGetBoolean(ih, "CUSTOMFRAMESIMULATE"))
+    return 0;
+
   return 1;
 }
 
 static char* motDialogGetClientSizeAttrib(Ihandle *ih)
 {
-  Dimension manager_width, manager_height;
-  Widget dialog_manager = (Widget)iupAttribGet(ih, "_IUPMOT_DLGCONTAINER");
-  XtVaGetValues(dialog_manager, XmNwidth,  &manager_width,
-                                XmNheight, &manager_height, 
-                                NULL);
+  if (ih->handle)
+  {
+    Dimension width, height;
+    Widget dialog_manager = (Widget)iupAttribGet(ih, "_IUPMOT_DLGCONTAINER");
+    XtVaGetValues(dialog_manager, XmNwidth, &width, XmNheight, &height, NULL);
 
-  /* remove the menu because it is placed inside the client area */
-  manager_height -= (Dimension)motDialogGetMenuSize(ih);
+    /* remove the menu because it is placed inside the client area */
+    height -= (Dimension)motDialogGetMenuSize(ih);
 
-  return iupStrReturnIntInt((int)manager_width, (int)manager_height, 'x');
+    return iupStrReturnIntInt((int)width, (int)height, 'x');
+  }
+  else
+    return iupDialogGetClientSizeAttrib(ih);
 }
 
 static char* motDialogGetClientOffsetAttrib(Ihandle *ih)
@@ -882,6 +904,9 @@ static int motDialogMapMethod(Ihandle* ih)
   /* Create the dialog shell  */
   /****************************/
 
+  if (iupAttribGetBoolean(ih, "CUSTOMFRAMESIMULATE"))
+    iupDialogCustomFrameSimulateCheckCallbacks(ih);
+
   if (iupAttribGet(ih, "TITLE"))
     has_titlebar = 1;
   if (iupAttribGetBoolean(ih, "RESIZE"))
@@ -944,6 +969,12 @@ static int motDialogMapMethod(Ihandle* ih)
 
   XtAddCallback(ih->handle, XmNdestroyCallback, (XtCallbackProc)motDialogDestroyCallback, (XtPointer)ih);
 
+  if (iupAttribGetBoolean(ih, "CUSTOMFRAMESIMULATE"))
+  {
+    XtAddEventHandler(ih->handle, ButtonPressMask | ButtonReleaseMask, False, (XtEventHandler)iupmotButtonPressReleaseEvent, (XtPointer)ih);
+    XtAddEventHandler(ih->handle, PointerMotionMask, False, (XtEventHandler)iupmotPointerMotionEvent, (XtPointer)ih);
+  }
+
   /*****************************/
   /* Create the dialog manager */
   /*****************************/
@@ -1003,6 +1034,7 @@ static void motDialogUnMapMethod(Ihandle* ih)
   {
     ih->data->menu->handle = NULL; /* the dialog will destroy the native menu */
     IupDestroy(ih->data->menu);  
+    ih->data->menu = NULL;
   }
 
   dialog_manager = (Widget)iupAttribGet(ih, "_IUPMOT_DLGCONTAINER");
@@ -1084,8 +1116,8 @@ void iupdrvDialogInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "BGCOLOR", NULL, motDialogSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_DEFAULT);
 
   /* Base Container */
-  iupClassRegisterAttribute(ic, "CLIENTSIZE", motDialogGetClientSizeAttrib, iupDialogSetClientSizeAttrib, NULL, NULL, IUPAF_NO_SAVE|IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);  /* dialog is the only not read-only */
-  iupClassRegisterAttribute(ic, "CLIENTOFFSET", motDialogGetClientOffsetAttrib, NULL, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_READONLY|IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "CLIENTSIZE", motDialogGetClientSizeAttrib, iupDialogSetClientSizeAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_SAVE | IUPAF_NO_DEFAULTVALUE | IUPAF_NO_INHERIT);  /* dialog is the only not read-only */
+  iupClassRegisterAttribute(ic, "CLIENTOFFSET", motDialogGetClientOffsetAttrib, NULL, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_DEFAULTVALUE | IUPAF_READONLY | IUPAF_NO_INHERIT);
 
   /* Special */
   iupClassRegisterAttribute(ic, "TITLE", NULL, motDialogSetTitleAttrib, NULL, NULL, IUPAF_NO_DEFAULTVALUE|IUPAF_NO_INHERIT);

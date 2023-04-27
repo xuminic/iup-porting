@@ -89,7 +89,7 @@ char* iupgtkStrConvertToSystemLen(const char* str, int *len)
   return (char*)str;
 }
 
-char* iupgtkStrConvertToSystem(const char* str)  /* From IUP to GTK */
+IUP_DRV_API char* iupgtkStrConvertToSystem(const char* str)  /* From IUP to GTK */
 {
   if (!str || *str == 0)
     return (char*)str;
@@ -284,7 +284,8 @@ static char* iupStrCopyToUtf8Buffer(const char* str, int len, char* utf8_buffer,
   return utf8_buffer;
 }
 
-char* iupStrConvertToUTF8(const char* str, int len, char* utf8_buffer, int *utf8_buffer_max, int utf8mode)
+/* Used in glfont */
+IUP_SDK_API char* iupStrConvertToUTF8(const char* str, int len, char* utf8_buffer, int *utf8_buffer_max, int utf8mode)
 {
   if (utf8mode || iupStrIsAscii(str)) /* string is already utf8 or is ascii */
     return iupStrCopyToUtf8Buffer(str, len, utf8_buffer, utf8_buffer_max);

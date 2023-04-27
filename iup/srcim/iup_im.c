@@ -5,6 +5,7 @@
  */
 
 #include <im.h>
+#include <im_lib.h>
 #include <im_convert.h>
 #include <im_counter.h>
 #include <im_util.h>
@@ -157,20 +158,20 @@ load_finish:
   return iup_image;
 }
 
-Ihandle* IupLoadImage(const char* file_name)
+Ihandle* IupLoadImage(const char* filename)
 {
   int error;
   Ihandle* iup_image = NULL;
   imCounterCallback old_callback;
   imFile* ifile;
 
-  iupASSERT(file_name);
-  if (!file_name)
+  iupASSERT(filename);
+  if (!filename)
     return NULL;
 
   old_callback = imCounterSetCallback(NULL, NULL);
 
-  ifile = imFileOpen(file_name, &error);
+  ifile = imFileOpen(filename, &error);
   if (!error)
     iup_image = iupLoadImageFile(ifile, 0);
   else
@@ -182,20 +183,20 @@ Ihandle* IupLoadImage(const char* file_name)
   return iup_image;
 }
 
-Ihandle* IupLoadAnimation(const char* file_name)
+Ihandle* IupLoadAnimation(const char* filename)
 {
   int error;
   Ihandle* animation = NULL;
   imCounterCallback old_callback;
   imFile* ifile;
 
-  iupASSERT(file_name);
-  if (!file_name)
+  iupASSERT(filename);
+  if (!filename)
     return NULL;
 
   old_callback = imCounterSetCallback(NULL, NULL);
 
-  ifile = imFileOpen(file_name, &error);
+  ifile = imFileOpen(filename, &error);
   if (!error)
   {
     int image_count, i;
@@ -233,18 +234,18 @@ Ihandle* IupLoadAnimation(const char* file_name)
   return animation;
 }
 
-Ihandle* IupLoadAnimationFrames(const char** file_name_list, int file_count)
+Ihandle* IupLoadAnimationFrames(const char** filename_list, int file_count)
 {
   Ihandle* animation = NULL;
   int i;
 
-  iupASSERT(file_name_list);
-  if (!file_name_list)
+  iupASSERT(filename_list);
+  if (!filename_list)
     return NULL;
 
   for (i = 0; i < file_count; i++)
   {
-    Ihandle* iup_image = IupLoadImage(file_name_list[i]);
+    Ihandle* iup_image = IupLoadImage(filename_list[i]);
     if (!iup_image)
       break;
 
@@ -259,7 +260,7 @@ Ihandle* IupLoadAnimationFrames(const char** file_name_list, int file_count)
 
 #if 0
 /* Study. Not public yet */
-Ihandle* IupLoadImageRaw(const char* file_name, 
+Ihandle* IupLoadImageRaw(const char* filename, 
                          int width, int height, int data_type, int color_mode,
                          int switch_type, int byte_order, int padding, int start_offset, int ascii)
 {
@@ -271,7 +272,7 @@ Ihandle* IupLoadImageRaw(const char* file_name,
 
   old_callback = imCounterSetCallback(NULL, NULL);
 
-  ifile = imFileOpenRaw(file_name, &error);
+  ifile = imFileOpenRaw(filename, &error);
   if (error)
     goto load_raw_finish;
 
@@ -344,7 +345,7 @@ load_raw_finish:
 }
 #endif
 
-int IupSaveImage(Ihandle* ih, const char* file_name, const char* format)
+int IupSaveImage(Ihandle* ih, const char* filename, const char* format)
 {
   int width, height, bpp;
   unsigned char* data;
@@ -355,11 +356,11 @@ int IupSaveImage(Ihandle* ih, const char* file_name, const char* format)
   if (!iupObjectCheck(ih))
     return 0;
 
-  iupASSERT(file_name);
-  if (!file_name)
+  iupASSERT(filename);
+  if (!filename)
     return 0;
 
-  ifile = imFileNew(file_name, format, &error);
+  ifile = imFileNew(filename, format, &error);
   if (!ifile)
   {
     iSaveErrorMsg(error);
@@ -383,14 +384,14 @@ int IupSaveImage(Ihandle* ih, const char* file_name, const char* format)
     error = imFileWriteImageInfo(ifile, width, height, IM_RGB|IM_TOPDOWN|IM_PACKED|IM_ALPHA, IM_BYTE);
   else /* bpp == 8 */
   {
-    long palette[256];
     int i;
+    long* palette = imPaletteGray();
 
     for (i = 0; i < 256; i++)
     {
       char* color = IupGetAttributeId(ih, "", i);
       if (!color)
-        break;
+          break;
 
       if (iupStrEqualNoCase(color, "BGCOLOR"))
       {
@@ -406,7 +407,8 @@ int IupSaveImage(Ihandle* ih, const char* file_name, const char* format)
       }
     }
 
-    imFileSetPalette(ifile, palette, i);
+    imFileSetPalette(ifile, palette, 256);
+    imPaletteRelease(palette);
 
     error = imFileWriteImageInfo(ifile, width, height, IM_MAP|IM_TOPDOWN, IM_BYTE);
   }
@@ -482,7 +484,7 @@ imImage* IupGetNativeHandleImage(void* handle)
   return NULL;
 }
 
-static void iFlipData(unsigned char* data, int width, int height, int depth)
+static void iFlipDataPacked(unsigned char* data, int width, int height, int depth)
 {
   int line_size = depth*width;
   unsigned char* temp_line = (unsigned char*)malloc(line_size);
@@ -523,10 +525,10 @@ Ihandle* IupImageFromImImage(const imImage* image)
       return NULL;
 
     /* imImage is always unpacked, IUP is always packed */
-    imConvertPacking(image->data[0], image_data, image->width, image->height, depth, depth, IM_BYTE, 0);
+    imConvertPacking(image->data[0], image_data, image->width, image->height, depth, depth, IM_BYTE, 0);  /* to packed */
 
     /* imImage is always bottom top, IUP is always top bottom */
-    iFlipData(image_data, image->width, image->height, depth);
+    iFlipDataPacked(image_data, image->width, image->height, depth);
 
     if (image->has_alpha)
       iup_image = IupImageRGBA(image->width, image->height, (unsigned char*)image_data);
@@ -547,7 +549,7 @@ Ihandle* IupImageFromImImage(const imImage* image)
     image_data = (unsigned char*)IupGetAttribute(iup_image, "WID");
 
     /* imImage is always bottom top, IUP is always top bottom */
-    iFlipData(image_data, image->width, image->height, 1);
+    iFlipDataPacked(image_data, image->width, image->height, 1);
 
     for (i = 0; i < image->palette_count; i++)
     {
@@ -582,21 +584,24 @@ imImage* IupImageToImImage(Ihandle* iup_image)
     int color_mode = IM_RGB;
     int depth = 3;
 
-    if (bpp == 32)
-    {
-      color_mode |= IM_ALPHA;
-      depth++;
-    }
-
     image = imImageCreate(width, height, color_mode, IM_BYTE);
     if (!image)
       return NULL;
 
-    /* imImage is always unpacked, IUP is always packed */
-    imConvertPacking(image_data, image->data[0], width, height, depth, depth, IM_BYTE, 1);
+    if (bpp == 32)
+    {
+      imImageAddAlpha(image);
+      depth++;
+    }
 
     /* imImage is always bottom top, IUP is always top bottom */
-    iFlipData(image->data[0], image->width, image->height, depth);
+    iFlipDataPacked(image_data, image->width, image->height, depth);
+
+    /* imImage is always unpacked, IUP is always packed */
+    imConvertPacking(image_data, image->data[0], width, height, depth, depth, IM_BYTE, 1);  /* to un-packed */
+
+    /* Undo Flip */
+    iFlipDataPacked(image_data, image->width, image->height, depth);
   }
   else
   {
@@ -610,13 +615,13 @@ imImage* IupImageToImImage(Ihandle* iup_image)
     memcpy(image->data[0], image_data, image->size);
 
     /* imImage is always bottom top, IUP is always top bottom */
-    iFlipData(image->data[0], image->width, image->height, 1);
+    iFlipDataPacked(image->data[0], image->width, image->height, 1);
 
     for (i = 0; i < 256; i++)
     {
       char* color = IupGetAttributeId(iup_image, "", i);
       if (!color)
-        break;
+          break;
 
       if (iupStrEqualNoCase(color, "BGCOLOR"))
       {
@@ -632,8 +637,23 @@ imImage* IupImageToImImage(Ihandle* iup_image)
       }
     }
 
-    imImageSetPalette(image, palette, i);
+    if (i > 0)
+      imImageSetPalette(image, palette, i);
   }
 
   return image;
+}
+
+void IupImOpen(void)
+{
+  if (IupGetGlobal("_IUP_IM_OPEN"))
+    return;
+
+  IupSetGlobal("_IUP_IM_OPEN", "1");
+
+  IupSetGlobal("IM_NAME", IM_NAME);
+  IupSetGlobal("IM_VERSION", imVersion());
+  IupSetGlobal("IM_VERSIONDATE", imVersionDate());
+
+  return;
 }

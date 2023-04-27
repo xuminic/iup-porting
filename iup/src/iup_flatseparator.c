@@ -285,6 +285,7 @@ Iclass* iupFlatSeparatorNewClass(void)
   Iclass* ic = iupClassNew(iupRegisterFindClass("canvas"));
 
   ic->name = "flatseparator";
+  ic->cons = "FlatSeparator";
   ic->format = NULL;  /* no parameters */
   ic->nativetype = IUP_TYPECANVAS;
   ic->childtype = IUP_CHILDNONE;
@@ -303,7 +304,7 @@ Iclass* iupFlatSeparatorNewClass(void)
   return ic;
 }
 
-Ihandle* IupFlatSeparator(void)
+IUP_API Ihandle* IupFlatSeparator(void)
 {
   return IupCreate("flatseparator");
 }

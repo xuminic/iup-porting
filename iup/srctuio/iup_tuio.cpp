@@ -411,6 +411,7 @@ static Iclass* iTuioNewClass(void)
   Iclass* ic = iupClassNew(NULL);
 
   ic->name = (char*)"tuioclient";
+  ic->cons = (char*)"TuioClient";
   ic->format = (char*)"i";  /* (int) */
   ic->nativetype = IUP_TYPEVOID;
   ic->childtype = IUP_CHILDNONE;
@@ -431,6 +432,9 @@ static Iclass* iTuioNewClass(void)
 
 int IupTuioOpen(void)
 {
+  if (!IupIsOpened())
+    return IUP_ERROR;
+
   if (IupGetGlobal("_IUP_TUIO_OPEN"))
     return IUP_OPENED;
 

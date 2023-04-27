@@ -27,15 +27,32 @@
 #include "iupgtk_drv.h"
 
 
-void iupdrvFrameGetDecorOffset(int *x, int *y)
+void iupdrvFrameGetDecorOffset(Ihandle* ih, int *x, int *y)
 {
+  (void)ih;
   /* LAYOUT_DECORATION_ESTIMATE */
   *x = 2;
   *y = 2;
 }
 
-int iupdrvFrameHasClientOffset(void)
+int iupdrvFrameHasClientOffset(Ihandle* ih)
 {
+  (void)ih;
+  return 0;
+}
+
+int iupdrvFrameGetTitleHeight(Ihandle* ih, int *h)
+{
+  (void)ih;
+  (void)h;
+  return 0;
+}
+
+int iupdrvFrameGetDecorSize(Ihandle* ih, int *w, int *h)
+{
+  (void)ih;
+  (void)w;
+  (void)h;
   return 0;
 }
 
@@ -142,7 +159,7 @@ static int gtkFrameMapMethod(Ihandle* ih)
     iupAttribSet(ih, "_IUPFRAME_HAS_TITLE", "1");
   else
   {
-    if (iupAttribGet(ih, "BGCOLOR"))
+    if (iupAttribGet(ih, "BGCOLOR") || iupAttribGet(ih, "BACKCOLOR"))
       iupAttribSet(ih, "_IUPFRAME_HAS_BGCOLOR", "1");
   }
 
@@ -179,6 +196,7 @@ void iupdrvFrameInitClass(Iclass* ic)
 
   /* Visual */
   iupClassRegisterAttribute(ic, "BGCOLOR", iupFrameGetBgColorAttrib, gtkFrameSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_DEFAULT);
+  iupClassRegisterAttribute(ic, "BACKCOLOR", iupFrameGetBgColorAttrib, gtkFrameSetBgColorAttrib, IUPAF_SAMEASSYSTEM, "DLGBGCOLOR", IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SUNKEN", NULL, gtkFrameSetSunkenAttrib, NULL, NULL, IUPAF_NO_INHERIT);
 
   /* Special */

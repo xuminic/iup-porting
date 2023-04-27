@@ -7,6 +7,7 @@
 #include <stdio.h>          
 #include <stdlib.h>
 #include <string.h>          
+#include <locale.h>
 
 #include <gtk/gtk.h>
 
@@ -47,7 +48,7 @@ void iupgtkReleaseNativeGraphicsContext(GtkWidget* widget, void* gc)
 {
 }
 
-void* iupdrvGetDisplay(void)
+IUP_SDK_API void* iupdrvGetDisplay(void)
 {
   return NULL;
 }
@@ -93,7 +94,7 @@ void iupgtkReleaseNativeGraphicsContext(GtkWidget* widget, void* gc)
   (void)widget;
 }
 
-void* iupdrvGetDisplay(void)
+IUP_SDK_API void* iupdrvGetDisplay(void)
 {
   GdkDisplay* display = gdk_display_get_default();
   return display;
@@ -152,7 +153,7 @@ void iupgtkReleaseNativeGraphicsContext(GtkWidget* widget, void* gc)
   ReleaseDC(GDK_WINDOW_HWND(iupgtkGetWindow(widget)), (HDC)gc);
 }
 
-void* iupdrvGetDisplay(void)
+IUP_SDK_API void* iupdrvGetDisplay(void)
 {
   return NULL;
 }
@@ -202,7 +203,7 @@ void iupgtkReleaseNativeGraphicsContext(GtkWidget* widget, void* gc)
   (void)widget;
 }
 
-void* iupdrvGetDisplay(void)
+IUP_SDK_API void* iupdrvGetDisplay(void)
 {
   GdkDisplay* display = gdk_display_get_default();
   return GDK_DISPLAY_XDISPLAY(display);
@@ -269,7 +270,7 @@ static void gtkSetGlobalColorAttrib(const char* name, GdkColor *color)
 static void gtkUpdateGlobalColors(GtkWidget* dialog, GtkWidget* text)
 {
 #if GTK_CHECK_VERSION(3, 0, 0)
-#ifdef WIN32  /* TODO: Workaround for GTK3 on Win32, should remove this code in the future */
+#ifdef XWIN32  /* TODO: Workaround for GTK3 on Win32, should remove this code in the future */
 #define gtkColorToRGBA(color, color3) {color3.red = color.red/65535.0; color3.green = color.green/65535.0; color3.blue = color.blue/65535.0; color3.alpha = 1.0;}
 
   GdkRGBA color3;
@@ -296,7 +297,7 @@ static void gtkUpdateGlobalColors(GtkWidget* dialog, GtkWidget* text)
   color = style->base[GTK_STATE_SELECTED];
   gtkColorToRGBA(color, color3);
   gtkSetGlobalColorAttrib("TXTHLCOLOR", &color3);
-#else
+#else /* Not Windows */
   GdkRGBA color;
   GtkStyleContext* context = gtk_widget_get_style_context(dialog);
 
@@ -318,7 +319,7 @@ static void gtkUpdateGlobalColors(GtkWidget* dialog, GtkWidget* text)
   gtk_style_context_get_background_color(context, GTK_STATE_FLAG_SELECTED, &color);
   gtkSetGlobalColorAttrib("TXTHLCOLOR", &color);
 #endif
-#else
+#else /* GTK 2.xx */
   GtkStyle* style = gtk_widget_get_style(dialog);
 
   GdkColor color = style->bg[GTK_STATE_NORMAL];
@@ -398,6 +399,9 @@ int iupdrvOpen(int *argc, char ***argv)
 
   if (!gtk_init_check(argc, argv))
     return IUP_ERROR;
+
+  /* reset to the C default numeric locale after gtk_init */
+  setlocale(LC_NUMERIC, "C");
 
 #if defined(IUPGTK_DEBUG)
   g_log_set_default_handler(iupgtk_log, NULL);

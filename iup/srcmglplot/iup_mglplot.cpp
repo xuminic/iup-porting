@@ -4942,6 +4942,7 @@ static Iclass* iMglPlotNewClass(void)
   Iclass* ic = iupClassNew(iupRegisterFindClass("glcanvas"));
 
   ic->name = "mglplot";
+  ic->cons = "MglPlot";
   ic->format = NULL;  /* none */
   ic->nativetype = IUP_TYPECANVAS;
   ic->childtype = IUP_CHILDNONE;
@@ -5219,7 +5220,9 @@ static Iclass* iMglLabelNewClass(void)
   Iclass* ic = iupClassNew(iupRegisterFindClass("mglplot"));
 
   ic->name = "mgllabel";
+  ic->cons = "MglLabel";
   ic->format = "s"; /* one string */
+  ic->format_attr = "LABELTITLE";
   ic->nativetype = IUP_TYPECANVAS;
   ic->childtype = IUP_CHILDNONE;
   ic->is_interactive = 0;
@@ -5244,6 +5247,9 @@ Ihandle* IupMglLabel(const char* title)
 
 void IupMglPlotOpen(void)
 {
+  if (!IupIsOpened())
+    return;
+
   IupGLCanvasOpen();
 
   if (!IupGetGlobal("_IUP_MGLPLOT_OPEN"))
