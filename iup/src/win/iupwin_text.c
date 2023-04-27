@@ -773,11 +773,11 @@ static DWORD CALLBACK winTextWriteStreamCallback(DWORD_PTR dwCookie, LPBYTE lpBu
   return (DWORD)-1;
 }
 
-static BOOL winTextWriteRtfToFile(HWND hwnd, TCHAR* pszFile)
+static BOOL winTextWriteRtfToFile(HWND hwnd, TCHAR* pszFileName)
 {
   BOOL fSuccess = FALSE;
 
-  HANDLE hFile = CreateFile(pszFile, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, 0, NULL);
+  HANDLE hFile = CreateFile(pszFileName, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, 0, NULL);
   if (hFile != INVALID_HANDLE_VALUE)
   {
     EDITSTREAM es = { 0 };
@@ -805,11 +805,11 @@ static DWORD CALLBACK winTextReadStreamCallback(DWORD_PTR dwCookie, LPBYTE lpBuf
   return (DWORD)-1;
 }
 
-static BOOL winTextReadRtfFromFile(HWND hwnd, TCHAR* pszFile)
+static BOOL winTextReadRtfFromFile(HWND hwnd, TCHAR* pszFileName)
 {
   BOOL fSuccess = FALSE;
 
-  HANDLE hFile = CreateFile(pszFile, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+  HANDLE hFile = CreateFile(pszFileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
   if (hFile != INVALID_HANDLE_VALUE)
   {
     EDITSTREAM es = { 0 };
@@ -1855,7 +1855,7 @@ static int winTextMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *
             ret = 1;
         }
       }
-      else 
+      else if (wp != VK_ESCAPE)
       {
         int has_ctrl = GetKeyState(VK_CONTROL) & 0x8000;
         int has_alt = GetKeyState(VK_MENU) & 0x8000;

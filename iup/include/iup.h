@@ -22,9 +22,9 @@ extern "C" {
 #define IUP_NAME "IUP - Portable User Interface"
 #define IUP_DESCRIPTION "Multi-platform Toolkit for Building Graphical User Interfaces"
 #define IUP_COPYRIGHT "Copyright (C) 1994-2020 Tecgraf/PUC-Rio"
-#define IUP_VERSION "3.29"         /* bug fixes are reported only by IupVersion functions */
-#define IUP_VERSION_NUMBER 329000
-#define IUP_VERSION_DATE "2020/05/18"  /* does not include bug fix releases */
+#define IUP_VERSION "3.30"         /* bug fixes are reported only by IupVersion functions */
+#define IUP_VERSION_NUMBER 330000
+#define IUP_VERSION_DATE "2020/07/30"  /* does not include bug fix releases */
 
 typedef struct Ihandle_ Ihandle;
 typedef int (*Icallback)(Ihandle*);
@@ -307,7 +307,7 @@ IUP_API void IupSetfAttributeId(Ihandle* ih, const char* name, int id, const cha
 IUP_API void IupStoreAttributeId2(Ihandle* ih, const char* name, int lin, int col, const char* value);
 IUP_API void IupSetfAttributeId2(Ihandle* ih, const char* name, int lin, int col, const char* format, ...);
 
-/* IupTree utilities */
+/* IupTree and IupFlatTree utilities (work for both) */
 IUP_API int   IupTreeSetUserId(Ihandle* ih, int id, void* userid);
 IUP_API void* IupTreeGetUserId(Ihandle* ih, int id);
 IUP_API int   IupTreeGetId(Ihandle* ih, void *userid);

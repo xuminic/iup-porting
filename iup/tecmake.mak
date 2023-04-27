@@ -6,7 +6,7 @@
 
 #---------------------------------#
 # Tecmake Version
-VERSION = 4.20
+VERSION = 4.21
 
 
 #---------------------------------#
@@ -471,6 +471,9 @@ endif
 ifdef USE_LUA53
   LIBLUA_SFX := 53
 endif
+ifdef USE_LUA54
+  LIBLUA_SFX := 54
+endif
 
 ifdef USE_OLDLIBLUA
   TEC_UNAME_LIBLUA_DIR ?= $(TEC_UNAME_LIB_DIR)
@@ -817,7 +820,9 @@ LUA   ?= $(TECTOOLS_HOME)/lua
 LUA51 ?= $(TECTOOLS_HOME)/lua5.1
 LUA52 ?= $(TECTOOLS_HOME)/lua52
 LUA53 ?= $(TECTOOLS_HOME)/lua53
+LUA54 ?= $(TECTOOLS_HOME)/lua54
 FTGL  ?= $(TECTOOLS_HOME)/ftgl
+PDFLIB ?= $(TECTOOLS_HOME)/pdflib7
 # Freetype and zlib in Linux we use from the system
 
 
@@ -876,6 +881,17 @@ ifdef USE_LUA53
   LIBLUA_SFX := 53
   override USE_LUA = Yes
   LUA := $(LUA53)
+  NO_LUALIB := Yes
+  ifneq ($(findstring CentOS5, $(TEC_DIST)), )
+    DEFINES += LUA_C89_NUMBERS
+  endif
+endif
+
+ifdef USE_LUA54
+  LUA_SFX := 54
+  LIBLUA_SFX := 54
+  override USE_LUA = Yes
+  LUA := $(LUA54)
   NO_LUALIB := Yes
   ifneq ($(findstring CentOS5, $(TEC_DIST)), )
     DEFINES += LUA_C89_NUMBERS
@@ -1230,10 +1246,10 @@ endif
 
 ifdef LINK_WEBKIT
   ifneq ($(findstring Linux5, $(TEC_UNAME)), )
-    LIBS += webkit2gtk-4.0
+    LIBS += webkit2gtk-4.0 gio-2.0
   else 
     ifneq ($(findstring Linux4, $(TEC_UNAME)), )
-      LIBS += webkitgtk-3.0
+      LIBS += webkit2gtk-4.0 gio-2.0
     else 
       ifneq ($(findstring Linux3, $(TEC_UNAME)), )
         ifdef USE_GTK3
@@ -1282,6 +1298,20 @@ ifdef LINK_FREETYPE
   endif
   
   LIBS += freetype
+endif
+
+ifdef LINK_PDFLIB
+  PDFLIB_LIB ?= $(PDFLIB)/lib/$(TEC_UNAME)
+  ifdef USE_STATIC
+    SLIB += $(PDFLIB_LIB)/libpdflib.a
+    
+    ifndef NO_ZLIB
+      LINK_ZLIB = Yes
+    endif
+  else
+    LIBS += pdflib
+    LDIR += $(PDFLIB_LIB)
+  endif
 endif
 
 ifdef USE_ZLIB
@@ -1402,7 +1432,6 @@ ifdef USE_GTK
     
     STDINCS += $(GTK)/include/atk-1.0 $(GTK)/include/gtk-$(GTKSFX).0 $(GTK)/include/gdk-pixbuf-2.0 
     STDINCS += $(GTK)/include/cairo $(GTK)/include/pango-1.0 $(GTK)/include/glib-2.0
-    STDINCS += $(GTK)/include/harfbuzz
 
     ifeq ($(TEC_SYSARCH), x64)
       STDINCS += $(GTK)/lib64/glib-2.0/include 

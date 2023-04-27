@@ -174,6 +174,8 @@ static void iFlatListCalcItemMaxSize(Ihandle *ih, iFlatListItem* items, int coun
   *max_w = 0;
   *max_h = 0;
 
+  iupdrvFontGetCharSize(ih, NULL, max_h);
+
   for (i = 0; i < count; i++)
   {
     int item_width, item_height;
@@ -322,28 +324,43 @@ static int iFlatListRedraw_CB(Ihandle* ih)
     char *fgcolor = (items[i].fg_color) ? items[i].fg_color : foreground_color;
     char *bgcolor = (items[i].bg_color) ? items[i].bg_color : background_color;
 
+    if (items[i].selected)
+    {
+      char* ps_color = iupAttribGetStr(ih, "PSCOLOR");
+      char* text_ps_color = iupAttribGetStr(ih, "TEXTPSCOLOR");
+      if (text_ps_color)
+        fgcolor = text_ps_color;
+      if (ps_color)
+        bgcolor = ps_color;
+    }
+
+    /* item background */
     iupFlatDrawBox(dc, x, x + ih->data->line_width - 1, y, y + ih->data->line_height - 1, bgcolor, bgcolor, 1);
 
     iFlatListSetItemFont(ih, items[i].font);
 
+    /* text and image */
     iupFlatDrawIcon(ih, dc, x, y, ih->data->line_width, ih->data->line_height,
                     ih->data->img_position, ih->data->icon_spacing, ih->data->horiz_alignment, ih->data->vert_alignment, ih->data->horiz_padding, ih->data->vert_padding,
                     items[i].image, make_inactive, items[i].title, text_flags, 0, fgcolor, bgcolor, active);
 
     if (items[i].selected || (ih->data->show_dragdrop && ih->data->dragover_pos == i + 1))
     {
-      unsigned char red, green, blue;
-      char* hlcolor = iupAttribGetStr(ih, "HLCOLOR");
       unsigned char a = (unsigned char)iupAttribGetInt(ih, "HLCOLORALPHA");
-      long selcolor;
+      if (a != 0)
+      {
+        long selcolor;
+        unsigned char red, green, blue;
+        char* hlcolor = iupAttribGetStr(ih, "HLCOLOR");
 
-      if (ih->data->show_dragdrop && ih->data->dragover_pos == i + 1)
-        a = (2*a)/3;
+        if (ih->data->show_dragdrop && ih->data->dragover_pos == i + 1)
+          a = (2 * a) / 3;
 
-      iupStrToRGB(hlcolor, &red, &green, &blue);
-      selcolor = iupDrawColor(red, green, blue, a);
+        iupStrToRGB(hlcolor, &red, &green, &blue);
+        selcolor = iupDrawColor(red, green, blue, a);
 
-      iupdrvDrawRectangle(dc, x, y, x + ih->data->line_width - 1, y + ih->data->line_height - 1, selcolor, IUP_DRAW_FILL, 1);
+        iupdrvDrawRectangle(dc, x, y, x + ih->data->line_width - 1, y + ih->data->line_height - 1, selcolor, IUP_DRAW_FILL, 1);
+      }
     }
 
     if (ih->data->has_focus && ih->data->focus_pos == i+1 && focus_feedback)
@@ -407,7 +424,6 @@ static void iFlatListSingleCallActionCb(Ihandle* ih, IFnsii cb, IFn valuechanged
 
 static void iFlatListMultipleCallActionCb(Ihandle* ih, IFnsii cb, IFns multi_cb, IFn valuechanged_cb, char* str, int count)
 {
-  int i;
   int unchanged = 1;
 
   if (multi_cb)
@@ -417,6 +433,8 @@ static void iFlatListMultipleCallActionCb(Ihandle* ih, IFnsii cb, IFns multi_cb,
   }
   else
   {
+    int i;
+
     /* must simulate the click on each item */
     for (i = 0; i < count; i++)
     {
@@ -664,7 +682,7 @@ static int iFlatListMotion_CB(Ihandle* ih, int x, int y, char* status)
   else
   {
     iFlatListItem* items = (iFlatListItem*)iupArrayGetData(ih->data->items_array);
-    char* item_tip = items[pos].tip;
+    char* item_tip = items[pos-1].tip;
     if (item_tip)
       iupFlatItemSetTip(ih, item_tip);
     else
@@ -720,6 +738,15 @@ static int iFlatListFocus_CB(Ihandle* ih, int focus)
   ih->data->has_focus = focus;
   iupdrvRedrawNow(ih);
 
+  return IUP_DEFAULT;
+}
+
+static int iFlatListScroll_CB(Ihandle* ih, int action, float posx, float posy)
+{
+  (void)action;
+  (void)posx;
+  (void)posy;
+  iupdrvRedrawNow(ih);  /* so FLATSCROLLBAR can also work */
   return IUP_DEFAULT;
 }
 
@@ -830,7 +857,7 @@ static int iFlatListKAny_CB(Ihandle* ih, int c)
       IupUpdate(ih);
     }
   }
-  return IUP_DEFAULT;
+  return IUP_CONTINUE;
 }
 
 static int iFlatListKPgUp_CB(Ihandle* ih)
@@ -917,9 +944,12 @@ static int iFlatListSetIdValueAttrib(Ihandle* ih, int pos, const char* value)
   if (pos < 1)
     return 0;
 
-  if (!value)
-    iFlatListRemoveItem(ih, 0, count - pos - 1);
-  else if (pos <= count)
+  if (!value) /* remove remaining items */
+  {
+    if (pos <= count)
+      iFlatListRemoveItem(ih, pos-1, count - (pos-1));
+  }
+  else if (pos <= count) /* change an existing item */
   {
     iFlatListItem* items = (iFlatListItem*)iupArrayGetData(ih->data->items_array);
 
@@ -927,9 +957,9 @@ static int iFlatListSetIdValueAttrib(Ihandle* ih, int pos, const char* value)
       free(items[pos - 1].title);
     items[pos - 1].title = iupStrDup(value);
   }
-  else
+  else /* add a new item */
   {
-    iFlatListItem* items = (iFlatListItem*)iupArrayInsert(ih->data->items_array, count, pos - 1 - count + 1);
+    iFlatListItem* items = (iFlatListItem*)iupArrayInsert(ih->data->items_array, count, (pos-1) - (count-1));
     items[pos - 1].title = iupStrDup(value);
   }
 
@@ -989,7 +1019,7 @@ static int iFlatListSetRemoveItemAttrib(Ihandle* ih, const char* value)
   {
     int pos;
     if (iupStrToInt(value, &pos))
-      iFlatListRemoveItem(ih, pos - 1, 1);
+      iFlatListRemoveItem(ih, pos-1, 1);
   }
 
   if (ih->handle)
@@ -1878,6 +1908,7 @@ static int iFlatListCreateMethod(Ihandle* ih, void** params)
   IupSetCallback(ih, "LEAVEWINDOW_CB", (Icallback)iFlatListLeaveWindow_CB);
   IupSetCallback(ih, "RESIZE_CB", (Icallback)iFlatListResize_CB);
   IupSetCallback(ih, "FOCUS_CB", (Icallback)iFlatListFocus_CB);
+  IupSetCallback(ih, "SCROLL_CB", (Icallback)iFlatListScroll_CB);
   IupSetCallback(ih, "K_UP", (Icallback)iFlatListKUp_CB);
   IupSetCallback(ih, "K_DOWN", (Icallback)iFlatListKDown_CB);
   IupSetCallback(ih, "K_sUP", (Icallback)iFlatListKUp_CB);
@@ -1944,14 +1975,16 @@ Iclass* iupFlatListNewClass(void)
   iupClassRegisterAttribute(ic, "BORDERWIDTH", iFlatListGetBorderWidthAttrib, iFlatListSetBorderWidthAttrib, IUPAF_SAMEASSYSTEM, "0", IUPAF_NOT_MAPPED);  /* inheritable */
   iupClassRegisterAttribute(ic, "FGCOLOR", NULL, iFlatListSetAttribPostRedraw, IUP_FLAT_FORECOLOR, NULL, IUPAF_NOT_MAPPED);  /* force the new default value */
   iupClassRegisterAttribute(ic, "BGCOLOR", NULL, iFlatListSetAttribPostRedraw, IUP_FLAT_BACKCOLOR, NULL, IUPAF_NOT_MAPPED);  /* force the new default value */
+  iupClassRegisterAttribute(ic, "HLCOLOR", NULL, NULL, IUPAF_SAMEASSYSTEM, "TXTHLCOLOR", IUPAF_NO_INHERIT);  /* selection box, not highlight */
+  iupClassRegisterAttribute(ic, "HLCOLORALPHA", NULL, NULL, IUPAF_SAMEASSYSTEM, "128", IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "PSCOLOR", NULL, NULL, NULL, NULL, IUPAF_NO_INHERIT);  /* selection, not pressed */
+  iupClassRegisterAttribute(ic, "TEXTPSCOLOR", NULL, NULL, NULL, NULL, IUPAF_NO_INHERIT);  /* selection, not pressed */
   iupClassRegisterAttributeId(ic, "ITEMFGCOLOR", iFlatListGetItemFGColorAttrib, iFlatListSetItemFGColorAttrib, IUPAF_NO_INHERIT | IUPAF_NOT_MAPPED);
   iupClassRegisterAttributeId(ic, "ITEMBGCOLOR", iFlatListGetItemBGColorAttrib, iFlatListSetItemBGColorAttrib, IUPAF_NO_INHERIT | IUPAF_NOT_MAPPED);
   iupClassRegisterAttributeId(ic, "ITEMTIP", iFlatListGetItemTipAttrib, iFlatListSetItemTipAttrib, IUPAF_NO_INHERIT | IUPAF_NOT_MAPPED);
   iupClassRegisterAttributeId(ic, "ITEMFONT", iFlatListGetItemFontAttrib, iFlatListSetItemFontAttrib, IUPAF_NO_INHERIT | IUPAF_NOT_MAPPED);
   iupClassRegisterAttributeId(ic, "ITEMFONTSTYLE", iFlatListGetItemFontStyleAttrib, iFlatListSetItemFontStyleAttrib, IUPAF_NO_SAVE | IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttributeId(ic, "ITEMFONTSIZE", iFlatListGetItemFontSizeAttrib, iFlatListSetItemFontSizeAttrib, IUPAF_NO_SAVE | IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "HLCOLOR", NULL, NULL, IUPAF_SAMEASSYSTEM, "TXTHLCOLOR", IUPAF_NO_INHERIT);
-  iupClassRegisterAttribute(ic, "HLCOLORALPHA", NULL, NULL, IUPAF_SAMEASSYSTEM, "128", IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SPACING", iFlatListGetSpacingAttrib, iFlatListSetSpacingAttrib, IUPAF_SAMEASSYSTEM, "0", IUPAF_NO_INHERIT | IUPAF_NOT_MAPPED);
   iupClassRegisterAttribute(ic, "CSPACING", iupBaseGetCSpacingAttrib, iupBaseSetCSpacingAttrib, NULL, NULL, IUPAF_NO_SAVE | IUPAF_NOT_MAPPED);
   iupClassRegisterAttribute(ic, "PADDING", iFlatListGetPaddingAttrib, iFlatListSetPaddingAttrib, IUPAF_SAMEASSYSTEM, "2x2", IUPAF_NOT_MAPPED);
