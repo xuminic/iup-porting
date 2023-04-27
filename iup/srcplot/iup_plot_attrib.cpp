@@ -2056,6 +2056,27 @@ static char* iPlotGetDSOrderedXAttrib(Ihandle* ih)
   return iupStrReturnBoolean(dataset->mOrderedX ? 1 : 0);
 }
 
+static int iPlotSetDSSelectedAttrib(Ihandle* ih, const char* value)
+{
+  if (ih->data->current_plot->mCurrentDataSet < 0 ||
+      ih->data->current_plot->mCurrentDataSet >= ih->data->current_plot->mDataSetListCount)
+    return 0;
+
+  iupPlotDataSet* dataset = ih->data->current_plot->mDataSetList[ih->data->current_plot->mCurrentDataSet];
+  dataset->mSelectedCurve = iupStrBoolean(value) ? true : false;
+  ih->data->current_plot->mRedraw = true;
+  return 0;
+}
+
+static char* iPlotGetDSSelectedAttrib(Ihandle* ih)
+{
+  if (ih->data->current_plot->mCurrentDataSet < 0 ||
+      ih->data->current_plot->mCurrentDataSet >= ih->data->current_plot->mDataSetListCount)
+    return NULL;
+
+  iupPlotDataSet* dataset = ih->data->current_plot->mDataSetList[ih->data->current_plot->mCurrentDataSet];
+  return iupStrReturnBoolean(dataset->mSelectedCurve ? 1 : 0);
+}
 
 static int iPlotSetDSPieSliceLabelPosAttrib(Ihandle* ih, const char* value)
 {
@@ -3569,6 +3590,7 @@ void iupPlotRegisterAttributes(Iclass* ic)
   /*OLD*/iupClassRegisterAttribute(ic, "USE_CONTEXTPLUS", NULL, iPlotSetUseContextPlusAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "MENUCONTEXT", NULL, NULL, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "MENUITEMPROPERTIES", NULL, NULL, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "MENUITEMVALUES", NULL, NULL, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "SHOWMENUCONTEXT", NULL, iPlotSetShowMenuContextAttrib, NULL, NULL, IUPAF_WRITEONLY | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "TIPFORMAT", NULL, NULL, IUPAF_SAMEASSYSTEM, "%s (%s, %s)", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "ZOOM", NULL, iPlotSetZoomAttrib, NULL, NULL, IUPAF_WRITEONLY | IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
@@ -3653,6 +3675,7 @@ void iupPlotRegisterAttributes(Iclass* ic)
   iupClassRegisterAttribute(ic, "DS_STRXDATA", iPlotGetDSStrXDataAttrib, NULL, NULL, NULL, IUPAF_READONLY | IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "DS_EXTRA", iPlotGetDSExtraAttrib, NULL, NULL, NULL, IUPAF_READONLY | IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "DS_ORDEREDX", iPlotGetDSOrderedXAttrib, iPlotSetDSOrderedXAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
+  iupClassRegisterAttribute(ic, "DS_SELECTED", iPlotGetDSSelectedAttrib, iPlotSetDSSelectedAttrib, NULL, NULL, IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
 
   iupClassRegisterAttribute(ic, "VIEWPORTSQUARE", iPlotGetViewportSquareAttrib, iPlotSetViewportSquareAttrib, IUPAF_SAMEASSYSTEM, "NO", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "AXS_SCALEEQUAL", iPlotGetAxisScaleEqualAttrib, iPlotSetAxisScaleEqualAttrib, IUPAF_SAMEASSYSTEM, "NO", IUPAF_NOT_MAPPED | IUPAF_NO_INHERIT);

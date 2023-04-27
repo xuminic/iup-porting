@@ -146,6 +146,7 @@ elems[] =
   { "Text",         code_string,       check_cb,          0  },
   { "Val",          code_string,       check_string,      0  },
   { "FlatVal",      code_string,       check_string,      0  },
+  { "FlatTree",     code_empty,        check_empty,       0  },
   { "Tree",         code_empty,        check_empty,       0  },
   { "Tabs",         code_elemlist,     check_elemlist,    0  },
   { "FlatTabs",     code_elemlist,     check_elemlist,    0  },
@@ -846,7 +847,7 @@ Telem* elem( char* name, Tlist* attrs, Tlist* params )
   if (params)
   {
     ret->nparams = params->size;
-    ret->params = list2paramvector( params );
+    ret->params = list2param( params );
   }
   else
   {
@@ -926,7 +927,7 @@ Tlist* revertlist( Tlist* l )
   return l;
 }
 
-Tparam** list2paramvector( Tlist* params )
+Tparam** list2param( Tlist* params )
 {
   int i = params->size;
   if (i)

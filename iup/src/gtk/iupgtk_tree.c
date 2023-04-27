@@ -760,6 +760,7 @@ static void gtkTreeChildRebuildCacheRec(Ihandle* ih, GtkTreeModel *model, GtkTre
 
 static void gtkTreeRebuildNodeCache(Ihandle* ih, int id, GtkTreeIter iterItem)
 {
+  /* preserve cache user_data */
   GtkTreeModel* model = gtk_tree_view_get_model(GTK_TREE_VIEW(ih->handle));
   ih->data->node_cache[id].node_handle = iterItem.user_data;
   gtkTreeChildRebuildCacheRec(ih, model, &iterItem, &id);
@@ -1237,7 +1238,7 @@ static char* gtkTreeGetKindAttrib(Ihandle* ih, int id)
 
   gtk_tree_model_get(model, &iterItem, IUPGTK_NODE_KIND, &kind, -1);
 
-  if(!kind)
+  if (kind == ITREE_BRANCH)
     return "BRANCH";
   else
     return "LEAF";
@@ -1247,15 +1248,18 @@ static char* gtkTreeGetStateAttrib(Ihandle* ih, int id)
 {
   GtkTreeModel* model = gtk_tree_view_get_model(GTK_TREE_VIEW(ih->handle));
   GtkTreeIter iterItem;
+  int kind;
 
   if (!gtkTreeFindNode(ih, id, &iterItem))
     return NULL;
 
-  if (gtk_tree_model_iter_has_child(model, &iterItem))
+  gtk_tree_model_get(model, &iterItem, IUPGTK_NODE_KIND, &kind, -1);
+
+  if (kind == ITREE_BRANCH)
   {
     GtkTreePath* path = gtk_tree_model_get_path(model, &iterItem);
     int expanded = gtk_tree_view_row_expanded(GTK_TREE_VIEW(ih->handle), path);
-   gtk_tree_path_free(path);
+    gtk_tree_path_free(path);
 
     if (expanded)
       return "EXPANDED";
@@ -2357,7 +2361,8 @@ static void gtkTreeRowActived(GtkTreeView* tree_view, GtkTreePath *path, GtkTree
   GtkTreeModel* model;
   int kind;  /* used for nodes defined as branches, but do not have children */
   IFni cbExecuteLeaf  = (IFni)IupGetCallback(ih, "EXECUTELEAF_CB");
-  if (!cbExecuteLeaf)
+  IFni cbExecuteBranch = (IFni)IupGetCallback(ih, "EXECUTEBRANCH_CB");
+  if (!cbExecuteLeaf && !cbExecuteBranch)
     return;
 
   model = gtk_tree_view_get_model(GTK_TREE_VIEW(ih->handle));
@@ -2365,8 +2370,16 @@ static void gtkTreeRowActived(GtkTreeView* tree_view, GtkTreePath *path, GtkTree
   gtk_tree_model_get(model, &iterItem, IUPGTK_NODE_KIND, &kind, -1);
 
   /* just to leaf nodes */
-  if(gtk_tree_model_iter_has_child(model, &iterItem) == 0 && kind == ITREE_LEAF)
-    cbExecuteLeaf(ih, gtkTreeFindNodeId(ih, &iterItem));
+  if (kind == ITREE_LEAF)
+  {
+    if (cbExecuteLeaf)
+      cbExecuteLeaf(ih, gtkTreeFindNodeId(ih, &iterItem));
+  }
+  else
+  {
+    if (cbExecuteBranch)
+      cbExecuteBranch(ih, gtkTreeFindNodeId(ih, &iterItem));
+  }
 
   (void)column;
   (void)tree_view;
@@ -2450,7 +2463,7 @@ static int gtkTreeIsBranchButton(GtkTreeModel* model, GtkTreeIter *iter, int cel
   int kind;
   gtk_tree_model_get(model, iter, IUPGTK_NODE_KIND, &kind, -1);
 
-  if (kind==0) /* if branch must check if just expanded/contracted */
+  if (kind == ITREE_BRANCH) /* if branch must check if just expanded/contracted */
   {
     int depth = gtk_tree_store_iter_depth(GTK_TREE_STORE(model), iter);
     if (cell_x < (depth+1)*16)
@@ -2604,7 +2617,7 @@ static void gtkTreeToggleCB(Ihandle *ih, GtkTreeIter *iterItem, int check)
   if (iupAttribGetBoolean(ih, "MARKWHENTOGGLE"))
   {
     int id = gtkTreeFindNodeId(ih, iterItem);
-    IupSetAttributeId(ih, "MARKED", id, check? "Yes" : "No");
+    IupSetAttributeId(ih, "MARKED", id, check > 0? "Yes" : "No");
   }
 }
 
@@ -2814,7 +2827,7 @@ void iupdrvTreeDragDropCopyNode(Ihandle* src, Ihandle* dst, InodeHandle *itemSrc
   gtkTreeDragDropCopyChildren(src, dst, &iterItemSrc, &iterNewItem);
 
   count = dst->data->node_count - old_count;
-  iupTreeDragDropCopyCache(dst, id_dst, id_new, count);
+  iupTreeCopyMoveCache(dst, id_dst, id_new, count, 1);  /* update only the dst control cache */
   gtkTreeRebuildNodeCache(dst, id_new, iterNewItem);
 }
 

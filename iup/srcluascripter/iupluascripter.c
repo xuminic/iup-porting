@@ -178,9 +178,10 @@ int main(int argc, char **argv)
   main_dialog = IupLuaScripterDlg();
 
   IupSetAttribute(main_dialog, "SUBTITLE", "IupLuaScripter");
+  IupSetAttribute(main_dialog, "PROJECT_EXT", "vlua");
+  /* EXTRAFILTERS already set by IupLuaScripterDlg */
   IupSetAttributeHandle(main_dialog, "CONFIG", config);
-  IupSetAttribute(main_dialog, "PROJECTEXT", "luasc");
-  
+
   menu = IupGetAttributeHandle(main_dialog, "MENU");
   IupAppend(menu, IupSubmenu("&Help", IupMenu(
     IupSetCallbacks(IupItem("&IUP...", NULL), "ACTION", (Icallback)item_iup_action_cb, NULL),

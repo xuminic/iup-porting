@@ -2,7 +2,7 @@ PROJNAME = iup
 APPNAME := iupvled
 OPT = YES
 
-SRC = iup_vled.c
+SRC = iup_vled.c iup_vled_imgs.c vled_image_editor.c
 
 IUP := ..
 
@@ -32,17 +32,17 @@ USE_IM = Yes
 ifdef USE_IM
   DEFINES += USE_IM  
   ifneq ($(findstring Win, $(TEC_SYSNAME)), )
-    LIBS += iupim
+    LIBS += iupim im_process cdim
   else
     ifdef USE_STATIC
       ifdef DBG_DIR
-        IUPLIB = $(IUP)/lib/$(TEC_UNAME)d
+        IUP_LIB = $(IUP)/lib/$(TEC_UNAME)d
       else
-        IUPLIB = $(IUP)/lib/$(TEC_UNAME)
+        IUP_LIB = $(IUP)/lib/$(TEC_UNAME)
       endif  
-      SLIB += $(IUPLIB)/libiupim.a
+      SLIB += $(IUP_LIB)/libiupim.a $(IM_LIB)/libim_process.a $(CD_LIB)/libcdim.a
     else
-      LIBS += iupim
+      LIBS += iupim im_process cdim
     endif             
   endif             
 endif 
@@ -50,16 +50,16 @@ endif
 ifneq ($(findstring Win, $(TEC_SYSNAME)), )
   LIBS += iupimglib iup_scintilla imm32
 else
+  LIBS += atk-1.0
   ifdef USE_STATIC
     ifdef DBG_DIR
-      IUPLIB = $(IUP)/lib/$(TEC_UNAME)d
+      IUP_LIB = $(IUP)/lib/$(TEC_UNAME)d
     else
-      IUPLIB = $(IUP)/lib/$(TEC_UNAME)
+      IUP_LIB = $(IUP)/lib/$(TEC_UNAME)
     endif  
-    SLIB += $(IUPLIB)/libiupimglib.a $(IUPLIB)/libiup_scintilla.a
+    SLIB += $(IUP_LIB)/libiupimglib.a $(IUP_LIB)/libiup_scintilla.a
   else
     LIBS += iupimglib iup_scintilla
-    LIBS += atk-1.0
   endif             
 endif
 
@@ -72,9 +72,9 @@ ifndef USE_NO_OPENGL
   else
     ifdef USE_STATIC
       ifdef DBG_DIR
-        IUPLIB = $(IUP)/lib/$(TEC_UNAME)d
+        IUP_LIB = $(IUP)/lib/$(TEC_UNAME)d
       else
-        IUPLIB = $(IUP)/lib/$(TEC_UNAME)
+        IUP_LIB = $(IUP)/lib/$(TEC_UNAME)
       endif  
       SLIB += $(IUP_LIB)/libiupglcontrols.a 
     else
@@ -101,9 +101,9 @@ ifndef USE_NO_PLOT
   else
     ifdef USE_STATIC
       ifdef DBG_DIR
-        IUPLIB = $(IUP)/lib/$(TEC_UNAME)d
+        IUP_LIB = $(IUP)/lib/$(TEC_UNAME)d
       else
-        IUPLIB = $(IUP)/lib/$(TEC_UNAME)
+        IUP_LIB = $(IUP)/lib/$(TEC_UNAME)
       endif  
       SLIB += $(IUP_LIB)/libiup_plot.a
       SLIB += $(CD_LIB)/libcdgl.a

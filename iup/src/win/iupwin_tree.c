@@ -148,6 +148,7 @@ static void winTreeChildRebuildCacheRec(Ihandle* ih, HTREEITEM hItem, int *id)
 
 static void winTreeRebuildNodeCache(Ihandle* ih, int id, HTREEITEM hItem)
 {
+  /* preserve cache user_data */
   ih->data->node_cache[id].node_handle = hItem;
   winTreeChildRebuildCacheRec(ih, hItem, &id);
 }
@@ -805,7 +806,7 @@ static void winTreeCallToggleValueCb(Ihandle* ih, HTREEITEM hItem)
   }
 }
 
-static int winTreeCallBranchLeafCb(Ihandle* ih, HTREEITEM hItem)
+static int winTreeCallBranchLeafCb(Ihandle* ih, HTREEITEM hItem, int execute)
 {
   TVITEM item;
   winTreeItemData* itemData;
@@ -825,6 +826,13 @@ static int winTreeCallBranchLeafCb(Ihandle* ih, HTREEITEM hItem)
     if (iupAttribGet(ih, "_IUPTREE_IGNORE_BRANCH_CB"))
       return IUP_DEFAULT;
 
+    if (execute)
+    {
+      IFni cbExecuteBranch = (IFni)IupGetCallback(ih, "EXECUTEBRANCH_CB");
+      if (cbExecuteBranch)
+        cbExecuteBranch(ih, iupTreeFindNodeId(ih, hItem));
+    }
+
     if (item.state & TVIS_EXPANDED)
     {
       IFni cbBranchClose = (IFni)IupGetCallback(ih, "BRANCHCLOSE_CB");
@@ -838,7 +846,7 @@ static int winTreeCallBranchLeafCb(Ihandle* ih, HTREEITEM hItem)
         return cbBranchOpen(ih, iupTreeFindNodeId(ih, hItem));
     }
   }
-  else
+  else if (execute)
   {
     IFni cbExecuteLeaf = (IFni)IupGetCallback(ih, "EXECUTELEAF_CB");
     if (cbExecuteLeaf)
@@ -2044,7 +2052,8 @@ static int winTreeSetValueAttrib(Ihandle* ih, const char* value)
   {
     int i;
     HTREEITEM hItemPrev = hItemFocus;
-    HTREEITEM hItemNext = hItemFocus;
+    HTREEITEM hItemNext;
+
     for(i = 0; i < 10; i++)
     {
       hItemNext = hItemPrev;
@@ -2061,7 +2070,7 @@ static int winTreeSetValueAttrib(Ihandle* ih, const char* value)
   else if(iupStrEqualNoCase(value, "PGDN"))
   {
     int i;
-    HTREEITEM hItemPrev = hItemFocus;
+    HTREEITEM hItemPrev;
     HTREEITEM hItemNext = hItemFocus;
     
     for(i = 0; i < 10; i++)
@@ -2466,7 +2475,7 @@ static int winTreeMsgProc(Ihandle* ih, UINT msg, WPARAM wp, LPARAM lp, LRESULT *
       if (wp == VK_RETURN)
       {
         HTREEITEM hItemFocus = iupdrvTreeGetFocusNode(ih);
-        if (winTreeCallBranchLeafCb(ih, hItemFocus) != IUP_IGNORE)
+        if (winTreeCallBranchLeafCb(ih, hItemFocus, 1) != IUP_IGNORE)
         {
           if (winTreeIsBranch(ih, hItemFocus))
           {
@@ -2839,6 +2848,12 @@ static int winTreeWmNotify(Ihandle* ih, NMHDR* msg_info, int *result)
       if(cbExecuteLeaf)
         cbExecuteLeaf(ih, iupTreeFindNodeId(ih, hItemFocus));
     }
+    else
+    {
+      IFni cbExecuteBranch = (IFni)IupGetCallback(ih, "EXECUTEBRANCH_CB");
+      if (cbExecuteBranch)
+        cbExecuteBranch(ih, iupTreeFindNodeId(ih, hItemFocus));
+    }
   }
   else if(msg_info->code == TVN_ITEMEXPANDING)
   {
@@ -2846,7 +2861,7 @@ static int winTreeWmNotify(Ihandle* ih, NMHDR* msg_info, int *result)
     NMTREEVIEW* tree_info = (NMTREEVIEW*)msg_info;
     HTREEITEM hItem = tree_info->itemNew.hItem;
 
-    if (winTreeCallBranchLeafCb(ih, hItem) != IUP_IGNORE)
+    if (winTreeCallBranchLeafCb(ih, hItem, 0) != IUP_IGNORE)
     {
       TVITEM item;
       winTreeItemData* itemData = (winTreeItemData*)tree_info->itemNew.lParam;
@@ -3056,7 +3071,7 @@ void iupdrvTreeDragDropCopyNode(Ihandle* src, Ihandle* dst, InodeHandle *itemSrc
   winTreeDragDropCopyChildren(src, dst, hItemSrc, hItemNew);
 
   count = dst->data->node_count - old_count;
-  iupTreeDragDropCopyCache(dst, id_dst, id_new, count);
+  iupTreeCopyMoveCache(dst, id_dst, id_new, count, 1);  /* update only the dst control cache */
   winTreeRebuildNodeCache(dst, id_new, hItemNew);
 }
 

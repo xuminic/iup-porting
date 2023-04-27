@@ -631,8 +631,8 @@ static int iMatrixSetFitToSizeAttrib(Ihandle* ih, const char* value)
   }
 
   ih->data->need_calcsize = 1;
-  if (ih->handle)
-    iupMatrixDraw(ih, 1);
+
+  IupUpdate(ih); /* post a redraw, because FITTOSIZE can be set inside a resize_cb */
   return 0;
 }
 
@@ -703,8 +703,8 @@ static int iMatrixSetFitToTextAttrib(Ihandle* ih, const char* value)
   }
 
   ih->data->need_calcsize = 1;
-  if (ih->handle)
-    iupMatrixDraw(ih, 1);
+
+  IupUpdate(ih); /* post a redraw, because FITTOSIZE can be set inside a resize_cb */
   return 0;
 }
 
@@ -969,7 +969,7 @@ static int iMatrixSetFlatAttrib(Ihandle* ih, const char* value)
   else
     ih->data->flat = 0;
 
-  IupUpdate(ih);
+  IupUpdate(ih);  /* post a redraw */
   return 0; /* do not store value in hash table */
 }
 
@@ -1884,6 +1884,8 @@ static void iMatrixUnMapMethod(Ihandle* ih)
 {
   if (ih->data->cd_canvas)
   {
+    iupAttribSetStr(ih, "_IUPCD_LASTFONT", NULL); /* Cache in IupCdSetFont */
+
     cdKillCanvas(ih->data->cd_canvas);
     ih->data->cd_canvas = NULL;
   }
