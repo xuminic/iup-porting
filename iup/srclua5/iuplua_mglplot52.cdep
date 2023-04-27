@@ -1,9 +1,0 @@
-$(OBJDIR)/iuplua_mglplot.o: ctrl/iuplua_mglplot.c ../include/iup.h \
- ../include/iupkey.h ../include/iupdef.h ../include/iup_mglplot.h \
- ../include/iuplua.h ../include/iuplua_mglplot.h ../srclua5/il.h
-$(OBJDIR)/il_mglplot.o: ctrl/il_mglplot.c ../include/iup.h ../include/iupkey.h \
- ../include/iupdef.h ../include/iuplua.h ../include/iup_mglplot.h \
- ../srclua5/il.h lh/mglplot.lh
-$(OBJDIR)/il_mgllabel.o: ctrl/il_mgllabel.c ../include/iup.h ../include/iupkey.h \
- ../include/iupdef.h ../include/iuplua.h ../include/iup_mglplot.h \
- ../srclua5/il.h lh/mgllabel.lh

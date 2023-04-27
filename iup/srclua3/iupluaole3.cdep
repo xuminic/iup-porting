@@ -1,3 +1,0 @@
-$(OBJDIR)/iuplua_olecontrol.o: iuplua_olecontrol.c ../include/iup.h \
- ../include/iupkey.h ../include/iupdef.h ../include/iupole.h \
- ../include/iupluaole.h

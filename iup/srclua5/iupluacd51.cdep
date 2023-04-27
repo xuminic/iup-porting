@@ -1,2 +1,0 @@
-$(OBJDIR)/iuplua_cd.o: iuplua_cd.c ../include/iup.h ../include/iupkey.h \
- ../include/iupdef.h ../include/iuplua.h

@@ -126,9 +126,9 @@ static void winTextParseParagraphFormat(Ihandle* formattag, PARAFORMAT2 *parafor
     {
       paraformat->dwMask |= PFM_NUMBERINGSTYLE;
 
-      if (iupStrEqualNoCase(format, "RIGHTPARENTESES"))
+      if (iupStrEqualNoCase(format, "RIGHTPARENTHESIS"))
         paraformat->wNumberingStyle = PFNS_PAREN;
-      else if (iupStrEqualNoCase(format, "PARENTESES"))
+      else if (iupStrEqualNoCase(format, "PARENTHESES"))
         paraformat->wNumberingStyle = PFNS_PARENS;
       else if (iupStrEqualNoCase(format, "PERIOD"))
         paraformat->wNumberingStyle = PFNS_PERIOD;
@@ -2240,4 +2240,6 @@ void iupdrvTextInitClass(Iclass* ic)
   iupClassRegisterAttribute(ic, "CUEBANNER", NULL, winTextSetCueBannerAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "FILTER", NULL, winTextSetFilterAttrib, NULL, NULL, IUPAF_NO_INHERIT);
   iupClassRegisterAttribute(ic, "NOHIDESEL", NULL, NULL, IUPAF_SAMEASSYSTEM, "Yes", IUPAF_NO_INHERIT);
+
+  iupClassRegisterAttribute(ic, "CONTROLID", NULL, NULL, NULL, NULL, IUPAF_NO_INHERIT);
 }

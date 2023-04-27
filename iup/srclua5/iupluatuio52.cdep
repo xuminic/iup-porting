@@ -1,3 +1,0 @@
-$(OBJDIR)/il_tuioclient.o: ctrl/il_tuioclient.c ../include/iup.h \
- ../include/iupkey.h ../include/iupdef.h ../include/iuplua.h \
- ../include/iuptuio.h ../srclua5/il.h lh/tuioclient.lh

@@ -1,6 +1,0 @@
-$(OBJDIR)/iuplua_plot.o: ctrl/iuplua_plot.c ../include/iup.h ../include/iupkey.h \
- ../include/iupdef.h ../include/iup_plot.h ../include/iuplua.h \
- ../include/iuplua_plot.h ../srclua5/il.h
-$(OBJDIR)/il_plot.o: ctrl/il_plot.c ../include/iup.h ../include/iupkey.h \
- ../include/iupdef.h ../include/iuplua.h ../include/iup_plot.h \
- ../srclua5/il.h lh/plot.lh

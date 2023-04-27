@@ -338,7 +338,7 @@ static void iGLCanvasBoxComputeNaturalSizeMethod(Ihandle* ih, int *w, int *h, in
     iupBaseComputeNaturalSize(child);
   }
 
-  /* use this to overwrite container behavior in iupBaseComputeNaturalSize */
+  /* Also set expand to its own expand so it will not depend on children */
   *children_expand = ih->expand;
 
   (void)w;
@@ -501,7 +501,7 @@ Iclass* iupGLCanvasBoxNewClass(void)
   ic->name = "glcanvasbox";
   ic->format = "g"; /* array of Ihandle */
   ic->nativetype = IUP_TYPECANVAS;
-  ic->childtype  = IUP_CHILDMANY;
+  ic->childtype = IUP_CHILDMANY;  /* can have children */
   ic->is_interactive = 1;
 
   ic->New = iupGLCanvasBoxNewClass;

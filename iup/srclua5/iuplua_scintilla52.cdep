@@ -1,3 +1,0 @@
-$(OBJDIR)/il_scintilla.o: ctrl/il_scintilla.c ../include/iup.h ../include/iupkey.h \
- ../include/iupdef.h ../include/iuplua.h ../include/iup_scintilla.h \
- ../srclua5/il.h lh/scintilla.lh

@@ -1,6 +1,0 @@
-$(OBJDIR)/iuplua_glcanvas.o: ctrl/iuplua_glcanvas.c ../include/iup.h \
- ../include/iupkey.h ../include/iupdef.h ../include/iupgl.h \
- ../include/iuplua.h ../include/iupluagl.h ../srclua5/il.h
-$(OBJDIR)/il_glcanvas.o: ctrl/il_glcanvas.c ../include/iup.h ../include/iupkey.h \
- ../include/iupdef.h ../include/iuplua.h ../include/iupgl.h \
- ../srclua5/il.h lh/glcanvas.lh
