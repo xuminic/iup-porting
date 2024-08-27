@@ -304,7 +304,9 @@ ifdef GTK_DEFAULT
       USE_GTK3 = Yes
     endif
     ifneq ($(findstring Linux31, $(TEC_UNAME)), )
-      USE_GTK3 = Yes
+      ifeq ($(findstring CentOS, $(TEC_DIST)), )
+        USE_GTK3 = Yes
+      endif
     endif
     ifneq ($(findstring cygw, $(TEC_UNAME)), )
       USE_GTK3 = Yes
@@ -1432,7 +1434,6 @@ ifdef USE_GTK
     
     STDINCS += $(GTK)/include/atk-1.0 $(GTK)/include/gtk-$(GTKSFX).0 $(GTK)/include/gdk-pixbuf-2.0 
     STDINCS += $(GTK)/include/cairo $(GTK)/include/pango-1.0 $(GTK)/include/glib-2.0
-    STDINCS += $(GTK)/include/harfbuzz
 
     ifeq ($(TEC_SYSARCH), x64)
       STDINCS += $(GTK)/lib64/glib-2.0/include 

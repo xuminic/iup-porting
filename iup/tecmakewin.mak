@@ -6,7 +6,7 @@
 
 #---------------------------------#
 # Tecmake Version
-VERSION = 4.21
+VERSION = 4.22
 
 
 #---------------------------------#
@@ -26,8 +26,8 @@ TECMAKE  = $(TECMAKE_HOME)/tecmakewin.mak
 # If tecmake.bat is not used,
 # then at least define main system variables.
 
-WIN32UNAMES = vc16 vc15 vc14 vc12 vc11 vc10 vc9 vc8 vc7 vc6 owc1 bc55 bc56 bc6 gcc3 gcc4 gcc7 mingw3 mingw4 mingw6 dllw4 dllw6 dllg4 dllg7 dll dll7 dll8 dll9 dll10 dll11 dll12 dll14 dll15 dll16
-WIN64UNAMES = vc16_64 vc15_64 vc14_64 vc12_64 vc11_64 vc10_64 vc9_64 vc8_64 dll8_64 dll9_64 dll10_64 dll11_64 dll12_64 dll14_64 dll15_64 dll16_64 gcc4_64 gcc7_64 mingw4_64 dllw4_64 mingw6_64 dllw6_64 dllg4_64 dllg7_64
+WIN32UNAMES = vc17 vc16 vc15 vc14 vc12 vc11 vc10 vc9 vc8 vc7 vc6 owc1 bc55 bc56 bc6 gcc3 gcc4 gcc7 mingw3 mingw4 mingw6 dllw4 dllw6 dllg4 dllg7 dll dll7 dll8 dll9 dll10 dll11 dll12 dll14 dll15 dll16 dll17
+WIN64UNAMES = vc17_64 vc16_64 vc15_64 vc14_64 vc12_64 vc11_64 vc10_64 vc9_64 vc8_64 dll8_64 dll9_64 dll10_64 dll11_64 dll12_64 dll14_64 dll15_64 dll16_64 dll17_64 gcc4_64 gcc7_64 mingw4_64 dllw4_64 mingw6_64 dllw6_64 dllg4_64 dllg7_64
 
 ifdef TEC_UNAME
   ifneq ($(findstring $(TEC_UNAME), $(WIN32UNAMES)), )
@@ -346,6 +346,7 @@ VC12 ?= x:/lng/vc12
 VC14 ?= x:/lng/vc14
 VC15 ?= x:/lng/vc15
 VC16 ?= x:/lng/vc16
+VC17 ?= x:/lng/vc17
 OWC1 ?= x:/lng/owc1
 BC55 ?= x:/lng/bc55
 BC56 ?= x:/lng/cbuilderx
@@ -436,6 +437,10 @@ ifneq ($(findstring vc16, $(TEC_UNAME)), )
   COMPILER = $(VC16)
 endif
 
+ifneq ($(findstring vc17, $(TEC_UNAME)), )
+  COMPILER = $(VC17)
+endif
+
 ifeq "$(TEC_UNAME)" "dll"
   COMPILER = $(VC6)
 endif
@@ -485,6 +490,11 @@ endif
 ifneq ($(findstring dll16, $(TEC_UNAME)), )
   COMPILER = $(VC16)
 endif
+
+ifneq ($(findstring dll17, $(TEC_UNAME)), )
+  COMPILER = $(VC16)
+endif
+
 ifeq "$(COMPILER)" "$(VC6)"
   TEC_CC = vc
   # Use the VC7 Platform SDK, no harm if VC7 is not installed
@@ -685,6 +695,35 @@ ifeq "$(COMPILER)" "$(VC16)"
     SDKLIBBIN := x86
   endif
   WINSDKVERNUM ?= 10.0.18362.0
+  RESBIN := $(PLATSDK)/bin/$(WINSDKVERNUM)/$(SDKLIBBIN)
+  WINSDKBASEINC := $(PLATSDK)/include/$(WINSDKVERNUM)
+  WINSDKBASELIB := $(PLATSDK)/lib/$(WINSDKVERNUM)
+  PLATSDK_INC := $(WINSDKBASEINC)/ucrt $(WINSDKBASEINC)/shared $(WINSDKBASEINC)/um
+  PLATSDK_LIB := $(WINSDKBASELIB)/ucrt/$(SDKLIBBIN) $(WINSDKBASELIB)/um/$(SDKLIBBIN)
+endif
+
+ifeq "$(COMPILER)" "$(VC17)"
+  NEW_VC_COMPILER = Yes
+  NEW_SDK_UM = Yes
+  NEW_VC_PATH = Yes
+  TEC_CC = vc
+  STDDEFS += -DMSVC17
+  ifndef USE_DLL
+    #there is no single thread RTL in VC17
+    USE_MT = Yes
+  endif
+  ifdef VC17SDK
+    PLATSDK ?= $(VC17SDK)
+  else
+    # Not the real folder, we copied from "C:\Program Files (x86)\Windows Kits\10"
+    PLATSDK ?= $(VC17)/WinSDK
+  endif
+  ifdef BUILD64
+    SDKLIBBIN := x64
+  else
+    SDKLIBBIN := x86
+  endif
+  WINSDKVERNUM ?= 10.0.19041.0
   RESBIN := $(PLATSDK)/bin/$(WINSDKVERNUM)/$(SDKLIBBIN)
   WINSDKBASEINC := $(PLATSDK)/include/$(WINSDKVERNUM)
   WINSDKBASELIB := $(PLATSDK)/lib/$(WINSDKVERNUM)

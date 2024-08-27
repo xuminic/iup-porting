@@ -1,16 +1,5 @@
 ifeq ($(OS), Windows_NT)
   WINLIBS = iupole iupfiledlg
-  export MINGW4=/c/mingw
-  export TEC_UNAME=mingw4
-endif
-
-# Quick decision which GTK is available
-# By the way please add "STDINCS += $(GTK)/include/harfbuzz" in tecmake.mak:1400
-ifndef  USE_GTK2
-gtkver := $(shell pkg-config gtk+-3.0 --cflags)
-ifeq ($(gtkver), )
-  export USE_GTK2=1
-endif
 endif
 
 TARGETS := iup iupcd iupcontrols iupgl iupglcontrols iup_plot iup_mglplot iup_scintilla iupim iupimglib $(WINLIBS) iupweb iuptuio ledc iupview iupvled iuplua5 iupluaconsole iupluascripter
@@ -18,12 +7,7 @@ TARGETS := $(filter-out $(EXCLUDE_TARGETS), $(TARGETS))
 OTHERDEPENDENCIES := iupgtk iupmot
 
 .PHONY: do_all $(TARGETS) $(OTHERDEPENDENCIES)
-do_all: iup iupimglib $(WINLIBS)
-	cp ./lib/*/*.a ./lib
-
-clean:
-	rm -rf ./lib/* ./obj/* ./src/iup.dep ./srcimglib/iupimglib.dep
-	rm -rf ./src/dep/iup.dep.Linux510_64
+do_all: $(TARGETS)
 
 iup iupgtk iupmot:
 	@$(MAKE) --no-print-directory -C ./src/ $@
