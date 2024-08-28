@@ -17,10 +17,10 @@ IUPDIR	= ../iup
 
 ifdef	USE_GTK2
 INCS	= -I. -I$(IUPDIR)/include `pkg-config gtk+-2.0 --cflags`
-LIBS	= -L$(IUPDIR)/lib -liup `pkg-config gtk+-2.0 --libs`
+LIBS	= -L../lib -liup `pkg-config gtk+-2.0 --libs`
 else
 INCS	= -I. -I$(IUPDIR)/include `pkg-config gtk+-3.0 --cflags`
-LIBS	= -L$(IUPDIR)/lib -liup `pkg-config gtk+-3.0 --libs`
+LIBS	= -L../lib -liup `pkg-config gtk+-3.0 --libs`
 endif
 
 CFLAGS	= -Wall -O3
