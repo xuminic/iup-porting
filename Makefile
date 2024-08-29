@@ -29,7 +29,7 @@ TARGETS := iup iupimglib $(WINLIBS)
 all: $(TARGETS)
 	make -C ./iup $(TARGETS)
 	if [ ! -d lib ]; then mkdir lib; fi
-	cp ./iup/lib/*/* lib
+	cp ./iup/lib/*/*.a lib
 
 testing:
 	make -C ./testing
