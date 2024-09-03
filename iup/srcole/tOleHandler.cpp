@@ -2,6 +2,10 @@
 //
 //////////////////////////////////////////////////////////////////////
 
+typedef	unsigned char	byte;
+typedef unsigned char	boolean;
+#define hyper		__int64
+
 #include <ole2.h>
 #include <assert.h>
 

@@ -352,10 +352,10 @@ BC55 ?= x:/lng/bc55
 BC56 ?= x:/lng/cbuilderx
 BC6  ?= x:/lng/bc6
 MINGW3 ?= x:/lng/mingw3
-MINGW4 ?= x:/lng/mingw4
-MINGW4_64 ?= x:/lng/mingw4_64
-MINGW6 ?= x:/lng/mingw6
-MINGW6_64 ?= x:/lng/mingw6_64
+MINGW4 ?= /mingw32
+MINGW4_64 ?= /
+MINGW6 ?= /mingw64
+MINGW6_64 ?= /ucrt64
 # The default location is in the PATH
 #GCC3 ?= x:/lng/gcc3
 #GCC4 ?= x:/lng/gcc4
