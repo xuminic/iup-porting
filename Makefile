@@ -8,6 +8,9 @@
 #    STDINCS += $(GTK)/include/cairo $(GTK)/include/pango-1.0 $(GTK)/include/glib-2.0
 #    STDINCS += /usr/include/harfbuzz
 #
+# Note that MSYS2 do not create symbolic link truly, which is deep copy actually
+# See if [ ! -d lib ]; then ln -s Win32_mingw6_lib lib; fi
+#
 ifeq ($(OS), Windows_NT)
   UNAME=$(shell uname -s|cut -f1 -d-)
   ifeq ($(MSYSTEM),MINGW64)
@@ -41,16 +44,27 @@ endif
 TARGETS := iup iupimglib $(WINLIBS) 
 
 .PHONY: all $(TARGETS) testing
-all: $(TARGETS)
-	make -C ./iup $(TARGETS)
+ifneq ($(OS), Windows_NT)
+all: iup_all
 	if [ ! -d lib ]; then mkdir lib; fi
 	cp ./iup/lib/*/*.a lib
+else ifeq ($(MSYSTEM),MINGW32)
+all:
+	if [ ! -d lib ]; then ln -s Win32_mingw6_lib lib; fi
+else
+all:
+	if [ ! -d lib ]; then ln -s Win64_mingw6_lib lib; fi
+endif
+
+iup_all:
+	make -C ./iup $(TARGETS)
 
 testing:
 	make -C ./testing
 
 clean:
-	rm -rf ./iup/lib ./iup/obj ./iup/src/dep ./lib
 	rm -f ./iup/srcimglib/iupimglib.dep
 	rm -f ./iup/src/iup.wdep ./iup/srcimglib/iupimglib.wdep ./iup/srcole/iupole.wdep
+	rm -rf ./iup/lib ./iup/obj ./iup/src/dep
+	rm -rf ./lib
 
