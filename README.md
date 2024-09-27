@@ -39,13 +39,18 @@ USE_GTK3=1 make
 Managed to build the IUP in Windows XP, though there are many trade-offs.
 Need to install MinGW 2013 from SourceForge, then
 - set environment variable `MSYSTEM` to `MINGWXP`
-
+  ```
+  export MSYSTEM=MINGWXP
+  ```
   so the build system will known the host system in Windows XP.
   - It will set compiler path to `mingw3`, where is `/mingw/bin`
   - It will disable the Draw driver with alpha and anti-aliasing
 
+- manually building by `make iup_all`
 
- You don't have to compile the IUP in Windows. The iup-porting packed a set of library for Windows XP
- from the time machine in `WinXP_mingw4_lib`. It has been tested working in MinGW
+- The pre-built libaraies for Windows XP are available in `WinXP_mingw4_lib`
+
+  You don't have to compile the IUP in Windows. The iup-porting packed a set of library for Windows XP
+  from the time machine in `WinXP_mingw4_lib`. It has been tested working in MinGW
 
 
