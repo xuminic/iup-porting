@@ -53,6 +53,9 @@ all: iup_all
 else ifeq ($(MSYSTEM),MINGW32)
 all:
 	if [ ! -d lib ]; then ln -s Win32_mingw6_lib lib; fi
+else ifeq ($(MSYSTEM),MINGWXP)
+all:
+	if [ ! -d lib ]; then ln -s WinXP_mingw4_lib lib; fi
 else
 all:
 	if [ ! -d lib ]; then ln -s Win64_mingw6_lib lib; fi
