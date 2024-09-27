@@ -25,12 +25,18 @@
 #ifndef WM_TOUCH
 #define WM_TOUCH                        0x0240
 DECLARE_HANDLE(HTOUCHINPUT);
+#ifndef TOUCHEVENTF_MOVE	// play trick here. the structure should be available
 typedef struct tagTOUCHINPUT {
     LONG x; LONG y; HANDLE hSource; DWORD dwID; DWORD dwFlags; DWORD dwMask;
     DWORD dwTime; ULONG_PTR dwExtraInfo; DWORD cxContact; DWORD cyContact;
 } TOUCHINPUT;
+#endif
+#ifndef TOUCHEVENTF_MOVE
 #define TOUCHEVENTF_MOVE            0x0001
+#endif
+#ifndef TOUCHEVENTF_DOWN
 #define TOUCHEVENTF_DOWN            0x0002
+#endif
 #define TOUCHEVENTF_UP              0x0004
 #define TOUCHEVENTF_PRIMARY         0x0010
 #endif
@@ -82,11 +88,13 @@ static int winSetGestureAttrib(Ihandle *ih, const char *value)
   {
     if (!iupStrBoolean(value))
     {
+#ifdef GESTURECONFIG
       GESTURECONFIG config;
       config.dwID = 0;
       config.dwWant = 0;
       config.dwBlock = GC_ALLGESTURES;
       SetGestureConfig(ih->handle, 0, 1, &config, sizeof(config));
+#endif
     }
   }
   return 0;

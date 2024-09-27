@@ -33,6 +33,10 @@
 
 #define IUP_EDIT        0x0480
 
+#ifndef OFN_EX_NOPLACESBAR
+#define OFN_EX_NOPLACESBAR	1
+#endif
+
 
 enum {IUP_DIALOGOPEN, IUP_DIALOGSAVE, IUP_DIALOGDIR};
 

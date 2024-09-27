@@ -32,6 +32,13 @@
 #include "iupwin_info.h"
 #include "iupwin_str.h"
 
+#ifndef STATE_SYSTEM_INVISIBLE
+#define STATE_SYSTEM_INVISIBLE	0x08000
+#endif
+#ifndef STATE_SYSTEM_OFFSCREEN
+#define STATE_SYSTEM_OFFSCREEN	0x10000
+#endif
+
 
 static UINT WM_DRAGLISTMSG = 0;
 

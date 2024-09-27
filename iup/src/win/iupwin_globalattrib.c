@@ -32,6 +32,13 @@
 #define SPI_SETCLIENTAREAANIMATION 0x1043
 #endif
 
+#ifndef SM_DIGITIZER
+#define SM_DIGITIZER	94
+#endif
+#ifndef NID_READY
+#define NID_READY	0x80
+#endif
+
 
 static int win_monitor_index = 0;
 static HANDLE win_singleintance = NULL;

@@ -19,14 +19,12 @@
 
 long long iupTimerGetLongLong(Ihandle* ih, const char* name)
 {
-  long long i = 0;
   char *value = iupAttribGetStr(ih, name);
   if (value)
   {
-    if (sscanf(value, "%lld", &i) != 1)
-      return 0;
+     return strtoll(value, NULL, 0);
   }
-  return i;
+  return 0;
 }
 
 static int iTimerSetRunAttrib(Ihandle *ih, const char *value)

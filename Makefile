@@ -17,6 +17,8 @@ ifeq ($(OS), Windows_NT)
     export TEC_UNAME=mingw6
   else ifeq ($(MSYSTEM),MINGW32)
     export TEC_UNAME=mingw4
+  else ifeq ($(MSYSTEM),MINGWXP)
+    export TEC_UNAME=mingw3		# actually not mingw3, but to reuse the type for WinXP
   else ifeq ($(MSYSTEM),UCRT64)
     export TEC_UNAME=mingw6_64		# actually not mingw6_64, but to reuse the type
   else ifeq ($(MSYSTEM),MSYS)

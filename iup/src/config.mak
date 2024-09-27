@@ -44,7 +44,9 @@ ifeq ($(findstring Win, $(TEC_SYSNAME)), )
 endif
 
 # Draw driver with alpha and anti-aliasing in Windows and Linux enabled
+ifneq ($(MSYSTEM), MINGWXP)
 USE_NEW_DRAW := Yes
+endif
 
 SRC = iup_array.c iup_callback.c iup_dlglist.c iup_attrib.c iup_focus.c iup_font.c \
       iup_globalattrib.c iup_object.c iup_key.c iup_layout.c iup_ledlex.c iup_names.c \
@@ -184,6 +186,7 @@ else
            win/wdl/misc.c win/wdl/path.c win/wdl/string.c win/wdl/strokestyle.c
     SRC += win/iupwin_draw_wdl.c win/iupwin_draw_gdi.c win/iupwin_image_wdl.c $(WDL)
   else
+    INCLUDES += win/wdl
     SRC += win/iupwin_draw_gdi.c
   endif
          
